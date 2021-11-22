@@ -2,6 +2,12 @@ from manim import *
 import cv2
 config["assets_dir"] = 'assets'
 
+"""
+Make sure you run manim CE with --disable_caching flag
+If you run with caching, since there are some scenes that change pixel arrays,
+there might be some unexpeced behavior
+E.g manim -pql JPEGImageCompression/image_compression.py --disable_caching
+"""
 class ImageUtils(Scene):
     def construct(self):
         NUM_PIXELS = 32
@@ -36,10 +42,11 @@ class ImageUtils(Scene):
         @param pixel_array: multi-dimensional np.array[uint8]
         @return: ImageMobject of pixel array with given height
         """
-        # print(pixel_array.shape, pixel_array)
         image = ImageMobject(pixel_array)
-        image.set_resampling_algorithm(RESAMPLING_ALGORITHMS["nearest"])
-        image.height = height
+        # height of value None will just return original image mob size
+        if height:
+            image.set_resampling_algorithm(RESAMPLING_ALGORITHMS["nearest"])
+            image.height = height
         return image
 
     def down_sample_image(self, filepath, num_horiz_pixels, num_vert_pixels, image_height=4):
@@ -82,9 +89,9 @@ class ImageUtils(Scene):
     def get_assert_error_message(self, new_pixel_array, num_horiz_pixels, num_vert_pixels):
         return f'Resizing performed incorrectly: expected {num_horiz_pixels} x {num_vert_pixels} but got {new_pixel_array.shape[0]} x {new_pixel_array.shape[1]}'
 
-    def get_pixel_grid(self, image, num_pixels_in_dimension):
+    def get_pixel_grid(self, image, num_pixels_in_dimension, color=WHITE):
         side_length_single_cell = image.height / num_pixels_in_dimension
-        pixel_grid = VGroup(*[Square(side_length=side_length_single_cell).set_stroke(width=1) for _ in range(num_pixels_in_dimension ** 2)])
+        pixel_grid = VGroup(*[Square(side_length=side_length_single_cell).set_stroke(color=color, width=1, opacity=0.5) for _ in range(num_pixels_in_dimension ** 2)])
         pixel_grid.arrange_in_grid(rows=num_pixels_in_dimension, buff=0)
         return pixel_grid
 
@@ -196,6 +203,210 @@ class TestYCbCrImagesDuck(ImageUtils):
 
         self.add(y_channel, u_channel, v_channel)
         self.wait()
+
+# Animation for representing duck image as signal
+class ImageToSignal(ImageUtils):
+    NUM_PIXELS = 32
+    HEIGHT = 3
+    def construct(self):
+        image_mob = self.down_sample_image(
+            "duck", ImageToSignal.NUM_PIXELS,
+            ImageToSignal.NUM_PIXELS, image_height=ImageToSignal.HEIGHT
+        )
+        gray_scale_image_mob = self.get_gray_scale_image(image_mob, height=ImageToSignal.HEIGHT)
+        self.play(
+            FadeIn(gray_scale_image_mob)
+        )
+        self.wait()
+
+        pixel_grid = self.add_grid(gray_scale_image_mob)
+
+        axes = self.get_axis()
+
+        pixel_row_mob, row_values = self.pick_out_row_of_image(gray_scale_image_mob, pixel_grid, 16)
+
+        self.play(
+            Write(axes)
+        )
+        self.wait()
+
+        self.plot_row_values(axes, row_values)
+
+    def get_gray_scale_image(self, image_mob, height=4):
+        """
+        @param: image_mob -- Mobject.ImageMobject representation of image
+        @return: Mobject.ImageMobject of Y (brightness) channel from YCbCr representation
+        (equivalent to gray scale)
+        """
+        y, u, v = self.get_yuv_image_from_rgb(image_mob.get_pixel_array())
+        y_channel = self.get_image_mob(y, height=height)
+        y_channel.move_to(UP * 2)
+        return y_channel
+
+    def add_grid(self, image_mob):
+        pixel_grid = self.get_pixel_grid(image_mob, ImageToSignal.NUM_PIXELS)
+        pixel_grid.move_to(image_mob.get_center())
+        self.play(
+            FadeIn(pixel_grid)
+        )
+        self.wait()
+
+        return pixel_grid
+
+    def get_axis(self):
+        ax = Axes(
+            x_range=[0, ImageToSignal.NUM_PIXELS, 1],
+            y_range=[0, 255, 1],
+            y_length=2.7,
+            x_length=10,
+            tips=False,
+            axis_config={"include_numbers": True, "include_ticks": False},
+            x_axis_config={"numbers_to_exclude": list(range(1, ImageToSignal.NUM_PIXELS))},
+            y_axis_config={"numbers_to_exclude": list(range(1, 255))}
+        ).move_to(DOWN * 2.2)
+        return ax
+
+    def pick_out_row_of_image(self, image_mob, pixel_grid, row):
+        pixel_array = image_mob.get_pixel_array()
+        pixel_row_mob, row_values = self.get_pixel_row_mob(pixel_array, row)
+        pixel_row_mob.next_to(image_mob, DOWN)
+        surround_rect = SurroundingRectangle(
+            pixel_grid[row * ImageToSignal.NUM_PIXELS:row * ImageToSignal.NUM_PIXELS + ImageToSignal.NUM_PIXELS],
+            buff=0,
+        ).set_stroke(width=2, color=PURE_GREEN)
+        self.play(
+            Create(surround_rect)
+        )
+        self.wait()
+
+        self.play(
+            FadeIn(pixel_row_mob)
+        )
+        self.wait()
+        return pixel_row_mob, row_values
+
+    def get_pixel_row_mob(self, pixel_array, row, height=SMALL_BUFF * 3):
+        row_values = [pixel_array[row][i][0] for i in range(ImageToSignal.NUM_PIXELS)]
+        pixel_row_mob = VGroup(
+            *[Square(side_length=height).set_stroke(width=1, color=PURE_GREEN)
+            .set_fill(color=gray_scale_value_to_hex(value), opacity=1)
+            for value in row_values]
+        ).arrange(RIGHT, buff=0)
+        return pixel_row_mob, row_values
+
+    def plot_row_values(self, axes, pixel_row_values):
+        pixel_coordinates = list(enumerate(pixel_row_values))
+        axes.add_coordinates()
+        path = VGroup()
+        path_points = [axes.coords_to_point(x, y) for x, y in pixel_coordinates]
+        path.set_points_smoothly(*[path_points]).set_color(YELLOW)
+        dots = VGroup(*[Dot(axes.coords_to_point(x, y), radius=SMALL_BUFF / 2, color=YELLOW) for x, y in pixel_coordinates])
+        self.play(
+            LaggedStartMap(GrowFromCenter, dots),
+            run_time=3
+        )
+        self.wait()
+        self.play(
+            Create(path),
+            run_time=4
+        )
+        self.wait()
+
+# This class handles animating any row of pixels from an image into a signal
+# Handling this differently since in general, pixel counts per row will be high
+class GeneralImageToSignal(ImageToSignal):
+    def construct(self):
+        image_mob = ImageMobject("dog").move_to(UP * 2)
+        pixel_array = image_mob.get_pixel_array()
+        ImageToSignal.NUM_PIXELS = pixel_array.shape[1]
+
+        ROW = 140
+        self.play(
+            FadeIn(image_mob)
+        )
+        self.wait()
+        highlight_row = self.highlight_row(ROW, image_mob)
+
+        row_mob, row_values = self.get_pixel_row_mob(pixel_array, ROW)
+
+        row_mob.next_to(image_mob, DOWN)
+
+        surround_rect = self.show_highlight_to_surround_rect(highlight_row, row_mob)
+
+        axes = self.get_axis()
+        self.play(
+            Write(axes)
+        )
+        self.wait()
+
+        self.show_signal(axes, row_values, row_mob)
+
+    def get_pixel_row_mob(self, pixel_array, row, height=SMALL_BUFF * 3, row_length=13):
+        row_values = [pixel_array[row][i][0] for i in range(ImageToSignal.NUM_PIXELS)]
+        pixel_row_mob = VGroup(
+            *[Rectangle(height=height, width=row_length/ImageToSignal.NUM_PIXELS).set_stroke(color=gray_scale_value_to_hex(value))
+            .set_fill(color=gray_scale_value_to_hex(value), opacity=1)
+            for value in row_values]
+        ).arrange(RIGHT, buff=0)
+        return pixel_row_mob, row_values
+
+    # draws a line indicating row of image_mob we are highlight
+    def highlight_row(self, row, image_mob):
+        vertical_pos = image_mob.get_top() + DOWN * row / image_mob.get_pixel_array().shape[0] * image_mob.height
+        left_bound = vertical_pos + LEFT * image_mob.width / 2
+        right_bound = vertical_pos + RIGHT * image_mob.width / 2
+        line = Line(left_bound, right_bound).set_color(PURE_GREEN).set_stroke(width=1)
+        self.play(
+            Create(line)
+        )
+        self.wait()
+        return line
+
+    def show_highlight_to_surround_rect(self, highlight_row, row_mob):
+        surround_rect = SurroundingRectangle(row_mob, buff=0).set_color(highlight_row.get_color())
+        self.play(
+            FadeIn(row_mob),
+            TransformFromCopy(highlight_row, surround_rect),
+            run_time=2
+        )
+        self.wait()
+        return surround_rect
+
+    def show_signal(self, axes, pixel_row_values, pixel_row_mob):
+        pixel_coordinates = list(enumerate(pixel_row_values))
+        axes.add_coordinates()
+        path = VGroup()
+        path_points = [axes.coords_to_point(x, y) for x, y in pixel_coordinates]
+        path.set_points_smoothly(*[path_points]).set_color(YELLOW)
+
+        arrow = Arrow(DOWN * 0.5, UP * 0.5).set_color(YELLOW).next_to(pixel_row_mob, DOWN, aligned_edge=LEFT, buff=SMALL_BUFF)
+        self.play(
+            Write(arrow)
+        )
+        self.wait()
+        new_arrow = arrow.copy().next_to(pixel_row_mob, DOWN, aligned_edge=RIGHT, buff=SMALL_BUFF)
+        self.play(
+            Transform(arrow, new_arrow),
+            Create(path),
+            run_time=5,
+            rate_func=linear,
+        )
+        self.wait()
+
+# Quick test of gray_scale_value_to_hex
+class TestHexToGrayScale(Scene):
+    def construct(self):
+        for i in range(256):
+            dot = Dot().set_color(gray_scale_value_to_hex(i))
+            self.add(dot)
+            self.wait()
+            self.remove(dot)
+
+def gray_scale_value_to_hex(value):
+    hex_string = hex(value).split('x')[-1]
+    if value < 16:
+        hex_string = '0' + hex_string
+    return '#' + hex_string * 3
 
 
 def make_lut_u():
