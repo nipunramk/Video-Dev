@@ -1,6 +1,6 @@
-from logging import warn
 from manim import *
 import cv2
+
 
 config["assets_dir"] = "assets"
 
@@ -22,11 +22,12 @@ REDUCIBLE_GREEN_DARKER = "#008f4f"
 class MotivateAndExplainYCbCr(ThreeDScene):
     def construct(self):
         self.set_camera_orientation(phi=75 * DEGREES, theta=-45 * DEGREES)
+        self.move_camera(zoom=0.2)
 
-        cubes_vg = self.create_rgb_cube(color_res=4, cube_side_length=1)
+        cubes_vg = self.create_yuv_cube(color_res=8, cube_side_length=1)
         self.wait(2)
         self.play(FadeIn(cubes_vg))
-        self.play(Rotate(cubes_vg, angle=4 * PI), run_time=6)
+        self.play(Rotate(cubes_vg, angle=2 * PI), run_time=6)
         self.wait(2)
 
     def create_rgb_cube(self, color_res=8, cube_side_length=0.1, buff=0.05):
@@ -53,15 +54,6 @@ class MotivateAndExplainYCbCr(ThreeDScene):
             for j in range(color_resolution):
                 for k in range(color_resolution):
 
-                    print(
-                        rgb_to_hex(
-                            (
-                                (i * discrete_ratio) / 255,
-                                (j * discrete_ratio) / 255,
-                                (k * discrete_ratio) / 255,
-                            )
-                        )
-                    )
                     color = rgb_to_hex(
                         (
                             (i * discrete_ratio) / 255,
@@ -70,13 +62,74 @@ class MotivateAndExplainYCbCr(ThreeDScene):
                         )
                     )
                     cubes.append(
-                        Cube(side_length=side_length, fill_color=color).shift(
-                            (LEFT * i + UP * j + OUT * k) * offset
-                        )
+                        Cube(
+                            side_length=side_length, fill_color=color, fill_opacity=1
+                        ).shift((LEFT * i + UP * j + OUT * k) * offset)
                     )
 
         cubes_vg = Group(*cubes)
         return cubes_vg
+
+    def create_yuv_cube(self, color_res=8, cube_side_length=0.1, buff=0.05):
+        """
+        Creates a YCbCr cube composed of many smaller cubes. The `color_res` argument defines
+        how many cubes there will be to represent the full spectrum, particularly color_res ^ 3.
+        Works exactly like `create_rgb_cube` but for YCrCb colors.
+
+        It is recommended that color_res is a power of two.
+
+        @param: color_res - defines the number of cubes in every dimension. Higher values yield a finer
+        representation of the space, but are very slow to deal with.
+        @param: cube_side_length - defines the side length of each individual cube
+        @param: buff - defines how much space there will be between each cube
+        """
+
+        max_color_res = 256
+        color_resolution = color_res
+        discrete_ratio = max_color_res // color_resolution
+
+        side_length = cube_side_length
+        offset = side_length + buff
+        cubes = []
+
+        for i in range(color_resolution):
+            for j in range(color_resolution):
+                for k in range(color_resolution):
+
+                    r = i * discrete_ratio
+                    g = j * discrete_ratio
+                    b = k * discrete_ratio
+
+                    y, cb, cr = self.rgb2ycbcr(r, g, b)
+
+                    color = rgb_to_hex(
+                        (
+                            (y) / 255,
+                            (cb) / 255,
+                            (cr) / 255,
+                        )
+                    )
+
+                    cubes.append(
+                        Cube(
+                            side_length=side_length, fill_color=color, fill_opacity=1
+                        ).shift((LEFT * i + UP * j + OUT * k) * offset)
+                    )
+
+        cubes_vg = Group(*cubes)
+        return cubes_vg
+
+    def rgb2ycbcr(self, r, g, b):  # in (0,255) range
+        y = 0.299 * r + 0.587 * g + 0.114 * b
+        cb = 128 - 0.168736 * r - 0.331364 * g + 0.5 * b
+        cr = 128 + 0.5 * r - 0.418688 * g - 0.081312 * b
+        return y, cb, cr
+
+    def ycbcr2rgb(self, y, cb, cr):
+        r = y + 1.402 * (cr - 128)
+        g = y - 0.34414 * (cb - 128) - 0.71414 * (cr - 128)
+        b = y + 1.772 * (cb - 128)
+        return r, g, b
 
 
 class ImageUtils(Scene):
