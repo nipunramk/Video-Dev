@@ -30,6 +30,17 @@ class MotivateAndExplainYCbCr(ThreeDScene):
         self.wait(2)
 
     def create_rgb_cube(self, color_res=8, cube_side_length=0.1, buff=0.05):
+        """
+        Creates an RGB cube composed of many smaller cubes. The `color_res` argument defines
+        how many cubes there will be to represent the full spectrum, particularly color_res ^ 3.
+
+        It is recommended that color_res is a power of two.
+
+        @param: color_res - defines the number of cubes in every dimension. Higher values yield a finer
+        representation of the space, but are very slow to deal with.
+        @param: cube_side_length - defines the side length of each individual cube
+        @param: buff - defines how much space there will be between each cube
+        """
         max_color_res = 256
         color_resolution = color_res
         discrete_ratio = max_color_res // color_resolution
