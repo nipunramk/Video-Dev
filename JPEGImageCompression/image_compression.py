@@ -23,20 +23,19 @@ class MotivateAndExplainYCbCr(ThreeDScene):
     def construct(self):
         self.set_camera_orientation(phi=75 * DEGREES, theta=-45 * DEGREES)
 
-        cubes_vg = self.create_rgb_cube()
+        cubes_vg = self.create_rgb_cube(color_res=4, cube_side_length=1)
         self.wait(2)
         self.play(FadeIn(cubes_vg))
         self.play(Rotate(cubes_vg, angle=4 * PI), run_time=6)
         self.wait(2)
 
-    def create_rgb_cube():
-
+    def create_rgb_cube(self, color_res=8, cube_side_length=0.1, buff=0.05):
         max_color_res = 256
-        color_resolution = 8
+        color_resolution = color_res
         discrete_ratio = max_color_res // color_resolution
 
-        side_length = 0.1
-        offset = side_length + 0.05
+        side_length = cube_side_length
+        offset = side_length + buff
         cubes = []
 
         for i in range(color_resolution):
