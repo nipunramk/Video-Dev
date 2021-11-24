@@ -23,6 +23,14 @@ class MotivateAndExplainYCbCr(ThreeDScene):
     def construct(self):
         self.set_camera_orientation(phi=75 * DEGREES, theta=-45 * DEGREES)
 
+        cubes_vg = self.create_rgb_cube()
+        self.wait(2)
+        self.play(FadeIn(cubes_vg))
+        self.play(Rotate(cubes_vg, angle=4 * PI), run_time=6)
+        self.wait(2)
+
+    def create_rgb_cube():
+
         max_color_res = 256
         color_resolution = 8
         discrete_ratio = max_color_res // color_resolution
@@ -58,11 +66,7 @@ class MotivateAndExplainYCbCr(ThreeDScene):
                     )
 
         cubes_vg = Group(*cubes)
-
-        self.wait(2)
-        self.play(FadeIn(cubes_vg))
-        self.play(Rotate(cubes_vg, angle=4 * PI), run_time=6)
-        self.wait(2)
+        return cubes_vg
 
 
 class ImageUtils(Scene):
