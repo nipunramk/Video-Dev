@@ -28,7 +28,9 @@ class MotivateAndExplainYCbCr(ThreeDScene):
             coords2ycbcrcolor, color_res=8, cube_side_length=1
         )
         self.wait(2)
-        self.add(cubes_vg)
+        self.add(
+            cubes_vg,
+        )
         self.wait(2)
 
     def create_color_space_cube(
@@ -55,8 +57,8 @@ class MotivateAndExplainYCbCr(ThreeDScene):
         @return: Group - returns a group of 3D cubes colored to form the color space
         """
 
-        max_color_res = 256
-        discrete_ratio = max_color_res // color_res
+        MAX_COLOR_RES = 256
+        discrete_ratio = MAX_COLOR_RES // color_res
 
         side_length = cube_side_length
         offset = side_length + buff
