@@ -24,91 +24,53 @@ class MotivateAndExplainYCbCr(ThreeDScene):
         self.set_camera_orientation(phi=75 * DEGREES, theta=-45 * DEGREES)
         self.move_camera(zoom=0.2)
 
-        cubes_vg = self.create_yuv_cube(color_res=8, cube_side_length=1)
+        cubes_vg = self.create_color_space_cube(
+            coords2ycbcrcolor, color_res=8, cube_side_length=1
+        )
         self.wait(2)
-        self.play(FadeIn(cubes_vg))
-        self.play(Rotate(cubes_vg, angle=2 * PI), run_time=6)
+        self.add(cubes_vg)
         self.wait(2)
 
-    def create_rgb_cube(self, color_res=8, cube_side_length=0.1, buff=0.05):
-        """
-        Creates an RGB cube composed of many smaller cubes. The `color_res` argument defines
-        how many cubes there will be to represent the full spectrum, particularly color_res ^ 3.
-
-        It is recommended that color_res is a power of two.
-
-        @param: color_res - defines the number of cubes in every dimension. Higher values yield a finer
-        representation of the space, but are very slow to deal with.
-        @param: cube_side_length - defines the side length of each individual cube
-        @param: buff - defines how much space there will be between each cube
-        """
-        max_color_res = 256
-        color_resolution = color_res
-        discrete_ratio = max_color_res // color_resolution
-
-        side_length = cube_side_length
-        offset = side_length + buff
-        cubes = []
-
-        for i in range(color_resolution):
-            for j in range(color_resolution):
-                for k in range(color_resolution):
-
-                    color = rgb_to_hex(
-                        (
-                            (i * discrete_ratio) / 255,
-                            (j * discrete_ratio) / 255,
-                            (k * discrete_ratio) / 255,
-                        )
-                    )
-                    cubes.append(
-                        Cube(
-                            side_length=side_length, fill_color=color, fill_opacity=1
-                        ).shift((LEFT * i + UP * j + OUT * k) * offset)
-                    )
-
-        cubes_vg = Group(*cubes)
-        return cubes_vg
-
-    def create_yuv_cube(self, color_res=8, cube_side_length=0.1, buff=0.05):
+    def create_color_space_cube(
+        self,
+        color_space_func,
+        color_res=8,
+        cube_side_length=0.1,
+        buff=0.05,
+    ):
         """
         Creates a YCbCr cube composed of many smaller cubes. The `color_res` argument defines
         how many cubes there will be to represent the full spectrum, particularly color_res ^ 3.
         Works exactly like `create_rgb_cube` but for YCrCb colors.
 
-        It is recommended that color_res is a power of two.
+        @param: color_space_func - A function that defines what color space we are going to use.
 
         @param: color_res - defines the number of cubes in every dimension. Higher values yield a finer
-        representation of the space, but are very slow to deal with.
+        representation of the space, but are very slow to deal with. It is recommended that color_res is a power of two.
+
         @param: cube_side_length - defines the side length of each individual cube
+
         @param: buff - defines how much space there will be between each cube
+
+        @return: Group - returns a group of 3D cubes colored to form the color space
         """
 
         max_color_res = 256
-        color_resolution = color_res
-        discrete_ratio = max_color_res // color_resolution
+        discrete_ratio = max_color_res // color_res
 
         side_length = cube_side_length
         offset = side_length + buff
         cubes = []
 
-        for i in range(color_resolution):
-            for j in range(color_resolution):
-                for k in range(color_resolution):
+        for i in range(color_res):
+            for j in range(color_res):
+                for k in range(color_res):
 
-                    r = i * discrete_ratio
-                    g = j * discrete_ratio
-                    b = k * discrete_ratio
+                    i_discrete = i * discrete_ratio
+                    j_discrete = j * discrete_ratio
+                    k_discrete = k * discrete_ratio
 
-                    y, cb, cr = self.rgb2ycbcr(r, g, b)
-
-                    color = rgb_to_hex(
-                        (
-                            (y) / 255,
-                            (cb) / 255,
-                            (cr) / 255,
-                        )
-                    )
+                    color = color_space_func(i_discrete, j_discrete, k_discrete)
 
                     cubes.append(
                         Cube(
@@ -118,18 +80,6 @@ class MotivateAndExplainYCbCr(ThreeDScene):
 
         cubes_vg = Group(*cubes)
         return cubes_vg
-
-    def rgb2ycbcr(self, r, g, b):  # in (0,255) range
-        y = 0.299 * r + 0.587 * g + 0.114 * b
-        cb = 128 - 0.168736 * r - 0.331364 * g + 0.5 * b
-        cr = 128 + 0.5 * r - 0.418688 * g - 0.081312 * b
-        return y, cb, cr
-
-    def ycbcr2rgb(self, y, cb, cr):
-        r = y + 1.402 * (cr - 128)
-        g = y - 0.34414 * (cb - 128) - 0.71414 * (cr - 128)
-        b = y + 1.772 * (cb - 128)
-        return r, g, b
 
 
 class ImageUtils(Scene):
@@ -645,3 +595,54 @@ def get_dot_product_matrix():
                 dot_product_matrix[i][j] = value
 
     return dot_product_matrix
+
+
+def rgb2ycbcr(r, g, b):  # in (0,255) range
+    y = 0.299 * r + 0.587 * g + 0.114 * b
+    cb = 128 - 0.168736 * r - 0.331364 * g + 0.5 * b
+    cr = 128 + 0.5 * r - 0.418688 * g - 0.081312 * b
+    return y, cb, cr
+
+
+def ycbcr2rgb(y, cb, cr):
+    r = y + 1.402 * (cr - 128)
+    g = y - 0.34414 * (cb - 128) - 0.71414 * (cr - 128)
+    b = y + 1.772 * (cb - 128)
+    return r, g, b
+
+
+def coords2rgbcolor(i, j, k):
+    """
+    Function to transform coordinates in 3D space to hexadecimal RGB color.
+
+    @param: i - x coordinate
+    @param: j - y coordinate
+    @param: k - z coordinate
+    @return: hex value for the corresponding color
+    """
+    return rgb_to_hex(
+        (
+            (i) / 255,
+            (j) / 255,
+            (k) / 255,
+        )
+    )
+
+
+def coords2ycbcrcolor(i, j, k):
+    """
+    Function to transform coordinates in 3D space to hexadecimal YCbCr color.
+
+    @param: i - x coordinate
+    @param: j - y coordinate
+    @param: k - z coordinate
+    @return: hex value for the corresponding color
+    """
+    y, cb, cr = rgb2ycbcr(i, j, k)
+    return rgb_to_hex(
+        (
+            (y) / 255,
+            (cb) / 255,
+            (cr) / 255,
+        )
+    )
