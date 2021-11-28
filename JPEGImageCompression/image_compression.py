@@ -194,7 +194,14 @@ class ImageUtils(Scene):
         pixel_grid.arrange_in_grid(rows=num_pixels_in_dimension, buff=0)
         return pixel_grid
 
-    def get_yuv_image_from_rgb(self, pixel_array):
+    def get_yuv_image_from_rgb(self, pixel_array, mapped=True):
+        """
+        Extracts the Y, U and V channels from a given image.
+
+        @param: pixel_array - the image to be processed
+        @param: mapped - boolean. if true, return the YUV data mapped back to RGB for presentation purposes. Otherwise,
+        return the y, u, and v channels directly for further processing, such as chroma subsampling.
+        """
 
         # discard alpha channel
         rgb_img = pixel_array[:, :, :3]
@@ -203,22 +210,93 @@ class ImageUtils(Scene):
         img_yuv = cv2.cvtColor(rgb_img, cv2.COLOR_BGR2YUV)
         y, u, v = cv2.split(img_yuv)
 
-        lut_u, lut_v = make_lut_u(), make_lut_v()
+        if not mapped:
+            return y, u, v
+        else:
+            lut_u, lut_v = make_lut_u(), make_lut_v()
 
-        # Convert back to BGR so we display the images
-        y = cv2.cvtColor(y, cv2.COLOR_GRAY2BGR)
-        u = cv2.cvtColor(u, cv2.COLOR_GRAY2BGR)
-        v = cv2.cvtColor(v, cv2.COLOR_GRAY2BGR)
+            # Convert back to BGR so we display the images
+            y = cv2.cvtColor(y, cv2.COLOR_GRAY2BGR)
+            u = cv2.cvtColor(u, cv2.COLOR_GRAY2BGR)
+            v = cv2.cvtColor(v, cv2.COLOR_GRAY2BGR)
 
-        u_mapped = cv2.LUT(u, lut_u)
-        v_mapped = cv2.LUT(v, lut_v)
+            u_mapped = cv2.LUT(u, lut_u)
+            v_mapped = cv2.LUT(v, lut_v)
 
-        # Flip channels to RGB
-        y_rgb = y[:, :, [2, 1, 0]]
-        u_mapped_rgb = u_mapped[:, :, [2, 1, 0]]
-        v_mapped_rgb = v_mapped[:, :, [2, 1, 0]]
+            # Flip channels to RGB
+            y_rgb = y[:, :, [2, 1, 0]]
+            u_mapped_rgb = u_mapped[:, :, [2, 1, 0]]
+            v_mapped_rgb = v_mapped[:, :, [2, 1, 0]]
 
-        return y_rgb, u_mapped_rgb, v_mapped_rgb
+            return y_rgb, u_mapped_rgb, v_mapped_rgb
+
+    def chroma_subsample_image(self, pixel_array, mode="4:2:2"):
+        """
+        Applies chroma subsampling to the image. Modes supported are the most common ones: 4:2:2 and 4:2:0.
+
+        @param: pixel_array - the image to be processed
+        @param: mode - a string, either `4:2:2` or `4:2:0`, corresponding to 4:2:2 and 4:2:0 subsampling respectively.
+        @param: image - returns back the image in RGB format with subsampling applied
+        """
+        assert mode in (
+            "4:2:2",
+            "4:2:0",
+        ), "Please choose one of the following {'4:2:2', '4:2:0'}"
+
+        y, u, v = self.get_yuv_image_from_rgb(pixel_array, mapped=False)
+
+        out_u = u.copy()
+        out_v = v.copy()
+        # Downsample with a window of 2 in the horizontal direction
+        if mode == "4:2:2":
+            # first the u channel
+            for i in range(0, u.shape[0], 2):
+                out_u[i : i + 2] = np.mean(u[i : i + 2], axis=0)
+
+            # then the v channel
+            for i in range(0, v.shape[0], 2):
+                out_v[i : i + 2] = np.mean(v[i : i + 2], axis=0)
+
+        # Downsample with a window of 2 in both directions
+        elif mode == "4:2:0":
+            for i in range(0, u.shape[0], 2):
+                for j in range(0, u.shape[1], 2):
+                    out_u[i : i + 2, j : j + 2] = np.mean(u[i : i + 2, j : j + 2])
+
+            for i in range(0, v.shape[0], 2):
+                for j in range(0, v.shape[1], 2):
+                    out_v[i : i + 2, j : j + 2] = np.mean(v[i : i + 2, j : j + 2])
+
+        ycbcr_sub = np.stack(
+            (y, np.round(out_u).astype("uint8"), np.round(out_v).astype("uint8")),
+            axis=2,
+        )
+
+        return cv2.cvtColor(ycbcr_sub, cv2.COLOR_YUV2RGB)
+
+
+class IntroChromaSubsampling(ImageUtils):
+    def construct(self):
+        shed_raw = ImageMobject("shed")
+        chroma_subsampled = self.chroma_subsample_image(
+            shed_raw.get_pixel_array(), mode="4:2:2"
+        )
+
+        chroma_subsampled_mobj = ImageMobject(chroma_subsampled)
+
+        diff_image = shed_raw.get_pixel_array()[:, :, :3] - chroma_subsampled
+        diff_image = cv2.cvtColor(diff_image, cv2.COLOR_RGB2GRAY)
+        diff_image_mobj = ImageMobject(diff_image)
+
+        img_group = Group(shed_raw, chroma_subsampled_mobj, diff_image_mobj).arrange(
+            RIGHT
+        )
+
+        self.play(
+            FadeIn(img_group.scale(2)),
+            run_time=3,
+        )
+        self.wait(2)
 
 
 class TestGrayScaleImages(ImageUtils):
