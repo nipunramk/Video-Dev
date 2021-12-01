@@ -1,3 +1,4 @@
+import enum
 from manim import *
 import cv2
 
@@ -25,13 +26,19 @@ class MotivateAndExplainYCbCr(ThreeDScene):
         self.move_camera(zoom=0.2)
 
         cubes_vg = self.create_color_space_cube(
-            coords2ycbcrcolor, color_res=8, cube_side_length=1
+            coords2rgbcolor, color_res=4, cube_side_length=1
         )
         self.wait(2)
         self.add(
             cubes_vg,
         )
         self.wait(2)
+
+        for index, cube in enumerate(cubes_vg):
+            coords = index2coords(index, base=4)
+            print(coords)
+            self.remove(cube)
+            self.wait()
 
     def create_color_space_cube(
         self,
@@ -74,13 +81,14 @@ class MotivateAndExplainYCbCr(ThreeDScene):
 
                     color = color_space_func(i_discrete, j_discrete, k_discrete)
 
-                    cubes.append(
-                        Cube(
-                            side_length=side_length, fill_color=color, fill_opacity=1
-                        ).shift((LEFT * i + UP * j + OUT * k) * offset)
-                    )
+                    curr_cube = Cube(
+                        side_length=side_length, fill_color=color, fill_opacity=1
+                    ).shift((LEFT * i + UP * j + OUT * k) * offset)
+
+                    cubes.append(curr_cube)
 
         cubes_vg = Group(*cubes)
+
         return cubes_vg
 
 
@@ -726,3 +734,40 @@ def coords2ycbcrcolor(i, j, k):
             (cr) / 255,
         )
     )
+
+
+def index2coords(n, base):
+    """
+    Changes the base of `n` to `base`, assuming n is input in base 10.
+    The result is then returned as coordinates in `len(result)` dimensions.
+
+    This function allows us to iterate over the color cubes sequentially, using
+    enumerate to index every cube, and convert the index of the cube to its corresponding
+    coordinate in space.
+
+    Example: if our ``color_res = 4``:
+
+        - Cube #0 is located at (0, 0, 0)
+        - Cube #15 is located at (0, 3, 3)
+        - Cube #53 is located at (3, 1, 1)
+
+    So, we input our index, and obtain coordinates.
+
+    @param: n - number to be converted
+    @param: base - base to change the input
+    @return: list - coordinates that the number represent in their corresponding space
+    """
+    if base == 10:
+        return n
+
+    result = 0
+    counter = 0
+
+    while n:
+        r = n % base
+        n //= base
+        result += r * 10 ** counter
+        counter += 1
+
+    coords = list(f"{result:03}")
+    return coords
