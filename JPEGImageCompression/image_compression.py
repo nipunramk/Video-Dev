@@ -1,4 +1,5 @@
 import enum
+from PIL.Image import TRANSPOSE
 from manim import *
 import cv2
 from scipy import fftpack
@@ -26,20 +27,45 @@ class MotivateAndExplainYCbCr(ThreeDScene):
         self.set_camera_orientation(phi=75 * DEGREES, theta=-45 * DEGREES)
         self.move_camera(zoom=0.2)
 
-        cubes_vg = self.create_color_space_cube(
-            coords2rgbcolor, color_res=4, cube_side_length=1
+        color_resolution = 8
+        cubes_rgb = self.create_color_space_cube(
+            coords2rgbcolor, color_res=color_resolution, cube_side_length=1
+        )
+        cubes_yuv = self.create_color_space_cube(
+            coords2ycbcrcolor, color_res=color_resolution, cube_side_length=1
         )
         self.wait(2)
         self.add(
-            cubes_vg,
+            cubes_rgb,
         )
         self.wait(2)
 
-        for index, cube in enumerate(cubes_vg):
-            coords = index2coords(index, base=4)
+        anim_group = []
+        # this loop removes every cube that is not in the grayscale diagonal of the RGB colorspace.
+        # to do that, we calculate what coordinates a particular cube lives in, via their index.
+        # any diagonal cube will have their coordinates matching, so we remove everything else.
+        for index, cube in enumerate(cubes_rgb):
+            coords = index2coords(index, base=color_resolution)
             print(coords)
-            self.remove(cube)
-            self.wait()
+            if not coords[0] == coords[1] == coords[2]:
+                anim_group.append(FadeOut(cube))
+                cubes_rgb.remove(cube)
+
+        self.play(*anim_group)
+
+        self.play(Rotate(cubes_rgb, angle=PI * 2))
+        cubes_arranged = cubes_rgb.copy().arrange(OUT, buff=0)
+        self.play(Transform(cubes_rgb, cubes_arranged))
+
+        self.wait()
+
+        cubes_yuv.move_to(cubes_arranged.get_center())
+
+        # this is a very bad way of transforming the grayscale line to
+        # the cube obviously but it illustrates the point at least for now
+        self.play(Transform(cubes_arranged, cubes_yuv))
+        self.play(Rotate(cubes_arranged, angle=PI * 2))
+        self.wait()
 
     def create_color_space_cube(
         self,
@@ -88,9 +114,9 @@ class MotivateAndExplainYCbCr(ThreeDScene):
 
                     cubes.append(curr_cube)
 
-        cubes_vg = Group(*cubes)
+        cubes_rgb = Group(*cubes)
 
-        return cubes_vg
+        return cubes_rgb
 
 
 class ImageUtils(Scene):
@@ -203,7 +229,6 @@ class ImageUtils(Scene):
         pixel_grid.arrange_in_grid(rows=num_pixels_in_dimension, buff=0)
         return pixel_grid
 
-
     def get_yuv_image_from_rgb(self, pixel_array, mapped=True):
         """
         Extracts the Y, U and V channels from a given image.
@@ -306,6 +331,7 @@ class IntroChromaSubsampling(ImageUtils):
             run_time=3,
         )
         self.wait(2)
+
 
 class TestGrayScaleImages(ImageUtils):
     def construct(self):
@@ -591,70 +617,66 @@ class GeneralImageToSignal(ImageToSignal):
         )
         self.wait()
 
+
 class DCTExperiments(ImageUtils):
     def construct(self):
         image_mob = ImageMobject("dog").move_to(UP * 2)
-        self.play(
-            FadeIn(image_mob)
-        )
+        self.play(FadeIn(image_mob))
         self.wait()
 
-        print('Image size:', image_mob.get_pixel_array().shape)
-        
+        print("Image size:", image_mob.get_pixel_array().shape)
+
         self.perform_JPEG(image_mob)
 
     def perform_JPEG(self, image_mob):
         # Performs encoding/decoding steps on a gray scale block
         block_image, pixel_grid, block = self.highlight_pixel_block(image_mob, 125, 125)
-        print('Before\n', block[:, :, 1])
+        print("Before\n", block[:, :, 1])
         block_centered = format_block(block)
-        print('After centering\n', block_centered)
+        print("After centering\n", block_centered)
 
         dct_block = dct_2d(block_centered)
         np.set_printoptions(suppress=True)
-        print('DCT block (rounded)\n', np.round(dct_block, decimals=1))
+        print("DCT block (rounded)\n", np.round(dct_block, decimals=1))
 
         heat_map = self.get_heat_map(block_image, dct_block)
         heat_map.move_to(block_image.get_center() + RIGHT * 6)
-        self.play(
-            FadeIn(heat_map)
-        )
+        self.play(FadeIn(heat_map))
         self.wait()
 
-        self.play(
-            FadeOut(heat_map)
-        )
+        self.play(FadeOut(heat_map))
         self.wait()
-        
+
         quantized_block = quantize(dct_block)
-        print('After quantization\n', quantized_block)
+        print("After quantization\n", quantized_block)
 
         dequantized_block = dequantize(quantized_block)
-        print('After dequantize\n', dequantized_block)
+        print("After dequantize\n", dequantized_block)
 
         invert_dct_block = idct_2d(dequantized_block)
-        print('Invert DCT block\n', invert_dct_block)
+        print("Invert DCT block\n", invert_dct_block)
 
         compressed_block = invert_format_block(invert_dct_block)
-        print('After reformat\n', compressed_block)
+        print("After reformat\n", compressed_block)
 
-        print('MSE\n', np.mean((compressed_block - block[:, :, 1]) ** 2))
+        print("MSE\n", np.mean((compressed_block - block[:, :, 1]) ** 2))
 
         final_image = self.get_image_mob(compressed_block, height=2)
         final_image.move_to(block_image.get_center() + RIGHT * 6)
 
-        final_image_grid = self.get_pixel_grid(final_image, 8).move_to(final_image.get_center())
-        self.play(
-            FadeIn(final_image),
-            FadeIn(final_image_grid)
+        final_image_grid = self.get_pixel_grid(final_image, 8).move_to(
+            final_image.get_center()
         )
+        self.play(FadeIn(final_image), FadeIn(final_image_grid))
         self.wait()
 
         # self.get_dct_component(0, 0)
 
     def highlight_pixel_block(self, image_mob, start_row, start_col, block_size=8):
         pixel_array = image_mob.get_pixel_array()
-        block = pixel_array[start_row:start_row+block_size, start_col:start_col+block_size]
+        block = pixel_array[
+            start_row : start_row + block_size, start_col : start_col + block_size
+        ]
         center_row = start_row + block_size // 2
         center_col = start_col + block_size // 2
         vertical_pos = (
@@ -669,15 +691,17 @@ class DCTExperiments(ImageUtils):
         highlight_position = np.array([horizontal_pos[0], vertical_pos[1], 0])
         tiny_square_highlight.set_color(REDUCIBLE_YELLOW).move_to(highlight_position)
 
-        self.play(
-            Create(tiny_square_highlight)
-        )
+        self.play(Create(tiny_square_highlight))
         self.wait()
 
         block_position = DOWN * 2
         block_image = self.get_image_mob(block, height=2).move_to(block_position)
-        pixel_grid = self.get_pixel_grid(block_image, block_size).move_to(block_position)
-        surround_rect = SurroundingRectangle(pixel_grid, buff=0).set_color(REDUCIBLE_YELLOW)
+        pixel_grid = self.get_pixel_grid(block_image, block_size).move_to(
+            block_position
+        )
+        surround_rect = SurroundingRectangle(pixel_grid, buff=0).set_color(
+            REDUCIBLE_YELLOW
+        )
         self.play(
             FadeIn(block_image),
             FadeIn(pixel_grid),
@@ -705,8 +729,10 @@ class DCTExperiments(ImageUtils):
         for i, square in enumerate(pixel_grid_dct):
             row, col = i // block_size, i % block_size
             alpha = dct_block_abs[row][col] / max_dct_coeff
-            square.set_fill(color=interpolate_color(min_color, max_color, alpha), opacity=1)
-        
+            square.set_fill(
+                color=interpolate_color(min_color, max_color, alpha), opacity=1
+            )
+
         scale = Line(pixel_grid_dct.get_top(), pixel_grid_dct.get_bottom())
         scale.set_stroke(width=10).set_color(color=[min_color, max_color])
         integer_scale = 0.5
@@ -719,44 +745,44 @@ class DCTExperiments(ImageUtils):
 
         return VGroup(pixel_grid_dct, heat_map_scale).arrange(RIGHT)
 
+
 class DCTComponents(ImageUtils):
     def construct(self):
         image_mob = ImageMobject("dog").move_to(UP * 2)
         block_image, pixel_grid, block = self.get_pixel_block(image_mob, 125, 125)
-        print('Before\n', block[:, :, 1])
+        print("Before\n", block[:, :, 1])
         block_image.move_to(LEFT * 2 + DOWN * 2)
         pixel_grid.move_to(block_image.get_center())
         block_centered = format_block(block)
-        print('After centering\n', block_centered)
+        print("After centering\n", block_centered)
 
         dct_block = dct_2d(block_centered)
         np.set_printoptions(suppress=True)
-        print('DCT block (rounded)\n', np.round(dct_block, decimals=1))
+        print("DCT block (rounded)\n", np.round(dct_block, decimals=1))
 
-
-        self.play(
-            FadeIn(image_mob)
-        )
+        self.play(FadeIn(image_mob))
         self.wait()
 
         self.play(
             FadeIn(block_image),
-            FadeIn(pixel_grid)
+            FadeIn(pixel_grid),
         )
         self.wait()
         num_components = 40
         partial_block = self.get_partial_block(dct_block, num_components)
-        print(f'Partial block - {num_components} components\n', partial_block)
+        print(f"Partial block - {num_components} components\n", partial_block)
 
         partial_block_image = self.get_image_mob(partial_block, height=2)
-        partial_pixel_grid = self.get_pixel_grid(partial_block_image, partial_block.shape[0])
+        partial_pixel_grid = self.get_pixel_grid(
+            partial_block_image, partial_block.shape[0]
+        )
 
         partial_block_image.move_to(RIGHT * 2 + DOWN * 2)
         partial_pixel_grid.move_to(partial_block_image.get_center())
 
         self.play(
             FadeIn(partial_block_image),
-            FadeIn(partial_pixel_grid)
+            FadeIn(partial_pixel_grid),
         )
         self.wait()
 
@@ -774,14 +800,14 @@ class DCTComponents(ImageUtils):
         pixel_array = idct_2d(dct_matrix) + 128
         all_in_range = (pixel_array >= 0) & (pixel_array <= 255)
         if not all(all_in_range.flatten()):
-            print('Bad array\n', pixel_array)
+            print("Bad array\n", pixel_array)
             raise ValueError("All elements in pixel_array must be in range [0, 255]")
 
         image_mob = self.get_image_mob(pixel_array, height=2)
         pixel_grid = self.get_pixel_grid(image_mob, pixel_array.shape[0])
         self.wait()
         self.play(
-            FadeIn(image_mob)
+            FadeIn(image_mob),
         )
         self.add(pixel_grid)
         self.wait()
@@ -794,45 +820,47 @@ class DCTComponents(ImageUtils):
         for basis_comp in range(num_components):
             row, col = zigzag[basis_comp]
             dct_matrix[row][col] = dct_block[row][col]
-        
+
         pixel_array = idct_2d(dct_matrix)
         return invert_format_block(pixel_array)
 
     def get_pixel_block(self, image_mob, start_row, start_col, block_size=8):
         pixel_array = image_mob.get_pixel_array()
-        block = pixel_array[start_row:start_row+block_size, start_col:start_col+block_size]
-    
+        block = pixel_array[
+            start_row : start_row + block_size, start_col : start_col + block_size
+        ]
+
         block_image = self.get_image_mob(block, height=2)
         pixel_grid = self.get_pixel_grid(block_image, block_size)
-        
+
         return block_image, pixel_grid, block
 
     def display_component(self, dct_matrix, row, col):
         pass
 
+
 class DCTSliderExperiments(DCTComponents):
     def construct(self):
         image_mob = ImageMobject("dog").move_to(UP * 2)
         block_image, pixel_grid, block = self.get_pixel_block(image_mob, 125, 125)
-        print('Before\n', block[:, :, 1])
+        print("Before\n", block[:, :, 1])
         block_image.move_to(LEFT * 2 + DOWN * 0.5)
         pixel_grid.move_to(block_image.get_center())
         block_centered = format_block(block)
-        print('After centering\n', block_centered)
+        print("After centering\n", block_centered)
 
         dct_block = dct_2d(block_centered)
         np.set_printoptions(suppress=True)
-        print('DCT block (rounded)\n', np.round(dct_block, decimals=1))
-
+        print("DCT block (rounded)\n", np.round(dct_block, decimals=1))
 
         self.play(
-            FadeIn(image_mob)
+            FadeIn(image_mob),
         )
         self.wait()
 
         self.play(
             FadeIn(block_image),
-            FadeIn(pixel_grid)
+            FadeIn(pixel_grid),
         )
         self.wait()
 
@@ -861,47 +889,47 @@ class DCTSliderExperiments(DCTComponents):
         #     new_partial_block = self.get_partial_block(dct_block, num_components)
         #     print(f'Partial block - {num_components} components\n')
 
-        #     new_partial_block_image = self.get_image_mob(new_partial_block, height=2)            
+        #     new_partial_block_image = self.get_image_mob(new_partial_block, height=2)
         #     new_partial_block_image.move_to(image_pos)
         #     partial_block_image.become(new_partial_block_image)
-        
+
         tick = Triangle().scale(0.2).set_color(REDUCIBLE_YELLOW)
         tick.set_fill(color=REDUCIBLE_YELLOW, opacity=1)
 
         tracker = ValueTracker(0)
         tick.add_updater(
-            lambda m: m.next_to(
-                        number_line.n2p(tracker.get_value()),
-                        DOWN
-                    )
+            lambda m: m.next_to(number_line.n2p(tracker.get_value()), DOWN)
         )
-        self.play( 
+        self.play(
             FadeIn(tick),
         )
         self.wait()
         image_pos = RIGHT * 2 + DOWN * 0.5
-        
+
         def get_new_block():
             new_partial_block = self.get_partial_block(dct_block, tracker.get_value())
-            print(f'Partial block - {tracker.get_value()} components')
-            print('MSE', np.mean((new_partial_block - original_block[:, :, 1]) ** 2), '\n')
+            print(f"Partial block - {tracker.get_value()} components")
+            print(
+                "MSE", np.mean((new_partial_block - original_block[:, :, 1]) ** 2), "\n"
+            )
 
-            new_partial_block_image = self.get_image_mob(new_partial_block, height=2)            
+            new_partial_block_image = self.get_image_mob(new_partial_block, height=2)
             new_partial_block_image.move_to(image_pos)
             return new_partial_block_image
 
         partial_block = self.get_partial_block(dct_block, tracker.get_value())
         partial_block_image = always_redraw(get_new_block)
-        partial_pixel_grid = self.get_pixel_grid(partial_block_image, partial_block.shape[0])
+        partial_pixel_grid = self.get_pixel_grid(
+            partial_block_image, partial_block.shape[0]
+        )
         partial_pixel_grid.move_to(image_pos)
         self.play(
             FadeIn(partial_block_image),
-            FadeIn(partial_pixel_grid)
+            FadeIn(partial_pixel_grid),
         )
         self.add_foreground_mobject(partial_pixel_grid)
         self.wait()
-        
-       
+
         self.play(
             tracker.animate.set_value(64),
             run_time=10,
@@ -909,7 +937,6 @@ class DCTSliderExperiments(DCTComponents):
         ),
 
         self.wait()
-
 
     def get_partial_block(self, dct_block, num_components):
         """
@@ -919,6 +946,7 @@ class DCTSliderExperiments(DCTComponents):
         @return: pixel_array of partial block with num_components of DCT included
         """
         from math import floor
+
         zigzag = get_zigzag_order()
         dct_matrix = np.zeros((8, 8))
         floor_val = floor(num_components)
@@ -926,13 +954,14 @@ class DCTSliderExperiments(DCTComponents):
         for basis_comp in range(floor_val):
             row, col = zigzag[basis_comp]
             dct_matrix[row][col] = dct_block[row][col]
-        
+
         if floor_val < dct_block.shape[0] ** 2:
             row, col = zigzag[floor_val]
             dct_matrix[row][col] = remaining * dct_block[row][col]
 
         pixel_array = idct_2d(dct_matrix)
         return invert_format_block(pixel_array)
+
 
 class DCTEntireImageSlider(DCTSliderExperiments):
     def construct(self):
@@ -942,7 +971,7 @@ class DCTEntireImageSlider(DCTSliderExperiments):
         new_pixel_array = self.get_all_blocks(image_mob, 2, 298, 3, 331, 6)
         relevant_section = new_pixel_array[2:298, 3:331]
         new_image = self.get_image_mob(new_pixel_array, height=None).move_to(RIGHT * 2)
-        print('MSE\n', np.mean((relevant_section - original_pixel_array) ** 2))
+        print("MSE\n", np.mean((relevant_section - original_pixel_array) ** 2))
 
         self.play(
             FadeIn(image_mob),
@@ -951,7 +980,16 @@ class DCTEntireImageSlider(DCTSliderExperiments):
         # print(new_image.get_pixel_array().shape)
         self.wait()
 
-    def get_all_blocks(self, image_mob, start_row, end_row, start_col, end_col, num_components, block_size=8):
+    def get_all_blocks(
+        self,
+        image_mob,
+        start_row,
+        end_row,
+        start_col,
+        end_col,
+        num_components,
+        block_size=8,
+    ):
         pixel_array = image_mob.get_pixel_array()
         new_pixel_array = np.zeros((pixel_array.shape[0], pixel_array.shape[1]))
         for i in range(start_row, end_row, block_size):
@@ -972,13 +1010,15 @@ class DCTEntireImageSlider(DCTSliderExperiments):
                 #     raise ValueError("All elements in compressed_block must be in range [0, 255]")
                 # new_pixel_array[i:i+block_size, j:j+block_size] = compressed_block
                 partial_block = self.get_partial_block(dct_block, num_components)
-                new_pixel_array[i:i+block_size, j:j+block_size] = partial_block
+                new_pixel_array[i : i + block_size, j : j + block_size] = partial_block
 
         return new_pixel_array
 
     def get_pixel_block(self, pixel_array, start_row, start_col, block_size=8):
-        return pixel_array[start_row:start_row+block_size, start_col:start_col+block_size]
-        
+        return pixel_array[
+            start_row : start_row + block_size, start_col : start_col + block_size
+        ]
+
 
 # Quick test of gray_scale_value_to_hex
 class TestHexToGrayScale(Scene):
@@ -1072,48 +1112,56 @@ def get_dot_product_matrix():
 
     return dot_product_matrix
 
+
 def format_block(block):
     # [0, 255] -> [-128, 127]
     block_centered = block[:, :, 1].astype(float) - 128
     return block_centered
 
+
 def invert_format_block(block):
     # [-128, 127] -> [0, 255]
     new_block = block + 128
-    # in process of dct and inverse dct with quantization, 
+    # in process of dct and inverse dct with quantization,
     # some values can go out of range
     new_block[new_block > 255] = 255
     new_block[new_block < 0] = 0
     return new_block
 
+
 def dct_2d(block):
-    return fftpack.dct(fftpack.dct(block.T, norm='ortho').T, norm='ortho')
+    return fftpack.dct(fftpack.dct(block.T, norm="ortho").T, norm="ortho")
+
 
 def idct_2d(block):
-    return fftpack.idct(fftpack.idct(block.T, norm='ortho').T, norm='ortho')
+    return fftpack.idct(fftpack.idct(block.T, norm="ortho").T, norm="ortho")
+
 
 def quantize(block):
     quant_table = get_quantization_table()
     return (block / quant_table).round().astype(np.int32)
 
+
 def get_quantization_table():
     quant_table = np.array(
         [
-        [16, 11, 10, 16, 24,  40,  51,  61],
-        [12, 12, 14, 19, 26,  58,  60,  55],
-        [14, 13, 16, 24, 40,  57,  69,  56],
-        [14, 17, 22, 29, 51,  87,  80,  62],
-        [18, 22, 37, 56, 68,  109, 103, 77],
-        [24, 35, 55, 64, 81,  104, 113, 92],
-        [49, 64, 78, 87, 103, 121, 120, 101],
-        [72, 92, 95, 98, 112, 100, 103, 99],
+            [16, 11, 10, 16, 24, 40, 51, 61],
+            [12, 12, 14, 19, 26, 58, 60, 55],
+            [14, 13, 16, 24, 40, 57, 69, 56],
+            [14, 17, 22, 29, 51, 87, 80, 62],
+            [18, 22, 37, 56, 68, 109, 103, 77],
+            [24, 35, 55, 64, 81, 104, 113, 92],
+            [49, 64, 78, 87, 103, 121, 120, 101],
+            [72, 92, 95, 98, 112, 100, 103, 99],
         ]
     )
     return quant_table
 
+
 def dequantize(block):
     quant_table = get_quantization_table()
     return (block * quant_table).astype(np.float)
+
 
 def rgb2ycbcr(r, g, b):  # in (0,255) range
     y = 0.299 * r + 0.587 * g + 0.114 * b
@@ -1157,6 +1205,7 @@ def coords2ycbcrcolor(i, j, k):
     @return: hex value for the corresponding color
     """
     y, cb, cr = rgb2ycbcr(i, j, k)
+
     return rgb_to_hex(
         (
             (y) / 255,
@@ -1164,6 +1213,7 @@ def coords2ycbcrcolor(i, j, k):
             (cr) / 255,
         )
     )
+
 
 def index2coords(n, base):
     """
@@ -1201,16 +1251,20 @@ def index2coords(n, base):
     coords = list(f"{result:03}")
     return coords
 
+
 def get_zigzag_order(block_size=8):
     return zigzag(block_size)
 
+
 def zigzag(n):
-    '''zigzag rows'''
+    """zigzag rows"""
+
     def compare(xy):
         x, y = xy
         return (x + y, -y if (x + y) % 2 else y)
+
     xs = range(n)
-    return {n: index for n, index in enumerate(sorted(
-        ((x, y) for x in xs for y in xs),
-        key=compare
-    ))}
+    return {
+        n: index
+        for n, index in enumerate(sorted(((x, y) for x in xs for y in xs), key=compare))
+    }
