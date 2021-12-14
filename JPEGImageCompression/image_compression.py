@@ -28,7 +28,7 @@ class IntroduceRGBAndJPEG(Scene):
         b_t = Text("B", font="SF Mono").scale(3).set_color(BLUE)
 
         rgb_vg_h = VGroup(r_t, g_t, b_t).arrange(RIGHT, buff=2)
-        rgb_vg_v = rgb_vg_h.copy().arrange(DOWN, buff=1).shift(LEFT)
+        rgb_vg_v = rgb_vg_h.copy().arrange(DOWN, buff=1).shift(LEFT * 0.7)
 
         self.play(LaggedStartMap(FadeIn, rgb_vg_h, lag_ratio=0.5))
         self.wait()
@@ -164,7 +164,7 @@ class IntroduceRGBAndJPEG(Scene):
         self.play(
             TransformFromCopy(pixel_r, pixel_r_big),
             TransformFromCopy(pixel_g, pixel_g_big),
-            TransformFromCopy(pixel_r, pixel_b_big),
+            TransformFromCopy(pixel_b, pixel_b_big),
         )
 
         eight_bits_r = (
@@ -196,6 +196,48 @@ class IntroduceRGBAndJPEG(Scene):
             .next_to(twenty_four_bits, DOWN, buff=0.7)
         )
         self.play(Write(three_bytes))
+
+        fout = []
+        for mob in self.mobjects:
+            fout.append(FadeOut(mob))
+
+        # reset scene
+        self.play(*fout)
+
+        # flower image
+        flower_image = ImageMobject("rose.jpg").scale(0.4)
+
+        dimensions = (
+            Text("2592 × 1944", font="SF Mono")
+            .scale(0.7)
+            .next_to(flower_image, DOWN, buff=0.3)
+        )
+
+        img_and_dims = Group(flower_image, dimensions).arrange(DOWN)
+        img_and_dims_sm = img_and_dims.copy().scale(0.8).to_edge(LEFT, buff=1)
+
+        self.play(FadeIn(img_and_dims))
+        self.wait()
+        self.play(Transform(img_and_dims, img_and_dims_sm))
+
+        # I don't like how this barchart looks by default, and the fields they exposed
+        # dont quite allow for what i want to do. Ask Nipun on how to approach personalization of
+        # an existing class.
+        chart = (
+            BarChart(
+                [15, 0.8],
+                height=6,
+                max_value=15,
+                n_ticks=2,
+                label_y_axis=False,
+                # bar_names=["Uncompressed", "Compressed"],
+                bar_colors=[REDUCIBLE_PURPLE, REDUCIBLE_YELLOW],
+            )
+            .scale(0.8)
+            .to_edge(RIGHT, buff=1)
+        )
+
+        self.play(Create(chart))
 
         self.wait(3)
 
