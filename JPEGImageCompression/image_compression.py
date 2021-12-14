@@ -1,5 +1,3 @@
-import enum
-from PIL.Image import TRANSPOSE
 from manim import *
 import cv2
 from scipy import fftpack
@@ -20,6 +18,51 @@ REDUCIBLE_VIOLET = "#d7b5fe"
 REDUCIBLE_YELLOW = "#ffff5c"
 REDUCIBLE_GREEN_DARKER = "#00cc70"
 REDUCIBLE_GREEN_DARKER = "#008f4f"
+
+
+class IntroduceRGBAndJPEG(Scene):
+    def construct(self):
+        r_t = Text("R", font="SF Mono").scale(3).set_color(RED)
+        g_t = Text("G", font="SF Mono").scale(3).set_color(GREEN)
+        b_t = Text("B", font="SF Mono").scale(3).set_color(BLUE)
+
+        rgb_vg_h = VGroup(r_t, g_t, b_t).arrange(RIGHT, buff=2)
+        rgb_vg_v = rgb_vg_h.copy().arrange(DOWN, buff=1).shift(LEFT * 5)
+
+        self.play(LaggedStartMap(FadeIn, rgb_vg_h, lag_ratio=0.5))
+        self.wait()
+        self.play(Transform(rgb_vg_h, rgb_vg_v))
+
+        red_t = (
+            Text("ed", font="SF Mono")
+            .set_color(RED)
+            .next_to(r_t, RIGHT, buff=0.3, aligned_edge=DOWN)
+        )
+        green_t = (
+            Text("reen", font="SF Mono")
+            .set_color(GREEN)
+            .next_to(g_t, RIGHT, buff=0.3, aligned_edge=DOWN)
+        )
+        blue_t = (
+            Text("lue", font="SF Mono")
+            .set_color(BLUE)
+            .next_to(b_t, RIGHT, buff=0.3, aligned_edge=DOWN)
+        )
+        self.play(LaggedStartMap(FadeIn, [red_t, green_t, blue_t]))
+
+        red_channel = Rectangle(RED, width=3)
+        green_channel = Rectangle(GREEN, width=3)
+        blue_channel = Rectangle(BLUE, width=3)
+
+        channels_vg = (
+            VGroup(red_channel, green_channel, blue_channel)
+            .arrange(DOWN, buff=0.5)
+            .shift(RIGHT * 3)
+        )
+
+        self.play(LaggedStartMap(FadeIn, channels_vg))
+
+        self.wait(3)
 
 
 class MotivateAndExplainYCbCr(ThreeDScene):
