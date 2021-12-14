@@ -17,7 +17,7 @@ REDUCIBLE_BLUE = "#650FFA"
 REDUCIBLE_PURPLE = "#8c4dfb"
 REDUCIBLE_VIOLET = "#d7b5fe"
 REDUCIBLE_YELLOW = "#ffff5c"
-REDUCIBLE_GREEN_DARKER = "#00cc70"
+REDUCIBLE_GREEN_LIGHTER = "#00cc70"
 REDUCIBLE_GREEN_DARKER = "#008f4f"
 
 
@@ -1235,9 +1235,715 @@ class DCTEntireImageSlider(DCTSliderExperiments):
         return new_pixel_array
 
     def get_pixel_block(self, pixel_array, start_row, start_col, block_size=8):
-        return pixel_array[
-            start_row : start_row + block_size, start_col : start_col + block_size
-        ]
+        return pixel_array[start_row:start_row+block_size, start_col:start_col+block_size]
+
+class DCT1DExperiments(DCTComponents):
+    def construct(self):
+        image_mob = ImageMobject("dog").move_to(UP * 2)
+        block_image, pixel_grid, block = self.get_pixel_block(image_mob, 125, 125)
+        block_image.shift(UP * 2)
+        self.play(
+            FadeIn(block_image)
+        )
+        self.wait()
+        row = 7
+        print(block[:, :, 0])
+        print(f"Block row: {row}\n", block[:, :, 0][row])
+        pixel_row_mob, row_values = self.get_pixel_row_mob(block, row)
+        print("Selected row values\n", row_values)
+        pixel_row_mob.next_to(block_image, DOWN)
+        self.play(
+            FadeIn(pixel_row_mob)
+        )
+        self.wait()
+
+        row_values_centered = format_block(row_values)
+        print('After centering\n', row_values_centered)
+
+        dct_row_pixels = dct_1d(row_values_centered)
+        np.set_printoptions(suppress=True)
+        print('DCT block (rounded)\n', np.round(dct_row_pixels, decimals=1))
+
+        inverted_row = idct_1d(dct_row_pixels) + 128
+        self.play(
+            FadeOut(block_image),
+            FadeOut(pixel_row_mob),
+        )
+        self.wait()
+        print('Inverted row:\n', inverted_row)
+        num_pixels = dct_row_pixels.shape[0]
+        height_pixel = 0.6
+        for col in range(num_pixels):
+            text = Tex(str(col)).move_to(UP * 2)
+            new_value = 250
+            basis_component, dct_row = self.get_dct_component(col, new_value=new_value)
+            print(f'Basis value for {col}\n', basis_component)
+            
+            component_mob = self.make_row_of_pixels(basis_component, height=height_pixel).shift(RIGHT * 0.25)
+            ax, graph = self.get_graph_dct_component(col)
+
+            self.add(text, component_mob, ax, graph)
+            self.wait(2)
+
+            self.remove(text, component_mob, ax, graph)
+
+        self.wait()
+
+        self.play(
+            FadeIn(block_image),
+            FadeIn(pixel_row_mob),
+        )
+        self.wait()
+
+        self.draw_image_graph(dct_row_pixels)        
+
+    def get_pixel_row_mob(self, pixel_array, row, height=SMALL_BUFF*5, num_pixels=8):
+        row_length = height * num_pixels
+        row_values = [pixel_array[row][i][0] for i in range(num_pixels)]
+        pixel_row_mob = VGroup(
+            *[
+                Rectangle(height=height, width=row_length / num_pixels)
+                .set_stroke(color=REDUCIBLE_GREEN_LIGHTER)
+                .set_fill(color=gray_scale_value_to_hex(value), opacity=1)
+                for value in row_values
+            ]
+        ).arrange(RIGHT, buff=0)
+        return pixel_row_mob, np.array(row_values)
+
+    def make_row_of_pixels(self, row_values, height=SMALL_BUFF*5, num_pixels=8):
+        row_length = height * num_pixels
+        adjusted_row_values = []
+        for val in row_values:
+            adjusted_row_values.append(int(round(val)))
+        pixel_row_mob = VGroup(
+            *[
+                Rectangle(height=height, width=row_length / num_pixels)
+                .set_stroke(color=REDUCIBLE_GREEN_LIGHTER)
+                .set_fill(color=gray_scale_value_to_hex(value), opacity=1)
+                for value in adjusted_row_values
+            ]
+        ).arrange(RIGHT, buff=0)
+        return pixel_row_mob
+
+    def get_dct_component(self, col, new_value=250, num_pixels=8):
+        dct_row = np.zeros((num_pixels,))
+        dct_row[col] = new_value
+        return idct_1d(dct_row) + 128, dct_row
+
+    def get_graph_dct_component(self, col, num_pixels=8):
+        ax = Axes(
+            x_range=[0, num_pixels - 1, 1],
+            y_range=[-1, 1],
+            y_length=2,
+            x_length=4.2,
+            tips=False,
+            axis_config={"include_numbers": True, "include_ticks": True},
+            x_axis_config={
+                "numbers_to_exclude": list(range(1, num_pixels - 1))
+            },
+            # y_axis_config={"numbers_to_exclude": list(range(1, 255))},
+        ).move_to(DOWN * 2)
+        func = lambda n: np.cos((2 * n + 1) * col * np.pi / (2 * num_pixels))
+        if col == 0:
+            func = lambda n: 1 / np.sqrt(2) * np.cos((2 * n + 1) * col * np.pi / (2 * num_pixels))
+        graph = ax.plot(func)
+        graph.set_color(REDUCIBLE_YELLOW)
+        return ax, graph
+
+    def draw_image_graph(self, dct_row):
+        """
+        @param: 1D DCT of a row of pixels
+        @return: graph composed of a linear combination of cosine functions weighted by dct_row
+        """
+        def get_basis_function(col):
+            factor = dct_row[col] * np.sqrt(2 / dct_row.shape[0])
+            def f(n):
+                if col == 0:
+                    return factor * 1 / np.sqrt(2)
+                return factor * np.cos((2 * n + 1) * col * np.pi / (2 * dct_row.shape[0]))
+            return f
+
+        basis_functions = [get_basis_function(i) for i in range(dct_row.shape[0])]
+        final_func = lambda n: sum(basis_function(n) for basis_function in basis_functions) + 128
+        ax = Axes(
+            x_range=[0, dct_row.shape[0] - 1, 1],
+            y_range=[0, 255, 1],
+            y_length=2,
+            x_length=4.375,
+            tips=False,
+            axis_config={"include_numbers": True, "include_ticks": False},
+            x_axis_config={
+                "numbers_to_exclude": list(range(1, dct_row.shape[0] - 1))
+            },
+            y_axis_config={"numbers_to_exclude": list(range(1, 255))},
+        )
+        graph = ax.plot(final_func)
+        graph.set_color(REDUCIBLE_YELLOW)
+        ax.add_coordinates()
+        row_values = idct_1d(dct_row) + 128
+        pixel_coordinates = list(enumerate(row_values))
+        dots = VGroup(*[Dot().scale(0.7).move_to(ax.coords_to_point(x, y)).set_color(REDUCIBLE_YELLOW) for x, y in pixel_coordinates])
+        
+        return ax, graph, dots
+
+class DCT1DStepsVisualized(DCT1DExperiments):
+    """
+    Animations we need:
+    1. Take a 8 x 8 block and highlight a row of pixels
+    2. Build an array of pixels from a given set of row values
+    3. Given a row of pixels, draw the exact signal it represents in terms of cosine waves 
+    4. Show shift of pixels and signal down by 128 to center around 0
+    5. Build up original signal using DCT components, show components summing together one by one
+    """
+    GRAPH_ADJUST = LEFT * 0.35
+    def construct(self):
+        image_mob = ImageMobject("dog").move_to(UP * 2)
+        block_image, pixel_grid, block = self.get_pixel_block(image_mob, 125, 125)
+        block_image.shift(UP * 2.5)
+        self.play(
+            FadeIn(block_image)
+        )
+        self.wait()
+        row = 7
+        print(block[:, :, 0])
+        print(f"Block row: {row}\n", block[:, :, 0][row])
+        pixel_row_mob, row_values, highlight = self.highlight_pixel_row(block, block_image, row, height=0.625)
+        print("Selected row values\n", row_values)
+        pixel_row_mob.move_to(UP)
+        self.play(
+            FadeIn(highlight)
+        )
+        self.wait()
+
+        self.show_highlight(pixel_row_mob, highlight)
+
+        self.play(
+            FadeOut(block_image)
+        )
+        self.wait()
+
+        array_mob = self.get_array_obj(row_values)
+        array_mob.next_to(pixel_row_mob, UP)
+        self.play(
+            FadeIn(array_mob)
+        )
+        self.wait()
+
+        row_values_centered = format_block(row_values)
+        print('After centering\n', row_values_centered)
+
+        dct_row_pixels = dct_1d(row_values_centered)
+
+        ax, graph, dots = self.draw_image_graph(dct_row_pixels)
+
+        self.show_graph(ax, graph, dots, pixel_row_mob)
+
+        graph_components = VGroup(ax, graph, dots)
+
+        specific_step, rect, center_step = self.show_centering_step(row_values, dct_row_pixels, array_mob, pixel_row_mob, graph_components)
+
+        label, apply_dct = self.prepare_to_shift(specific_step, center_step, array_mob)
+
+        left_group = self.shift_components(pixel_row_mob, array_mob, graph_components, label, rect)
+
+        dct_labels, dct_array_mob, dct_graph_components = self.show_dct_step(label, array_mob, graph_components, dct_row_pixels)
+
+        self.show_how_dct_works(apply_dct, left_group, dct_labels, dct_array_mob, dct_graph_components, dct_row_pixels)
+
+    def show_dct_step(self, label, array_mob, graph_components, dct_row):
+        x_label, brace = label
+        new_label_x_hat = MathTex(r"\hat{X} = \text{DCT}(X)").scale(0.8)
+        new_array_mob = self.get_array_obj(dct_row, color=REDUCIBLE_PURPLE)
+        new_brace = Brace(new_array_mob, direction=UP)
+        new_label_x_hat.next_to(new_brace, UP, buff=SMALL_BUFF)
+
+        new_label = VGroup(new_label_x_hat, new_brace)
+
+        dct_ax = self.get_dct_axis(dct_row, -80, 80)
+
+        dct_graph, dct_points = self.plot_row_values(dct_ax, dct_row, color=REDUCIBLE_PURPLE)
+
+        dct_graph_components = VGroup(dct_ax, dct_graph, dct_points)
+        dct_graph_components.next_to(new_array_mob, DOWN).shift(DCT1DStepsVisualized.GRAPH_ADJUST)
+        group = VGroup(new_label, new_array_mob, dct_graph_components)
+
+        group.move_to(RIGHT * 3.5)
+
+        self.play(
+            TransformFromCopy(label, new_label),
+            TransformFromCopy(array_mob, new_array_mob),
+            run_time=2,
+        )
+        self.wait()
+
+        self.play(
+            Write(dct_ax)
+        )
+        self.play(
+            *[GrowFromCenter(dot) for dot in dct_points],
+            Create(dct_graph)
+        )
+        self.wait()
+
+        return new_label, new_array_mob, dct_graph_components
+
+    def show_how_dct_works(self, label, left_group, dct_labels, dct_array_mob, dct_graph_components, dct_row):
+        dct_group = VGroup(dct_labels, dct_array_mob)
+        self.play(
+            FadeOut(left_group),
+            FadeOut(dct_graph_components),
+            FadeOut(label),
+            dct_group.animate.move_to(UP * 3)
+        )
+        self.wait()
+
+        key_sum = MathTex(r"X = \sum_{k=0}^{7} X[k] \cdot C_k").scale(0.8)
+        key_sum.next_to(dct_array_mob, DOWN)
+        self.play(
+            Write(key_sum)
+        )
+        self.wait()
+
+        self.remind_individual_cosine_comp(dct_array_mob)
+
+        self.build_up_signal(dct_array_mob, dct_row)
+
+    def build_up_signal(self, dct_array_mob, dct_row):
+        ALIGNMENT_SHIFT = LEFT * 0.4
+        right_label = MathTex(r"\vec{0}").move_to(RIGHT * 3.5).set_color(REDUCIBLE_YELLOW)
+        zero_dct = np.zeros(dct_row.shape[0])
+        right_component_mob = self.make_row_of_pixels(zero_dct + 128, height=0.625)
+        right_component_mob.next_to(right_label, DOWN)
+
+        right_ax, right_graph, right_dots = self.draw_image_graph(zero_dct, centered=True)
+        right_ax, right_graph, right_dots = self.show_graph(right_ax, right_graph, right_dots, right_component_mob, animate=False, alignment_shift=ALIGNMENT_SHIFT)
+
+        self.play(
+            FadeIn(right_label),
+            FadeIn(right_component_mob),
+            FadeIn(right_ax),
+            *[GrowFromCenter(dot) for dot in right_dots],
+            Create(right_graph),
+        )
+        self.wait()
+
+        left_text = MathTex("C_0").set_color(REDUCIBLE_YELLOW)
+        left_text.move_to(LEFT * 3.5)
+        basis_component, left_dct_row = self.get_dct_component(0)
+        left_component_mob = self.make_row_of_pixels(basis_component, height=SMALL_BUFF*6.25)
+        left_component_mob.next_to(left_text, DOWN)
+        left_ax, left_graph = self.get_graph_dct_component(0)
+        VGroup(left_ax, left_graph).next_to(left_component_mob, DOWN).shift(ALIGNMENT_SHIFT)
+        self.play(
+            Write(left_text),
+            FadeIn(left_component_mob),
+            FadeIn(left_ax),
+            Create(left_graph),
+        )
+        self.wait()
+
+        left_graph_components = VGroup(left_ax, left_graph)
+        right_graph_components = VGroup(right_ax, right_graph, right_dots)
+
+        sub_array = dct_array_mob[0][0]
+        current_highlight = Rectangle(height=sub_array.height, width=sub_array.width)
+        current_highlight.move_to(sub_array.get_center()).set_color(REDUCIBLE_YELLOW)
+
+        self.play(
+            Create(current_highlight)
+        )
+        self.wait()
+
+
+
+        for step in range(dct_row.shape[0]):
+            self.perform_update_step(
+                left_graph_components, right_graph_components, left_component_mob, right_component_mob, 
+                left_text, right_label, step, dct_row, dct_array_mob, current_highlight, alignment_shift=ALIGNMENT_SHIFT
+            )
+        
+    def perform_update_step(self, left_graph_components, right_graph_components, left_component_mob, right_component_mob, 
+        left_text, right_label, step, dct_row, dct_array_mob, current_highlight, alignment_shift=LEFT*0.4):
+        sub_array = dct_array_mob[0][:step+1]
+        highlight = Rectangle(height=sub_array.height, width=sub_array.width)
+        highlight.move_to(sub_array.get_center()).set_color(REDUCIBLE_YELLOW)
+        self.play(
+            Transform(current_highlight, highlight)
+        )
+        self.wait()
+
+        left_ax, left_graph = left_graph_components
+        right_ax, right_graph, right_dots = right_graph_components
+        isolated_dct_row = np.zeros(dct_row.shape[0])
+        isolated_dct_row[step] = dct_row[step]
+
+        iso_right_ax, iso_graph, iso_dots = self.draw_image_graph(isolated_dct_row, centered=True, color=REDUCIBLE_VIOLET)
+        iso_right_ax, iso_graph, iso_dots = self.show_graph(iso_right_ax, iso_graph, iso_dots, right_component_mob, animate=False, alignment_shift=alignment_shift)
+        self.align_graph_and_dots(right_dots, iso_dots, iso_graph)
+        
+        self.play(
+            TransformFromCopy(left_graph, iso_graph),
+        )
+        intermediate_text = self.generate_intermediate_text(right_component_mob)
+        self.play(
+            *[GrowFromCenter(dot) for dot in iso_dots],
+            Transform(right_label, intermediate_text[step])
+        )
+        self.wait()
+
+
+        cumulative_dct_row = self.get_partial_row_dct(dct_row, step + 1)
+        cum_right_ax, cum_graph, cum_dots = self.draw_image_graph(cumulative_dct_row, centered=True, color=REDUCIBLE_YELLOW)
+        cum_right_ax, cum_graph, cum_dots = self.show_graph(cum_right_ax, cum_graph, cum_dots, right_component_mob, animate=False, alignment_shift=alignment_shift)
+
+        final_text = self.generate_final_text(right_component_mob)
+
+        self.align_graph_and_dots(right_dots, cum_dots, cum_graph)
+
+        new_right_component_mob = self.make_row_of_pixels(idct_1d(cumulative_dct_row) + 128, height=0.625)
+        new_right_component_mob.move_to(right_component_mob.get_center())
+
+        self.play(
+            Transform(right_graph, cum_graph),
+            Transform(right_dots, cum_dots),
+            FadeOut(iso_graph),
+            FadeOut(iso_dots),
+            Transform(right_component_mob, new_right_component_mob),
+            Transform(right_label, final_text[step])
+        )
+        self.wait()
+
+        if step + 1 == dct_row.shape[0]:
+            return
+
+        new_left_text = MathTex(f"C_{step + 1}").set_color(REDUCIBLE_YELLOW)
+        new_left_text.move_to(left_text.get_center())
+        new_basis_component, new_left_dct_row = self.get_dct_component(step + 1)
+        new_left_component_mob = self.make_row_of_pixels(new_basis_component, height=SMALL_BUFF*6.25)
+        new_left_component_mob.next_to(new_left_text, DOWN)
+        new_left_ax, new_left_graph = self.get_graph_dct_component(step + 1)
+        VGroup(new_left_ax, new_left_graph).next_to(new_left_component_mob, DOWN).shift(alignment_shift)
+        self.play(
+            Transform(left_text, new_left_text),
+            Transform(left_component_mob, new_left_component_mob),
+            Transform(left_graph, new_left_graph),
+        )
+        self.wait()
+
+    def align_graph_and_dots(self, original_dots, new_dots, new_graph):
+        horiz_diff_adjust = original_dots[0].get_center()[0] - new_dots[0].get_center()[0]
+        new_graph.shift(RIGHT * horiz_diff_adjust)
+        new_dots.shift(RIGHT * horiz_diff_adjust)
+   
+    def get_partial_row_dct(self, dct_row, num_components):
+        new_dct_row = np.zeros(dct_row.shape[0])
+        for index in range(num_components):
+            new_dct_row[index] = dct_row[index]
+        return new_dct_row
+
+    def generate_intermediate_text(self, right_component_mob):
+        zero = MathTex(r"\vec{0}", "+", r"X[0] \cdot C_0")
+        zero[0].set_color(REDUCIBLE_YELLOW)
+        zero[-1].set_color(REDUCIBLE_VIOLET)
+
+        one = MathTex(r"X[0] \cdot C_0", "+", r"X[1] \cdot C_1")
+        one[0].set_color(REDUCIBLE_YELLOW)
+        one[-1].set_color(REDUCIBLE_VIOLET)
+
+        other_representations = [self.get_intermediate_representation(k) for k in range(2, 8)] 
+
+        all_reprs = [zero, one] + other_representations
+        for represent in all_reprs:
+            represent.scale(0.8).next_to(right_component_mob, UP)
+        return all_reprs
+
+    def get_intermediate_representation(self, i):
+        represent = MathTex(r"\sum_{k=0}^{" + str(i - 1) + r"} X[k] \cdot C_k", "+", r"X[{0}] \cdot C_{0}".format(i))
+        represent[0].set_color(REDUCIBLE_YELLOW)
+        represent[-1].set_color(REDUCIBLE_VIOLET)
+        return represent
+
+    def generate_final_text(self, right_component_mob):
+        final_zero = MathTex(r"X[0] \cdot C_0").set_color(REDUCIBLE_YELLOW)
+        final_six = [MathTex(r"\sum_{k=0}^{" + str(i) + r"} X[k] \cdot C_k").set_color(REDUCIBLE_YELLOW) for i in range(1, 8)]
+
+        all_reprs = [final_zero] + final_six
+        for represent in all_reprs:
+            represent.scale(0.8).next_to(right_component_mob, UP)
+        return all_reprs
+
+
+    def remind_individual_cosine_comp(self, dct_array_mob):
+        ALIGNMENT_SHIFT = RIGHT * 0.25 
+        dct_array, dct_array_text = dct_array_mob
+        highlight_box = None
+        basis_component, dct_row = self.get_dct_component(0)
+        component_mob = self.make_row_of_pixels(basis_component, height=SMALL_BUFF*6).shift(ALIGNMENT_SHIFT)
+        ax, graph = self.get_graph_dct_component(0)
+        text = MathTex("C_0").set_color(REDUCIBLE_YELLOW)
+        text.next_to(ax, DOWN).shift(ALIGNMENT_SHIFT)
+        for col, elem in enumerate(dct_array):
+            new_text = MathTex(f"C_{col}").set_color(REDUCIBLE_YELLOW)
+            animations = []
+            basis_component, dct_row = self.get_dct_component(col)
+            new_component_mob = self.make_row_of_pixels(basis_component, height=SMALL_BUFF*6).shift(ALIGNMENT_SHIFT)
+            new_ax, new_graph = self.get_graph_dct_component(col)
+            new_text.next_to(new_ax, DOWN).shift(ALIGNMENT_SHIFT)
+            if not highlight_box:
+                highlight_box = elem.copy().set_color(REDUCIBLE_YELLOW)
+                animations.append(Create(highlight_box))
+                animations.append(Write(text))
+                animations.extend([FadeIn(component_mob), FadeIn(ax), FadeIn(graph)])
+            else:
+                animations.append(highlight_box.animate.move_to(elem.get_center()))
+                animations.append(Transform(text, new_text))
+                animations.extend(
+                    [Transform(component_mob, new_component_mob), Transform(ax, new_ax), Transform(graph, new_graph)],
+                )
+            
+            self.play(
+                *animations
+            )
+            self.wait()
+
+        self.play(
+            FadeOut(highlight_box),
+            FadeOut(component_mob),
+            FadeOut(ax),
+            FadeOut(graph),
+            FadeOut(text),
+        )
+        self.wait()
+
+    def show_centering_step(self, row_values, dct_row, array_mob, pixel_row_mob, graph_components):
+        ax, graph, dots = graph_components
+        entire_group = VGroup(array_mob, pixel_row_mob, graph_components)
+        rect = Rectangle(height=entire_group.height + 2, width=entire_group.width + 1)
+        rect.set_color(REDUCIBLE_VIOLET)
+        self.play(
+            Create(rect)
+        )
+        self.wait()
+
+        center_step = Tex("Center pixel values around 0").next_to(rect, UP)
+
+        self.play(
+            Write(center_step)
+        )
+        self.wait()
+
+        specific_step = MathTex(r"[0, 255] \rightarrow [-128, 127]").scale(0.8)
+        specific_step.next_to(center_step, DOWN * 2)
+        self.play(
+            Write(specific_step)
+        )
+        self.wait()
+
+        new_values = format_block(row_values)
+        array, array_values = array_mob
+        self.play(
+            *[value.animate.set_value(new_values[i]).move_to(array[i].get_center()) for i, value in enumerate(array_values)],
+        )
+        self.wait()
+
+        new_ax, new_graph, new_dots = self.draw_image_graph(dct_row, centered=True)
+        new_graph_components = VGroup(new_ax, new_graph, new_dots)
+        new_graph_components.move_to(graph_components.get_center())
+        self.play(
+            Transform(ax, new_ax),
+            Transform(graph, new_graph),
+            Transform(dots, new_dots),
+        )
+        self.wait()
+
+        return specific_step, rect, center_step
+
+    def prepare_to_shift(self, specific_step, center_step, array_mob):
+        apply_dct = Tex("Apply DCT").move_to(center_step.get_center())
+        self.play(
+            ReplacementTransform(center_step, apply_dct)
+        )
+        self.wait()
+
+        self.play(
+            FadeOut(specific_step)
+        )
+
+        x_label = MathTex("X").scale(0.8)
+        brace_up = Brace(array_mob, direction=UP)
+        x_label.next_to(brace_up, UP, buff=SMALL_BUFF)
+
+        self.play(
+            Write(x_label),
+            GrowFromCenter(brace_up)
+        )
+        self.wait()
+
+        return VGroup(x_label, brace_up), apply_dct
+
+    def show_highlight(self, pixel_row_mob, highlight):
+        new_highlight = SurroundingRectangle(pixel_row_mob, buff=0).set_color(REDUCIBLE_GREEN_LIGHTER)
+        self.play(
+            LaggedStart(
+                TransformFromCopy(highlight, new_highlight),
+                FadeIn(pixel_row_mob),
+                lag_ratio=0.4
+            )
+        )
+        self.wait()
+        self.remove(new_highlight)
+        self.play(
+            FadeOut(highlight)
+        )
+        self.wait()
+
+    def show_graph(self, ax, graph, dots, mob_above, animate=True, alignment_shift=None):
+        if alignment_shift is None:
+            alignment_shift = DCT1DStepsVisualized.GRAPH_ADJUST
+        graph_components = VGroup(ax, graph, dots).next_to(mob_above, DOWN)
+        graph_components.shift(alignment_shift)
+        if animate:
+            self.play(
+                Write(ax)
+            )
+            self.wait()
+            self.play(
+                *[GrowFromCenter(dot) for dot in dots],
+            )
+            self.wait()
+
+            self.play(
+                Create(graph)
+            )
+            self.wait()
+
+        return ax, graph, dots
+
+    def make_component(self, text, color=REDUCIBLE_VIOLET, scale=0.8):
+        # geometry is first index, TextMob is second index
+        text_mob = Tex(text).scale(scale)
+        rect = Rectangle(color=color, height=1.1, width=3)
+        return VGroup(rect, text_mob)
+
+    def shift_components(self, pixel_row_mob, array_mob, graph, label, surround_rect):
+        scale = 1
+        new_position = LEFT * 3.5
+        group = VGroup(pixel_row_mob, array_mob, graph, label, surround_rect)
+        self.play(
+            group.animate.scale(scale).move_to(new_position),
+        )
+        self.wait()
+        return group
+
+    def highlight_pixel_row(self, pixel_array, block_image_mob, row, height=SMALL_BUFF*5, num_pixels=8):
+        row_length = height * num_pixels
+        block_row_height = block_image_mob.height / num_pixels
+        row_values = [pixel_array[row][i][0] for i in range(num_pixels)]
+        highlight = Rectangle(height=block_row_height, width=block_image_mob.width)
+        highlight_pos = block_image_mob.get_top() + row * DOWN * block_row_height + DOWN * block_row_height / 2
+        highlight.move_to(highlight_pos).set_color(REDUCIBLE_GREEN_LIGHTER)
+        pixel_row_mob = VGroup(
+            *[
+                Rectangle(height=height, width=row_length / num_pixels)
+                .set_stroke(color=REDUCIBLE_GREEN_LIGHTER)
+                .set_fill(color=gray_scale_value_to_hex(value), opacity=1)
+                for value in row_values
+            ]
+        ).arrange(RIGHT, buff=0)
+        return pixel_row_mob, np.array(row_values), highlight
+
+    def get_array_obj(self, values, length=5, height=0.5, color=REDUCIBLE_GREEN_DARKER):
+        array = VGroup(*[Rectangle(height=height, width=length/len(values)) for _ in values]).arrange(RIGHT, buff=0)
+        array.set_color(color)
+        array_text = VGroup(*[Integer(val).scale(0.6).move_to(array[i].get_center()) for i, val in enumerate(values)])
+        return VGroup(array, array_text)
+
+    def draw_image_graph(self, dct_row, centered=False, color=REDUCIBLE_YELLOW):
+        """
+        @param: 1D DCT of a row of pixels
+        @param: centered, if true, then plot range is from [-128, 127]
+        @return: graph composed of a linear combination of cosine functions weighted by dct_row
+        """
+        def get_basis_function(col):
+            factor = dct_row[col] * np.sqrt(2 / dct_row.shape[0])
+            def f(n):
+                if col == 0:
+                    return factor * 1 / np.sqrt(2)
+                return factor * np.cos((2 * n + 1) * col * np.pi / (2 * dct_row.shape[0]))
+            return f
+
+        basis_functions = [get_basis_function(i) for i in range(dct_row.shape[0])]
+        final_func = lambda n: sum(basis_function(n) for basis_function in basis_functions)
+        if not centered:
+            final_func = lambda n: sum(basis_function(n) for basis_function in basis_functions) + 128
+        ax = self.get_axis(dct_row, centered=centered)
+        graph = ax.plot(final_func)
+        graph.set_color(color)
+        ax.add_coordinates()
+        row_values = idct_1d(dct_row)
+        if not centered:
+            row_values = row_values + 128
+        pixel_coordinates = list(enumerate(row_values))
+        dots = VGroup(*[Dot().scale(0.7).move_to(ax.coords_to_point(x, y)).set_color(color) for x, y in pixel_coordinates])
+        
+        return ax, graph, dots
+
+    def get_axis(self, dct_row, centered=False):
+        if not centered:
+            return Axes(
+                x_range=[0, dct_row.shape[0] - 1, 1],
+                y_range=[0, 255, 1],
+                y_length=2,
+                x_length=4.375,
+                tips=False,
+                axis_config={"include_numbers": True, "include_ticks": False},
+                x_axis_config={
+                    "numbers_to_exclude": list(range(1, dct_row.shape[0] - 1))
+                },
+                y_axis_config={"numbers_to_exclude": list(range(1, 255))},
+            )
+        return Axes(
+            x_range=[0, dct_row.shape[0] - 1, 1],
+            y_range=[-128, 127, 1],
+            y_length=2,
+            x_length=4.375,
+            tips=False,
+            axis_config={"include_numbers": True, "include_ticks": False},
+            x_axis_config={
+                "numbers_to_exclude": list(range(1, dct_row.shape[0] - 1)),
+                "label_direction": UP,
+            },
+            y_axis_config={"numbers_to_exclude": list(range(-127, 127))},
+        )
+
+    def get_dct_axis(self, dct_row, min_y, max_y):
+        ax = Axes(
+            x_range=[0, dct_row.shape[0] - 1, 1],
+            y_range=[min_y, max_y, 1],
+            y_length=3,
+            x_length=4.375,
+            tips=False,
+            axis_config={"include_numbers": True, "include_ticks": False},
+            x_axis_config={
+                "numbers_to_exclude": list(range(1, dct_row.shape[0]))
+            },
+            y_axis_config={"numbers_to_exclude": list(range(min_y + 1, max_y))},
+        )
+        return ax
+    
+    def plot_row_values(self, axes, pixel_row_values, color=REDUCIBLE_YELLOW):
+        pixel_coordinates = list(enumerate(pixel_row_values))
+        axes.add_coordinates()
+        path = VGroup()
+        path_points = [axes.coords_to_point(x, y) for x, y in pixel_coordinates]
+        path.set_points_smoothly(*[path_points]).set_color(color)
+        dots = VGroup(
+            *[
+                Dot(axes.coords_to_point(x, y), radius=SMALL_BUFF / 2, color=color)
+                for x, y in pixel_coordinates
+            ]
+        )
+        return path, dots
 
 
 # Quick test of gray_scale_value_to_hex
@@ -1265,7 +1971,7 @@ def make_lut_v():
     return np.array([[[0, 255 - i, i] for i in range(256)]], dtype=np.uint8)
 
 
-def dct1D(f, N):
+def dct1D_manual(f, N):
     result = []
     constant = (2 / N) ** 0.5
     for u in range(N):
@@ -1299,7 +2005,7 @@ def plot_function(f, N):
 
 
 def g(i):
-    return np.cos((2 * i + 1) * 7 * np.pi / 16)
+    return np.cos((2 * i + 1) * 5 * np.pi / 16)
 
 
 def h(i):
@@ -1334,6 +2040,8 @@ def get_dot_product_matrix():
 
 
 def format_block(block):
+    if len(block.shape) < 3:
+        return block.astype(float) - 128
     # [0, 255] -> [-128, 127]
     block_centered = block[:, :, 1].astype(float) - 128
     return block_centered
@@ -1347,6 +2055,13 @@ def invert_format_block(block):
     new_block[new_block > 255] = 255
     new_block[new_block < 0] = 0
     return new_block
+
+
+def dct_1d(row):
+    return fftpack.dct(row, norm='ortho')
+
+def idct_1d(row):
+    return fftpack.idct(row, norm='ortho')
 
 
 def dct_2d(block):
