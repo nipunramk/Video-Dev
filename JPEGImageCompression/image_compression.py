@@ -1,3 +1,4 @@
+from math import e, fabs
 from manim import *
 import cv2
 from scipy import fftpack
@@ -27,7 +28,7 @@ class IntroduceRGBAndJPEG(Scene):
         b_t = Text("B", font="SF Mono").scale(3).set_color(BLUE)
 
         rgb_vg_h = VGroup(r_t, g_t, b_t).arrange(RIGHT, buff=2)
-        rgb_vg_v = rgb_vg_h.copy().arrange(DOWN, buff=1).shift(LEFT * 5)
+        rgb_vg_v = rgb_vg_h.copy().arrange(DOWN, buff=1).shift(LEFT)
 
         self.play(LaggedStartMap(FadeIn, rgb_vg_h, lag_ratio=0.5))
         self.wait()
@@ -50,17 +51,151 @@ class IntroduceRGBAndJPEG(Scene):
         )
         self.play(LaggedStartMap(FadeIn, [red_t, green_t, blue_t]))
 
-        red_channel = Rectangle(RED, width=3)
-        green_channel = Rectangle(GREEN, width=3)
-        blue_channel = Rectangle(BLUE, width=3)
+        self.play(LaggedStartMap(FadeOut, [rgb_vg_h, red_t, green_t, blue_t]))
 
-        channels_vg = (
-            VGroup(red_channel, green_channel, blue_channel)
-            .arrange(DOWN, buff=0.5)
-            .shift(RIGHT * 3)
+        # pixels
+        black = (
+            Square(side_length=1)
+            .set_color(BLACK)  # 0
+            .set_opacity(1)
+            .set_stroke(REDUCIBLE_VIOLET, width=3)
+        )
+        gray1 = (
+            Square(side_length=1)
+            .set_color(GRAY_E)  # 34
+            .set_opacity(1)
+            .set_stroke(REDUCIBLE_VIOLET, width=3)
+        )
+        gray2 = (
+            Square(side_length=1)
+            .set_color(GRAY_D)  # 68
+            .set_opacity(1)
+            .set_stroke(REDUCIBLE_VIOLET, width=3)
+        )
+        gray3 = (
+            Square(side_length=1)
+            .set_color(GRAY_B)  # 187
+            .set_opacity(1)
+            .set_stroke(REDUCIBLE_VIOLET, width=3)
+        )
+        white = (
+            Square(side_length=1)
+            .set_color("#FFFFFF")  # 255
+            .set_opacity(1)
+            .set_stroke(REDUCIBLE_VIOLET, width=3)
         )
 
-        self.play(LaggedStartMap(FadeIn, channels_vg))
+        # pixel values
+
+        pixels_vg = VGroup(black, gray1, gray2, gray3, white).arrange(RIGHT, buff=1)
+
+        bk_t = Text("0", font="SF Mono").next_to(black, DOWN, buff=0.5).scale(0.5)
+        g1_t = Text("34", font="SF Mono").next_to(gray1, DOWN, buff=0.5).scale(0.5)
+        g2_t = Text("68", font="SF Mono").next_to(gray2, DOWN, buff=0.5).scale(0.5)
+        g3_t = Text("187", font="SF Mono").next_to(gray3, DOWN, buff=0.5).scale(0.5)
+        wh_t = Text("255", font="SF Mono").next_to(white, DOWN, buff=0.5).scale(0.5)
+
+        self.play(LaggedStartMap(FadeIn, pixels_vg))
+        self.play(LaggedStartMap(FadeIn, [bk_t, g1_t, g2_t, g3_t, wh_t]))
+
+        self.play(LaggedStartMap(FadeOut, [pixels_vg, bk_t, g1_t, g2_t, g3_t, wh_t]))
+
+        red_channel = (
+            Rectangle(RED, width=3)
+            .set_color(BLACK)
+            .set_opacity(1)
+            .set_stroke(RED, width=3)
+        )
+        green_channel = (
+            Rectangle(GREEN, width=3)
+            .set_color(BLACK)
+            .set_opacity(1)
+            .set_stroke(GREEN, width=3)
+        )
+        blue_channel = (
+            Rectangle(BLUE, width=3)
+            .set_color(BLACK)
+            .set_opacity(1)
+            .set_stroke(BLUE, width=3)
+        )
+
+        channels_vg_h = VGroup(red_channel, green_channel, blue_channel).arrange(
+            RIGHT, buff=0.8
+        )
+
+        channels_vg_diagonal = (
+            channels_vg_h.copy()
+            .arrange(DOWN * 0.7 + RIGHT * 1.3, buff=-1.4)
+            .shift(LEFT * 3)
+        )
+
+        self.play(LaggedStartMap(FadeIn, channels_vg_h))
+        self.wait()
+        self.play(Transform(channels_vg_h, channels_vg_diagonal))
+
+        pixel_r = (
+            Square(side_length=0.1)
+            .set_color(RED)
+            .set_opacity(1)
+            .align_to(red_channel, LEFT)
+            .align_to(red_channel, UP)
+        )
+        pixel_g = (
+            Square(side_length=0.1)
+            .set_color(GREEN)
+            .set_opacity(1)
+            .align_to(green_channel, LEFT)
+            .align_to(green_channel, UP)
+        )
+        pixel_b = (
+            Square(side_length=0.1)
+            .set_color(BLUE)
+            .set_opacity(1)
+            .align_to(blue_channel, LEFT)
+            .align_to(blue_channel, UP)
+        )
+
+        self.play(FadeIn(pixel_r), FadeIn(pixel_g), FadeIn(pixel_b))
+
+        pixel_r_big = pixel_r.copy().scale(5).move_to(ORIGIN + UP * 1.5 + RIGHT * 1.7)
+        pixel_g_big = pixel_g.copy().scale(5).next_to(pixel_r_big, DOWN, buff=1)
+        pixel_b_big = pixel_b.copy().scale(5).next_to(pixel_g_big, DOWN, buff=1)
+
+        self.play(
+            TransformFromCopy(pixel_r, pixel_r_big),
+            TransformFromCopy(pixel_g, pixel_g_big),
+            TransformFromCopy(pixel_r, pixel_b_big),
+        )
+
+        eight_bits_r = (
+            Text("8 bits", font="SF Mono")
+            .scale(0.4)
+            .next_to(pixel_r_big, RIGHT, buff=0.3)
+        )
+
+        eight_bits_g = eight_bits_r.copy().next_to(pixel_g_big)
+        eight_bits_b = eight_bits_r.copy().next_to(pixel_b_big)
+
+        self.play(FadeIn(eight_bits_r), FadeIn(eight_bits_g), FadeIn(eight_bits_b))
+
+        brace = Brace(VGroup(eight_bits_r, eight_bits_g, eight_bits_b), RIGHT)
+
+        self.play(Write(brace))
+
+        twenty_four_bits = (
+            Text("24 bits / pixel", font="SF Mono").scale(0.4).next_to(brace, RIGHT)
+        )
+
+        self.play(Write(twenty_four_bits))
+
+        self.play(Transform(twenty_four_bits, twenty_four_bits.copy().shift(UP * 0.5)))
+
+        three_bytes = (
+            Text("3 bytes / pixel", font="SF Mono")
+            .scale(0.4)
+            .next_to(twenty_four_bits, DOWN, buff=0.7)
+        )
+        self.play(Write(three_bytes))
 
         self.wait(3)
 
