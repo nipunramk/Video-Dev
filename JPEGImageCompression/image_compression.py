@@ -1128,6 +1128,7 @@ class DCT1DExperiments(DCTComponents):
         
         return ax, graph, dots
 
+
 class DCT1DStepsVisualized(DCT1DExperiments):
     """
     Animations we need:
@@ -1687,6 +1688,85 @@ class DCT1DStepsVisualized(DCT1DExperiments):
         )
         return path, dots
 
+class MotivateDCT(DCT1DStepsVisualized):
+    def construct(self):
+        all_equations = self.show_equations()
+
+        self.ask_why(all_equations)
+
+        self.clear()
+
+        image_mob = ImageMobject("dog").move_to(UP * 2)
+        block_image, pixel_grid, block = self.get_pixel_block(image_mob, 126, 126)
+        row = 7
+        print(block[:, :, 0])
+        print(f"Block row: {row}\n", block[:, :, 0][row])
+        pixel_row_mob, row_values = self.get_pixel_row_mob(block, row)
+        print("Selected row values\n", row_values)
+        pixel_row_mob.move_to(UP * 3)
+        self.play(
+            FadeIn(pixel_row_mob)
+        )
+        self.wait()
+
+        row_values_centered = format_block(row_values)
+        print('After centering\n', row_values_centered)
+
+        dct_row_pixels = dct_1d(row_values_centered)
+
+        ax, graph, dots = self.draw_image_graph(dct_row_pixels)
+
+        self.show_graph(ax, graph, dots, pixel_row_mob)
+
+    def show_equations(self):
+        dct_text = Tex("Discrete Cosine Transform (DCT)").scale(1.2)
+        forward_dct = MathTex(r"X_k = \left(\frac{2}{N}\right)^{\frac{1}{2}} \sum_{n=0}^{N-1} \Lambda(n) \cdot \cos \left[\frac{\pi k}{2N}(2n+1)\right]x_n")
+
+        lambda_def = MathTex(r"\Lambda(n) = \left\{\begin{array}{ll} \frac{1}{\sqrt{2}} & \quad n = 0 \\ 1 & \quad n \neq 0 \end{array}\right.").scale(0.8)
+        k_def = MathTex(r"k \in \{0, 1, \ldots , N - 1\}").scale(0.8)
+        additional_def_group = VGroup(k_def, lambda_def).arrange(RIGHT, buff=1)
+
+        dct_group = VGroup(dct_text, forward_dct, additional_def_group).arrange(DOWN)
+
+        idct_text = Tex("Inverse Discrete Cosine Transform (IDCT)").scale(1.2)
+        inverse_dct = MathTex(r"x_k = \frac{X_0}{\sqrt{N}} + \left(\frac{2}{N}\right)^{\frac{1}{2}} \sum_{n=1}^{N-1} \cos \left[\frac{\pi n}{2N}(2k+1)\right]X_n")
+
+        idct_group = VGroup(idct_text, inverse_dct).arrange(DOWN)
+
+        group = VGroup(dct_group, idct_group).arrange(DOWN, buff=1)
+
+        self.play(
+            FadeIn(group)
+        )
+        self.wait()
+
+        return group
+
+    def ask_why(self, equations):
+        self.play(
+            equations.animate.scale(0.7)
+        )
+        surround_rect = SurroundingRectangle(equations, buff=SMALL_BUFF)
+        self.play(
+            Create(surround_rect)
+        )
+
+        question_1 = Tex("Where do these equations from?")
+        question_2 = Tex("Why do we use these transforms?")
+        questions = VGroup(question_1, question_2).arrange(DOWN)
+        questions.next_to(surround_rect, UP)
+
+        self.play(
+            Write(questions[0])
+        )
+        self.wait()
+
+        self.play(
+            Write(questions[1])
+        )
+
+        self.wait()
+
 
 # Quick test of gray_scale_value_to_hex
 class TestHexToGrayScale(Scene):
@@ -1698,9 +1778,251 @@ class TestHexToGrayScale(Scene):
             self.remove(dot)
 
 
+class DemoJPEGWithDCT2D(ThreeDScene, ImageUtils):
+    """
+    TODO: Implement https://www.mathworks.com/help/vision/ref/2didct.html
+    """
+    def construct(self):
+        image_mob = ImageMobject("dog").move_to(LEFT * 2)
+
+        axes = ThreeDAxes(
+            x_range=[0, 7], y_range=[0, 7], z_range=[0, 255], 
+            x_length=5, y_length=5, z_length=5,
+            tips=False,
+            axis_config={"include_ticks": False},
+        ).shift(IN * 1.5)
+
+        axes.set_color(BLACK)
+        
+
+        block_image, block = self.get_pixel_block_for_3d(image_mob, 125, 125, height=axes.x_length)
+
+        print('Before\n', block[:, :, 1])
+        block_centered = format_block(block)
+        print('After centering\n', block_centered)
+
+        dct_block = dct_2d(block_centered)
+        np.set_printoptions(suppress=True)
+        print('DCT block (rounded)\n', np.round(dct_block, decimals=1))
+        expected = invert_format_block(idct_2d(dct_block))
+        actual = self.get_original_matrix_from_func(dct_block)
+        print('Expected\n', expected)
+        print('Actual\n', actual)
+        assert(np.allclose(expected, actual))
+
+
+
+        surface = Surface(
+            lambda u, v: axes.c2p(*self.func(u, v, dct_block)),
+            u_range=[0, 7],
+            v_range=[0, 7],
+            checkerboard_colors=[REDUCIBLE_PURPLE],
+            fill_opacity=0.5,
+            resolution=32,
+            stroke_color=REDUCIBLE_YELLOW,
+            stroke_width=2,
+        )
+        
+        self.position_image_on_axes(axes, block_image)
+
+        # self.add_fixed_in_frame_mobjects(block_image)
+        # lines_to_z, dots_z = self.get_lines_and_dots(axes, block[:, :, 1], block_image)
+        self.set_camera_orientation(theta=70 * DEGREES, phi=80 * DEGREES)
+        self.add(axes, block_image, surface)
+        self.wait()
+
+        number_line = self.initialize_slider(block_image, block[:, :, 1], surface)
+        block_image = self.animate_slider(number_line, axes, block_image, dct_block, block[:, :, 1], surface)
+
+        # self.begin_ambient_camera_rotation(rate=0.1)
+        # self.wait(5)
+
+    def initialize_slider(self, block_image, block, surface):
+        number_line = NumberLine(
+            x_range=[0, 64, 8],
+            length=10,
+            color=REDUCIBLE_VIOLET,
+            include_numbers=True,
+            label_direction=UP,
+        )
+        self.add_fixed_in_frame_mobjects(number_line)
+        number_line.move_to(DOWN * 3)
+
+        self.add(number_line)
+        self.wait()
+        return number_line
+
+
+    def animate_slider(self, number_line, axes, block_image, dct_block, original_block, surface):
+        tick = Triangle().scale(0.2).set_color(REDUCIBLE_YELLOW)
+        tick.set_fill(color=REDUCIBLE_YELLOW, opacity=1)
+        self.add_fixed_in_frame_mobjects(tick)
+
+        tracker = ValueTracker(0)
+        tick.add_updater(
+            lambda m: m.next_to(
+                        number_line.n2p(tracker.get_value()),
+                        DOWN
+                    )
+        )
+        self.play( 
+            FadeIn(tick),
+        )
+        self.wait()
+        
+        def get_new_block():
+            new_partial_block = self.get_partial_block(dct_block, tracker.get_value())
+            print(f'Partial block - {tracker.get_value()} components')
+            print('MSE', np.mean((new_partial_block - original_block) ** 2), '\n')
+
+            new_partial_block_image = self.get_block_image_for_3d(new_partial_block, height=axes.x_length)            
+            self.position_image_on_axes(axes, new_partial_block_image)
+            return new_partial_block_image
+
+        def get_new_surface():
+            new_partial_block_dct = self.get_partial_dct_block(dct_block, tracker.get_value())
+            # print('Generating surface of block:\n', new_partial_block_dct)
+            new_surface = Surface(
+                lambda u, v: axes.c2p(*self.func(u, v, new_partial_block_dct)),
+                u_range=[0, 7],
+                v_range=[0, 7],
+                checkerboard_colors=[REDUCIBLE_PURPLE],
+                fill_opacity=0.5,
+                resolution=32,
+                stroke_color=REDUCIBLE_YELLOW,
+                stroke_width=2,
+            )
+            return new_surface
+
+        partial_block = self.get_partial_block(dct_block, tracker.get_value())
+        partial_block_image = always_redraw(get_new_block)
+        partial_block_surface = always_redraw(get_new_surface)
+        self.play(
+            ReplacementTransform(block_image, partial_block_image),
+            ReplacementTransform(surface, partial_block_surface),
+        )
+        self.wait()
+        
+       
+        self.play(
+            tracker.animate.set_value(64),
+            run_time=10,
+            rate_func=linear,
+        )
+
+        self.wait()
+        return partial_block_image
+
+
+    # 2D IDCT Function
+    def func(self, x, y, dct_matrix):
+        M, N = 8, 8
+        def C(m):
+            if m == 0:
+                return 1 / np.sqrt(2)
+            return 1
+
+        result = 0
+        norm_factor = 2 / (np.sqrt(M * N))
+        for m in range(M):
+            for n in range(N):
+                cos_mx = np.cos((2 * x + 1) * m * np.pi / (2 * M))
+                cos_ny = np.cos((2 * y + 1) * n * np.pi / (2 * N))
+                result += C(m) * C(n) * dct_matrix[m][n] * cos_mx * cos_ny
+        return np.array([x, y, norm_factor * result + 128])
+
+    def get_original_matrix_from_func(self, dct_matrix):
+        result = np.zeros((8, 8))
+        for x in range(result.shape[0]):
+            for y in range(result.shape[1]):
+                result[x][y] = self.func(x, y, dct_matrix)[2]
+        return result
+
+    def position_image_on_axes(self, axes, block_image):
+        block_image.move_to(axes.c2p(*[np.mean(axes.x_range) + 0.75, np.mean(axes.y_range) + 0.75, 0]))
+        block_image.flip(RIGHT)
+
+    def get_pixel_block_for_3d(self, image_mob, start_row, start_col, block_size=8, height=2):
+        pixel_array = image_mob.get_pixel_array()
+        block = pixel_array[start_row:start_row+block_size, start_col:start_col+block_size]
+
+        block_image = self.get_block_image_for_3d(block[:, :, 1], block_size=block_size, height=height)
+
+        return block_image, block
+
+    def get_block_image_for_3d(self, block, block_size=8, height=2):
+        # this block_image seems to break in 3D scenes, so using the pixel_grid itself
+        # as a proxy for the image
+        block_image = self.get_image_mob(block, height=height)
+        pixel_grid = self.get_pixel_grid(block_image, block_size)
+
+        for i in range(block.shape[0]):
+            for j in range(block.shape[1]):
+                index = two_d_to_1d_index(i, j)
+                pixel_grid[index].set_fill(color=gray_scale_value_to_hex(block[i][j]), opacity=1)
+
+        return pixel_grid
+
+    def get_partial_block(self, dct_block, num_components):
+        """
+        @param: dct_block - dct coefficients of the block
+        @param: num_components - float - number of dct components to
+        include in partial block
+        @return: pixel_array of partial block with num_components of DCT included
+        """
+        dct_matrix = self.get_partial_dct_block(dct_block, num_components)
+
+        pixel_array = idct_2d(dct_matrix)
+        return invert_format_block(pixel_array)
+
+    def get_partial_dct_block(self, dct_block, num_components):
+        """
+        @param: dct_block - dct coefficients of the block
+        @param: num_components - float - number of dct components to
+        include in partial block
+        @return: partial accumulated dct block containing a combination of num_components
+        """
+        from math import floor
+        zigzag = get_zigzag_order()
+        dct_matrix = np.zeros((8, 8))
+        floor_val = floor(num_components)
+        remaining = num_components - floor_val
+        for basis_comp in range(floor_val):
+            row, col = zigzag[basis_comp]
+            dct_matrix[row][col] = dct_block[row][col]
+        
+        if floor_val < dct_block.shape[0] ** 2:
+            row, col = zigzag[floor_val]
+            dct_matrix[row][col] = remaining * dct_block[row][col]
+
+        return dct_matrix
+
+    def get_lines_and_dots(self, axes, block, block_image, color=REDUCIBLE_GREEN_DARKER):
+        lines = VGroup()
+        dots = VGroup()
+        for i in range(block.shape[0]):
+            for j in range(block.shape[1]):
+                index = two_d_to_1d_index(i, j)
+                start = block_image[index].get_center()
+                end = axes.c2p(*[i, j, block[i][j]])
+                dot = Dot().move_to(end).set_color(color=color)
+                dots.add(dot)
+                line = Line(start, end).set_stroke(color=color, width=1)
+                lines.add(line)
+
+        return lines, dots
+
+    
+
+
+def two_d_to_1d_index(i, j, block_size=8):
+    return j * block_size + i
+
 def gray_scale_value_to_hex(value):
-    hex_string = hex(value).split("x")[-1]
-    if value < 16:
+    assert value >= 0 and value <= 255, f'Invalid value {value}'
+    integer_value = int(round(value))
+    hex_string = hex(integer_value).split("x")[-1]
+    if integer_value < 16:
         hex_string = "0" + hex_string
     return "#" + hex_string * 3
 
@@ -1739,11 +2061,18 @@ def f(i):
 def plot_function(f, N):
     import matplotlib.pyplot as plt
 
-    x = np.arange(0, N, 0.001)
+    x = np.arange(0, N + 0.001, 0.001)
     y = f(x)
+    print(np.sum(y))
+    print([f(i) for i in range(8)])
 
     plt.plot(x, y)
     plt.show()
+
+def compute_dot_product(f, g, sample_points):
+    a = np.array([f(p) for p in sample_points])
+    b = np.array([g(p) for p in sample_points])
+    return np.dot(a, b)
 
 
 def g(i):
@@ -1751,27 +2080,31 @@ def g(i):
 
 
 def h(i):
-    return np.cos((2 * i + 1) * 3 * np.pi / 16) * np.cos((2 * i + 1) * 1.5 * np.pi / 16)
+    return np.cos((2 * i + 1) * 5 * np.pi / 16) * np.cos((2 * i + 1) * 3 * np.pi / 16)
+
+def func(j, k):
+    def dot_product_func(n):
+        return np.cos((2 * n + 1) * j * np.pi / 16) * np.cos((2 * n + 1) * k * np.pi / 16)
+    return dot_product_func
+
+def get_dct_elem(i, j, N):
+    return np.cos(j * (2 * i + 1) * np.pi / (2 * N))
 
 
-def get_dct_elem(i, j):
-    return np.cos(j * (2 * i + 1) * np.pi / 16)
-
-
-def get_dct_matrix():
-    matrix = np.zeros((8, 8))
-    for i in range(8):
-        for j in range(8):
-            matrix[j][i] = get_dct_elem(i, j)
+def get_dct_matrix(N):
+    matrix = np.zeros((N, N))
+    for i in range(N):
+        for j in range(N):
+            matrix[j][i] = get_dct_elem(i, j, N)
 
     return matrix
 
 
-def get_dot_product_matrix():
-    dct_matrix = get_dct_matrix()
-    dot_product_matrix = np.zeros((8, 8))
-    for i in range(8):
-        for j in range(8):
+def get_dot_product_matrix(N):
+    dct_matrix = get_dct_matrix(N)
+    dot_product_matrix = np.zeros((N, N))
+    for i in range(N):
+        for j in range(N):
             value = np.dot(dct_matrix[i], dct_matrix[j])
             if np.isclose(value, 0):
                 dot_product_matrix[i][j] = 0
