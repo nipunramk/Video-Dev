@@ -1,5 +1,7 @@
+from logging import warn
 from manim import *
 import cv2
+from numpy.random.mtrand import randint
 from scipy import fftpack
 from typing import Iterable, List
 
@@ -360,12 +362,45 @@ class IntroduceRGBAndJPEG(Scene):
 
 class JPEGDiagram(Scene):
     def construct(self):
+
+        # intro
+
+        sq_array = [Square(color=WHITE) for _ in range(8 * 8)]
+        intro_image = (
+            VGroup(*sq_array)
+            .arrange_in_grid(rows=8, cols=8, buff=0)
+            .stretch_to_fit_height(3)
+            .stretch_to_fit_width(3)
+        )
+
+        intro_image_buff = intro_image.copy().arrange_in_grid(rows=8, cols=8, buff=0.1)
+
+        self.play(LaggedStartMap(GrowFromCenter, intro_image))
+        self.play(Transform(intro_image, intro_image_buff))
+
+        anims = []
+        for i in range(5):
+            rand_index = np.random.randint(0, 63)
+            self.play(
+                Transform(
+                    sq_array[rand_index],
+                    sq_array[rand_index].copy().set_color(REDUCIBLE_YELLOW),
+                )
+            )
+            self.play(ShrinkToCenter(sq_array[rand_index]), run_time=2)
+
+        # reset scene
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
+
+        # TODO: add arrows to data flow diagram
+
         input_rows = 8
         input_cols = 8
 
         output_rows = 4
         output_cols = 4
 
+        # object instantiation
         input_image = (
             VGroup(*[Square(color=WHITE) for _ in range(input_rows * input_cols)])
             .arrange_in_grid(rows=input_rows, cols=input_cols, buff=0)
@@ -389,8 +424,6 @@ class JPEGDiagram(Scene):
             ).set_stroke(width=10),
         )
 
-        # self.play(FadeIn(jpeg_decoder))
-
         data_flow_encode = VGroup(input_image, jpeg_encoder, compressed_data).arrange(
             RIGHT, buff=1
         )
@@ -405,13 +438,14 @@ class JPEGDiagram(Scene):
         )
 
         # animations
-        self.play(LaggedStartMap(Create, input_image), run_time=1)
-        self.play(FadeIn(jpeg_encoder))
-        self.play(FadeIn(compressed_data))
+        self.play(LaggedStartMap(Write, input_image))
+        self.play(Write(jpeg_encoder))
+        self.play(Write(compressed_data))
 
+        self.wait()
         self.play(data_flow_encode.animate.shift(UP * 2))
-
-        self.play(LaggedStartMap(FadeIn, data_flow_decode))
+        self.wait()
+        self.play(LaggedStartMap(Write, data_flow_decode, lag_ratio=0.5), run_time=6)
 
         self.wait(4)
 
