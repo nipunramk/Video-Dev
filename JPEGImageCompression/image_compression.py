@@ -12,6 +12,7 @@ there might be some unexpected behavior
 E.g manim -pql JPEGImageCompression/image_compression.py --disable_caching
 """
 
+REDUCIBLE_PURPLE_DARKER = "#3B0893"
 REDUCIBLE_BLUE = "#650FFA"
 REDUCIBLE_PURPLE = "#8c4dfb"
 REDUCIBLE_VIOLET = "#d7b5fe"
@@ -359,9 +360,77 @@ class IntroduceRGBAndJPEG(Scene):
 
 class JPEGDiagram(Scene):
     def construct(self):
-        self.play(FadeIn(Rectangle(color=REDUCIBLE_VIOLET)))
+        input_rows = 8
+        input_cols = 8
+
+        output_rows = 4
+        output_cols = 4
+
+        input_image = (
+            VGroup(*[Square(color=WHITE) for _ in range(input_rows * input_cols)])
+            .arrange_in_grid(rows=input_rows, cols=input_cols, buff=0)
+            .stretch_to_fit_height(2)
+            .stretch_to_fit_width(2)
+        )
+
+        final_image = (
+            VGroup(*[Square(color=WHITE) for _ in range(output_rows * output_cols)])
+            .arrange_in_grid(rows=output_rows, cols=output_cols, buff=0)
+            .stretch_to_fit_height(2)
+            .stretch_to_fit_width(2)
+        )
+
+        # encoding part
+        jpeg_encoder = self.module("JPEG Encoder")
+        compressed_data = VGroup(
+            Square(),
+            DashedLine(
+                Square().get_bottom(), Square().get_top(), dash_length=0.1
+            ).set_stroke(width=10),
+        )
+
+        # self.play(FadeIn(jpeg_decoder))
+
+        data_flow_encode = VGroup(input_image, jpeg_encoder, compressed_data).arrange(
+            RIGHT, buff=1
+        )
+
+        # decoding part
+        jpeg_decoder = self.module("JPEG Decoder")
+
+        data_flow_decode = (
+            VGroup(compressed_data.copy(), jpeg_decoder, final_image)
+            .arrange(RIGHT, buff=1)
+            .shift(DOWN * 2)
+        )
+
+        # animations
+        self.play(LaggedStartMap(Create, input_image), run_time=1)
+        self.play(FadeIn(jpeg_encoder))
+        self.play(FadeIn(compressed_data))
+
+        self.play(data_flow_encode.animate.shift(UP * 2))
+
+        self.play(LaggedStartMap(FadeIn, data_flow_decode))
 
         self.wait(4)
+
+    def module(
+        self,
+        text,
+        text_scale=1,
+        fill_color=REDUCIBLE_PURPLE_DARKER,
+        stroke_color=REDUCIBLE_VIOLET,
+        stroke_width=5,
+    ):
+        rect = (
+            Rectangle(fill_color=fill_color)
+            .set_opacity(1)
+            .set_stroke(stroke_color, width=stroke_width)
+        )
+
+        text = Tex(text).scale(text_scale)
+        return VGroup(rect, text).arrange(ORIGIN)
 
 
 class MotivateAndExplainYCbCr(ThreeDScene):
