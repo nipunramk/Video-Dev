@@ -357,6 +357,13 @@ class IntroduceRGBAndJPEG(Scene):
         self.wait(3)
 
 
+class JPEGDiagram(Scene):
+    def construct(self):
+        self.play(FadeIn(Rectangle(color=REDUCIBLE_VIOLET)))
+
+        self.wait(4)
+
+
 class MotivateAndExplainYCbCr(ThreeDScene):
     def construct(self):
         self.set_camera_orientation(phi=75 * DEGREES, theta=-45 * DEGREES)
