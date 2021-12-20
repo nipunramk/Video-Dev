@@ -360,16 +360,18 @@ class IntroduceRGBAndJPEG(Scene):
 class MotivateAndExplainYCbCr(ThreeDScene):
     def construct(self):
         self.set_camera_orientation(phi=75 * DEGREES, theta=-45 * DEGREES)
+        # self.begin_ambient_camera_rotation(rate=1)
         self.move_camera(zoom=0.2)
 
-        color_resolution = 8
+        color_resolution = 4
         cubes_rgb = self.create_color_space_cube(
             coords2rgbcolor, color_res=color_resolution, cube_side_length=1
         )
         cubes_yuv = self.create_color_space_cube(
             coords2ycbcrcolor, color_res=color_resolution, cube_side_length=1
         )
-        self.wait(2)
+        self.wait()
+
         self.add(
             cubes_rgb,
         )
@@ -381,26 +383,25 @@ class MotivateAndExplainYCbCr(ThreeDScene):
         # any diagonal cube will have their coordinates matching, so we remove everything else.
         for index, cube in enumerate(cubes_rgb):
             coords = index2coords(index, base=color_resolution)
-            print(coords)
             if not coords[0] == coords[1] == coords[2]:
                 anim_group.append(FadeOut(cube))
                 cubes_rgb.remove(cube)
 
         self.play(*anim_group)
 
-        self.play(Rotate(cubes_rgb, angle=PI * 2))
-        cubes_arranged = cubes_rgb.copy().arrange(OUT, buff=0)
-        self.play(Transform(cubes_rgb, cubes_arranged))
+        # self.play(Rotate(cubes_rgb, angle=PI * 2))
+        # cubes_arranged = cubes_rgb.copy().arrange(OUT, buff=0)
+        # self.play(Transform(cubes_rgb, cubes_arranged))
 
-        self.wait()
+        self.wait(4)
 
-        cubes_yuv.move_to(cubes_arranged.get_center())
+        # cubes_yuv.move_to(cubes_arranged.get_center())
 
         # this is a very bad way of transforming the grayscale line to
         # the cube obviously but it illustrates the point at least for now
-        self.play(Transform(cubes_arranged, cubes_yuv))
-        self.play(Rotate(cubes_arranged, angle=PI * 2))
-        self.wait()
+        # self.play(Transform(cubes_arranged, cubes_yuv))
+        # self.play(Rotate(cubes_arranged, angle=PI * 2))
+        # self.wait(4)
 
     def create_color_space_cube(
         self,
