@@ -1,11 +1,11 @@
-from logging import warn
 from manim import *
 import cv2
-from numpy.random.mtrand import randint
+
 from scipy import fftpack
 from typing import Iterable, List
 
 config["assets_dir"] = "assets"
+np.random.seed(23)
 
 """
 Make sure you run manim CE with --disable_caching flag
@@ -21,6 +21,7 @@ REDUCIBLE_VIOLET = "#d7b5fe"
 REDUCIBLE_YELLOW = "#ffff5c"
 REDUCIBLE_GREEN_LIGHTER = "#00cc70"
 REDUCIBLE_GREEN_DARKER = "#008f4f"
+REDUCIBLE_GREEN_DARKER = "#004F2C"
 
 
 class ReducibleBarChart(BarChart):
@@ -376,10 +377,10 @@ class JPEGDiagram(Scene):
         intro_image_buff = intro_image.copy().arrange_in_grid(rows=8, cols=8, buff=0.1)
 
         self.play(LaggedStartMap(GrowFromCenter, intro_image))
+        self.wait()
         self.play(Transform(intro_image, intro_image_buff))
 
-        anims = []
-        for i in range(5):
+        for _ in range(10):
             rand_index = np.random.randint(0, 63)
             self.play(
                 Transform(
@@ -388,6 +389,8 @@ class JPEGDiagram(Scene):
                 )
             )
             self.play(ShrinkToCenter(sq_array[rand_index]), run_time=2)
+
+        self.wait()
 
         # reset scene
         self.play(*[FadeOut(mob) for mob in self.mobjects])
@@ -428,6 +431,11 @@ class JPEGDiagram(Scene):
             RIGHT, buff=1
         )
 
+        # arrows
+        arr1 = Arrow(input_image.get_right(), jpeg_encoder.get_left())
+        arr2 = Arrow(jpeg_encoder.get_right(), compressed_data.get_left())
+        data_flow_encode.add(arr1, arr2)
+
         # decoding part
         jpeg_decoder = self.module("JPEG Decoder")
 
@@ -436,18 +444,66 @@ class JPEGDiagram(Scene):
             .arrange(RIGHT, buff=1)
             .shift(DOWN * 2)
         )
+        arr3 = Arrow(data_flow_decode[0].get_right(), jpeg_decoder.get_left())
+        arr4 = Arrow(jpeg_decoder.get_right(), final_image.get_left())
+        data_flow_decode.add(arr3, arr4)
 
         # animations
         self.play(LaggedStartMap(Write, input_image))
-        self.play(Write(jpeg_encoder))
-        self.play(Write(compressed_data))
+
+        self.play(
+            Write(jpeg_encoder),
+            Write(arr1),
+        )
+        self.play(
+            Write(compressed_data),
+            Write(arr2),
+        )
 
         self.wait()
+
         self.play(data_flow_encode.animate.shift(UP * 2))
+
         self.wait()
-        self.play(LaggedStartMap(Write, data_flow_decode, lag_ratio=0.5), run_time=6)
+
+        self.play(LaggedStartMap(Write, data_flow_decode, lag_ratio=0.5), run_time=4)
 
         self.wait(4)
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
+
+        self.play(Write(jpeg_encoder.move_to(ORIGIN)))
+        self.wait()
+        self.play(
+            ScaleInPlace(jpeg_encoder, 3),
+            FadeOut(jpeg_encoder[1]),
+        )
+
+        forward_dct = self.module(
+            "Forward DCT", fill_color="#7F7F2D", stroke_color=REDUCIBLE_YELLOW
+        )
+        forward_dct_icon = ImageMobject("dct.png").scale(0.2)
+
+        quantization = self.module(
+            "Quantization", fill_color="#7F7F2D", stroke_color=REDUCIBLE_YELLOW
+        )
+        quantization_icon = ImageMobject("quantization.png").scale(0.2)
+
+        lossless_comp = self.module(
+            "Lossless \\\\ compression",
+            fill_color="#7F7F2D",
+            stroke_color=REDUCIBLE_YELLOW,
+        )
+        lossless_icon = ImageMobject("lossless.png").scale(0.2)
+
+        self.play(
+            FadeIn(VGroup(forward_dct, quantization, lossless_comp).arrange(RIGHT))
+        )
+        self.play(
+            FadeIn(forward_dct_icon.move_to(forward_dct, DOWN)),
+            FadeIn(quantization_icon.move_to(quantization, DOWN)),
+            FadeIn(lossless_icon.move_to(lossless_comp, DOWN)),
+        )
+        self.wait(3)
 
     def module(
         self,
