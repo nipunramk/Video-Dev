@@ -371,13 +371,15 @@ class JPEGDiagram(Scene):
 
         # self.intro()
 
-        # self.intro_2()
-
         # self.play(*[FadeOut(mob) for mob in self.mobjects])
 
-        # self.data_flow()
+        self.intro_2()
 
-        # self.play(*[FadeOut(mob) for mob in self.mobjects])
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
+
+        self.data_flow()
+
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
 
         self.zoom_jpeg_encoder()
 
