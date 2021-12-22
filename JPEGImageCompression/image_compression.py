@@ -1,3 +1,4 @@
+import enum
 from math import sqrt
 from manim import *
 import cv2
@@ -367,9 +368,9 @@ class JPEGDiagram(Scene):
     def construct(self):
         # self.intro()
 
-        # self.intro_2()
+        self.intro_2()
 
-        self.test()
+        # self.test()
 
         # self.play(*[FadeOut(mob) for mob in self.mobjects])
 
@@ -385,27 +386,6 @@ class JPEGDiagram(Scene):
 
     def test(self):
         self.wait()
-
-        def make_nested_squares(total_side=16, groups_side=2):
-            groups_ratio = total_side ** 2 // groups_side ** 2
-            print(f"{groups_ratio = }")
-
-            output_vg = VGroup()
-            for i in range(groups_ratio):
-                print("group", i)
-                aux_vg = VGroup()
-                for _ in range(groups_side * groups_side):
-                    aux_vg.add(Square())
-
-                aux_vg.arrange_in_grid(rows=groups_side, cols=groups_side, buff=0)
-
-                output_vg.add(aux_vg)
-
-            print(len(output_vg))
-
-            return output_vg.arrange_in_grid(
-                rows=int(sqrt(groups_ratio)), cols=int(sqrt(groups_ratio)), buff=0
-            )
 
         img_og = (
             VGroup(
@@ -425,7 +405,7 @@ class JPEGDiagram(Scene):
             .stretch_to_fit_width(2)
         )
 
-        a = make_nested_squares().scale_to_fit_width(2)
+        a = self.make_nested_squares().scale_to_fit_width(2)
         self.add(a)
         anims = []
         for mob in a.submobjects:
@@ -573,48 +553,42 @@ class JPEGDiagram(Scene):
         self.wait(3)
 
     def intro_2(self):
-        img = VGroup(
-            VGroup(
-                *[Square(color=WHITE).set_stroke(opacity=0.3) for _ in range(8 * 8)],
-            )
-            .arrange_in_grid(rows=8, cols=8, buff=0)
-            .stretch_to_fit_height(2)
-            .stretch_to_fit_width(2),
-            VGroup(
-                *[Square(color=WHITE) for _ in range(4 * 4)],
-            )
-            .arrange_in_grid(rows=4, cols=4, buff=0)
-            .stretch_to_fit_height(2)
-            .stretch_to_fit_width(2),
-        )
 
-        img_og = (
-            VGroup(
-                *[Square(color=WHITE) for _ in range(8 * 8)],
-            )
-            .arrange_in_grid(rows=8, cols=8, buff=0)
-            .stretch_to_fit_height(2)
-            .stretch_to_fit_width(2)
-        )
-        img_og_buff = img_og.copy().arrange_in_grid(rows=8, cols=8, buff=0.1)
+        img_og = self.make_nested_squares(8, 2).scale_to_fit_width(4)
 
-        img_sm = (
-            VGroup(
-                *[Square(color=WHITE) for _ in range(4 * 4)],
-            )
-            .arrange_in_grid(rows=4, cols=4, buff=0)
-            .stretch_to_fit_height(2)
-            .stretch_to_fit_width(2)
-        )
+        img_sm = self.make_nested_squares(4, 1).scale_to_fit_width(4)
 
-        img_comp = VGroup(img_og, img_sm)
+        self.play(FadeIn(img_og), run_time=2)
 
-        self.play(FadeIn(img_og))
-        self.play(Transform(img_og, img_og_buff))
-        self.play(Transform(img_og, img_sm))
-        # self.play(LaggedStartMap(FadeOut, img_og), run_time=1.5)
+        anims = []
+        for i in range(len(img_og.submobjects)):
+            anims.append(Transform(img_og[i], img_sm[i]))
+
+        self.play(LaggedStart(*anims, lag_ratio=0.1), run_time=5)
 
         self.wait(3)
+
+    def make_nested_squares(self, total_side=8, groups_side=2):
+        """
+        Creates an arrangement of squares based on blocks of `groups_side` squares.
+        """
+        groups_ratio = total_side ** 2 // groups_side ** 2
+
+        output_vg = VGroup()
+        for i in range(groups_ratio):
+            aux_vg = VGroup()
+            for _ in range(groups_side * groups_side):
+                aux_vg.add(Square())
+
+            aux_vg.arrange_in_grid(rows=groups_side, cols=groups_side, buff=0)
+
+            output_vg.add(aux_vg)
+
+        print(len(output_vg))
+
+        return output_vg.arrange_in_grid(
+            rows=int(sqrt(groups_ratio)), cols=int(sqrt(groups_ratio)), buff=0
+        )
 
     def module(
         self,
