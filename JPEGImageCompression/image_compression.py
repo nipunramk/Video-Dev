@@ -371,13 +371,13 @@ class JPEGDiagram(Scene):
 
         # self.intro()
 
-        self.intro_2()
+        # self.intro_2()
 
-        self.play(*[FadeOut(mob) for mob in self.mobjects])
+        # self.play(*[FadeOut(mob) for mob in self.mobjects])
 
-        self.data_flow()
+        # self.data_flow()
 
-        self.play(*[FadeOut(mob) for mob in self.mobjects])
+        # self.play(*[FadeOut(mob) for mob in self.mobjects])
 
         self.zoom_jpeg_encoder()
 
@@ -497,28 +497,33 @@ class JPEGDiagram(Scene):
         forward_dct = self.module(
             "Forward DCT", fill_color="#7F7F2D", stroke_color=REDUCIBLE_YELLOW
         )
-        forward_dct_icon = ImageMobject("dct.png").scale(0.2)
+        forward_dct_icon = ImageMobject("dct.png").scale(0.4)
+        forward_dct_module = Group(forward_dct, forward_dct_icon).arrange(DOWN, buff=1)
 
         quantization = self.module(
             "Quantization", fill_color="#7F7F2D", stroke_color=REDUCIBLE_YELLOW
         )
-        quantization_icon = ImageMobject("quantization.png").scale(0.2)
+        quantization_icon = ImageMobject("quantization.png").scale(0.4)
+        quantization_module = Group(quantization, quantization_icon).arrange(
+            DOWN, buff=1
+        )
 
         lossless_comp = self.module(
             "Lossless \\\\ compression",
             fill_color="#7F7F2D",
             stroke_color=REDUCIBLE_YELLOW,
         )
-        lossless_icon = ImageMobject("lossless.png").scale(0.2)
+        lossless_icon = ImageMobject("lossless.png").scale(0.4)
+        lossless_module = Group(lossless_comp, lossless_icon).arrange(DOWN, buff=1)
 
-        self.play(
-            FadeIn(VGroup(forward_dct, quantization, lossless_comp).arrange(RIGHT))
+        modules_g = (
+            Group(forward_dct_module, quantization_module, lossless_module)
+            .arrange(RIGHT)
+            .scale_to_fit_width(jpeg_encoder.width - 1)
         )
-        self.play(
-            FadeIn(forward_dct_icon.move_to(forward_dct, DOWN)),
-            FadeIn(quantization_icon.move_to(quantization, DOWN)),
-            FadeIn(lossless_icon.move_to(lossless_comp, DOWN)),
-        )
+
+        self.play(LaggedStartMap(FadeIn, modules_g), run_time=2)
+
         self.wait(3)
 
     def intro_2(self):
