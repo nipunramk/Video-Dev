@@ -366,55 +366,24 @@ class IntroduceRGBAndJPEG(Scene):
 
 class JPEGDiagram(Scene):
     def construct(self):
+
+        # animation section
+
         # self.intro()
 
         self.intro_2()
 
-        # self.test()
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
 
-        # self.play(*[FadeOut(mob) for mob in self.mobjects])
+        self.data_flow()
 
-        # self.data_flow()
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
 
-        # self.play(*[FadeOut(mob) for mob in self.mobjects])
+        self.zoom_jpeg_encoder()
 
-        # self.zoom_jpeg_encoder()
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
 
-        # self.play(*[FadeOut(mob) for mob in self.mobjects])
-
-        # intro
-
-    def test(self):
-        self.wait()
-
-        img_og = (
-            VGroup(
-                *[Square(color=WHITE) for _ in range(8 * 8)],
-            )
-            .arrange_in_grid(rows=8, cols=8, buff=0)
-            .stretch_to_fit_height(2)
-            .stretch_to_fit_width(2)
-        )
-        # img_og_buff = img_og.copy().arrange_in_grid(rows=8, cols=8, buff=0.1)
-        img_sm = (
-            VGroup(
-                *[Square(color=WHITE) for _ in range(4 * 4)],
-            )
-            .arrange_in_grid(rows=4, cols=4, buff=0)
-            .stretch_to_fit_height(2)
-            .stretch_to_fit_width(2)
-        )
-
-        a = self.make_nested_squares().scale_to_fit_width(2)
-        self.add(a)
-        anims = []
-        for mob in a.submobjects:
-            anims.append(Indicate(mob))
-
-        self.play(*anims)
-
-        self.wait(3)
-
+    # definition of animations
     def intro(self):
         sq_array = [Square(color=WHITE) for _ in range(8 * 8)]
         intro_image = (
@@ -495,7 +464,7 @@ class JPEGDiagram(Scene):
         data_flow_decode.add(arr3, arr4)
 
         # animations
-        self.play(LaggedStartMap(Write, input_image))
+        self.play(LaggedStartMap(Write, input_image, lag_ratio=0.1), run_time=2)
 
         self.play(
             Write(jpeg_encoder),
@@ -512,7 +481,7 @@ class JPEGDiagram(Scene):
 
         self.wait()
 
-        self.play(LaggedStartMap(Write, data_flow_decode, lag_ratio=0.5), run_time=4)
+        self.play(LaggedStartMap(Write, data_flow_decode, lag_ratio=0.1), run_time=1)
 
         self.wait(4)
 
@@ -568,6 +537,7 @@ class JPEGDiagram(Scene):
 
         self.wait(3)
 
+    # definition of util functions
     def make_nested_squares(self, total_side=8, groups_side=2):
         """
         Creates an arrangement of squares based on blocks of `groups_side` squares.
