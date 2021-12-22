@@ -1,3 +1,4 @@
+from math import sqrt
 from manim import *
 import cv2
 
@@ -19,6 +20,7 @@ REDUCIBLE_BLUE = "#650FFA"
 REDUCIBLE_PURPLE = "#8c4dfb"
 REDUCIBLE_VIOLET = "#d7b5fe"
 REDUCIBLE_YELLOW = "#ffff5c"
+REDUCIBLE_YELLOW_DARKER = "#7F7F2D"
 REDUCIBLE_GREEN_LIGHTER = "#00cc70"
 REDUCIBLE_GREEN_DARKER = "#008f4f"
 REDUCIBLE_GREEN_DARKER = "#004F2C"
@@ -363,9 +365,77 @@ class IntroduceRGBAndJPEG(Scene):
 
 class JPEGDiagram(Scene):
     def construct(self):
+        # self.intro()
+
+        # self.intro_2()
+
+        self.test()
+
+        # self.play(*[FadeOut(mob) for mob in self.mobjects])
+
+        # self.data_flow()
+
+        # self.play(*[FadeOut(mob) for mob in self.mobjects])
+
+        # self.zoom_jpeg_encoder()
+
+        # self.play(*[FadeOut(mob) for mob in self.mobjects])
 
         # intro
 
+    def test(self):
+        self.wait()
+
+        def make_nested_squares(total_side=16, groups_side=2):
+            groups_ratio = total_side ** 2 // groups_side ** 2
+            print(f"{groups_ratio = }")
+
+            output_vg = VGroup()
+            for i in range(groups_ratio):
+                print("group", i)
+                aux_vg = VGroup()
+                for _ in range(groups_side * groups_side):
+                    aux_vg.add(Square())
+
+                aux_vg.arrange_in_grid(rows=groups_side, cols=groups_side, buff=0)
+
+                output_vg.add(aux_vg)
+
+            print(len(output_vg))
+
+            return output_vg.arrange_in_grid(
+                rows=int(sqrt(groups_ratio)), cols=int(sqrt(groups_ratio)), buff=0
+            )
+
+        img_og = (
+            VGroup(
+                *[Square(color=WHITE) for _ in range(8 * 8)],
+            )
+            .arrange_in_grid(rows=8, cols=8, buff=0)
+            .stretch_to_fit_height(2)
+            .stretch_to_fit_width(2)
+        )
+        # img_og_buff = img_og.copy().arrange_in_grid(rows=8, cols=8, buff=0.1)
+        img_sm = (
+            VGroup(
+                *[Square(color=WHITE) for _ in range(4 * 4)],
+            )
+            .arrange_in_grid(rows=4, cols=4, buff=0)
+            .stretch_to_fit_height(2)
+            .stretch_to_fit_width(2)
+        )
+
+        a = make_nested_squares().scale_to_fit_width(2)
+        self.add(a)
+        anims = []
+        for mob in a.submobjects:
+            anims.append(Indicate(mob))
+
+        self.play(*anims)
+
+        self.wait(3)
+
+    def intro(self):
         sq_array = [Square(color=WHITE) for _ in range(8 * 8)]
         intro_image = (
             VGroup(*sq_array)
@@ -392,11 +462,7 @@ class JPEGDiagram(Scene):
 
         self.wait()
 
-        # reset scene
-        self.play(*[FadeOut(mob) for mob in self.mobjects])
-
-        # TODO: add arrows to data flow diagram
-
+    def data_flow(self):
         input_rows = 8
         input_cols = 8
 
@@ -469,8 +535,9 @@ class JPEGDiagram(Scene):
         self.play(LaggedStartMap(Write, data_flow_decode, lag_ratio=0.5), run_time=4)
 
         self.wait(4)
-        self.play(*[FadeOut(mob) for mob in self.mobjects])
 
+    def zoom_jpeg_encoder(self):
+        jpeg_encoder = self.module("JPEG Encoder")
         self.play(Write(jpeg_encoder.move_to(ORIGIN)))
         self.wait()
         self.play(
@@ -503,6 +570,50 @@ class JPEGDiagram(Scene):
             FadeIn(quantization_icon.move_to(quantization, DOWN)),
             FadeIn(lossless_icon.move_to(lossless_comp, DOWN)),
         )
+        self.wait(3)
+
+    def intro_2(self):
+        img = VGroup(
+            VGroup(
+                *[Square(color=WHITE).set_stroke(opacity=0.3) for _ in range(8 * 8)],
+            )
+            .arrange_in_grid(rows=8, cols=8, buff=0)
+            .stretch_to_fit_height(2)
+            .stretch_to_fit_width(2),
+            VGroup(
+                *[Square(color=WHITE) for _ in range(4 * 4)],
+            )
+            .arrange_in_grid(rows=4, cols=4, buff=0)
+            .stretch_to_fit_height(2)
+            .stretch_to_fit_width(2),
+        )
+
+        img_og = (
+            VGroup(
+                *[Square(color=WHITE) for _ in range(8 * 8)],
+            )
+            .arrange_in_grid(rows=8, cols=8, buff=0)
+            .stretch_to_fit_height(2)
+            .stretch_to_fit_width(2)
+        )
+        img_og_buff = img_og.copy().arrange_in_grid(rows=8, cols=8, buff=0.1)
+
+        img_sm = (
+            VGroup(
+                *[Square(color=WHITE) for _ in range(4 * 4)],
+            )
+            .arrange_in_grid(rows=4, cols=4, buff=0)
+            .stretch_to_fit_height(2)
+            .stretch_to_fit_width(2)
+        )
+
+        img_comp = VGroup(img_og, img_sm)
+
+        self.play(FadeIn(img_og))
+        self.play(Transform(img_og, img_og_buff))
+        self.play(Transform(img_og, img_sm))
+        # self.play(LaggedStartMap(FadeOut, img_og), run_time=1.5)
+
         self.wait(3)
 
     def module(
