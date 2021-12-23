@@ -540,7 +540,7 @@ class JPEGDiagram(Scene):
         for i in range(len(img_og.submobjects)):
             anims.append(Transform(img_og[i], img_sm[i]))
 
-        self.play(LaggedStart(*anims, lag_ratio=0.1), run_time=5)
+        self.play(LaggedStart(*anims, lag_ratio=0.05), run_time=10)
 
         self.wait(3)
 
