@@ -2698,6 +2698,8 @@ class MotivateDCT(DCT1DStepsVisualized):
         )
         self.wait()
 
+        dct_graph_group = VGroup(dct_ax, dct_graph, dct_points, vertical_lines)
+
         matrix = self.get_matrix_m()
 
         vector = self.make_column_vector(row_values)
@@ -2708,12 +2710,120 @@ class MotivateDCT(DCT1DStepsVisualized):
         result_vector = self.make_column_vector(general_dct_vals)
         result_vector.next_to(vector, RIGHT)
 
-        matrix_equation = VGroup(matrix, vector, equals, result_vector).arrange(RIGHT)
+        matrix_equation = VGroup(matrix, vector, equals, result_vector).arrange(RIGHT, buff=0.5)
 
         matrix_equation.move_to(DOWN * 2)
 
         self.play(
             FadeIn(matrix_equation)
+        )
+
+        self.wait()
+
+        self.play(
+            Indicate(matrix[1][1:])
+        )
+        self.wait()
+
+        self.play(
+            Indicate(vector)
+        )
+        self.wait()
+
+        self.play(
+            LaggedStartMap(Indicate, result_vector[0][1:])
+        )
+        self.wait()
+
+        original_first_row_matrix = matrix[1][0]
+
+        first_row = VGroup(*[Integer(1).scale(0.8) for _ in range(8)]).arrange(RIGHT, buff=0.4).move_to(original_first_row_matrix.get_center())
+        # first_row.stretch_to_fit_width(original_first_row_matrix.width)
+        self.play(
+            Transform(original_first_row_matrix, first_row)
+        )
+        self.wait()
+
+        norm_first_row = VGroup(*[MathTex(r"\frac{1}{\sqrt{8}}").scale(0.6).move_to(element.get_center()) for element in first_row])
+
+        self.play(
+            Transform(original_first_row_matrix, norm_first_row)
+        )
+        self.wait()
+
+        self.center_about_zero_and_animate(matrix_m_def, pixel_space_group, dct_graph_group, vector)
+
+    def center_about_zero_and_animate(self, matrix_m_def, pixel_space_group, dct_graph_group, original_vec):
+        group, array = pixel_space_group
+        ax, graph, dots, pixel_row_mob = group
+
+        tracker = ValueTracker(127)
+
+        def get_new_pixel_space_group():
+            row_values = np.ones(8) * tracker.get_value()
+            pixel_row_mob = self.make_row_of_pixels(row_values + 128)
+            pixel_row_mob.next_to(matrix_m_def, DOWN * 2)
+
+            dct_row_pixels = dct_1d(row_values)
+
+            ax, graph, dots = self.draw_image_graph(dct_row_pixels, centered=True)
+
+            self.show_graph(ax, graph, dots, pixel_row_mob, animate=False)
+
+            group = VGroup(ax, graph, dots, pixel_row_mob)
+            group.move_to(LEFT * 3.5 + DOWN * 0.5)
+            length = 5 
+            if tracker.get_value() <= -99.5:
+                length = 5.5
+            array_mob = self.get_array_obj(row_values, length=length)
+            array_mob.next_to(pixel_row_mob, UP)
+
+            new_pixel_space_group = VGroup(group, array_mob)
+            new_pixel_space_group.scale(0.75).move_to(pixel_space_group.get_center())
+
+            return new_pixel_space_group
+
+        def get_new_dct_space_group():
+            row_values = np.ones(8) * tracker.get_value()
+            dct_row_pixels = dct_1d(row_values)
+            dct_ax = self.get_dct_axis(dct_row_pixels, -360, 360)
+
+            dct_graph, dct_points = self.plot_row_values(dct_ax, dct_row_pixels, color=REDUCIBLE_PURPLE)
+
+            dct_graph_components = VGroup(dct_ax, dct_graph, dct_points).move_to(RIGHT * 3.5 + DOWN * 0.5)
+
+            vertical_lines = self.get_vertical_lines_from_points(dct_ax, dct_points)
+
+            new_dct_graph_group = VGroup(dct_ax, dct_graph, dct_points, vertical_lines)
+            new_dct_graph_group.scale(0.7).move_to(dct_graph_group.get_center())
+            return new_dct_graph_group
+
+        def get_new_column_vector():
+            row_values = np.ones(8) * tracker.get_value()
+            column_vec = self.make_column_vector(row_values)
+            return column_vec.move_to(original_vec.get_center())
+
+        new_pixel_space_group = always_redraw(get_new_pixel_space_group)
+        new_dct_graph_group = always_redraw(get_new_dct_space_group)
+        new_column_vector = always_redraw(get_new_column_vector)
+
+        self.play(
+            ReplacementTransform(pixel_space_group, new_pixel_space_group),
+            ReplacementTransform(dct_graph_group, new_dct_graph_group),
+            ReplacementTransform(original_vec, new_column_vector)
+        )
+        self.wait()
+
+        self.play(
+            tracker.animate.set_value(-128),
+            run_time=5,
+            rate_func=linear,
+        )
+
+        self.play(
+            tracker.animate.set_value(127),
+            run_time=5,
+            rate_func=linear,
         )
 
         self.wait()
@@ -2785,14 +2895,130 @@ class MotivateDCT(DCT1DStepsVisualized):
         dct_row[col] = new_value
         return idct_1d(dct_row) + 128, dct_row
 
-# Quick test of gray_scale_value_to_hex
-class TestHexToGrayScale(Scene):
+class CosineSampling(MotivateDCT):
     def construct(self):
-        for i in range(256):
-            dot = Dot().set_color(gray_scale_value_to_hex(i))
-            self.add(dot)
-            self.wait()
-            self.remove(dot)
+        ax, graph, cosine_label = self.introduce_cosine()
+        dots = self.get_dots(ax, graph)
+        line_intervals = self.get_intervals(ax, graph)
+        ticks = self.get_ticks_for_x_axis()
+        vertical_lines = self.get_vertical_lines_from_points(ax, dots)
+
+        self.play(
+            *[GrowFromCenter(line) for line in line_intervals],
+            *[Write(tick) for tick in ticks]
+        )
+        self.wait()
+
+        self.play(
+            LaggedStartMap(Create, vertical_lines),
+            run_time=2
+        )
+        self.play(
+            LaggedStartMap(GrowFromCenter, dots)
+        )
+        self.wait()
+
+        labels = self.show_sample_x_vals(vertical_lines)
+
+    def introduce_cosine(self):
+        ax, graph  = self.get_cosine_wave_with_ax(lambda x: np.cos(x))
+        self.play(
+            Write(ax)
+        )
+        self.wait()
+
+        self.play(
+            Create(graph)
+        )
+        self.wait()
+
+        cosine_label = MathTex(r"y = \cos(x)")
+        cosine_label.next_to(graph, DOWN)
+        self.play(
+            Write(cosine_label)
+        )
+        self.wait()
+        return ax, graph, cosine_label
+
+    def get_x_y_points(self):
+        x_points = [(j * 2 + 1) * np.pi / 16 for j in range(8)]
+        y_points = [np.cos(x) for x in x_points]
+        return x_points, y_points
+
+    def get_dots(self, ax, graph, color=REDUCIBLE_YELLOW):
+        x_points, y_points = self.get_x_y_points()
+        points = [ax.coords_to_point(x, y) for x, y in zip(x_points, y_points)]
+
+        dots = VGroup(*[Dot().set_color(color).move_to(p) for p in points])
+        return dots
+
+    def get_intervals(self, ax, graph):
+        proportions = np.arange(0, np.pi + 0.0001, np.pi / 8)
+        lines = []
+        for i in range(len(proportions) - 1):
+            start, end = proportions[i], proportions[i + 1]
+            start_point, end_point = ax.x_axis.n2p(start), ax.x_axis.n2p(end)
+            line = Line(start_point, end_point).set_stroke(width=5)
+            if i % 2 == 0:
+                line.set_color(REDUCIBLE_GREEN_LIGHTER)
+            else:
+                line.set_color(REDUCIBLE_GREEN_DARKER)
+
+            lines.append(line)
+
+        return lines
+
+    def show_sample_x_vals(self, vertical_lines):
+        labels = VGroup(*[MathTex(r"\frac{\pi}{16}").scale(0.7)] + [MathTex(r"\frac{" + str(2 * i + 1) + r"\pi}{16}").scale(0.6) for i in range(1, len(vertical_lines))])
+        for label, line in zip(labels, vertical_lines):
+            direction = normalize(line.get_start() - line.get_end())
+            direction = np.array([int(c) for c in direction])
+            label.next_to(line, direction)
+
+        self.play(
+            FadeIn(labels)
+        )
+        self.wait()
+        return labels
+
+
+    def get_cosine_wave_with_ax(self, cosine_function):
+        ax = Axes(
+            x_range=[0, np.pi],
+            y_range=[-1, 1],
+            x_length=10,
+            y_length=5.5,
+            tips=False,
+            x_axis_config={"include_numbers": False, "include_ticks": False},
+            y_axis_config={"include_numbers": True, "numbers_to_exclude": [0], "include_ticks": False}
+        )
+
+        graph = ax.plot(cosine_function).set_color(REDUCIBLE_YELLOW)
+        pi_label = MathTex(r"\pi")
+        pi_label.next_to(ax.x_axis, DOWN, aligned_edge=RIGHT)
+        ax.add(pi_label)
+
+        group = VGroup(ax, graph)
+
+        return group
+
+    def get_ticks_for_x_axis(self):
+        ax = Axes(
+            x_range=[0, np.pi, np.pi / 8],
+            y_range=[-1, 1],
+            x_length=10,
+            y_length=5.5,
+            tips=False,
+            x_axis_config={"include_numbers": False, "include_ticks": True},
+            y_axis_config={"include_numbers": True, "numbers_to_exclude": [0], "include_ticks": False}
+        )
+        return ax.x_axis.ticks
+
+    def get_vertical_lines_from_points(self, ax, points):
+        x_points = [ax.x_axis.n2p(p) for p in self.get_x_y_points()[0]]
+        vertical_lines = [Line(start_point, end.get_center()).set_stroke(color=REDUCIBLE_VIOLET, width=8) for start_point, end in zip(x_points, points)]
+        return VGroup(*vertical_lines)
+
 
 
 class DemoJPEGWithDCT2D(ThreeDScene, ImageUtils):
@@ -3029,8 +3255,14 @@ class DemoJPEGWithDCT2D(ThreeDScene, ImageUtils):
 
         return lines, dots
 
-    
-
+# Quick test of gray_scale_value_to_hex
+class TestHexToGrayScale(Scene):
+    def construct(self):
+        for i in range(256):
+            dot = Dot().set_color(gray_scale_value_to_hex(i))
+            self.add(dot)
+            self.wait()
+            self.remove(dot)
 
 def two_d_to_1d_index(i, j, block_size=8):
     return j * block_size + i
