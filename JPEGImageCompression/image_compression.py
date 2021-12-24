@@ -120,6 +120,32 @@ class ReducibleBarChart(BarChart):
         self.bar_labels = bar_labels
 
 
+class Module(VGroup):
+    def __init__(
+        self,
+        text,
+        fill_color=REDUCIBLE_PURPLE_DARKER,
+        stroke_color=REDUCIBLE_VIOLET,
+        stroke_width=5,
+        text_scale=1,
+        **kwargs,
+    ):
+        self.text = text
+        self.fill_color = fill_color
+        self.stroke_color = stroke_color
+        self.stroke_width = stroke_width
+        self.text_scale = text_scale
+
+        rect = (
+            Rectangle(fill_color=fill_color)
+            .set_opacity(1)
+            .set_stroke(stroke_color, width=stroke_width)
+        )
+
+        text = Tex(text).scale(text_scale)
+        super().__init__(rect, text, **kwargs)
+
+
 class IntroduceRGBAndJPEG(Scene):
     def construct(self):
         r_t = Text("R", font="SF Mono").scale(3).set_color(RED)
@@ -372,7 +398,7 @@ class JPEGDiagram(Scene):
 
         # self.play(*[FadeOut(mob) for mob in self.mobjects])
 
-        self.intro_2()
+        # self.intro_2()
 
         self.play(*[FadeOut(mob) for mob in self.mobjects])
 
@@ -411,6 +437,22 @@ class JPEGDiagram(Scene):
             self.play(ShrinkToCenter(sq_array[rand_index]), run_time=2)
 
         self.wait()
+
+    def intro_2(self):
+
+        img_og = self.make_nested_squares(8, 2).scale_to_fit_width(4)
+
+        img_sm = self.make_nested_squares(4, 1).scale_to_fit_width(4)
+
+        self.play(FadeIn(img_og), run_time=2)
+
+        anims = []
+        for i in range(len(img_og.submobjects)):
+            anims.append(Transform(img_og[i], img_sm[i]))
+
+        self.play(LaggedStart(*anims, lag_ratio=0.05), run_time=10)
+
+        self.wait(3)
 
     def data_flow(self):
         input_rows = 8
@@ -527,22 +569,6 @@ class JPEGDiagram(Scene):
 
         self.wait(3)
 
-    def intro_2(self):
-
-        img_og = self.make_nested_squares(8, 2).scale_to_fit_width(4)
-
-        img_sm = self.make_nested_squares(4, 1).scale_to_fit_width(4)
-
-        self.play(FadeIn(img_og), run_time=2)
-
-        anims = []
-        for i in range(len(img_og.submobjects)):
-            anims.append(Transform(img_og[i], img_sm[i]))
-
-        self.play(LaggedStart(*anims, lag_ratio=0.05), run_time=10)
-
-        self.wait(3)
-
     # definition of util functions
     def make_nested_squares(self, total_side=8, groups_side=2):
         """
@@ -565,23 +591,6 @@ class JPEGDiagram(Scene):
         return output_vg.arrange_in_grid(
             rows=int(sqrt(groups_ratio)), cols=int(sqrt(groups_ratio)), buff=0
         )
-
-    def module(
-        self,
-        text,
-        text_scale=1,
-        fill_color=REDUCIBLE_PURPLE_DARKER,
-        stroke_color=REDUCIBLE_VIOLET,
-        stroke_width=5,
-    ):
-        rect = (
-            Rectangle(fill_color=fill_color)
-            .set_opacity(1)
-            .set_stroke(stroke_color, width=stroke_width)
-        )
-
-        text = Tex(text).scale(text_scale)
-        return VGroup(rect, text).arrange(ORIGIN)
 
 
 class MotivateAndExplainYCbCr(ThreeDScene):
