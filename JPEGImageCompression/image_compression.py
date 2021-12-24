@@ -130,21 +130,22 @@ class Module(VGroup):
         stroke_color=REDUCIBLE_VIOLET,
         stroke_width=5,
         text_scale=1,
+        width=4,
+        height=2,
         **kwargs,
     ):
-        self.text = text
-        self.fill_color = fill_color
-        self.stroke_color = stroke_color
-        self.stroke_width = stroke_width
-        self.text_scale = text_scale
 
         self.rect = (
-            Rectangle(fill_color=fill_color)
+            RoundedRectangle(
+                corner_radius=0.1, fill_color=fill_color, width=width, height=height
+            )
             .set_opacity(1)
             .set_stroke(stroke_color, width=stroke_width)
         )
 
-        self.text = Tex(text).scale(text_scale)
+        print(text)
+
+        self.text = Tex(str(text)).scale(text_scale)
         super().__init__(self.rect, self.text, **kwargs)
         super().arrange(ORIGIN)
 
@@ -596,12 +597,13 @@ class OLDJPEGDiagram(Scene):
         )
 
 
-class JPEGDiagram(Scene):
+class JPEGDiagram(ZoomedScene):
     def construct(self):
         self.build_diagram()
 
     def build_diagram(self):
 
+        self.play(self.camera.frame.animate.scale(1.4))
         # input image
         red_channel = (
             Rectangle(RED, width=3)
@@ -632,10 +634,15 @@ class JPEGDiagram(Scene):
         )
 
         # big modules
-        jpeg_encoder = Module("JPEG Encoder")
-        jpeg_decoder = Module("JPEG Decoder")
+        jpeg_encoder = Module("JPEG Encoder", width=7, height=3)
+        jpeg_decoder = Module("JPEG Decoder", width=7, height=3)
+
         color_treatment = Module(
-            "Color \\\\ treatment", REDUCIBLE_GREEN_DARKER, REDUCIBLE_GREEN_LIGHTER
+            "Color \\\\ treatment",
+            REDUCIBLE_GREEN_DARKER,
+            REDUCIBLE_GREEN_LIGHTER,
+            height=jpeg_encoder.height,
+            width=3,
         )
 
         # small modules
@@ -657,12 +664,14 @@ class JPEGDiagram(Scene):
 
         encoding_modules = (
             Group(forward_dct, quantizer, lossless_comp)
-            .arrange(RIGHT, buff=0.5)
-            .scale_to_fit_width(jpeg_encoder.width - 1)
+            .arrange(RIGHT, buff=0.7)
+            .scale_to_fit_width(jpeg_encoder.width - 0.5)
         )
-        jpeg_encoder_w_modules = Group(jpeg_encoder.rect, encoding_modules).arrange(
-            ORIGIN
+        jpeg_encoder.text.shift(UP)
+        jpeg_encoder_w_modules = Group(jpeg_encoder, encoding_modules).arrange(
+            ORIGIN,
         )
+        encoding_modules.shift(DOWN * 0.5)
 
         # decoding
 
@@ -673,36 +682,31 @@ class JPEGDiagram(Scene):
         decoding_modules = (
             VGroup(inverse_dct, dequantizer, decoder)
             .arrange(RIGHT, buff=0.5)
-            .scale_to_fit_width(jpeg_decoder.width - 1)
+            .scale_to_fit_width(jpeg_decoder.width - 0.5)
         )
+        jpeg_decoder.text.shift(UP)
+        jpeg_decoder_w_modules = VGroup(jpeg_decoder, decoding_modules).arrange(ORIGIN)
+        decoding_modules.shift(DOWN * 0.5)
 
         # first row = encoding flow
-        encoding_flow = (
-            Group(
-                channels_vg_diagonal.scale(0.6),
-                color_treatment.scale(0.7),
-                jpeg_encoder,
-                output_image,
-            )
-            .arrange(RIGHT, buff=1)
-            .scale_to_fit_width(12)
-        )
+        encoding_flow = Group(
+            channels_vg_diagonal.scale(0.6),
+            color_treatment,
+            jpeg_encoder_w_modules,
+            output_image,
+        ).arrange(RIGHT, buff=1)
 
         # second row = decoding flow
-        decoding_flow = (
-            VGroup(output_image.copy(), jpeg_decoder, channels_vg_diagonal.copy())
-            .arrange(RIGHT, buff=1)
-            .scale_to_fit_width(12)
-        )
+        decoding_flow = VGroup(
+            output_image.copy(), jpeg_decoder_w_modules, channels_vg_diagonal.copy()
+        ).arrange(RIGHT, buff=2.5)
 
-        whole_map = (
-            Group(encoding_flow, decoding_flow)
-            .arrange(DOWN, buff=1)
-            .scale_to_fit_width(12)
-        )
+        whole_map = Group(encoding_flow, decoding_flow).arrange(DOWN, buff=3)
 
-        self.add(encoding_flow)
-        self.add(decoding_flow)
+        # self.add(encoding_flow)
+        self.play(FadeIn(encoding_flow))
+        self.play(FadeIn(decoding_flow))
+        # self.add(decoding_flow)
 
 
 class MotivateAndExplainYCbCr(ThreeDScene):
