@@ -1,6 +1,8 @@
+from logging import warn
 from math import sqrt
 from manim import *
 import cv2
+from rich.console import group
 
 from scipy import fftpack
 from typing import Iterable, List
@@ -136,14 +138,15 @@ class Module(VGroup):
         self.stroke_width = stroke_width
         self.text_scale = text_scale
 
-        rect = (
+        self.rect = (
             Rectangle(fill_color=fill_color)
             .set_opacity(1)
             .set_stroke(stroke_color, width=stroke_width)
         )
 
-        text = Tex(text).scale(text_scale)
-        super().__init__(rect, text, **kwargs)
+        self.text = Tex(text).scale(text_scale)
+        super().__init__(self.rect, self.text, **kwargs)
+        super().arrange(ORIGIN)
 
 
 class IntroduceRGBAndJPEG(Scene):
@@ -389,7 +392,7 @@ class IntroduceRGBAndJPEG(Scene):
         self.wait(3)
 
 
-class JPEGDiagram(Scene):
+class OLDJPEGDiagram(Scene):
     def construct(self):
 
         # animation section
@@ -591,6 +594,115 @@ class JPEGDiagram(Scene):
         return output_vg.arrange_in_grid(
             rows=int(sqrt(groups_ratio)), cols=int(sqrt(groups_ratio)), buff=0
         )
+
+
+class JPEGDiagram(Scene):
+    def construct(self):
+        self.build_diagram()
+
+    def build_diagram(self):
+
+        # input image
+        red_channel = (
+            Rectangle(RED, width=3)
+            .set_color(BLACK)
+            .set_opacity(1)
+            .set_stroke(RED, width=3)
+        )
+        green_channel = (
+            Rectangle(GREEN, width=3)
+            .set_color(BLACK)
+            .set_opacity(1)
+            .set_stroke(GREEN, width=3)
+        )
+        blue_channel = (
+            Rectangle(BLUE, width=3)
+            .set_color(BLACK)
+            .set_opacity(1)
+            .set_stroke(BLUE, width=3)
+        )
+
+        channels_vg_diagonal = VGroup(red_channel, green_channel, blue_channel).arrange(
+            DOWN * 1.1 + RIGHT * 1.7, buff=-1.4
+        )
+
+        # output image
+        output_image = SVGMobject("jpg_file.svg").set_stroke(
+            WHITE, width=5, background=True
+        )
+
+        # big modules
+        jpeg_encoder = Module("JPEG Encoder")
+        jpeg_decoder = Module("JPEG Decoder")
+        color_treatment = Module(
+            "Color \\\\ treatment", REDUCIBLE_GREEN_DARKER, REDUCIBLE_GREEN_LIGHTER
+        )
+
+        # small modules
+
+        # encoding
+        forward_dct_m = Module("Forward DCT", REDUCIBLE_YELLOW_DARKER, REDUCIBLE_YELLOW)
+        forward_dct_icon = ImageMobject("dct.png").scale(0.2)
+        forward_dct = Group(forward_dct_m, forward_dct_icon).arrange(DOWN, buff=0.5)
+
+        quantizer_m = Module("Quantizer", REDUCIBLE_YELLOW_DARKER, REDUCIBLE_YELLOW)
+        quantizer_icon = ImageMobject("quantization.png").scale(0.2)
+        quantizer = Group(quantizer_m, quantizer_icon).arrange(DOWN, buff=0.5)
+
+        lossless_comp_m = Module(
+            "Lossless \\\\ Compression", REDUCIBLE_YELLOW_DARKER, REDUCIBLE_YELLOW
+        )
+        lossless_icon = ImageMobject("lossless.png").scale(0.2)
+        lossless_comp = Group(lossless_comp_m, lossless_icon).arrange(DOWN, buff=0.5)
+
+        encoding_modules = (
+            Group(forward_dct, quantizer, lossless_comp)
+            .arrange(RIGHT, buff=0.5)
+            .scale_to_fit_width(jpeg_encoder.width - 1)
+        )
+        jpeg_encoder_w_modules = Group(jpeg_encoder.rect, encoding_modules).arrange(
+            ORIGIN
+        )
+
+        # decoding
+
+        inverse_dct = Module("Inverse DCT", REDUCIBLE_YELLOW_DARKER, REDUCIBLE_YELLOW)
+        dequantizer = Module("Dequantizer", REDUCIBLE_YELLOW_DARKER, REDUCIBLE_YELLOW)
+        decoder = Module("Decoder", REDUCIBLE_YELLOW_DARKER, REDUCIBLE_YELLOW)
+
+        decoding_modules = (
+            VGroup(inverse_dct, dequantizer, decoder)
+            .arrange(RIGHT, buff=0.5)
+            .scale_to_fit_width(jpeg_decoder.width - 1)
+        )
+
+        # first row = encoding flow
+        encoding_flow = (
+            Group(
+                channels_vg_diagonal.scale(0.6),
+                color_treatment.scale(0.7),
+                jpeg_encoder,
+                output_image,
+            )
+            .arrange(RIGHT, buff=1)
+            .scale_to_fit_width(12)
+        )
+
+        # second row = decoding flow
+        decoding_flow = (
+            VGroup(output_image.copy(), jpeg_decoder, channels_vg_diagonal.copy())
+            .arrange(RIGHT, buff=1)
+            .scale_to_fit_width(12)
+        )
+
+        whole_map = (
+            Group(encoding_flow, decoding_flow)
+            .arrange(DOWN, buff=1)
+            .scale_to_fit_width(12)
+        )
+
+        self.add(encoding_flow)
+        self.add(decoding_flow)
 
 
 class MotivateAndExplainYCbCr(ThreeDScene):
