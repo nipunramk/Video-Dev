@@ -613,25 +613,25 @@ class JPEGDiagram(ZoomedScene):
 
     def build_diagram(self):
 
-        self.play(self.camera.frame.animate.scale(1.4))
+        self.play(self.camera.frame.animate.scale(2))
         # input image
         red_channel = (
             RoundedRectangle(corner_radius=0.1, fill_color=RED, width=3)
             .set_color(BLACK)
             .set_opacity(1)
-            .set_stroke(RED, width=3)
+            .set_stroke(RED, width=4)
         )
         green_channel = (
             RoundedRectangle(corner_radius=0.1, fill_color=GREEN, width=3)
             .set_color(BLACK)
             .set_opacity(1)
-            .set_stroke(GREEN, width=3)
+            .set_stroke(GREEN, width=4)
         )
         blue_channel = (
             RoundedRectangle(corner_radius=0.1, fill_color=BLUE, width=3)
             .set_color(BLACK)
             .set_opacity(1)
-            .set_stroke(BLUE, width=3)
+            .set_stroke(BLUE, width=4)
         )
 
         channels_vg_diagonal = VGroup(red_channel, green_channel, blue_channel).arrange(
@@ -744,18 +744,45 @@ class JPEGDiagram(ZoomedScene):
             color_treatment_w_modules,
             jpeg_encoder_w_modules,
             output_image,
-        ).arrange(RIGHT, buff=1)
+        ).arrange(RIGHT, buff=3)
 
         # second row = decoding flow
         decoding_flow = VGroup(
             output_image.copy(), jpeg_decoder_w_modules, channels_vg_diagonal.copy()
-        ).arrange(RIGHT, buff=2.5)
+        ).arrange(RIGHT, buff=3)
 
-        whole_map = Group(encoding_flow, decoding_flow).arrange(DOWN, buff=3)
+        whole_map = Group(encoding_flow, decoding_flow).arrange(DOWN, buff=8)
+
+        encode_arrows = VGroup()
+        for i in range(len(encoding_flow.submobjects) - 1):
+            encode_arrows.add(
+                Arrow(
+                    start=encoding_flow[i].get_right(),
+                    end=encoding_flow[i + 1].get_left(),
+                    stroke_width=3,
+                    buff=0.3,
+                    max_tip_length_to_length_ratio=0.08,
+                    max_stroke_width_to_length_ratio=2,
+                )
+            )
+        decode_arrows = VGroup()
+        for i in range(len(decoding_flow.submobjects) - 1):
+            decode_arrows.add(
+                Arrow(
+                    start=decoding_flow[i].get_right(),
+                    end=decoding_flow[i + 1].get_left(),
+                    stroke_width=3,
+                    buff=0.3,
+                    max_tip_length_to_length_ratio=0.08,
+                    max_stroke_width_to_length_ratio=2,
+                )
+            )
 
         # self.add(encoding_flow)
         self.play(FadeIn(encoding_flow))
+        self.play(FadeIn(encode_arrows))
         self.play(FadeIn(decoding_flow))
+        self.play(FadeIn(decode_arrows))
         # self.add(decoding_flow)
 
 
