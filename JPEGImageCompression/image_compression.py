@@ -1,7 +1,7 @@
 from math import sqrt
 from manim import *
 import cv2
-
+from pprint import pprint
 from scipy import fftpack
 from typing import Iterable, List
 
@@ -1112,26 +1112,50 @@ class ImageUtils(Scene):
 
 class IntroChromaSubsampling(ImageUtils):
     def construct(self):
-        shed_raw = ImageMobject("shed")
+        shed_raw = ImageMobject("gradient_sm.png")
+        shed_raw.set_resampling_algorithm(RESAMPLING_ALGORITHMS["nearest"])
+
         chroma_subsampled = self.chroma_subsample_image(
             shed_raw.get_pixel_array(), mode="4:2:2"
         )
 
-        chroma_subsampled_mobj = ImageMobject(chroma_subsampled)
+        y, u, v = self.get_yuv_image_from_rgb(shed_raw.get_pixel_array(), mapped=False)
+        y_sub, u_sub, v_sub = (
+            chroma_subsampled[:, :, 0],
+            chroma_subsampled[:, :, 1],
+            chroma_subsampled[:, :, 2],
+        )
 
-        diff_image = shed_raw.get_pixel_array()[:, :, :3] - chroma_subsampled
+        v_mob = ImageMobject(v)
+        v_sub_mob = ImageMobject(v_sub)
+
+        v_mob.set_resampling_algorithm(RESAMPLING_ALGORITHMS["nearest"])
+        v_sub_mob.set_resampling_algorithm(RESAMPLING_ALGORITHMS["nearest"])
+
+        self.add(Group(v_mob, v_sub_mob).arrange(RIGHT, buff=0.01).scale(30))
+
+        chroma_subsampled_mobj = ImageMobject(chroma_subsampled)
+        chroma_subsampled_mobj.set_resampling_algorithm(
+            RESAMPLING_ALGORITHMS["nearest"]
+        )
+
+        diff_image = (shed_raw.get_pixel_array()[:, :, :3] - chroma_subsampled) ** 2
         diff_image = cv2.cvtColor(diff_image, cv2.COLOR_RGB2GRAY)
         diff_image_mobj = ImageMobject(diff_image)
 
-        img_group = Group(shed_raw, chroma_subsampled_mobj, diff_image_mobj).arrange(
-            RIGHT
-        )
+        diff_image_mobj.set_resampling_algorithm(RESAMPLING_ALGORITHMS["nearest"])
 
-        self.play(
-            FadeIn(img_group.scale(2)),
-            run_time=3,
-        )
-        self.wait(2)
+        img_group = (
+            Group(shed_raw, chroma_subsampled_mobj, diff_image_mobj).arrange(
+                RIGHT, buff=0.01
+            )
+        ).scale(20)
+
+        # self.play(
+        #     FadeIn(img_group),
+        #     run_time=3,
+        # )
+        # self.wait(2)
 
 
 class TestGrayScaleImages(ImageUtils):
