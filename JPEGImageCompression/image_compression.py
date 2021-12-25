@@ -1,9 +1,6 @@
-from logging import warn
 from math import sqrt
 from manim import *
 import cv2
-from manim.mobject.svg.text_mobject import TEXT2SVG_ADJUSTMENT_FACTOR
-from rich.console import group
 
 from scipy import fftpack
 from typing import Iterable, List
@@ -607,7 +604,7 @@ class OLDJPEGDiagram(Scene):
         )
 
 
-class JPEGDiagram(ZoomedScene):
+class JPEGDiagram(MovingCameraScene):
     def construct(self):
         self.build_diagram()
 
@@ -757,6 +754,7 @@ class JPEGDiagram(ZoomedScene):
         for i in range(len(encoding_flow.submobjects) - 1):
             encode_arrows.add(
                 Arrow(
+                    color=GRAY_B,
                     start=encoding_flow[i].get_right(),
                     end=encoding_flow[i + 1].get_left(),
                     stroke_width=3,
@@ -769,6 +767,7 @@ class JPEGDiagram(ZoomedScene):
         for i in range(len(decoding_flow.submobjects) - 1):
             decode_arrows.add(
                 Arrow(
+                    color=GRAY_B,
                     start=decoding_flow[i].get_right(),
                     end=decoding_flow[i + 1].get_left(),
                     stroke_width=3,
@@ -778,12 +777,49 @@ class JPEGDiagram(ZoomedScene):
                 )
             )
 
-        # self.add(encoding_flow)
+        # whole map view state
+        self.camera.frame.save_state()
+
         self.play(FadeIn(encoding_flow))
         self.play(FadeIn(encode_arrows))
         self.play(FadeIn(decoding_flow))
         self.play(FadeIn(decode_arrows))
-        # self.add(decoding_flow)
+
+        self.focus_on(encoding_flow, buff=1.3)
+
+        self.wait(3)
+
+        self.focus_on(channels_vg_diagonal)
+
+        self.wait(3)
+
+        self.focus_on(color_treatment_w_modules)
+
+        self.wait(3)
+
+        self.focus_on(encoding_flow, buff=1.3)
+
+        self.wait(3)
+
+        self.focus_on(jpeg_encoder_w_modules, buff=1.3)
+
+        self.wait(3)
+
+        self.focus_on(forward_dct)
+
+        self.wait(3)
+
+        self.focus_on(quantizer)
+
+        self.wait(3)
+
+        self.play(Restore(self.camera.frame), run_time=3)
+
+    def focus_on(self, mobject, buff=2):
+        self.play(
+            self.camera.frame.animate.set_width(mobject.width * buff).move_to(mobject),
+            run_time=3,
+        )
 
 
 class MotivateAndExplainYCbCr(ThreeDScene):
