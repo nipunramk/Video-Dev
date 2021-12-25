@@ -2,6 +2,7 @@ from logging import warn
 from math import sqrt
 from manim import *
 import cv2
+from manim.mobject.svg.text_mobject import TEXT2SVG_ADJUSTMENT_FACTOR
 from rich.console import group
 
 from scipy import fftpack
@@ -129,7 +130,9 @@ class Module(VGroup):
         fill_color=REDUCIBLE_PURPLE_DARKER,
         stroke_color=REDUCIBLE_VIOLET,
         stroke_width=5,
-        text_scale=1,
+        text_scale=0.9,
+        text_position=ORIGIN,
+        text_weight=NORMAL,
         width=4,
         height=2,
         **kwargs,
@@ -143,11 +146,18 @@ class Module(VGroup):
             .set_stroke(stroke_color, width=stroke_width)
         )
 
-        print(text)
+        self.text = Text(str(text), weight=text_weight, font="CMU Serif").scale(
+            text_scale
+        )
+        self.text.next_to(
+            self.rect,
+            direction=ORIGIN,
+            coor_mask=text_position * 0.8,
+            aligned_edge=text_position,
+        )
 
-        self.text = Tex(str(text)).scale(text_scale)
         super().__init__(self.rect, self.text, **kwargs)
-        super().arrange(ORIGIN)
+        # super().arrange(ORIGIN)
 
 
 class IntroduceRGBAndJPEG(Scene):
@@ -606,19 +616,19 @@ class JPEGDiagram(ZoomedScene):
         self.play(self.camera.frame.animate.scale(1.4))
         # input image
         red_channel = (
-            Rectangle(RED, width=3)
+            RoundedRectangle(corner_radius=0.1, fill_color=RED, width=3)
             .set_color(BLACK)
             .set_opacity(1)
             .set_stroke(RED, width=3)
         )
         green_channel = (
-            Rectangle(GREEN, width=3)
+            RoundedRectangle(corner_radius=0.1, fill_color=GREEN, width=3)
             .set_color(BLACK)
             .set_opacity(1)
             .set_stroke(GREEN, width=3)
         )
         blue_channel = (
-            Rectangle(BLUE, width=3)
+            RoundedRectangle(corner_radius=0.1, fill_color=BLUE, width=3)
             .set_color(BLACK)
             .set_opacity(1)
             .set_stroke(BLUE, width=3)
@@ -634,16 +644,56 @@ class JPEGDiagram(ZoomedScene):
         )
 
         # big modules
-        jpeg_encoder = Module("JPEG Encoder", width=7, height=3)
-        jpeg_decoder = Module("JPEG Decoder", width=7, height=3)
+        jpeg_encoder = Module(
+            "JPEG Encoder",
+            width=7,
+            height=3,
+            text_position=DOWN,
+            text_weight=BOLD,
+            text_scale=0.8,
+        )
+        jpeg_decoder = Module(
+            "JPEG Decoder",
+            width=7,
+            height=3,
+            text_position=UP,
+            text_weight=BOLD,
+            text_scale=0.8,
+        )
 
+        # color treatment
         color_treatment = Module(
-            "Color \\\\ treatment",
+            "Color treatment",
             REDUCIBLE_GREEN_DARKER,
             REDUCIBLE_GREEN_LIGHTER,
             height=jpeg_encoder.height,
             width=3,
+            text_scale=0.5,
+            text_position=UP,
+            text_weight=BOLD,
         )
+
+        ycbcr_m = Module(
+            "YCbCr",
+            fill_color=REDUCIBLE_YELLOW_DARKER,
+            stroke_color=REDUCIBLE_YELLOW,
+            height=1,
+        ).scale_to_fit_width(color_treatment.width - 0.5)
+
+        chroma_sub_m = Module(
+            "Chroma Subsampling",
+            fill_color=REDUCIBLE_YELLOW_DARKER,
+            stroke_color=REDUCIBLE_YELLOW,
+            text_scale=0.5,
+            height=1,
+        ).scale_to_fit_width(color_treatment.width - 0.5)
+
+        color_modules = VGroup(ycbcr_m, chroma_sub_m).arrange(DOWN, buff=0.5)
+
+        color_treatment_w_modules = VGroup(color_treatment, color_modules).arrange(
+            ORIGIN
+        )
+        color_modules.shift(DOWN * 0.4)
 
         # small modules
 
@@ -657,7 +707,9 @@ class JPEGDiagram(ZoomedScene):
         quantizer = Group(quantizer_m, quantizer_icon).arrange(DOWN, buff=0.5)
 
         lossless_comp_m = Module(
-            "Lossless \\\\ Compression", REDUCIBLE_YELLOW_DARKER, REDUCIBLE_YELLOW
+            "Encoder",
+            REDUCIBLE_YELLOW_DARKER,
+            REDUCIBLE_YELLOW,
         )
         lossless_icon = ImageMobject("lossless.png").scale(0.2)
         lossless_comp = Group(lossless_comp_m, lossless_icon).arrange(DOWN, buff=0.5)
@@ -667,7 +719,6 @@ class JPEGDiagram(ZoomedScene):
             .arrange(RIGHT, buff=0.7)
             .scale_to_fit_width(jpeg_encoder.width - 0.5)
         )
-        jpeg_encoder.text.shift(UP)
         jpeg_encoder_w_modules = Group(jpeg_encoder, encoding_modules).arrange(
             ORIGIN,
         )
@@ -684,14 +735,13 @@ class JPEGDiagram(ZoomedScene):
             .arrange(RIGHT, buff=0.5)
             .scale_to_fit_width(jpeg_decoder.width - 0.5)
         )
-        jpeg_decoder.text.shift(UP)
         jpeg_decoder_w_modules = VGroup(jpeg_decoder, decoding_modules).arrange(ORIGIN)
         decoding_modules.shift(DOWN * 0.5)
 
         # first row = encoding flow
         encoding_flow = Group(
             channels_vg_diagonal.scale(0.6),
-            color_treatment,
+            color_treatment_w_modules,
             jpeg_encoder_w_modules,
             output_image,
         ).arrange(RIGHT, buff=1)
