@@ -3259,7 +3259,6 @@ class RevisedMotivateDCT(MotivateDCT):
             cosine_7
         ).arrange(RIGHT).move_to(DOWN * 2.6)
 
-        
         self.play(
             TransformFromCopy(graph, original_smaller_wave[0]),
             TransformFromCopy(dots, original_smaller_wave[1]),
@@ -3349,15 +3348,17 @@ class RevisedMotivateDCT(MotivateDCT):
         )
         self.wait()
 
-        right_arrow = MathTex(r"\Rightarrow")
+        right_arrow = MathTex(r"\Rightarrow").scale(1.5)
         right_arrow.next_to(cosine_group[0], RIGHT)
+
+        right_arrow.shift(RIGHT * -right_arrow.get_center()[0])
 
         self.play(
             Write(right_arrow)
         )
 
-        dct_component_label = self.make_component("DCT", color=REDUCIBLE_YELLOW, scale=1.5)
-        dct_component_label.next_to(right_arrow, RIGHT)
+        dct_component_label = Tex(r"DCT($y$)")
+        dct_component_label.next_to(right_arrow, UP)
 
 
         self.play(
@@ -3365,20 +3366,17 @@ class RevisedMotivateDCT(MotivateDCT):
         )
         self.wait()
 
-        new_right_arrow = right_arrow.copy().next_to(dct_component_label, RIGHT)
+        dct_mystery_component = self.get_dct_mystery_component()
+
+        question_mark = Tex("?").scale(2)
+
+        question_mark.move_to(dct_mystery_component.get_center())
 
         self.play(
-            Write(new_right_arrow)
+            FadeIn(dct_mystery_component),
+            FadeIn(question_mark)
         )
         self.wait()
-
-        question_component = self.make_component("?", color=REDUCIBLE_PURPLE, scale=1.5)
-        question_component.next_to(new_right_arrow, RIGHT)
-        self.play(
-            Write(question_component)
-        )
-        self.wait()
-
         problem = Tex("Problem: we need sampled points on our cosine wave")
         problem.move_to(UP * 3.5)
 
@@ -3394,9 +3392,9 @@ class RevisedMotivateDCT(MotivateDCT):
 
         self.play(
             FadeOut(right_arrow),
-            FadeOut(new_right_arrow),
             FadeOut(dct_component_label),
-            FadeOut(question_component),
+            FadeOut(dct_mystery_component),
+            FadeOut(question_mark),
             FadeOut(box_around_cosine),
             FadeOut(problem),
             cosine_group.animate.scale(2).shift(RIGHT * 3.5),
@@ -3404,6 +3402,33 @@ class RevisedMotivateDCT(MotivateDCT):
         )
 
         return problem
+
+    def get_dct_mystery_component(self):
+        min_x, min_y = -80, 80
+        random_dct_row = np.array([np.random.uniform(min_x, min_y) for _ in range(8)])
+        dct_ax = self.get_random_dct_axis(random_dct_row, min_x, min_y)
+
+        dct_graph, dct_points = self.plot_row_values(dct_ax, random_dct_row, color=REDUCIBLE_PURPLE)
+
+        vertical_lines = self.get_vertical_lines_from_points(dct_ax, dct_points)
+        dct_graph_components = VGroup(dct_ax, dct_graph, dct_points, vertical_lines).move_to(RIGHT * 3.5)
+
+        # dct_graph_components.set_stroke(opacity=0.5).set_fill(opacity=0.5)
+
+        return dct_graph_components.fade(0.5)
+
+    def get_random_dct_axis(self, dct_row, min_y, max_y):
+        ax = Axes(
+            x_range=[0, dct_row.shape[0] - 1, 1],
+            y_range=[min_y, max_y, 1],
+            y_length=3,
+            x_length=4.375,
+            tips=False,
+            axis_config={"include_numbers": True, "include_ticks": False},
+            x_axis_config={"numbers_to_exclude": list(range(1, dct_row.shape[0] + 1))},
+            y_axis_config={"numbers_to_exclude": list(range(min_y, max_y + 1))},
+        )
+        return ax
 
     def show_sampling_scheme(self, cosine_group):
         ax, graph, cosine_label = cosine_group
