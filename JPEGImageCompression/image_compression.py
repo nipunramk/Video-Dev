@@ -2981,7 +2981,6 @@ class CosineSampling(MotivateDCT):
         self.wait()
         return labels
 
-
     def get_cosine_wave_with_ax(self, cosine_function):
         ax = Axes(
             x_range=[0, np.pi],
@@ -3019,6 +3018,514 @@ class CosineSampling(MotivateDCT):
         vertical_lines = [Line(start_point, end.get_center()).set_stroke(color=REDUCIBLE_VIOLET, width=8) for start_point, end in zip(x_points, points)]
         return VGroup(*vertical_lines)
 
+class RevisedMotivateDCT(MotivateDCT):
+    def construct(self):
+        image_mob = ImageMobject("dog").move_to(UP * 2)
+        block_image, pixel_grid, block = self.get_pixel_block(image_mob, 126, 126)
+        row = 7
+        print(block[:, :, 0])
+        print(f"Block row: {row}\n", block[:, :, 0][row])
+        pixel_row_mob, row_values = self.get_pixel_row_mob(block, row)
+        print("Selected row values\n", row_values)
+        pixel_row_mob.move_to(UP * 3)
+        self.play(
+            FadeIn(pixel_row_mob)
+        )
+        self.wait()
+
+        row_values_centered = format_block(row_values)
+        print('After centering\n', row_values_centered)
+
+        dct_row_pixels = dct_1d(row_values_centered)
+
+        ax, graph, dots = self.draw_image_graph(dct_row_pixels)
+
+        self.show_graph(ax, graph, dots, pixel_row_mob)
+
+        self.show_summing_different_cosine_waves(graph, dots)
+
+        self.describe_dct_broadly(ax, graph, dots, pixel_row_mob, dct_row_pixels)
+
+        self.clear()
+
+        self.experiment_with_cosine()
+
+    def show_summing_different_cosine_waves(self, graph, original_dots):
+        arrow = MathTex(r"\Updownarrow")
+
+        arrow.next_to(graph, DOWN).shift(DOWN * 1)
+
+        self.play(
+            Write(arrow)
+        )
+        self.wait()
+
+        first_freq, first_axes = self.get_cosine_wave(lambda x: np.cos(x))
+        second_freq, second_axes = self.get_cosine_wave(lambda x: np.cos(2 * x))
+        last_freq, last_axes = self.get_cosine_wave(lambda x: np.cos(7 * x))
+
+        first_freq_dots = self.get_dots(first_axes, first_freq, 1)
+        second_freq_dots = self.get_dots(second_axes, second_freq, 2)
+        last_freq_dots = self.get_dots(last_axes, last_freq, 7)
+
+        first_cosine_graph = VGroup(first_freq, first_freq_dots)
+        second_cosine_graph = VGroup(second_freq, second_freq_dots)
+        last_cosine_graph = VGroup(last_freq, last_freq_dots)
+
+        plus = MathTex("+")
+        ellipses = MathTex(r"\cdots")
+
+        group = VGroup(first_cosine_graph, plus, second_cosine_graph, plus.copy(), ellipses, plus.copy(), last_cosine_graph).arrange(RIGHT)
+
+        group.next_to(arrow, DOWN * 2)
+
+        self.play(
+            FadeIn(group)
+        )
+        self.wait()
+
+        self.emphasize_sampled_points(original_dots, first_freq_dots, second_freq_dots, last_freq_dots)
+
+        self.emphasize_continuous_funcs(graph, first_freq[0], second_freq[0], last_freq[0])
+
+        self.second_empasize_points(original_dots, first_freq_dots, second_freq_dots, last_freq_dots)
+
+        self.play(
+            FadeOut(group),
+            FadeOut(arrow)
+        )
+        self.wait()
+
+    def emphasize_sampled_points(self, original_dots, cosine_1_dots, cosine_2_dots, cosine_7_dots): 
+        group_of_dots = []
+        for i in range(len(original_dots)):
+            group_of_dots.append(VGroup(original_dots[i], cosine_1_dots[i], cosine_2_dots[i], cosine_7_dots[i]))
+
+        self.play(
+            LaggedStartMap(Indicate, group_of_dots),
+            run_time=3
+        )
+        self.wait()
+
+    def emphasize_continuous_funcs(self, original_graph, cosine_1_graph, cosine_2_graph, cosine_7_graph):
+        self.play(
+            ApplyWave(original_graph),
+            ApplyWave(cosine_1_graph),
+            ApplyWave(cosine_2_graph),
+            ApplyWave(cosine_7_graph),
+            run_time=2
+        )
+        self.wait()
+
+    def second_empasize_points(self, original_dots, cosine_1_dots, cosine_2_dots, cosine_7_dots):
+        self.play(
+            Indicate(VGroup(original_dots, cosine_1_dots, cosine_2_dots, cosine_7_dots))
+        )
+        self.wait()
+
+    def describe_dct_broadly(self, ax, graph, dots, pixel_row_mob, dct_row_pixels):
+        group = VGroup(ax, graph, dots, pixel_row_mob)
+        self.play(
+            group.animate.move_to(LEFT * 3.5 + DOWN * 0.5)
+        )
+        self.wait()
+        general_vals = [f"x_{i}" for i in range(len(pixel_row_mob))]
+        array_mob_symbols = self.get_gen_array_obj(general_vals, length=pixel_row_mob.width, height=pixel_row_mob.height)
+        array_mob_symbols.next_to(pixel_row_mob, UP)
+
+        self.play(
+            FadeIn(array_mob_symbols)
+        )
+        self.wait()
+
+        forward_arrow = MathTex(r"\Rightarrow").scale(1.5).shift(RIGHT * SMALL_BUFF * 3)
+        self.play(
+            Write(forward_arrow)
+        )
+        self.wait()
+
+        pixel_space_group = VGroup(group, array_mob_symbols)
+
+        dct_ax = self.get_dct_axis(dct_row_pixels, -80, 80)
+
+        dct_graph, dct_points = self.plot_row_values(dct_ax, dct_row_pixels, color=REDUCIBLE_PURPLE)
+
+        dct_graph_components = VGroup(dct_ax, dct_graph, dct_points).move_to(RIGHT * 3.5 + DOWN * 0.5)
+        self.play(
+            Write(dct_ax),
+        )
+
+        vertical_lines = self.get_vertical_lines_from_points(dct_ax, dct_points)
+
+        self.play(
+            *[Create(line) for line in vertical_lines],
+            *[GrowFromCenter(dot) for dot in dct_points],
+        )
+        self.wait()
+
+        self.play(
+            Create(dct_graph)
+        )
+        self.wait()
+
+        general_dct_vals = [f"X_{i}" for i in range(len(pixel_row_mob))]
+
+        array_mob_dct_symbols = self.get_gen_array_obj(general_dct_vals, length=pixel_row_mob.width + 0.5, height=pixel_row_mob.height + SMALL_BUFF, color=REDUCIBLE_VIOLET)
+        array_mob_dct_symbols.next_to(pixel_row_mob, UP)
+        shift_amount = dct_graph_components.get_center()[0] - array_mob_dct_symbols.get_center()[0]
+        array_mob_dct_symbols.shift(RIGHT * (shift_amount + 0.3))
+
+        self.play(
+            FadeIn(array_mob_dct_symbols)
+        )
+        self.wait()
+
+        dct_space_group = VGroup(dct_graph_components, vertical_lines, array_mob_dct_symbols)
+
+        dct_coeff_label = Tex("DCT coefficients").scale(0.8)
+        brace = Brace(array_mob_dct_symbols, direction=UP)
+        self.play(
+            GrowFromCenter(brace)
+        )
+        dct_coeff_label.next_to(brace, UP)
+        self.play(
+            Write(dct_coeff_label)
+        )
+        self.wait()
+
+        dct_coeff_description = Tex(r"Coefficient $X_k$ is the contribution of cosine wave $C_k$")
+
+        dct_coeff_description.move_to(UP * 3.5)
+
+        shift_up = UP * 1
+        self.play(
+            FadeOut(dct_coeff_label),
+            FadeOut(brace),
+            forward_arrow.animate.shift(shift_up),
+            pixel_space_group.animate.shift(shift_up),
+            dct_space_group.animate.shift(shift_up),
+            Write(dct_coeff_description)
+        )
+        self.wait()
+
+
+        next_question = Tex(r"What cosine waves $C_k$ should we use?")
+
+        next_question.move_to(dct_coeff_description.get_center())
+
+        self.show_dct_intuiton(graph, dots, array_mob_dct_symbols)
+        self.play(
+            ReplacementTransform(dct_coeff_description, next_question)
+        )
+
+        self.wait()
+
+        image_connection = Tex("How do cosine waves relate to pixels on an image?")
+        image_connection.move_to(next_question.get_center())
+
+        self.play(
+            ReplacementTransform(next_question, image_connection)
+        )
+        self.wait()
+
+    def show_dct_intuiton(self, graph, dots, array_mob_dct_symbols):
+        original_smaller_wave = VGroup(graph.copy().scale(0.7), dots.copy().scale(0.7))
+        original_smaller_wave.move_to(DOWN * 2.5).to_edge(LEFT * 2)
+        surround_rect = SurroundingRectangle(original_smaller_wave)
+
+        original_wave_component = VGroup(original_smaller_wave, surround_rect)
+
+        equals = MathTex("=")
+
+        plus = MathTex("+")
+
+        ellipses = MathTex(r"\cdots")
+
+        cosine_0 = self.make_cosine_component_with_weight(0, 1)
+
+        cosine_1 = self.make_cosine_component_with_weight(1, 2)
+
+        cosine_7 = self.make_cosine_component_with_weight(7, 7)
+
+        intuition_equation = VGroup(
+            original_wave_component,
+            equals,
+            cosine_0,
+            plus,
+            cosine_1,
+            plus.copy(),
+            ellipses,
+            plus.copy(),
+            cosine_7
+        ).arrange(RIGHT).move_to(DOWN * 2.6)
+
+        
+        self.play(
+            TransformFromCopy(graph, original_smaller_wave[0]),
+            TransformFromCopy(dots, original_smaller_wave[1]),
+        )
+
+        self.play(
+            Create(surround_rect)
+        )
+        self.wait()
+
+        self.play(
+            Write(equals)
+        )
+        self.wait()
+
+        transforms = self.get_transforms_for_coefficients(array_mob_dct_symbols[1], [cosine_0[0], cosine_1[0], cosine_7[0]], ellipses)
+
+        self.play(
+            FadeIn(cosine_0[1]),
+            FadeIn(cosine_0[2]),
+            FadeIn(cosine_1[1]),
+            FadeIn(cosine_1[2]),
+            FadeIn(cosine_7[1]),
+            FadeIn(cosine_7[2]),
+            FadeIn(intuition_equation[3]),
+            FadeIn(intuition_equation[5]),
+            FadeIn(intuition_equation[6]),
+            FadeIn(intuition_equation[7]),
+            *transforms,
+            run_time=2
+        )
+        self.wait()
+
+    def get_transforms_for_coefficients(self, array_mob_dct_symbols, new_weights, ellipses):
+        transforms = []
+        for i, element in enumerate(array_mob_dct_symbols):
+            if i not in [0, 1, 7]:
+                new_element = element.copy().move_to(ellipses.get_center()).set_stroke(opacity=0).set_fill(opacity=0)
+            elif i == 7:
+                new_element = new_weights[2]
+            else:
+                new_element = new_weights[i]
+            transforms.append(TransformFromCopy(element, new_element))
+        return transforms
+
+    def make_cosine_component_with_weight(self, index, k):
+        graph, _ = self.get_cosine_wave(lambda x: np.cos(x * k))
+        text = MathTex(f"C_{index}")
+        graph[0].set_stroke(opacity=0.3)
+        text.scale(1.5).move_to(graph.get_center())
+        weight_cosine = MathTex(f"X_{index}")
+        weight_cosine.next_to(graph, LEFT, buff=SMALL_BUFF)
+        return VGroup(weight_cosine, graph, text).scale(0.75)
+
+    def experiment_with_cosine(self):
+        ax, graph, cosine_label = self.introduce_cosine(1)
+
+        cosine_group = VGroup(ax, graph, cosine_label)
+
+        problem = self.show_input_to_dct(cosine_group)
+
+        self.show_sampling_scheme(cosine_group)
+
+    def introduce_cosine(self, k):
+        ax, graph  = self.get_cosine_wave_with_ax(lambda x: np.cos(k * x))
+        self.play(
+            Write(ax)
+        )
+        self.wait()
+
+        self.play(
+            Create(graph)
+        )
+        self.wait()
+
+        cosine_label = MathTex(r"y = \cos(x)").scale(1.2)
+        cosine_label.next_to(graph, DOWN)
+        self.play(
+            Write(cosine_label)
+        )
+        self.wait()
+        return ax, graph, cosine_label
+
+    def show_input_to_dct(self, cosine_group):
+        self.play(
+            cosine_group.animate.scale(0.5).shift(LEFT * 3.5)
+        )
+        self.wait()
+
+        right_arrow = MathTex(r"\Rightarrow")
+        right_arrow.next_to(cosine_group[0], RIGHT)
+
+        self.play(
+            Write(right_arrow)
+        )
+
+        dct_component_label = self.make_component("DCT", color=REDUCIBLE_YELLOW, scale=1.5)
+        dct_component_label.next_to(right_arrow, RIGHT)
+
+
+        self.play(
+            Write(dct_component_label),
+        )
+        self.wait()
+
+        new_right_arrow = right_arrow.copy().next_to(dct_component_label, RIGHT)
+
+        self.play(
+            Write(new_right_arrow)
+        )
+        self.wait()
+
+        question_component = self.make_component("?", color=REDUCIBLE_PURPLE, scale=1.5)
+        question_component.next_to(new_right_arrow, RIGHT)
+        self.play(
+            Write(question_component)
+        )
+        self.wait()
+
+        problem = Tex("Problem: we need sampled points on our cosine wave")
+        problem.move_to(UP * 3.5)
+
+        question = Tex("How should we sample the cosine function?").move_to(problem.get_center())
+
+        box_around_cosine = SurroundingRectangle(cosine_group, color=REDUCIBLE_VIOLET, buff=SMALL_BUFF)
+
+        self.play(
+            Create(box_around_cosine),
+            Write(problem)
+        )
+        self.wait()
+
+        self.play(
+            FadeOut(right_arrow),
+            FadeOut(new_right_arrow),
+            FadeOut(dct_component_label),
+            FadeOut(question_component),
+            FadeOut(box_around_cosine),
+            FadeOut(problem),
+            cosine_group.animate.scale(2).shift(RIGHT * 3.5),
+            ReplacementTransform(problem, question)
+        )
+
+        return problem
+
+    def show_sampling_scheme(self, cosine_group):
+        ax, graph, cosine_label = cosine_group
+        dots = self.get_dots(ax, graph, 1, scale=1)
+        line_intervals = self.get_intervals(ax, graph)
+        ticks = self.get_ticks_for_x_axis()
+        vertical_lines = self.get_cosine_vertical_lines_from_points(ax, dots, 1)
+
+        self.play(
+            *[GrowFromCenter(line) for line in line_intervals],
+            *[Write(tick) for tick in ticks]
+        )
+        self.wait()
+
+        self.play(
+            LaggedStartMap(Create, vertical_lines)
+        )
+        self.wait()
+
+        self.play(
+            LaggedStartMap(GrowFromCenter, dots),
+        )
+        self.wait()
+
+        labels = self.show_sample_x_vals(vertical_lines)
+
+    def get_cosine_wave(self, cosine_function, color=REDUCIBLE_VIOLET):
+        ax = Axes(
+            x_range=[0, np.pi],
+            y_range=[-1, 1],
+            x_length=2,
+            y_length=2,
+        )
+
+        graph = ax.plot(cosine_function).set_color(REDUCIBLE_VIOLET)
+
+        box = SurroundingRectangle(graph, color=REDUCIBLE_VIOLET)
+        return VGroup(graph, box), ax
+
+    def get_cosine_wave_with_ax(self, cosine_function, color=REDUCIBLE_VIOLET):
+        ax = Axes(
+            x_range=[0, np.pi],
+            y_range=[-1, 1],
+            x_length=10,
+            y_length=5.5,
+            tips=False,
+            x_axis_config={"include_numbers": False, "include_ticks": False},
+            y_axis_config={"include_numbers": True, "numbers_to_exclude": [0], "include_ticks": False}
+        )
+
+        graph = ax.plot(cosine_function).set_color(color)
+        pi_label = MathTex(r"\pi")
+        pi_label.next_to(ax.x_axis, DOWN, aligned_edge=RIGHT)
+        ax.add(pi_label)
+
+        group = VGroup(ax, graph)
+
+        return group
+
+    def get_x_y_points(self, k):
+        x_points = [(j * 2 + 1) * np.pi / 16 for j in range(8)]
+        y_points = [np.cos(x * k) for x in x_points]
+        return x_points, y_points
+
+    def get_dots(self, ax, graph, k, color=REDUCIBLE_YELLOW, scale=0.7):
+        x_points, y_points = self.get_x_y_points(k)
+        points = [ax.coords_to_point(x, y) for x, y in zip(x_points, y_points)]
+
+        dots = VGroup(*[Dot().scale(scale).set_color(color).move_to(p) for p in points])
+        return dots
+
+    def get_intervals(self, ax, graph):
+        proportions = np.arange(0, np.pi + 0.0001, np.pi / 8)
+        lines = []
+        for i in range(len(proportions) - 1):
+            start, end = proportions[i], proportions[i + 1]
+            start_point, end_point = ax.x_axis.n2p(start), ax.x_axis.n2p(end)
+            line = Line(start_point, end_point).set_stroke(width=5)
+            if i % 2 == 0:
+                line.set_color(REDUCIBLE_GREEN_LIGHTER)
+            else:
+                line.set_color(REDUCIBLE_GREEN_DARKER)
+
+            lines.append(line)
+
+        return lines
+
+    def show_sample_x_vals(self, vertical_lines):
+        labels = VGroup(*[MathTex(r"\frac{\pi}{16}").scale(0.7)] + [MathTex(r"\frac{" + str(2 * i + 1) + r"\pi}{16}").scale(0.6) for i in range(1, len(vertical_lines))])
+        for label, line in zip(labels, vertical_lines):
+            direction = normalize(line.get_start() - line.get_end())
+            direction = np.array([int(c) for c in direction])
+            label.next_to(line, direction)
+
+        self.play(
+            FadeIn(labels)
+        )
+        self.wait()
+        return labels
+
+    def get_cosine_vertical_lines_from_points(self, ax, points, k, color=REDUCIBLE_VIOLET):
+        x_points = [ax.x_axis.n2p(p) for p in self.get_x_y_points(k)[0]]
+        vertical_lines = [Line(start_point, end.get_center()).set_stroke(color=color, width=8) for start_point, end in zip(x_points, points)]
+        return VGroup(*vertical_lines)
+
+    def get_ticks_for_x_axis(self):
+        ax = Axes(
+            x_range=[0, np.pi, np.pi / 8],
+            y_range=[-1, 1],
+            x_length=10,
+            y_length=5.5,
+            tips=False,
+            x_axis_config={"include_numbers": False, "include_ticks": True},
+            y_axis_config={"include_numbers": True, "numbers_to_exclude": [0], "include_ticks": False}
+        )
+        return ax.x_axis.ticks
+
+    def make_component(self, text, color=REDUCIBLE_YELLOW, scale=0.8):
+        # geometry is first index, Tex is second index
+        text_mob = Tex(text).scale(scale)
+        rect = Rectangle(color=color, height=1.1, width=3)
+        return VGroup(rect, text_mob)
 
 
 class DemoJPEGWithDCT2D(ThreeDScene, ImageUtils):
