@@ -157,6 +157,54 @@ class Module(VGroup):
         # super().arrange(ORIGIN)
 
 
+class Pixel(Square):
+    def __init__(self, n: int, color_mode: str):
+        assert color_mode in ("RGB", "GRAY"), "Color modes are RGB and GRAY"
+
+        if color_mode == "RGB":
+            color = rgb_to_hex(n)
+        else:
+            color = g2h(n / 255)
+        super().__init__(side_length=1)
+
+        self.set_stroke(BLACK, width=0.1)
+        self.set_fill(color, opacity=1)
+
+
+class PixelArray(VGroup):
+    def __init__(self, img: np.ndarray, include_numbers=False, color_mode="RGB"):
+
+        if len(img.shape) == 3:
+            rows, cols, channels = img.shape
+        else:
+            rows, cols = img.shape
+        self.shape = img.shape
+
+        pixels = []
+        for row in img:
+            for p in row:
+                if include_numbers:
+                    self.number = (
+                        Text(str(p), font="SF Mono")
+                        .scale(0.7)
+                        .set_color(g2h(1) if p < 180 else g2h(0))
+                    )
+                    pixels.append(VGroup(Pixel(p, color_mode), self.number))
+                else:
+                    pixels.append(Pixel(p, color_mode))
+
+        super().__init__(*pixels)
+        self.arrange_in_grid(rows, cols, buff=0)
+
+        self.dict = {index: p for index, p in enumerate(self)}
+
+    def __getitem__(self, value) -> Pixel:
+        if isinstance(value, slice):
+            return VGroup(*list(self.dict.values())[value])
+        else:
+            return self.dict[value]
+
+
 class IntroduceRGBAndJPEG(Scene):
     def construct(self):
         r_t = Text("R", font="SF Mono").scale(3).set_color(RED)
@@ -1080,8 +1128,8 @@ class ImageUtils(Scene):
 
         y, u, v = self.get_yuv_image_from_rgb(pixel_array, mapped=False)
 
-        out_u = u.copy()
-        out_v = v.copy()
+        out_u = np.zeros(u.shape)
+        out_v = np.zeros(v.shape)
         # Downsample with a window of 2 in the horizontal direction
         if mode == "4:2:2":
             # first the u channel
@@ -1094,9 +1142,21 @@ class ImageUtils(Scene):
 
         # Downsample with a window of 2 in both directions
         elif mode == "4:2:0":
+            print(u)
             for i in range(0, u.shape[0], 2):
                 for j in range(0, u.shape[1], 2):
-                    out_u[i : i + 2, j : j + 2] = np.mean(u[i : i + 2, j : j + 2])
+                    print(f"{i = }, {j = }")
+
+                    print(u[i : i + 2, j : j + 2])
+                    print(np.mean(u[i : i + 2, j : j + 2]))
+
+                    out_u[i : i + 2, j : j + 2] = int(
+                        np.round(np.mean(u[i : i + 2, j : j + 2]))
+                    )
+
+                    print(out_u)
+                print("--------------")
+                print("--------------")
 
             for i in range(0, v.shape[0], 2):
                 for j in range(0, v.shape[1], 2):
@@ -1112,11 +1172,14 @@ class ImageUtils(Scene):
 
 class IntroChromaSubsampling(ImageUtils):
     def construct(self):
-        shed_raw = ImageMobject("gradient_sm.png")
+        self.animate_chroma_subsampling()
+
+    def image_chroma_subsample(self):
+        shed_raw = ImageMobject("colors3.png")
         shed_raw.set_resampling_algorithm(RESAMPLING_ALGORITHMS["nearest"])
 
         chroma_subsampled = self.chroma_subsample_image(
-            shed_raw.get_pixel_array(), mode="4:2:2"
+            shed_raw.get_pixel_array(), mode="4:2:0"
         )
 
         y, u, v = self.get_yuv_image_from_rgb(shed_raw.get_pixel_array(), mapped=False)
@@ -1126,13 +1189,15 @@ class IntroChromaSubsampling(ImageUtils):
             chroma_subsampled[:, :, 2],
         )
 
-        v_mob = ImageMobject(v)
-        v_sub_mob = ImageMobject(v_sub)
+        # u_mob = ImageMobject(u)
+        # print(u)
+        # u_sub_mob = ImageMobject(u_sub)
+        # print(u_sub)
 
-        v_mob.set_resampling_algorithm(RESAMPLING_ALGORITHMS["nearest"])
-        v_sub_mob.set_resampling_algorithm(RESAMPLING_ALGORITHMS["nearest"])
+        # u_mob.set_resampling_algorithm(RESAMPLING_ALGORITHMS["nearest"])
+        # u_sub_mob.set_resampling_algorithm(RESAMPLING_ALGORITHMS["nearest"])
 
-        self.add(Group(v_mob, v_sub_mob).arrange(RIGHT, buff=0.01).scale(30))
+        # self.add(Group(u_mob, u_sub_mob).arrange(RIGHT, buff=0.01).scale(30))
 
         chroma_subsampled_mobj = ImageMobject(chroma_subsampled)
         chroma_subsampled_mobj.set_resampling_algorithm(
@@ -1149,13 +1214,34 @@ class IntroChromaSubsampling(ImageUtils):
             Group(shed_raw, chroma_subsampled_mobj, diff_image_mobj).arrange(
                 RIGHT, buff=0.01
             )
-        ).scale(20)
+        ).scale(15)
 
-        # self.play(
-        #     FadeIn(img_group),
-        #     run_time=3,
-        # )
-        # self.wait(2)
+        self.play(
+            FadeIn(img_group),
+            run_time=3,
+        )
+        self.wait(2)
+
+    def animate_chroma_subsampling(self):
+        gradient_image = ImageMobject("gradient_xsm.png")
+        pix_array = gradient_image.get_pixel_array()
+
+        gradient = PixelArray(pix_array[:, :, :-1])
+        r_gradient = PixelArray(
+            pix_array[:, :, 0], color_mode="GRAY", include_numbers=True
+        )
+        g_gradient = PixelArray(
+            pix_array[:, :, 1], color_mode="GRAY", include_numbers=True
+        )
+        b_gradient = PixelArray(
+            pix_array[:, :, 2], color_mode="GRAY", include_numbers=True
+        )
+
+        self.add(
+            VGroup(r_gradient, g_gradient, b_gradient)
+            .arrange(RIGHT, buff=0.5)
+            .scale(0.5)
+        )
 
 
 class TestGrayScaleImages(ImageUtils):
@@ -2874,6 +2960,11 @@ def ycbcr2rgb(y, cb, cr):
     g = y - 0.34414 * (cb - 128) - 0.71414 * (cr - 128)
     b = y + 1.772 * (cb - 128)
     return r, g, b
+
+
+def g2h(n):
+    """Abbreviation for grayscale to hex"""
+    return rgb_to_hex((n, n, n))
 
 
 def coords2rgbcolor(i, j, k):
