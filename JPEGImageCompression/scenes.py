@@ -1047,16 +1047,6 @@ class IntroChromaSubsampling(ImageUtils):
 
         gradient = PixelArray(pix_array[:, :, :-1]).scale(0.3)
 
-        # r_channel = PixelArray(
-        #     pix_array[:, :, 0], color_mode="GRAY", include_numbers=True
-        # )
-        # g_channel = PixelArray(
-        #     pix_array[:, :, 1], color_mode="GRAY", include_numbers=True
-        # )
-        # b_channel = PixelArray(
-        #     pix_array[:, :, 2], color_mode="GRAY", include_numbers=True
-        # )
-
         y, u, v = self.get_yuv_image_from_rgb(pix_array, mapped=True)
         y_channel = PixelArray(y[:, :, 0], color_mode="GRAY").scale(0.5)
         u_channel = PixelArray(u, color_mode="RGB").scale(0.5)
@@ -1084,6 +1074,8 @@ class IntroChromaSubsampling(ImageUtils):
 
         self.play(gradient.animate.shift(UP * 2))
 
+        self.wait(2)
+
         yuv_channels = (
             VGroup(y_vg, u_vg, v_vg)
             .arrange(RIGHT, buff=0.5)
@@ -1097,7 +1089,17 @@ class IntroChromaSubsampling(ImageUtils):
             TransformFromCopy(gradient, v_channel),
         )
 
+        self.wait(2)
+
         self.play(FadeIn(y_t), FadeIn(u_t), FadeIn(v_t))
+
+        self.wait(2)
+
+        chroma_title = (
+            Text("Chroma subsampling: 4:2:0", font="CMU Serif", weight=BOLD)
+            .scale(0.7)
+            .to_edge(UP, buff=1)
+        )
 
         self.play(
             LaggedStart(
@@ -1107,32 +1109,61 @@ class IntroChromaSubsampling(ImageUtils):
                     FadeOut(v_vg),
                     FadeOut(u_t),
                 ),
-                u_channel.animate.move_to(ORIGIN).scale(2),
+                u_channel.animate.move_to(DOWN * 0.5).scale(2),
+                FadeIn(chroma_title),
                 lag_ratio=1,
             ),
+            run_time=3,
         )
 
+        self.wait(2)
+
         u_slice = u_channel[0:2]
+
         kernel = (
             Square(color=YELLOW)
             .scale_to_fit_width(u_slice.width)
             .move_to(u_slice, aligned_edge=UP)
         )
+        self.add_foreground_mobject(kernel)
 
         self.play(FadeIn(kernel))
 
-        # indices = (
-        #     VGroup(*[Text(str(i)).scale(0.6) for i in range(64)])
-        #     .arrange_in_grid(rows=8, cols=8)
-        #     .scale_to_fit_width(u_channel.width)
-        #     .stretch_to_fit_height(u_channel.height)
-        # )
-        # self.add(indices)
-
+        """
+        This for loop runs through the loaded image's u channel, 
+        and creates a new downsampled version as it goes through it.
+        """
         for j in range(0, pix_array.shape[1] * 2, 4):
             for i in range(0, pix_array.shape[0], 2):
+                sq_ul = u_channel[i + j * 4].color
+                sq_dl = u_channel[i + j * 4 + 4].color
+
+                sq_ur = u_channel[i + j * 4 + 2].color
+                sq_dr = u_channel[i + j * 4 + 2 + 4].color
+
                 next_slice = u_channel[i + j * 4 : i + j * 4 + 2]
                 self.play(kernel.animate.move_to(next_slice, aligned_edge=UP))
+
+                sq_ul_rgb = hex_to_rgb(sq_ul)
+                sq_ur_rgb = hex_to_rgb(sq_ur)
+                sq_dl_rgb = hex_to_rgb(sq_dl)
+                sq_dr_rgb = hex_to_rgb(sq_dr)
+
+                four_pixels = np.stack((sq_ul_rgb, sq_ur_rgb, sq_dl_rgb, sq_dr_rgb))
+
+                avg = np.average(four_pixels, axis=0) * 255
+
+                new_pixel = (
+                    Pixel(avg, color_mode="RGB")
+                    .scale_to_fit_width(kernel.width)
+                    .move_to(kernel)
+                )
+
+                self.play(FadeIn(new_pixel))
+
+                self.wait()
+
+        self.play(FadeOut(kernel))
 
 
 class TestGrayScaleImages(ImageUtils):
