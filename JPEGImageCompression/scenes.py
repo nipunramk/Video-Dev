@@ -1121,17 +1121,18 @@ class IntroChromaSubsampling(ImageUtils):
 
         self.play(FadeIn(kernel))
 
-        offset = 0
-        for j in range(0, pix_array.shape[1] * 4, 4):
-            for i in range(0, pix_array.shape[0], 2):
-                print(i + j * 4, i + j * 4 + 2 - 1)
-                next_slice = u_channel[i + j * 4 : i + j * 4 + 2]
-                self.play(
-                    kernel.animate.move_to(next_slice, aligned_edge=UP), run_time=0.5
-                )
-                self.wait()
+        indices = (
+            VGroup(*[Text(str(i)).scale(0.6) for i in range(64)])
+            .arrange_in_grid(rows=8, cols=8)
+            .scale_to_fit_width(u_channel.width)
+            .stretch_to_fit_height(u_channel.height)
+        )
+        self.add(indices)
 
-        self.wait(4)
+        for j in range(0, pix_array.shape[1] * 2, 4):
+            for i in range(0, pix_array.shape[0], 2):
+                next_slice = u_channel[i + j * 4 : i + j * 4 + 2]
+                self.play(kernel.animate.move_to(next_slice, aligned_edge=UP))
 
 
 class TestGrayScaleImages(ImageUtils):
