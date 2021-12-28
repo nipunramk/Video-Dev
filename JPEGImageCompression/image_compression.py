@@ -162,12 +162,12 @@ class Pixel(Square):
         assert color_mode in ("RGB", "GRAY"), "Color modes are RGB and GRAY"
 
         if color_mode == "RGB":
-            color = rgb_to_hex(n)
+            color = rgb_to_hex(n / 255)
         else:
             color = g2h(n / 255)
         super().__init__(side_length=1)
 
-        self.set_stroke(BLACK, width=0.1)
+        self.set_stroke(BLACK, width=0.2)
         self.set_fill(color, opacity=1)
 
 
@@ -178,6 +178,7 @@ class PixelArray(VGroup):
             rows, cols, channels = img.shape
         else:
             rows, cols = img.shape
+
         self.shape = img.shape
 
         pixels = []
@@ -198,7 +199,7 @@ class PixelArray(VGroup):
 
         self.dict = {index: p for index, p in enumerate(self)}
 
-    def __getitem__(self, value) -> Pixel:
+    def __getitem__(self, value) -> VGroup:
         if isinstance(value, slice):
             return VGroup(*list(self.dict.values())[value])
         else:
@@ -1224,24 +1225,98 @@ class IntroChromaSubsampling(ImageUtils):
 
     def animate_chroma_subsampling(self):
         gradient_image = ImageMobject("gradient_xsm.png")
+        # gradient_image.set_resampling_algorithm(RESAMPLING_ALGORITHMS["nearest"])
+        # gradient_image.scale(30)
+
         pix_array = gradient_image.get_pixel_array()
 
-        gradient = PixelArray(pix_array[:, :, :-1])
-        r_gradient = PixelArray(
-            pix_array[:, :, 0], color_mode="GRAY", include_numbers=True
+        gradient = PixelArray(pix_array[:, :, :-1]).scale(0.3)
+
+        # r_channel = PixelArray(
+        #     pix_array[:, :, 0], color_mode="GRAY", include_numbers=True
+        # )
+        # g_channel = PixelArray(
+        #     pix_array[:, :, 1], color_mode="GRAY", include_numbers=True
+        # )
+        # b_channel = PixelArray(
+        #     pix_array[:, :, 2], color_mode="GRAY", include_numbers=True
+        # )
+
+        y, u, v = self.get_yuv_image_from_rgb(pix_array, mapped=True)
+        y_channel = PixelArray(y[:, :, 0], color_mode="GRAY").scale(0.5)
+        u_channel = PixelArray(u, color_mode="RGB").scale(0.5)
+        v_channel = PixelArray(v, color_mode="RGB").scale(0.5)
+
+        y_t = Text("Y", font="SF Mono", weight=BOLD).scale(1.5).set_color(GRAY_A)
+        u_t = (
+            Text("Cb", font="SF Mono", weight=BOLD)
+            .scale(1.5)
+            .set_color_by_gradient("#FFFF00", "#0000FF")
         )
-        g_gradient = PixelArray(
-            pix_array[:, :, 1], color_mode="GRAY", include_numbers=True
-        )
-        b_gradient = PixelArray(
-            pix_array[:, :, 2], color_mode="GRAY", include_numbers=True
+        v_t = (
+            Text("Cr", font="SF Mono", weight=BOLD)
+            .scale(1.5)
+            .set_color_by_gradient("#00FF00", "#FF0000")
         )
 
-        self.add(
-            VGroup(r_gradient, g_gradient, b_gradient)
+        y_vg = VGroup(y_channel, y_t).arrange(DOWN, buff=0.5)
+        u_vg = VGroup(u_channel, u_t).arrange(DOWN, buff=0.5)
+        v_vg = VGroup(v_channel, v_t).arrange(DOWN, buff=0.5)
+
+        self.play(FadeIn(gradient))
+
+        self.wait(2)
+
+        self.play(gradient.animate.shift(UP * 2))
+
+        yuv_channels = (
+            VGroup(y_vg, u_vg, v_vg)
             .arrange(RIGHT, buff=0.5)
             .scale(0.5)
+            .shift(DOWN * 2),
         )
+
+        self.play(
+            TransformFromCopy(gradient, y_channel),
+            TransformFromCopy(gradient, u_channel),
+            TransformFromCopy(gradient, v_channel),
+        )
+
+        self.play(FadeIn(y_t), FadeIn(u_t), FadeIn(v_t))
+
+        self.play(
+            LaggedStart(
+                AnimationGroup(
+                    FadeOut(gradient),
+                    FadeOut(y_vg),
+                    FadeOut(v_vg),
+                    FadeOut(u_t),
+                ),
+                u_channel.animate.move_to(ORIGIN).scale(2),
+                lag_ratio=1,
+            ),
+        )
+
+        u_slice = u_channel[0:2]
+        kernel = (
+            Square(color=YELLOW)
+            .scale_to_fit_width(u_slice.width)
+            .move_to(u_slice, aligned_edge=UP)
+        )
+
+        self.play(FadeIn(kernel))
+
+        offset = 0
+        for j in range(0, pix_array.shape[1] * 4, 4):
+            for i in range(0, pix_array.shape[0], 2):
+                print(i + j * 4, i + j * 4 + 2 - 1)
+                next_slice = u_channel[i + j * 4 : i + j * 4 + 2]
+                self.play(
+                    kernel.animate.move_to(next_slice, aligned_edge=UP), run_time=0.5
+                )
+                self.wait()
+
+        self.wait(4)
 
 
 class TestGrayScaleImages(ImageUtils):
