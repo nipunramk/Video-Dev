@@ -1,5 +1,7 @@
+from math import sqrt
 from manim import *
 import cv2
+
 from scipy import fftpack
 from typing import Iterable, List
 
@@ -13,12 +15,15 @@ there might be some unexpected behavior
 E.g manim -pql JPEGImageCompression/image_compression.py --disable_caching
 """
 
+REDUCIBLE_PURPLE_DARKER = "#3B0893"
 REDUCIBLE_BLUE = "#650FFA"
 REDUCIBLE_PURPLE = "#8c4dfb"
 REDUCIBLE_VIOLET = "#d7b5fe"
 REDUCIBLE_YELLOW = "#ffff5c"
+REDUCIBLE_YELLOW_DARKER = "#7F7F2D"
 REDUCIBLE_GREEN_LIGHTER = "#00cc70"
-REDUCIBLE_GREEN_DARKER = "#008f4f"
+REDUCIBLE_GREEN = "#008f4f"
+REDUCIBLE_GREEN_DARKER = "#004F2C"
 
 
 class ReducibleBarChart(BarChart):
@@ -114,6 +119,41 @@ class ReducibleBarChart(BarChart):
         self.bars = bars
         self.bar_labels = bar_labels
 
+class Module(VGroup):
+    def __init__(
+        self,
+        text,
+        fill_color=REDUCIBLE_PURPLE_DARKER,
+        stroke_color=REDUCIBLE_VIOLET,
+        stroke_width=5,
+        text_scale=0.9,
+        text_position=ORIGIN,
+        text_weight=NORMAL,
+        width=4,
+        height=2,
+        **kwargs,
+    ):
+
+        self.rect = (
+            RoundedRectangle(
+                corner_radius=0.1, fill_color=fill_color, width=width, height=height
+            )
+            .set_opacity(1)
+            .set_stroke(stroke_color, width=stroke_width)
+        )
+
+        self.text = Text(str(text), weight=text_weight, font="CMU Serif").scale(
+            text_scale
+        )
+        self.text.next_to(
+            self.rect,
+            direction=ORIGIN,
+            coor_mask=text_position * 0.8,
+            aligned_edge=text_position,
+        )
+
+        super().__init__(self.rect, self.text, **kwargs)
+        # super().arrange(ORIGIN)
 
 class IntroduceRGBAndJPEG(Scene):
     def construct(self):
@@ -357,6 +397,426 @@ class IntroduceRGBAndJPEG(Scene):
 
         self.wait(3)
 
+class OLDJPEGDiagram(Scene):
+    def construct(self):
+
+        # animation section
+
+        # self.intro()
+
+        # self.play(*[FadeOut(mob) for mob in self.mobjects])
+
+        # self.intro_2()
+
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
+
+        self.data_flow()
+
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
+
+        self.zoom_jpeg_encoder()
+
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
+
+    # definition of animations
+    def intro(self):
+        sq_array = [Square(color=WHITE) for _ in range(8 * 8)]
+        intro_image = (
+            VGroup(*sq_array)
+            .arrange_in_grid(rows=8, cols=8, buff=0)
+            .stretch_to_fit_height(3)
+            .stretch_to_fit_width(3)
+        )
+
+        intro_image_buff = intro_image.copy().arrange_in_grid(rows=8, cols=8, buff=0.1)
+
+        self.play(LaggedStartMap(GrowFromCenter, intro_image))
+        self.wait()
+        self.play(Transform(intro_image, intro_image_buff))
+
+        for _ in range(10):
+            rand_index = np.random.randint(0, 63)
+            self.play(
+                Transform(
+                    sq_array[rand_index],
+                    sq_array[rand_index].copy().set_color(REDUCIBLE_YELLOW),
+                )
+            )
+            self.play(ShrinkToCenter(sq_array[rand_index]), run_time=2)
+
+        self.wait()
+
+    def intro_2(self):
+
+        img_og = self.make_nested_squares(8, 2).scale_to_fit_width(4)
+
+        img_sm = self.make_nested_squares(4, 1).scale_to_fit_width(4)
+
+        self.play(FadeIn(img_og), run_time=2)
+
+        anims = []
+        for i in range(len(img_og.submobjects)):
+            anims.append(Transform(img_og[i], img_sm[i]))
+
+        self.play(LaggedStart(*anims, lag_ratio=0.05), run_time=10)
+
+        self.wait(3)
+
+    def data_flow(self):
+        input_rows = 8
+        input_cols = 8
+
+        output_rows = 4
+        output_cols = 4
+
+        # object instantiation
+        input_image = (
+            VGroup(*[Square(color=WHITE) for _ in range(input_rows * input_cols)])
+            .arrange_in_grid(rows=input_rows, cols=input_cols, buff=0)
+            .stretch_to_fit_height(2)
+            .stretch_to_fit_width(2)
+        )
+
+        final_image = (
+            VGroup(*[Square(color=WHITE) for _ in range(output_rows * output_cols)])
+            .arrange_in_grid(rows=output_rows, cols=output_cols, buff=0)
+            .stretch_to_fit_height(2)
+            .stretch_to_fit_width(2)
+        )
+
+        # encoding part
+        jpeg_encoder = self.module("JPEG Encoder")
+        compressed_data = VGroup(
+            Square(),
+            DashedLine(
+                Square().get_bottom(), Square().get_top(), dash_length=0.1
+            ).set_stroke(width=10),
+        )
+
+        data_flow_encode = VGroup(input_image, jpeg_encoder, compressed_data).arrange(
+            RIGHT, buff=1
+        )
+
+        # arrows
+        arr1 = Arrow(input_image.get_right(), jpeg_encoder.get_left())
+        arr2 = Arrow(jpeg_encoder.get_right(), compressed_data.get_left())
+        data_flow_encode.add(arr1, arr2)
+
+        # decoding part
+        jpeg_decoder = self.module("JPEG Decoder")
+
+        data_flow_decode = (
+            VGroup(compressed_data.copy(), jpeg_decoder, final_image)
+            .arrange(RIGHT, buff=1)
+            .shift(DOWN * 2)
+        )
+        arr3 = Arrow(data_flow_decode[0].get_right(), jpeg_decoder.get_left())
+        arr4 = Arrow(jpeg_decoder.get_right(), final_image.get_left())
+        data_flow_decode.add(arr3, arr4)
+
+        # animations
+        self.play(LaggedStartMap(Write, input_image, lag_ratio=0.1), run_time=2)
+
+        self.play(
+            Write(jpeg_encoder),
+            Write(arr1),
+        )
+        self.play(
+            Write(compressed_data),
+            Write(arr2),
+        )
+
+        self.wait()
+
+        self.play(data_flow_encode.animate.shift(UP * 2))
+
+        self.wait()
+
+        self.play(LaggedStartMap(Write, data_flow_decode, lag_ratio=0.1), run_time=1)
+
+        self.wait(4)
+
+    def zoom_jpeg_encoder(self):
+        jpeg_encoder = self.module("JPEG Encoder")
+        self.play(Write(jpeg_encoder.move_to(ORIGIN)))
+        self.wait()
+        self.play(
+            ScaleInPlace(jpeg_encoder, 3),
+            FadeOut(jpeg_encoder[1]),
+        )
+
+        forward_dct = self.module(
+            "Forward DCT", fill_color="#7F7F2D", stroke_color=REDUCIBLE_YELLOW
+        )
+        forward_dct_icon = ImageMobject("dct.png").scale(0.4)
+        forward_dct_module = Group(forward_dct, forward_dct_icon).arrange(DOWN, buff=1)
+
+        quantization = self.module(
+            "Quantization", fill_color="#7F7F2D", stroke_color=REDUCIBLE_YELLOW
+        )
+        quantization_icon = ImageMobject("quantization.png").scale(0.4)
+        quantization_module = Group(quantization, quantization_icon).arrange(
+            DOWN, buff=1
+        )
+
+        lossless_comp = self.module(
+            "Lossless \\\\ compression",
+            fill_color="#7F7F2D",
+            stroke_color=REDUCIBLE_YELLOW,
+        )
+        lossless_icon = ImageMobject("lossless.png").scale(0.4)
+        lossless_module = Group(lossless_comp, lossless_icon).arrange(DOWN, buff=1)
+
+        modules_g = (
+            Group(forward_dct_module, quantization_module, lossless_module)
+            .arrange(RIGHT)
+            .scale_to_fit_width(jpeg_encoder.width - 1)
+        )
+
+        self.play(LaggedStartMap(FadeIn, modules_g), run_time=2)
+
+        self.wait(3)
+
+    # definition of util functions
+    def make_nested_squares(self, total_side=8, groups_side=2):
+        """
+        Creates an arrangement of squares based on blocks of `groups_side` squares.
+        """
+        groups_ratio = total_side ** 2 // groups_side ** 2
+
+        output_vg = VGroup()
+        for i in range(groups_ratio):
+            aux_vg = VGroup()
+            for _ in range(groups_side * groups_side):
+                aux_vg.add(Square())
+
+            aux_vg.arrange_in_grid(rows=groups_side, cols=groups_side, buff=0)
+
+            output_vg.add(aux_vg)
+
+        print(len(output_vg))
+
+        return output_vg.arrange_in_grid(
+            rows=int(sqrt(groups_ratio)), cols=int(sqrt(groups_ratio)), buff=0
+        )
+
+
+class JPEGDiagram(MovingCameraScene):
+    def construct(self):
+        self.build_diagram()
+
+    def build_diagram(self):
+
+        self.play(self.camera.frame.animate.scale(2))
+        # input image
+        red_channel = (
+            RoundedRectangle(corner_radius=0.1, fill_color=RED, width=3)
+            .set_color(BLACK)
+            .set_opacity(1)
+            .set_stroke(RED, width=4)
+        )
+        green_channel = (
+            RoundedRectangle(corner_radius=0.1, fill_color=GREEN, width=3)
+            .set_color(BLACK)
+            .set_opacity(1)
+            .set_stroke(GREEN, width=4)
+        )
+        blue_channel = (
+            RoundedRectangle(corner_radius=0.1, fill_color=BLUE, width=3)
+            .set_color(BLACK)
+            .set_opacity(1)
+            .set_stroke(BLUE, width=4)
+        )
+
+        channels_vg_diagonal = VGroup(red_channel, green_channel, blue_channel).arrange(
+            DOWN * 1.1 + RIGHT * 1.7, buff=-1.4
+        )
+
+        # output image
+        output_image = SVGMobject("jpg_file.svg").set_stroke(
+            WHITE, width=5, background=True
+        )
+
+        # big modules
+        jpeg_encoder = Module(
+            "JPEG Encoder",
+            width=7,
+            height=3,
+            text_position=DOWN,
+            text_weight=BOLD,
+            text_scale=0.8,
+        )
+        jpeg_decoder = Module(
+            "JPEG Decoder",
+            width=7,
+            height=3,
+            text_position=UP,
+            text_weight=BOLD,
+            text_scale=0.8,
+        )
+
+        # color treatment
+        color_treatment = Module(
+            "Color treatment",
+            REDUCIBLE_GREEN_DARKER,
+            REDUCIBLE_GREEN_LIGHTER,
+            height=jpeg_encoder.height,
+            width=3,
+            text_scale=0.5,
+            text_position=UP,
+            text_weight=BOLD,
+        )
+
+        ycbcr_m = Module(
+            "YCbCr",
+            fill_color=REDUCIBLE_YELLOW_DARKER,
+            stroke_color=REDUCIBLE_YELLOW,
+            height=1,
+        ).scale_to_fit_width(color_treatment.width - 0.5)
+
+        chroma_sub_m = Module(
+            "Chroma Subsampling",
+            fill_color=REDUCIBLE_YELLOW_DARKER,
+            stroke_color=REDUCIBLE_YELLOW,
+            text_scale=0.5,
+            height=1,
+        ).scale_to_fit_width(color_treatment.width - 0.5)
+
+        color_modules = VGroup(ycbcr_m, chroma_sub_m).arrange(DOWN, buff=0.5)
+
+        color_treatment_w_modules = VGroup(color_treatment, color_modules).arrange(
+            ORIGIN
+        )
+        color_modules.shift(DOWN * 0.4)
+
+        # small modules
+
+        # encoding
+        forward_dct_m = Module("Forward DCT", REDUCIBLE_YELLOW_DARKER, REDUCIBLE_YELLOW)
+        forward_dct_icon = ImageMobject("dct.png").scale(0.2)
+        forward_dct = Group(forward_dct_m, forward_dct_icon).arrange(DOWN, buff=0.5)
+
+        quantizer_m = Module("Quantizer", REDUCIBLE_YELLOW_DARKER, REDUCIBLE_YELLOW)
+        quantizer_icon = ImageMobject("quantization.png").scale(0.2)
+        quantizer = Group(quantizer_m, quantizer_icon).arrange(DOWN, buff=0.5)
+
+        lossless_comp_m = Module(
+            "Encoder",
+            REDUCIBLE_YELLOW_DARKER,
+            REDUCIBLE_YELLOW,
+        )
+        lossless_icon = ImageMobject("lossless.png").scale(0.2)
+        lossless_comp = Group(lossless_comp_m, lossless_icon).arrange(DOWN, buff=0.5)
+
+        encoding_modules = (
+            Group(forward_dct, quantizer, lossless_comp)
+            .arrange(RIGHT, buff=0.7)
+            .scale_to_fit_width(jpeg_encoder.width - 0.5)
+        )
+        jpeg_encoder_w_modules = Group(jpeg_encoder, encoding_modules).arrange(
+            ORIGIN,
+        )
+        encoding_modules.shift(DOWN * 0.5)
+
+        # decoding
+
+        inverse_dct = Module("Inverse DCT", REDUCIBLE_YELLOW_DARKER, REDUCIBLE_YELLOW)
+        dequantizer = Module("Dequantizer", REDUCIBLE_YELLOW_DARKER, REDUCIBLE_YELLOW)
+        decoder = Module("Decoder", REDUCIBLE_YELLOW_DARKER, REDUCIBLE_YELLOW)
+
+        decoding_modules = (
+            VGroup(inverse_dct, dequantizer, decoder)
+            .arrange(RIGHT, buff=0.5)
+            .scale_to_fit_width(jpeg_decoder.width - 0.5)
+        )
+        jpeg_decoder_w_modules = VGroup(jpeg_decoder, decoding_modules).arrange(ORIGIN)
+        decoding_modules.shift(DOWN * 0.5)
+
+        # first row = encoding flow
+        encoding_flow = Group(
+            channels_vg_diagonal.scale(0.6),
+            color_treatment_w_modules,
+            jpeg_encoder_w_modules,
+            output_image,
+        ).arrange(RIGHT, buff=3)
+
+        # second row = decoding flow
+        decoding_flow = VGroup(
+            output_image.copy(), jpeg_decoder_w_modules, channels_vg_diagonal.copy()
+        ).arrange(RIGHT, buff=3)
+
+        whole_map = Group(encoding_flow, decoding_flow).arrange(DOWN, buff=8)
+
+        encode_arrows = VGroup()
+        for i in range(len(encoding_flow.submobjects) - 1):
+            encode_arrows.add(
+                Arrow(
+                    color=GRAY_B,
+                    start=encoding_flow[i].get_right(),
+                    end=encoding_flow[i + 1].get_left(),
+                    stroke_width=3,
+                    buff=0.3,
+                    max_tip_length_to_length_ratio=0.08,
+                    max_stroke_width_to_length_ratio=2,
+                )
+            )
+        decode_arrows = VGroup()
+        for i in range(len(decoding_flow.submobjects) - 1):
+            decode_arrows.add(
+                Arrow(
+                    color=GRAY_B,
+                    start=decoding_flow[i].get_right(),
+                    end=decoding_flow[i + 1].get_left(),
+                    stroke_width=3,
+                    buff=0.3,
+                    max_tip_length_to_length_ratio=0.08,
+                    max_stroke_width_to_length_ratio=2,
+                )
+            )
+
+        # whole map view state
+        self.camera.frame.save_state()
+
+        self.play(FadeIn(encoding_flow))
+        self.play(FadeIn(encode_arrows))
+        self.play(FadeIn(decoding_flow))
+        self.play(FadeIn(decode_arrows))
+
+        self.focus_on(encoding_flow, buff=1.3)
+
+        self.wait(3)
+
+        self.focus_on(channels_vg_diagonal)
+
+        self.wait(3)
+
+        self.focus_on(color_treatment_w_modules)
+
+        self.wait(3)
+
+        self.focus_on(encoding_flow, buff=1.3)
+
+        self.wait(3)
+
+        self.focus_on(jpeg_encoder_w_modules, buff=1.3)
+
+        self.wait(3)
+
+        self.focus_on(forward_dct)
+
+        self.wait(3)
+
+        self.focus_on(quantizer)
+
+        self.wait(3)
+
+        self.play(Restore(self.camera.frame), run_time=3)
+
+    def focus_on(self, mobject, buff=2):
+        self.play(
+            self.camera.frame.animate.set_width(mobject.width * buff).move_to(mobject),
+            run_time=3,
+        )
 
 class MotivateAndExplainYCbCr(ThreeDScene):
     def construct(self):
@@ -2106,7 +2566,7 @@ class DCT1DStepsVisualized(DCT1DExperiments):
         ).arrange(RIGHT, buff=0)
         return pixel_row_mob, np.array(row_values), highlight
 
-    def get_array_obj(self, values, length=5, height=0.5, color=REDUCIBLE_GREEN_DARKER):
+    def get_array_obj(self, values, length=5, height=0.5, color=REDUCIBLE_GREEN_LIGHTER):
         array = VGroup(
             *[Rectangle(height=height, width=length / len(values)) for _ in values]
         ).arrange(RIGHT, buff=0)
@@ -2870,7 +3330,7 @@ class MotivateDCT(DCT1DStepsVisualized):
         vertical_lines = [Line(start, end_point.get_center()).set_stroke(color=REDUCIBLE_VIOLET, width=8) for start, end_point in zip(x_axis_points, dct_points)]
         return VGroup(*vertical_lines)
 
-    def get_gen_array_obj(self, values, length=5, height=0.5, color=REDUCIBLE_GREEN_DARKER):
+    def get_gen_array_obj(self, values, length=5, height=0.5, color=REDUCIBLE_GREEN_LIGHTER):
         array = VGroup(*[Rectangle(height=height, width=length/len(values)) for _ in values]).arrange(RIGHT, buff=0)
         array.set_color(color)
         array_text = VGroup(*[MathTex(val).scale(0.6).move_to(array[i].get_center()) for i, val in enumerate(values)])
@@ -3491,7 +3951,7 @@ class RevisedMotivateDCT(MotivateDCT):
 
         y_labels = [f"y_{i}" for i in range(8)]
 
-        cosine_y_array = self.get_gen_array_obj(y_labels, color=REDUCIBLE_GREEN_DARKER)
+        cosine_y_array = self.get_gen_array_obj(y_labels, color=REDUCIBLE_GREEN_LIGHTER)
 
         cosine_y_array.next_to(cosine_function_sample_group, UP * 2.5)
 
@@ -4113,7 +4573,7 @@ class RevisedMotivateDCT(MotivateDCT):
                 for value in row_values
             ]
         ).arrange(RIGHT, buff=0)
-        surround_rect = SurroundingRectangle(pixel_row_mob, color=REDUCIBLE_GREEN_DARKER, buff=0)
+        surround_rect = SurroundingRectangle(pixel_row_mob, color=REDUCIBLE_GREEN_LIGHTER, buff=0)
         return VGroup(pixel_row_mob, surround_rect)
 
 class MathematicallyDefineDCT(RevisedMotivateDCT):
