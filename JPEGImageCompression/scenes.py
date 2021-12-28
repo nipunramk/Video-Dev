@@ -1121,13 +1121,13 @@ class IntroChromaSubsampling(ImageUtils):
 
         self.play(FadeIn(kernel))
 
-        indices = (
-            VGroup(*[Text(str(i)).scale(0.6) for i in range(64)])
-            .arrange_in_grid(rows=8, cols=8)
-            .scale_to_fit_width(u_channel.width)
-            .stretch_to_fit_height(u_channel.height)
-        )
-        self.add(indices)
+        # indices = (
+        #     VGroup(*[Text(str(i)).scale(0.6) for i in range(64)])
+        #     .arrange_in_grid(rows=8, cols=8)
+        #     .scale_to_fit_width(u_channel.width)
+        #     .stretch_to_fit_height(u_channel.height)
+        # )
+        # self.add(indices)
 
         for j in range(0, pix_array.shape[1] * 2, 4):
             for i in range(0, pix_array.shape[0], 2):
