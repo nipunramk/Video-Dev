@@ -31,7 +31,7 @@ class IntroduceRGBAndJPEG(Scene):
         rgb_vg_v = rgb_vg_h.copy().arrange(DOWN, buff=1).shift(LEFT * 0.7)
 
         self.play(LaggedStartMap(FadeIn, rgb_vg_h, lag_ratio=0.5))
-        self.wait()
+        self.wait(2)
         self.play(Transform(rgb_vg_h, rgb_vg_v))
 
         red_t = (
@@ -50,6 +50,8 @@ class IntroduceRGBAndJPEG(Scene):
             .next_to(b_t, RIGHT, buff=0.3, aligned_edge=DOWN)
         )
         self.play(LaggedStartMap(FadeIn, [red_t, green_t, blue_t]))
+
+        self.wait(2)
 
         self.play(LaggedStartMap(FadeOut, [rgb_vg_h, red_t, green_t, blue_t]))
 
@@ -96,8 +98,9 @@ class IntroduceRGBAndJPEG(Scene):
         wh_t = Text("255", font="SF Mono").next_to(white, DOWN, buff=0.5).scale(0.5)
 
         self.play(LaggedStartMap(FadeIn, pixels_vg))
+        self.wait(2)
         self.play(LaggedStartMap(FadeIn, [bk_t, g1_t, g2_t, g3_t, wh_t]))
-
+        self.wait(2)
         self.play(LaggedStartMap(FadeOut, [pixels_vg, bk_t, g1_t, g2_t, g3_t, wh_t]))
 
         red_channel = (
@@ -130,8 +133,10 @@ class IntroduceRGBAndJPEG(Scene):
         )
 
         self.play(LaggedStartMap(FadeIn, channels_vg_h))
-        self.wait()
+        self.wait(2)
         self.play(Transform(channels_vg_h, channels_vg_diagonal))
+
+        self.wait(2)
 
         pixel_r = (
             Square(side_length=0.1)
@@ -156,6 +161,7 @@ class IntroduceRGBAndJPEG(Scene):
         )
 
         self.play(FadeIn(pixel_r), FadeIn(pixel_g), FadeIn(pixel_b))
+        self.wait(2)
 
         pixel_r_big = pixel_r.copy().scale(5).move_to(ORIGIN + UP * 1.5 + RIGHT * 1.7)
         pixel_g_big = pixel_g.copy().scale(5).next_to(pixel_r_big, DOWN, buff=1)
@@ -166,6 +172,7 @@ class IntroduceRGBAndJPEG(Scene):
             TransformFromCopy(pixel_g, pixel_g_big),
             TransformFromCopy(pixel_b, pixel_b_big),
         )
+        self.wait(2)
 
         eight_bits_r = (
             Text("8 bits", font="SF Mono")
@@ -177,6 +184,7 @@ class IntroduceRGBAndJPEG(Scene):
         eight_bits_b = eight_bits_r.copy().next_to(pixel_b_big)
 
         self.play(FadeIn(eight_bits_r), FadeIn(eight_bits_g), FadeIn(eight_bits_b))
+        self.wait(2)
 
         brace = Brace(VGroup(eight_bits_r, eight_bits_g, eight_bits_b), RIGHT)
 
@@ -186,9 +194,14 @@ class IntroduceRGBAndJPEG(Scene):
             Text("24 bits / pixel", font="SF Mono").scale(0.4).next_to(brace, RIGHT)
         )
 
-        self.play(Write(twenty_four_bits))
+        self.play(Write(twenty_four_bits), run_time=2)
+        self.wait(2)
 
-        self.play(Transform(twenty_four_bits, twenty_four_bits.copy().shift(UP * 0.5)))
+        self.play(
+            Transform(twenty_four_bits, twenty_four_bits.copy().shift(UP * 0.5)),
+            run_time=2,
+        )
+        self.wait(2)
 
         three_bytes = (
             Text("3 bytes / pixel", font="SF Mono")
@@ -212,21 +225,19 @@ class IntroduceRGBAndJPEG(Scene):
         img_and_dims_sm = img_and_dims.copy().scale(0.8).to_edge(LEFT, buff=1)
 
         self.play(FadeIn(img_and_dims))
-        self.wait()
+        self.wait(2)
         self.play(Transform(img_and_dims, img_and_dims_sm), run_time=2)
 
-        # I don't like how this barchart looks by default, and the fields they exposed
-        # dont quite allow for what i want to do. Ask Nipun on how to approach personalization of
-        # an existing class.
         chart = (
             ReducibleBarChart(
                 [15, 0.8],
                 height=6,
+                width=6,
                 max_value=15,
                 n_ticks=4,
                 label_y_axis=True,
                 y_axis_label_height=0.2,
-                bar_label_scale_val=0.5,
+                bar_label_scale_val=0.4,
                 bar_names=["Uncompressed", "Compressed"],
                 bar_colors=[REDUCIBLE_PURPLE, REDUCIBLE_YELLOW],
             )
@@ -259,7 +270,7 @@ class IntroduceRGBAndJPEG(Scene):
                 )
                 mob.move_to(bar.get_top())
 
-            self.play(UpdateFromAlphaFunc(bar, update_function=update))
+            self.play(UpdateFromAlphaFunc(bar, update_function=update), run_time=2)
 
         self.wait(3)
 
