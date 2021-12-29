@@ -1040,8 +1040,8 @@ class IntroChromaSubsampling(ImageUtils):
 
     def animate_chroma_subsampling(self):
         gradient_image = ImageMobject("gradient_xsm.png")
-        # gradient_image.set_resampling_algorithm(RESAMPLING_ALGORITHMS["nearest"])
-        # gradient_image.scale(30)
+        gradient_image.set_resampling_algorithm(RESAMPLING_ALGORITHMS["nearest"])
+        gradient_image.scale(30)
 
         pix_array = gradient_image.get_pixel_array()
 
@@ -1133,6 +1133,7 @@ class IntroChromaSubsampling(ImageUtils):
         This for loop runs through the loaded image's u channel, 
         and creates a new downsampled version as it goes through it.
         """
+        new_u_channel = VGroup()
         for j in range(0, pix_array.shape[1] * 2, 4):
             for i in range(0, pix_array.shape[0], 2):
                 sq_ul = u_channel[i + j * 4].color
@@ -1158,12 +1159,97 @@ class IntroChromaSubsampling(ImageUtils):
                     .scale_to_fit_width(kernel.width)
                     .move_to(kernel)
                 )
+                new_u_channel.add(new_pixel)
 
                 self.play(FadeIn(new_pixel))
 
                 self.wait()
 
-        self.play(FadeOut(kernel))
+        self.play(FadeOut(kernel), FadeOut(u_channel))
+
+        new_v_channel = VGroup()
+        for j in range(0, pix_array.shape[1] * 2, 4):
+            for i in range(0, pix_array.shape[0], 2):
+                sq_ul = v_channel[i + j * 4].color
+                sq_dl = v_channel[i + j * 4 + 4].color
+
+                sq_ur = v_channel[i + j * 4 + 2].color
+                sq_dr = v_channel[i + j * 4 + 2 + 4].color
+
+                next_slice = v_channel[i + j * 4 : i + j * 4 + 2]
+
+                sq_ul_rgb = hex_to_rgb(sq_ul)
+                sq_ur_rgb = hex_to_rgb(sq_ur)
+                sq_dl_rgb = hex_to_rgb(sq_dl)
+                sq_dr_rgb = hex_to_rgb(sq_dr)
+
+                four_pixels = np.stack((sq_ul_rgb, sq_ur_rgb, sq_dl_rgb, sq_dr_rgb))
+
+                avg = np.average(four_pixels, axis=0) * 255
+
+                new_pixel = Pixel(avg, color_mode="RGB").scale_to_fit_width(
+                    v_channel[0:2].width
+                )
+
+                new_v_channel.add(new_pixel)
+
+        new_v_channel.arrange_in_grid(rows=4, cols=4, buff=0)
+
+        y_channel.scale_to_fit_height(new_u_channel.height).next_to(
+            new_u_channel, LEFT, buff=0.4
+        )
+        new_v_channel.scale_to_fit_height(new_u_channel.height).next_to(
+            new_u_channel, RIGHT, buff=0.4
+        )
+
+        self.play(
+            FadeIn(y_channel, shift=RIGHT),
+            FadeIn(new_v_channel, shift=LEFT),
+            run_time=3,
+        )
+        self.wait(3)
+
+        sub_pix_array = self.chroma_subsample_image(pix_array)
+        subsampled_image = (
+            PixelArray(sub_pix_array, color_mode="RGB")
+            .scale_to_fit_height(y_channel.height)
+            .move_to(u_channel)
+        )
+        gradient.scale_to_fit_height(subsampled_image.height)
+
+        sub_channels = VGroup(y_channel, new_u_channel, new_v_channel)
+
+        self.play(
+            FadeTransform(y_channel, subsampled_image),
+            FadeTransform(new_v_channel, subsampled_image),
+            FadeTransform(new_u_channel, subsampled_image),
+            run_time=3,
+        )
+
+        aux_vg = (
+            VGroup(gradient, subsampled_image.copy())
+            .arrange(RIGHT, buff=2)
+            .move_to(DOWN * 0.5)
+        )
+
+        self.play(
+            subsampled_image.animate.move_to(aux_vg[1]),
+            FadeIn(gradient, shift=LEFT),
+        )
+        original_text = (
+            Text("Original image", font="CMU Serif")
+            .scale(0.5)
+            .next_to(gradient, DOWN, buff=0.4)
+        )
+        subsampled_text = (
+            Text("Subsampled Image", font="CMU Serif")
+            .scale(0.5)
+            .next_to(subsampled_image, DOWN, buff=0.4)
+        )
+
+        self.play(FadeIn(original_text), FadeIn(subsampled_text))
+
+        self.wait(4)
 
 
 class TestGrayScaleImages(ImageUtils):
