@@ -1106,6 +1106,21 @@ class IntroChromaSubsampling(ImageUtils):
 
         self.wait(2)
 
+        # we are more sensitive to brightness than we are to color
+
+        self.play(
+            Circumscribe(
+                y_channel,
+                time_width=5,
+                color=REDUCIBLE_YELLOW,
+                run_time=5,
+                fade_in=True,
+                fade_out=True,
+            ),
+        )
+
+        self.wait(4)
+
         chroma_title = (
             Text("Chroma subsampling: 4:2:0", font="CMU Serif", weight=BOLD)
             .scale(0.7)
