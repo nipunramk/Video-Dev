@@ -782,22 +782,20 @@ class ShowConfusingImage(Scene):
 class MotivateAndExplainYCbCr(ThreeDScene):
     def construct(self):
         self.set_camera_orientation(phi=75 * DEGREES, theta=-45 * DEGREES)
-        # self.begin_ambient_camera_rotation(rate=1)
+        self.begin_ambient_camera_rotation(rate=1)
         self.move_camera(zoom=0.2)
 
         color_resolution = 4
         cubes_rgb = self.create_color_space_cube(
             coords2rgbcolor, color_res=color_resolution, cube_side_length=1
-        )
+        ).move_to(ORIGIN)
         cubes_yuv = self.create_color_space_cube(
             coords2ycbcrcolor, color_res=color_resolution, cube_side_length=1
         )
         self.wait()
 
-        self.add(
-            cubes_rgb,
-        )
-        self.wait(2)
+        self.play(FadeIn(cubes_rgb))
+        self.wait(6)
 
         anim_group = []
         # this loop removes every cube that is not in the grayscale diagonal of the RGB colorspace.
@@ -807,7 +805,6 @@ class MotivateAndExplainYCbCr(ThreeDScene):
             coords = index2coords(index, base=color_resolution)
             if not coords[0] == coords[1] == coords[2]:
                 anim_group.append(FadeOut(cube))
-                cubes_rgb.remove(cube)
 
         self.play(*anim_group)
 
@@ -815,7 +812,7 @@ class MotivateAndExplainYCbCr(ThreeDScene):
         # cubes_arranged = cubes_rgb.copy().arrange(OUT, buff=0)
         # self.play(Transform(cubes_rgb, cubes_arranged))
 
-        self.wait(4)
+        self.wait(6)
 
         # cubes_yuv.move_to(cubes_arranged.get_center())
 
@@ -866,9 +863,9 @@ class MotivateAndExplainYCbCr(ThreeDScene):
 
                     color = color_space_func(i_discrete, j_discrete, k_discrete)
 
-                    curr_cube = Cube(
-                        side_length=side_length, fill_color=color, fill_opacity=1
-                    ).shift((LEFT * i + UP * j + OUT * k) * offset)
+                    curr_cube = Cube(fill_color=color, fill_opacity=1).shift(
+                        (LEFT * i + UP * j + OUT * k) * offset
+                    )
 
                     cubes.append(curr_cube)
 
