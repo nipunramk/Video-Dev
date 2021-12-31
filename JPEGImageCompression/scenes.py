@@ -1159,19 +1159,25 @@ class IntroChromaSubsampling(ImageUtils):
 
         equal_sign = Text("=", font="CMU Serif", weight=BOLD)
 
-        four_pixels_guide = (
+        four_pixels_vg = (
             VGroup(*[u_channel[0].copy() for i in range(4)])
             .arrange_in_grid(rows=2, cols=2)
             .scale_to_fit_height(new_pixel_guide.height)
-        )
+        ).set_opacity(0)
 
         guide_vg = (
-            VGroup(new_pixel_guide, equal_sign, four_pixels_guide)
+            VGroup(new_pixel_guide, equal_sign, four_pixels_vg)
             .arrange(RIGHT, buff=1)
             .next_to(u_channel, RIGHT, buff=2)
         )
 
         self.play(FadeIn(equal_sign))
+        new_pixel_annotation = (
+            Square()
+            .set_opacity(0)
+            .scale_to_fit_height(new_pixel_guide.height)
+            .move_to(new_pixel_guide)
+        )
 
         for j in range(0, pix_array.shape[1] * 2, 4):
             for i in range(0, pix_array.shape[0], 2):
@@ -1195,6 +1201,7 @@ class IntroChromaSubsampling(ImageUtils):
                 self.play(
                     kernel.animate.move_to(next_slice, aligned_edge=UP),
                 )
+
                 new_pixel = (
                     Pixel(avg, color_mode="RGB")
                     .scale_to_fit_width(kernel.width)
@@ -1202,34 +1209,36 @@ class IntroChromaSubsampling(ImageUtils):
                 )
                 new_u_channel.add(new_pixel)
 
+                last_pixel = new_pixel_annotation
                 new_pixel_annotation = new_pixel.copy().move_to(new_pixel_guide)
 
+                last_four_pixel = four_pixels_vg
                 four_pixels_vg = (
                     VGroup(sq_ul.copy(), sq_ur.copy(), sq_dl.copy(), sq_dr.copy())
                     .arrange_in_grid(rows=2, cols=2)
                     .scale_to_fit_height(new_pixel_annotation.height)
-                    .move_to(four_pixels_guide)
+                    .move_to(last_four_pixel)
                 )
 
                 self.play(
                     FadeIn(new_pixel),
                     FadeIn(new_pixel_annotation),
                     FadeIn(four_pixels_vg),
+                    FadeOut(last_pixel),
+                    FadeOut(last_four_pixel),
                 )
 
                 self.wait()
 
-        self.play(
-            kernel.animate.move_to(next_slice, aligned_edge=UP),
-            FadeIn(new_pixel),
-            FadeIn(new_pixel_annotation),
-            FadeIn(four_pixels_vg),
-            FadeIn(equal_sign),
-        )
-
+        self.remove(u_channel)
         self.play(
             FadeOut(kernel),
-            FadeOut(u_channel),
+            FadeOut(equal_sign),
+            FadeOut(last_pixel),
+            FadeOut(new_pixel_annotation),
+            FadeOut(new_pixel_guide),
+            FadeOut(last_four_pixel),
+            FadeOut(four_pixels_vg),
             new_u_channel.animate.move_to(ORIGIN, coor_mask=[1, 0, 0]),
         )
 
@@ -1279,7 +1288,7 @@ class IntroChromaSubsampling(ImageUtils):
         subsampled_image = (
             PixelArray(sub_pix_array, color_mode="RGB")
             .scale_to_fit_height(y_channel.height)
-            .move_to(u_channel)
+            .move_to(DOWN * 0.5)
         )
         gradient.scale_to_fit_height(subsampled_image.height)
 
