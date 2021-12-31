@@ -1761,20 +1761,22 @@ class DCTSliderExperiments(DCTComponents):
 
 class DCTEntireImageSlider(DCTSliderExperiments):
     def construct(self):
-        image_mob = ImageMobject("dog").move_to(LEFT * 2)
-        original_pixel_array = image_mob.get_pixel_array()[2:298, 3:331, 0]
-        print(original_pixel_array.shape)
-        new_pixel_array = self.get_all_blocks(image_mob, 2, 298, 3, 331, 6)
-        relevant_section = new_pixel_array[2:298, 3:331]
-        new_image = self.get_image_mob(new_pixel_array, height=None).move_to(RIGHT * 2)
-        print("MSE\n", np.mean((relevant_section - original_pixel_array) ** 2))
+        image_mob = ImageMobject("dog").move_to(UP * 1)
+        
+
+        number_line = self.initialize_slider()
+        dct_components = Tex("DCT Components").next_to(number_line, UP)
 
         self.play(
             FadeIn(image_mob),
-            FadeIn(new_image),
+            FadeIn(number_line),
+            Write(dct_components)
         )
         # print(new_image.get_pixel_array().shape)
         self.wait()
+
+        self.animate_slider(image_mob, number_line)
+
 
     def get_all_blocks(
         self,
@@ -1815,6 +1817,51 @@ class DCTEntireImageSlider(DCTSliderExperiments):
             start_row : start_row + block_size, start_col : start_col + block_size
         ]
 
+    def initialize_slider(self):
+        number_line = NumberLine(
+            x_range=[0, 64, 4],
+            length=10,
+            color=REDUCIBLE_VIOLET,
+            include_numbers=True,
+            label_direction=UP,
+        )
+        number_line.move_to(DOWN * 2.5)
+
+        return number_line
+
+    def animate_slider(self, image_mob, number_line):
+        original_pixel_array = image_mob.get_pixel_array()[2:298, 3:331, 0]
+        component_tracker = ValueTracker(0)
+        
+        def get_new_image():
+            new_pixel_array = self.get_all_blocks(image_mob, 2, 298, 3, 331, component_tracker.get_value())
+            relevant_section = new_pixel_array[2:298, 3:331]
+            new_image = self.get_image_mob(new_pixel_array, height=None).move_to(UP * 1 + RIGHT * 2)
+            return new_image
+
+        tick = Triangle().scale(0.2).set_color(REDUCIBLE_YELLOW)
+        tick.set_fill(color=REDUCIBLE_YELLOW, opacity=1)
+
+        tick.add_updater(
+            lambda m: m.next_to(number_line.n2p(component_tracker.get_value()), DOWN)
+        )
+
+        new_image = always_redraw(get_new_image)
+        self.play(
+            FadeIn(tick),
+            image_mob.animate.shift(LEFT * 2),
+            FadeIn(new_image),
+        )
+        self.wait()
+    
+
+        self.play(
+            component_tracker.animate.set_value(64),
+            run_time=32,
+            rate_func=linear,
+        ),
+
+        # self.wait()
 
 class DCT1DExperiments(DCTComponents):
     def construct(self):
@@ -5095,6 +5142,363 @@ class MathematicallyDefineDCT(RevisedMotivateDCT):
 
         return VGroup(pixel_space_group, forward_arrow, dct_space_group)
 
+class Introduce2DDCT(DCTExperiments):
+    def construct(self):
+        image_mob = ImageMobject("dog").move_to(UP * 2)
+        self.play(
+            FadeIn(image_mob)
+        )
+        self.wait()
+
+        print("Image size:", image_mob.get_pixel_array().shape)
+
+        pixel_grid = self.add_grid(image_mob)
+
+        block_image, block_pixel_grid, block, pixel_array_mob_2d = self.highlight_pixel_block(image_mob, 125, 125, pixel_grid)
+
+        self.play(
+            *[integer.animate.set_value(integer.get_value() - 128).move_to(integer.get_center()) for integer in pixel_array_mob_2d[1]]
+        )
+        self.wait()
+
+        self.play(
+            block_pixel_grid.animate.scale(0.65).shift(UP * 2.7 + RIGHT * 0.5),
+            block_image.animate.scale(0.65).shift(UP * 2.7 + RIGHT * 0.5),
+            pixel_array_mob_2d.animate.scale(0.65).shift(UP * 2.7 + LEFT * 0.5),
+        )
+
+        block_image, block_pixel_grid, pixel_array_mob_2d, dct_array_2d_row_col_group = self.show_data_flow_dct_2d(pixel_array_mob_2d, block[:, :, 0], block_image, block_pixel_grid)
+
+        self.show_dct_components(dct_array_2d_row_col_group[0])
+
+    def show_data_flow_dct_2d(self, pixel_array_mob_2d, block, block_image, block_pixel_grid):
+        pixel_array_mob_2d_copy_input = pixel_array_mob_2d.copy().move_to(LEFT * 4.5)
+        self.play(
+            TransformFromCopy(pixel_array_mob_2d, pixel_array_mob_2d_copy_input)
+        )
+        self.wait()
+
+        row_rep, col_rep = self.get_2d_dct_mob_reps(pixel_array_mob_2d)
+
+        arrow_top_left = Arrow(pixel_array_mob_2d_copy_input.get_right(), row_rep.get_left()).set_color(REDUCIBLE_YELLOW)
+
+        arrow_top_left_label_top = Tex(r"8 $\cross$ DCT 1D").scale(0.7).next_to(arrow_top_left, UP, buff=SMALL_BUFF)
+        arrow_top_left_label_bottom = Tex("Rows").scale(0.8).next_to(arrow_top_left, DOWN, buff=SMALL_BUFF)
+        self.play(
+            Write(arrow_top_left),
+            Write(arrow_top_left_label_top),
+            Write(arrow_top_left_label_bottom),
+        )
+        self.wait()
+
+        self.play(
+            FadeIn(row_rep[0]),
+            *[GrowFromCenter(arrow) for arrow in row_rep[1]]
+        )
+        self.wait()
+        dct_array_2d_row_group = self.get_dct_array_2d_mob(pixel_array_mob_2d, [row_rep[0]], dct_rows(block - 128), RIGHT * 4.5)
+
+        dct_mob_array_2d, overlay = dct_array_2d_row_group
+
+        arrow_top_right = Arrow(row_rep.get_right(), dct_mob_array_2d.get_left()).set_color(REDUCIBLE_YELLOW)
+
+        self.play(
+            Write(arrow_top_right)
+        )
+        self.wait()
+
+        self.play(
+            FadeIn(dct_mob_array_2d),
+            TransformFromCopy(row_rep[0], overlay[0])
+        )
+        self.wait()
+
+        dct_array_2d_row_group_input = dct_array_2d_row_group.copy().move_to(LEFT * 4.5 + DOWN * 2.7)
+
+        self.play(
+            TransformFromCopy(dct_array_2d_row_group, dct_array_2d_row_group_input)
+        )
+        self.wait()
+
+        col_rep.move_to(DOWN * 2.7)
+
+        arrow_bottom_left = Arrow(dct_array_2d_row_group_input.get_right(), col_rep.get_left()).set_color(REDUCIBLE_VIOLET)
+
+        arrow_bottom_left_label_top = Tex(r"8 $\cross$ DCT 1D").scale(0.7).next_to(arrow_bottom_left, UP, buff=SMALL_BUFF)
+        arrow_bottom_left_label_bottom = Tex("Columns").scale(0.8).next_to(arrow_bottom_left, DOWN, buff=SMALL_BUFF)
+
+        self.play(
+            Write(arrow_bottom_left_label_top),
+            Write(arrow_bottom_left_label_bottom),
+            Write(arrow_bottom_left),
+        )
+        self.wait()
+
+        self.play(
+            FadeIn(col_rep[0]),
+            *[GrowFromCenter(arrow) for arrow in col_rep[1]]
+        )
+        self.wait()
+
+        dct_array_2d_row_col_group = self.get_dct_array_2d_mob(pixel_array_mob_2d, VGroup(row_rep[0], col_rep[0]), dct_2d(block - 128), RIGHT * 4.5 + DOWN * 2.7)
+
+        dct_mob_array_2d_row_col, overlay_row_col = dct_array_2d_row_col_group
+
+        arrow_bottom_right = Arrow(col_rep.get_right(), dct_array_2d_row_col_group.get_left()).set_color(REDUCIBLE_VIOLET)
+
+        self.play(
+            Write(arrow_bottom_right)
+        )
+
+        self.wait()
+
+        self.play(
+            FadeIn(dct_mob_array_2d_row_col, overlay_row_col[0]),
+            TransformFromCopy(col_rep[0], overlay_row_col[1])
+        )
+        self.wait()
+        original_dct_array_2d_row_col_group = dct_array_2d_row_col_group.copy().move_to(LEFT * 4.5)
+        dct_2d_group = VGroup(
+            pixel_array_mob_2d_copy_input,
+            arrow_top_left,
+            row_rep,
+            arrow_top_right,
+            dct_array_2d_row_group,
+            dct_array_2d_row_group_input,
+            arrow_bottom_left,
+            col_rep,
+            arrow_bottom_right,
+            dct_array_2d_row_col_group,
+            arrow_top_left_label_top,
+            arrow_top_left_label_bottom,
+            arrow_bottom_left_label_top,
+            arrow_bottom_left_label_bottom,
+        )
+
+        surround_rect_dct_2d = SurroundingRectangle(dct_2d_group)
+
+        dct_2d_text = Tex("DCT 2D").scale(4)
+
+        dct_2d_text.move_to(surround_rect_dct_2d.get_center())
+
+        self.play(
+            Create(surround_rect_dct_2d)
+        )
+
+        self.play(
+            dct_2d_group.animate.fade(0.8),
+            Write(dct_2d_text)
+        )
+        self.wait()
+
+        self.play(
+            *[elem.animate.fade(1) for elem in dct_2d_group if not (elem is dct_array_2d_row_col_group)],
+            FadeOut(dct_2d_text),
+            FadeOut(surround_rect_dct_2d),
+            Transform(dct_array_2d_row_col_group, original_dct_array_2d_row_col_group),
+            FadeOut(pixel_array_mob_2d),
+            FadeOut(block_image),
+            FadeOut(block_pixel_grid)
+        )
+        self.wait()
+
+        return block_image, block_pixel_grid, pixel_array_mob_2d, dct_array_2d_row_col_group
+
+    def show_dct_components(self, dct_array_2d, rows=8, cols=8):
+        all_dct_components = []
+        for row in range(rows):
+            for col in range(cols):
+                pixel_grid_component = self.get_dct_component(row, col, height=0.8)
+                all_dct_components.append(pixel_grid_component)
+        
+        all_dct_components_group = VGroup(*all_dct_components).arrange_in_grid(rows=rows, buff=SMALL_BUFF)
+        all_dct_components_group.shift(RIGHT * 2)
+
+        lines = []
+        for rect, component in zip(dct_array_2d[0], all_dct_components_group):
+            line = Line(rect.get_center(), component.get_center()).set_stroke(width=1)
+            lines.append(line)
+
+
+
+        self.play(
+            *[Create(line) for line in lines],
+            FadeIn(all_dct_components_group)
+        )
+        self.wait()
+
+    def get_dct_component(self, row, col, height=2):
+        dct_matrix = np.zeros((8, 8))
+        if row == 0 and col == 0:
+            dct_matrix[row][col] = 1016
+        else:
+            dct_matrix[row][col] = 500
+        pixel_array = idct_2d(dct_matrix) + 128
+        all_in_range = (pixel_array >= 0) & (pixel_array <= 255)
+        if not all(all_in_range.flatten()):
+            print("Bad array\n", pixel_array)
+            raise ValueError("All elements in pixel_array must be in range [0, 255]")
+        image_mob = self.get_image_vector_mob(pixel_array, height=height)
+        return image_mob
+
+    def get_image_vector_mob(self, pixel_array, height=2, num_pixels=8):
+        side_length = height / num_pixels
+        adjusted_row_values = np.zeros(pixel_array.shape)
+        for i in range(pixel_array.shape[0]):
+            for j in range(pixel_array.shape[1]):
+                adjusted_row_values[i][j] = int(pixel_array[i][j])
+        pixel_grid_mob = VGroup(
+            *[
+                Square(side_length=side_length)
+                .set_stroke(color=REDUCIBLE_GREEN_LIGHTER, width=0.5)
+                .set_fill(color=gray_scale_value_to_hex(value), opacity=1)
+                for value in adjusted_row_values.flatten()
+            ]
+        ).arrange_in_grid(rows=num_pixels, buff=0)
+        return pixel_grid_mob
+
+
+    def get_2d_dct_mob_reps(self, pixel_array_mob_2d):
+        row_representation = self.make_dct_grid(pixel_array_mob_2d.width, pixel_array_mob_2d.height, rows=True)
+        col_representation = self.make_dct_grid(pixel_array_mob_2d.width, pixel_array_mob_2d.height, rows=False, color=REDUCIBLE_VIOLET)
+        return row_representation, col_representation
+
+    def get_dct_array_2d_mob(self, pixel_array_mob_2d, overlays, dct_values, position, color=REDUCIBLE_YELLOW):
+        dct_mob_array_2d = self.get_2d_pixel_array_mob(dct_values, height=pixel_array_mob_2d.height)
+        dct_mob_array_2d.move_to(position)
+        final_overlays = VGroup()
+        for overlay in overlays:
+            new_overlay = overlay.copy()
+            for rect in new_overlay:
+                rect.set_stroke(opacity=0.4)
+            new_overlay.move_to(position)
+            final_overlays.add(new_overlay)
+        
+        group = VGroup(dct_mob_array_2d, final_overlays)
+
+        return group
+
+    def make_dct_grid(self, width, height, block_size=8, rows=True, color=REDUCIBLE_YELLOW):
+        if rows:
+            rect_width = width
+            rect_height = height / block_size
+        else:
+            rect_width = width / block_size
+            rect_height = height
+
+        grid = VGroup(*[Rectangle(height=rect_height, width=rect_width) for _ in range(block_size)])
+        if rows:
+            grid.arrange(DOWN, buff=0)
+            arrows = VGroup(*[DoubleArrow(start=rect.get_left(), end=rect.get_right(), stroke_width=3, tip_length=SMALL_BUFF, buff=SMALL_BUFF) for rect in grid])
+        else:
+            grid.arrange(RIGHT, buff=0)
+            arrows = VGroup(*[DoubleArrow(start=rect.get_top(), end=rect.get_bottom(), stroke_width=3, tip_length=SMALL_BUFF, buff=SMALL_BUFF) for rect in grid])
+
+        return VGroup(grid, arrows).set_color(color)
+
+    def get_pixel_grid(self, image, num_pixels_in_dimension, color=WHITE):
+        height_pixels = image.get_pixel_array().shape[0]
+        width_pixels = image.get_pixel_array().shape[1]
+        aspect_ratio = width_pixels / height_pixels
+        height_single_cell = image.height / num_pixels_in_dimension
+        width_single_cell = height_single_cell * aspect_ratio
+        pixel_grid = VGroup(
+            *[
+                Rectangle(height=height_single_cell, width=width_single_cell).set_stroke(
+                    color=color, width=1, opacity=0.5
+                )
+                for _ in range(num_pixels_in_dimension ** 2)
+            ]
+        )
+        pixel_grid.arrange_in_grid(rows=num_pixels_in_dimension, buff=0)
+        return pixel_grid
+    
+    def add_grid(self, image_mob):
+        pixel_grid = self.get_pixel_grid(image_mob, 32)
+        pixel_grid.move_to(image_mob.get_center())
+        self.play(
+            Create(pixel_grid)
+        )
+        self.wait()
+
+        return pixel_grid
+
+    def get_2d_pixel_array_mob(self, block, height=3, block_size=8, color=REDUCIBLE_GREEN_LIGHTER):
+        array_mob_2d = VGroup(
+            *[Square(side_length=height/block_size) for _ in range(block_size ** 2)]
+        ).arrange_in_grid(rows=block_size, buff=0).set_color(color)
+
+        array_text = VGroup()
+        for i in range(block_size):
+            for j in range(block_size):
+                val = block[i][j]
+                # For space constraints of rendering negative 3 digit numbers
+                if val < -99:
+                    val = -val
+                integer = Integer(val).scale(0.35 * height / 3).move_to(array_mob_2d[i * block_size + j].get_center())
+                array_text.add(integer)
+
+        return VGroup(array_mob_2d, array_text)
+
+    def highlight_pixel_block(self, image_mob, start_row, start_col, pixel_grid, block_size=8):
+        pixel_array = image_mob.get_pixel_array()
+        height_pixels = pixel_array.shape[0]
+        width_pixels = pixel_array.shape[1]
+        block = pixel_array[
+            start_row : start_row + block_size, start_col : start_col + block_size
+        ]
+        center_row = start_row + block_size // 2
+        center_col = start_col + block_size // 2
+        vertical_pos = (
+            image_mob.get_top()
+            + DOWN * center_row / pixel_array.shape[0] * image_mob.height
+        )
+        horizontal_pos = (
+            image_mob.get_left()
+            + RIGHT * center_col / pixel_array.shape[1] * image_mob.width
+        )
+        pixel_grid_prop = (start_col * width_pixels + start_col) / (height_pixels * width_pixels)
+        tiny_square_highlight = pixel_grid[int(pixel_grid_prop * len(pixel_grid))].copy().set_color(REDUCIBLE_GREEN_LIGHTER)
+        tiny_square_highlight.set_stroke(width=4)
+        self.play(Create(tiny_square_highlight))
+        self.wait()
+
+        block_position = LEFT * 2 + DOWN * 2
+        block_image = self.get_image_mob(block, height=3.5).move_to(block_position)
+        block_pixel_grid = self.get_pixel_grid(block_image, block_size).move_to(
+            block_position
+        )
+        surround_rect = SurroundingRectangle(block_pixel_grid, buff=0).set_color(
+            REDUCIBLE_GREEN_LIGHTER
+        )
+
+        pixel_array_mob_2d = self.get_2d_pixel_array_mob(block[:, :, 1], height=block_image.height)
+        pixel_array_mob_2d.move_to(RIGHT * 2 + DOWN * 2)
+        surround_rect_integer_grid = SurroundingRectangle(pixel_array_mob_2d, buff=0, color=REDUCIBLE_GREEN_LIGHTER)
+        self.play(
+            FadeIn(block_image),
+            FadeIn(block_pixel_grid),
+            FadeIn(pixel_array_mob_2d),
+            TransformFromCopy(tiny_square_highlight, surround_rect),
+            TransformFromCopy(tiny_square_highlight, surround_rect_integer_grid)
+        )
+        self.wait()
+
+        shift_up = UP * 2
+
+        self.play(
+            FadeOut(surround_rect),
+            FadeOut(tiny_square_highlight),
+            FadeOut(surround_rect_integer_grid),
+            FadeOut(image_mob),
+            pixel_array_mob_2d.animate.shift(shift_up),
+            block_image.animate.shift(shift_up),
+            block_pixel_grid.animate.shift(shift_up),
+            FadeOut(pixel_grid)
+        )
+        self.wait()
+
+        return block_image, block_pixel_grid, block, pixel_array_mob_2d
 
 class DemoJPEGWithDCT2D(ThreeDScene, ImageUtils):
     """
@@ -5108,10 +5512,20 @@ class DemoJPEGWithDCT2D(ThreeDScene, ImageUtils):
             x_length=5, y_length=5, z_length=5,
             tips=False,
             axis_config={"include_ticks": False},
-        ).shift(IN * 1.5)
+        ).shift(IN * 1.5 + LEFT * 2)
 
         axes.set_color(BLACK)
-        
+
+        block_image_2d, pixel_grid_2d, block_2d = self.get_pixel_block(image_mob, 125, 125, height=3)
+        print("Before 2D\n", block_2d[:, :, 1])
+        block_image_2d = self.get_image_vector_mob(block_2d[:, :, 1], height=3)
+        self.add_fixed_in_frame_mobjects(block_image_2d)
+        block_image_2d.move_to(LEFT * 3.5)
+
+        self.play(
+            FadeIn(block_image_2d),
+        )
+        self.wait()
 
         block_image, block = self.get_pixel_block_for_3d(image_mob, 125, 125, height=axes.x_length)
 
@@ -5136,7 +5550,7 @@ class DemoJPEGWithDCT2D(ThreeDScene, ImageUtils):
             v_range=[0, 7],
             checkerboard_colors=[REDUCIBLE_PURPLE],
             fill_opacity=0.5,
-            resolution=32,
+            resolution=8,
             stroke_color=REDUCIBLE_YELLOW,
             stroke_width=2,
         )
@@ -5150,7 +5564,7 @@ class DemoJPEGWithDCT2D(ThreeDScene, ImageUtils):
         self.wait()
 
         number_line = self.initialize_slider(block_image, block[:, :, 1], surface)
-        block_image = self.animate_slider(number_line, axes, block_image, dct_block, block[:, :, 1], surface)
+        block_image = self.animate_slider(number_line, axes, block_image, dct_block, block[:, :, 1], surface, block_image_2d)
 
         # self.begin_ambient_camera_rotation(rate=0.1)
         # self.wait(5)
@@ -5166,12 +5580,29 @@ class DemoJPEGWithDCT2D(ThreeDScene, ImageUtils):
         self.add_fixed_in_frame_mobjects(number_line)
         number_line.move_to(DOWN * 3)
 
-        self.add(number_line)
+        self.play(
+            FadeIn(number_line)
+        )
         self.wait()
         return number_line
 
+    def get_image_vector_mob(self, pixel_array, height=2, num_pixels=8, color=WHITE):
+        side_length = height / num_pixels
+        adjusted_row_values = np.zeros(pixel_array.shape)
+        for i in range(pixel_array.shape[0]):
+            for j in range(pixel_array.shape[1]):
+                adjusted_row_values[i][j] = int(pixel_array[i][j])
+        pixel_grid_mob = VGroup(
+            *[
+                Square(side_length=side_length)
+                .set_stroke(color=color, width=0.5)
+                .set_fill(color=gray_scale_value_to_hex(value), opacity=1)
+                for value in adjusted_row_values.flatten()
+            ]
+        ).arrange_in_grid(rows=num_pixels, buff=0)
+        return pixel_grid_mob
 
-    def animate_slider(self, number_line, axes, block_image, dct_block, original_block, surface):
+    def animate_slider(self, number_line, axes, block_image, dct_block, original_block, surface, block_image_2d):
         tick = Triangle().scale(0.2).set_color(REDUCIBLE_YELLOW)
         tick.set_fill(color=REDUCIBLE_YELLOW, opacity=1)
         self.add_fixed_in_frame_mobjects(tick)
@@ -5187,7 +5618,7 @@ class DemoJPEGWithDCT2D(ThreeDScene, ImageUtils):
             FadeIn(tick),
         )
         self.wait()
-        
+        # surface_pos = RIGHT *
         def get_new_block():
             new_partial_block = self.get_partial_block(dct_block, tracker.get_value())
             print(f'Partial block - {tracker.get_value()} components')
@@ -5206,11 +5637,27 @@ class DemoJPEGWithDCT2D(ThreeDScene, ImageUtils):
                 v_range=[0, 7],
                 checkerboard_colors=[REDUCIBLE_PURPLE],
                 fill_opacity=0.5,
-                resolution=32,
+                resolution=8,
                 stroke_color=REDUCIBLE_YELLOW,
                 stroke_width=2,
             )
             return new_surface
+        
+        def get_new_block_2d():
+            new_partial_block = self.get_partial_block(dct_block, tracker.get_value())
+
+            new_partial_block_image = self.get_image_vector_mob(new_partial_block, height=3)
+            
+            # TODO comment out this line for the smooth transition
+            self.add_fixed_in_frame_mobjects(new_partial_block_image)
+            new_partial_block_image.move_to(block_image_2d.get_center())
+            return new_partial_block_image
+
+        partial_block_image_2d = always_redraw(get_new_block_2d)
+        # partial_pixel_grid_2d = self.get_pixel_grid(
+        #     partial_block_image_2d, partial_block_2d.shape[0]
+        # )
+        # partial_pixel_grid_2d.move_to(par)
 
         partial_block = self.get_partial_block(dct_block, tracker.get_value())
         partial_block_image = always_redraw(get_new_block)
@@ -5218,6 +5665,7 @@ class DemoJPEGWithDCT2D(ThreeDScene, ImageUtils):
         self.play(
             ReplacementTransform(block_image, partial_block_image),
             ReplacementTransform(surface, partial_block_surface),
+            ReplacementTransform(block_image_2d, partial_block_image_2d),
         )
         self.wait()
         
@@ -5330,6 +5778,206 @@ class DemoJPEGWithDCT2D(ThreeDScene, ImageUtils):
 
         return lines, dots
 
+    def get_pixel_block(self, image_mob, start_row, start_col, block_size=8, height=2):
+        pixel_array = image_mob.get_pixel_array()
+        block = pixel_array[
+            start_row : start_row + block_size, start_col : start_col + block_size
+        ]
+
+        block_image = self.get_image_mob(block, height=height)
+        pixel_grid = self.get_pixel_grid(block_image, block_size)
+
+        return block_image, pixel_grid, block
+
+class HeatMapExperiments(Introduce2DDCT):
+    def construct(self):
+        image_mob = ImageMobject("dog").move_to(UP * 2.5)
+        self.play(
+            FadeIn(image_mob)
+        )
+        self.wait()
+
+        print("Image size:", image_mob.get_pixel_array().shape)
+
+        pixel_grid = self.add_grid(image_mob)
+
+        block_image, block_pixel_grid, block, pixel_array_mob_2d, tiny_square_highlight = self.highlight_pixel_block(image_mob, 125, 125, pixel_grid)
+
+        block_single_channel = block[:, :, 0]
+
+        self.show_changing_blocks_with_dct(image_mob, block_image, block_pixel_grid, pixel_array_mob_2d, block_single_channel, tiny_square_highlight, pixel_grid)
+
+    def show_changing_blocks_with_dct(self, image_mob, block_image, block_pixel_grid, pixel_array_mob_2d, block_single_channel, tiny_square_highlight, pixel_grid):
+        dct_array_2d_mob, dct_heat_map = self.get_array_and_heat_map(block_image, pixel_array_mob_2d, block_single_channel)
+        pixel_array = image_mob.get_pixel_array()
+        height_pixels = pixel_array.shape[0]
+        width_pixels = pixel_array.shape[1]
+
+        self.play(
+            FadeIn(dct_array_2d_mob),
+            FadeIn(dct_heat_map)
+        )
+        self.wait()
+        for _ in range(20):
+            start_row, start_col = np.random.randint(0, height_pixels), np.random.randint(0, width_pixels)
+            print(start_row, start_col)
+            new_block_image, new_block_pixel_grid, new_block = self.get_pixel_block(image_mob, start_row, start_col, height=block_image.height)
+            new_block_image.move_to(block_image.get_center())
+            new_block_pixel_grid.move_to(block_pixel_grid.get_center())
+            
+            new_tiny_square_highlight = self.get_tiny_square(start_row, start_col, image_mob, pixel_array, pixel_grid)
+            tiny_square_highlight.become(new_tiny_square_highlight)
+
+            new_pixel_array_mob_2d = self.get_2d_pixel_array_mob(new_block[:, :, 0], height=pixel_array_mob_2d.height)
+            
+            new_pixel_array_mob_2d.move_to(pixel_array_mob_2d.get_center())
+            
+            block_image.become(new_block_image)
+            block_pixel_grid.become(new_block_pixel_grid)
+            pixel_array_mob_2d.become(new_pixel_array_mob_2d)
+
+            new_block_single_channel = new_block[:, :, 0]
+            new_dct_array_2d_mob, new_dct_heat_map = self.get_array_and_heat_map(new_block_image, new_pixel_array_mob_2d, new_block_single_channel)
+
+            dct_array_2d_mob.become(new_dct_array_2d_mob)
+            dct_heat_map.become(new_dct_heat_map)
+            self.wait()
+        # self.remove(block_image, block_pixel_grid, pixel_array_mob_2d)
+        # self.add(new_block_image, new_pixel_grid, new_pixel_array_mob_2d)
+        # self.wait()
+
+    def get_pixel_block(self, image_mob, start_row, start_col, block_size=8, height=2):
+        pixel_array = image_mob.get_pixel_array()
+        block = pixel_array[
+            start_row : start_row + block_size, start_col : start_col + block_size
+        ]
+
+        block_image = self.get_image_mob(block, height=height)
+        pixel_grid = self.get_pixel_grid(block_image, block_size)
+
+        return block_image, pixel_grid, block
+    
+    def get_array_and_heat_map(self, block_image, pixel_array_mob_2d, block_single_channel):
+        formatted_block = format_block(block_single_channel)
+        dct_values = dct_2d(formatted_block)
+        dct_array_2d_mob = self.get_2d_pixel_array_mob(dct_values, height=pixel_array_mob_2d.height, color=REDUCIBLE_VIOLET)
+        dct_array_2d_mob.move_to(RIGHT * 3.5 + UP * 2)
+
+        dct_heat_map = self.get_heat_map(block_image, dct_values)
+        dct_heat_map.next_to(dct_array_2d_mob, DOWN, aligned_edge=LEFT)
+        shift_down = (-2 - dct_heat_map.get_center()[1])
+        dct_heat_map.shift(UP * shift_down)
+        
+        return dct_array_2d_mob, dct_heat_map
+
+    def get_heat_map(self, block_image, dct_block):
+        block_size = dct_block.shape[0]
+        pixel_grid_dct = self.get_pixel_grid(block_image, block_size)
+        dct_block_abs = np.abs(dct_block)
+        max_dct_coeff = np.amax(dct_block_abs)
+        max_color = REDUCIBLE_YELLOW
+        min_color = REDUCIBLE_PURPLE
+        for i, square in enumerate(pixel_grid_dct):
+            row, col = i // block_size, i % block_size
+            alpha = dct_block_abs[row][col] / max_dct_coeff
+            square.set_fill(
+                color=interpolate_color(min_color, max_color, alpha), opacity=1
+            )
+
+        scale = Line(pixel_grid_dct.get_top(), pixel_grid_dct.get_bottom())
+        scale.set_stroke(width=10).set_color(color=[min_color, max_color])
+        integer_scale = 0.5
+        top_value = Integer(round(max_dct_coeff)).scale(integer_scale)
+        top_value.next_to(scale, RIGHT, aligned_edge=UP)
+        bottom_value = Integer(0).scale(integer_scale)
+        bottom_value.next_to(scale, RIGHT, aligned_edge=DOWN)
+
+        heat_map_scale = VGroup(scale, top_value, bottom_value)
+
+        return VGroup(pixel_grid_dct, heat_map_scale).arrange(RIGHT)
+
+    def get_tiny_square(self, start_row, start_col, image_mob, pixel_array, pixel_grid, block_size=8):
+        center_row = start_row + block_size // 2
+        center_col = start_col + block_size // 2
+        vertical_pos = (
+            image_mob.get_top()
+            + DOWN * center_row / pixel_array.shape[0] * image_mob.height
+        )
+        horizontal_pos = (
+            image_mob.get_left()
+            + RIGHT * center_col / pixel_array.shape[1] * image_mob.width
+        )
+        tiny_square_highlight = Square(side_length=SMALL_BUFF * 0.8)
+        highlight_position = np.array([horizontal_pos[0], vertical_pos[1], 0])
+        tiny_square_highlight.set_color(REDUCIBLE_GREEN_LIGHTER).move_to(highlight_position)
+        return tiny_square_highlight
+        # height_pixels = pixel_array.shape[0]
+        # width_pixels = pixel_array.shape[1]
+        # print(width_pixels, height_pixels)
+        # pixel_grid_prop = (start_row * width_pixels + start_col) / (height_pixels * width_pixels)
+        # tiny_square_highlight = pixel_grid[int(pixel_grid_prop * len(pixel_grid))].copy().set_color(REDUCIBLE_GREEN_LIGHTER)
+        # tiny_square_highlight.set_stroke(width=4)
+        # return tiny_square_highlight
+
+    def highlight_pixel_block(self, image_mob, start_row, start_col, pixel_grid, block_size=8):
+        pixel_array = image_mob.get_pixel_array()
+        height_pixels = pixel_array.shape[0]
+        width_pixels = pixel_array.shape[1]
+        block = pixel_array[
+            start_row : start_row + block_size, start_col : start_col + block_size
+        ]
+        center_row = start_row + block_size // 2
+        center_col = start_col + block_size // 2
+        vertical_pos = (
+            image_mob.get_top()
+            + DOWN * center_row / pixel_array.shape[0] * image_mob.height
+        )
+        horizontal_pos = (
+            image_mob.get_left()
+            + RIGHT * center_col / pixel_array.shape[1] * image_mob.width
+        )
+        tiny_square_highlight = Square(side_length=SMALL_BUFF * 0.8)
+        highlight_position = np.array([horizontal_pos[0], vertical_pos[1], 0])
+        tiny_square_highlight.set_color(REDUCIBLE_GREEN_LIGHTER).move_to(highlight_position)
+        self.play(Create(tiny_square_highlight))
+        self.wait()
+
+        block_position = LEFT * 2 + DOWN * 1
+        block_image = self.get_image_mob(block, height=3.5).move_to(block_position)
+        block_pixel_grid = self.get_pixel_grid(block_image, block_size).move_to(
+            block_position
+        )
+        surround_rect = SurroundingRectangle(block_pixel_grid, buff=0).set_color(
+            REDUCIBLE_GREEN_LIGHTER
+        )
+
+        pixel_array_mob_2d = self.get_2d_pixel_array_mob(block[:, :, 1], height=block_image.height)
+        pixel_array_mob_2d.move_to(RIGHT * 2 + DOWN * 1)
+        surround_rect_integer_grid = SurroundingRectangle(pixel_array_mob_2d, buff=0, color=REDUCIBLE_GREEN_LIGHTER)
+        self.play(
+            FadeIn(block_image),
+            FadeIn(block_pixel_grid),
+            FadeIn(pixel_array_mob_2d),
+            TransformFromCopy(tiny_square_highlight, surround_rect),
+            TransformFromCopy(tiny_square_highlight, surround_rect_integer_grid)
+        )
+        self.wait()
+
+        self.play(
+            pixel_array_mob_2d.animate.scale(0.8).move_to(LEFT * 3.5 + UP * 2),
+            block_image.animate.scale(0.8).move_to(LEFT * 3.5 + DOWN * 2),
+            block_pixel_grid.animate.scale(0.8).move_to(LEFT * 3.5 + DOWN * 2),
+            surround_rect.animate.scale(0.8).move_to(LEFT * 3.5 + DOWN * 2),
+            surround_rect_integer_grid.animate.scale(0.8).move_to(LEFT * 3.5 + UP * 2),
+            image_mob.animate.move_to(ORIGIN),
+            pixel_grid.animate.move_to(ORIGIN),
+            tiny_square_highlight.animate.shift(DOWN * 2.5)
+        )
+        self.wait()
+
+        self.add_foreground_mobject(surround_rect)
+
+        return block_image, block_pixel_grid, block, pixel_array_mob_2d, tiny_square_highlight
 # Quick test of gray_scale_value_to_hex
 class TestHexToGrayScale(Scene):
     def construct(self):
@@ -5455,6 +6103,11 @@ def invert_format_block(block):
     new_block[new_block < 0] = 0
     return new_block
 
+def dct_cols(block):
+    return fftpack.dct(block.T, norm="ortho").T
+
+def dct_rows(block):
+    return fftpack.dct(block, norm="ortho")
 
 def dct_1d(row):
     return fftpack.dct(row, norm="ortho")
