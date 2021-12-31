@@ -275,211 +275,263 @@ class IntroduceRGBAndJPEG(Scene):
         self.wait(3)
 
 
-class OLDJPEGDiagram(Scene):
+class JPEGDiagramScene(Scene):
     def construct(self):
-
-        # animation section
-
-        # self.intro()
-
-        # self.play(*[FadeOut(mob) for mob in self.mobjects])
-
-        # self.intro_2()
-
-        self.play(*[FadeOut(mob) for mob in self.mobjects])
-
-        self.data_flow()
-
-        self.play(*[FadeOut(mob) for mob in self.mobjects])
-
-        self.zoom_jpeg_encoder()
-
-        self.play(*[FadeOut(mob) for mob in self.mobjects])
-
-    # definition of animations
-    def intro(self):
-        sq_array = [Square(color=WHITE) for _ in range(8 * 8)]
-        intro_image = (
-            VGroup(*sq_array)
-            .arrange_in_grid(rows=8, cols=8, buff=0)
-            .stretch_to_fit_height(3)
-            .stretch_to_fit_width(3)
+        red_channel = (
+            RoundedRectangle(corner_radius=0.1, fill_color=RED, width=3)
+            .set_color(BLACK)
+            .set_opacity(1)
+            .set_stroke(RED, width=4)
+        )
+        green_channel = (
+            RoundedRectangle(corner_radius=0.1, fill_color=GREEN, width=3)
+            .set_color(BLACK)
+            .set_opacity(1)
+            .set_stroke(GREEN, width=4)
+        )
+        blue_channel = (
+            RoundedRectangle(corner_radius=0.1, fill_color=BLUE, width=3)
+            .set_color(BLACK)
+            .set_opacity(1)
+            .set_stroke(BLUE, width=4)
         )
 
-        intro_image_buff = intro_image.copy().arrange_in_grid(rows=8, cols=8, buff=0.1)
+        channels_vg_diagonal = VGroup(red_channel, green_channel, blue_channel).arrange(
+            DOWN * 1.1 + RIGHT * 1.7, buff=-1.4
+        )
 
-        self.play(LaggedStartMap(GrowFromCenter, intro_image))
-        self.wait()
-        self.play(Transform(intro_image, intro_image_buff))
+        encoder_m = Module("Encoder", text_weight=BOLD)
 
-        for _ in range(10):
-            rand_index = np.random.randint(0, 63)
-            self.play(
-                Transform(
-                    sq_array[rand_index],
-                    sq_array[rand_index].copy().set_color(REDUCIBLE_YELLOW),
-                )
+        output_image = SVGMobject("jpg_file.svg").set_stroke(
+            WHITE, width=5, background=True
+        )
+
+        lossy_compression_t = Text(
+            "Lossy Compression", font="CMU Serif", weight=BOLD
+        ).scale(2)
+
+        # animations
+        self.play(Write(lossy_compression_t))
+
+        self.wait(2)
+
+        self.play(lossy_compression_t.animate.scale(0.45).to_edge(UP, buff=0.6))
+
+        self.wait(2)
+
+        encoding_flow = (
+            VGroup(
+                channels_vg_diagonal.scale_to_fit_height(encoder_m.height),
+                encoder_m.scale(0.9),
+                output_image,
             )
-            self.play(ShrinkToCenter(sq_array[rand_index]), run_time=2)
-
-        self.wait()
-
-    def intro_2(self):
-
-        img_og = self.make_nested_squares(8, 2).scale_to_fit_width(4)
-
-        img_sm = self.make_nested_squares(4, 1).scale_to_fit_width(4)
-
-        self.play(FadeIn(img_og), run_time=2)
-
-        anims = []
-        for i in range(len(img_og.submobjects)):
-            anims.append(Transform(img_og[i], img_sm[i]))
-
-        self.play(LaggedStart(*anims, lag_ratio=0.05), run_time=10)
-
-        self.wait(3)
-
-    def data_flow(self):
-        input_rows = 8
-        input_cols = 8
-
-        output_rows = 4
-        output_cols = 4
-
-        # object instantiation
-        input_image = (
-            VGroup(*[Square(color=WHITE) for _ in range(input_rows * input_cols)])
-            .arrange_in_grid(rows=input_rows, cols=input_cols, buff=0)
-            .stretch_to_fit_height(2)
-            .stretch_to_fit_width(2)
-        )
-
-        final_image = (
-            VGroup(*[Square(color=WHITE) for _ in range(output_rows * output_cols)])
-            .arrange_in_grid(rows=output_rows, cols=output_cols, buff=0)
-            .stretch_to_fit_height(2)
-            .stretch_to_fit_width(2)
-        )
-
-        # encoding part
-        jpeg_encoder = self.module("JPEG Encoder")
-        compressed_data = VGroup(
-            Square(),
-            DashedLine(
-                Square().get_bottom(), Square().get_top(), dash_length=0.1
-            ).set_stroke(width=10),
-        )
-
-        data_flow_encode = VGroup(input_image, jpeg_encoder, compressed_data).arrange(
-            RIGHT, buff=1
+            .arrange(RIGHT, buff=2)
+            .scale_to_fit_width(12)
+            .shift(DOWN * 0.5)
         )
 
         # arrows
-        arr1 = Arrow(input_image.get_right(), jpeg_encoder.get_left())
-        arr2 = Arrow(jpeg_encoder.get_right(), compressed_data.get_left())
-        data_flow_encode.add(arr1, arr2)
-
-        # decoding part
-        jpeg_decoder = self.module("JPEG Decoder")
-
-        data_flow_decode = (
-            VGroup(compressed_data.copy(), jpeg_decoder, final_image)
-            .arrange(RIGHT, buff=1)
-            .shift(DOWN * 2)
+        arr1 = Arrow(
+            start=channels_vg_diagonal.get_right(),
+            end=encoder_m.get_left(),
+            color=GRAY_B,
+            stroke_width=3,
+            buff=0.3,
+            max_tip_length_to_length_ratio=0.08,
+            max_stroke_width_to_length_ratio=2,
         )
-        arr3 = Arrow(data_flow_decode[0].get_right(), jpeg_decoder.get_left())
-        arr4 = Arrow(jpeg_decoder.get_right(), final_image.get_left())
-        data_flow_decode.add(arr3, arr4)
 
-        # animations
-        self.play(LaggedStartMap(Write, input_image, lag_ratio=0.1), run_time=2)
+        arr2 = Arrow(
+            encoder_m.get_right(),
+            output_image.get_left(),
+            color=GRAY_B,
+            stroke_width=3,
+            buff=0.3,
+            max_tip_length_to_length_ratio=0.08,
+            max_stroke_width_to_length_ratio=2,
+        )
 
         self.play(
-            Write(jpeg_encoder),
-            Write(arr1),
+            LaggedStart(
+                FadeIn(channels_vg_diagonal),
+                FadeIn(arr1),
+                FadeIn(encoder_m),
+                FadeIn(arr2),
+                FadeIn(output_image),
+                lag_ratio=3,
+            ),
+            run_time=10,
         )
-        self.play(
-            Write(compressed_data),
-            Write(arr2),
-        )
-
-        self.wait()
-
-        self.play(data_flow_encode.animate.shift(UP * 2))
-
-        self.wait()
-
-        self.play(LaggedStartMap(Write, data_flow_decode, lag_ratio=0.1), run_time=1)
-
-        self.wait(4)
-
-    def zoom_jpeg_encoder(self):
-        jpeg_encoder = self.module("JPEG Encoder")
-        self.play(Write(jpeg_encoder.move_to(ORIGIN)))
-        self.wait()
-        self.play(
-            ScaleInPlace(jpeg_encoder, 3),
-            FadeOut(jpeg_encoder[1]),
-        )
-
-        forward_dct = self.module(
-            "Forward DCT", fill_color="#7F7F2D", stroke_color=REDUCIBLE_YELLOW
-        )
-        forward_dct_icon = ImageMobject("dct.png").scale(0.4)
-        forward_dct_module = Group(forward_dct, forward_dct_icon).arrange(DOWN, buff=1)
-
-        quantization = self.module(
-            "Quantization", fill_color="#7F7F2D", stroke_color=REDUCIBLE_YELLOW
-        )
-        quantization_icon = ImageMobject("quantization.png").scale(0.4)
-        quantization_module = Group(quantization, quantization_icon).arrange(
-            DOWN, buff=1
-        )
-
-        lossless_comp = self.module(
-            "Lossless \\\\ compression",
-            fill_color="#7F7F2D",
-            stroke_color=REDUCIBLE_YELLOW,
-        )
-        lossless_icon = ImageMobject("lossless.png").scale(0.4)
-        lossless_module = Group(lossless_comp, lossless_icon).arrange(DOWN, buff=1)
-
-        modules_g = (
-            Group(forward_dct_module, quantization_module, lossless_module)
-            .arrange(RIGHT)
-            .scale_to_fit_width(jpeg_encoder.width - 1)
-        )
-
-        self.play(LaggedStartMap(FadeIn, modules_g), run_time=2)
 
         self.wait(3)
 
-    # definition of util functions
-    def make_nested_squares(self, total_side=8, groups_side=2):
-        """
-        Creates an arrangement of squares based on blocks of `groups_side` squares.
-        """
-        groups_ratio = total_side ** 2 // groups_side ** 2
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
 
-        output_vg = VGroup()
-        for i in range(groups_ratio):
-            aux_vg = VGroup()
-            for _ in range(groups_side * groups_side):
-                aux_vg.add(Square())
+        img_not_equal = (
+            VGroup(
+                output_image,
+                channels_vg_diagonal.scale_to_fit_height(output_image.height),
+            )
+            .arrange(RIGHT, buff=3.5)
+            .move_to(ORIGIN)
+            .shift(RIGHT * 0.35)
+        )
+        db_arr = DoubleArrow(
+            output_image.get_right(),
+            channels_vg_diagonal.get_left(),
+            color=GRAY_B,
+            stroke_width=3,
+            buff=0.3,
+            max_tip_length_to_length_ratio=0.08,
+            max_stroke_width_to_length_ratio=2,
+        )
+        cross_arr = Cross(color="#FF0000", stroke_width=10).scale(0.22).move_to(db_arr)
 
-            aux_vg.arrange_in_grid(rows=groups_side, cols=groups_side, buff=0)
-
-            output_vg.add(aux_vg)
-
-        print(len(output_vg))
-
-        return output_vg.arrange_in_grid(
-            rows=int(sqrt(groups_ratio)), cols=int(sqrt(groups_ratio)), buff=0
+        self.play(
+            LaggedStart(
+                FadeIn(output_image),
+                FadeIn(channels_vg_diagonal),
+                FadeIn(db_arr),
+                lag_ratio=3,
+            ),
+            run_time=3,
         )
 
+        self.wait()
 
-class JPEGDiagram(MovingCameraScene):
+        self.play(Write(cross_arr))
+
+        self.wait(3)
+
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
+
+        decoder_m = Module("Decoder", text_weight=BOLD)
+
+        decoding_flow = (
+            VGroup(output_image, decoder_m, channels_vg_diagonal)
+            .arrange(RIGHT, buff=3)
+            .scale_to_fit_width(12)
+        )
+
+        arr1 = Arrow(
+            start=output_image.get_right(),
+            end=decoder_m.get_left(),
+            color=GRAY_B,
+            stroke_width=3,
+            buff=0.3,
+            max_tip_length_to_length_ratio=0.08,
+            max_stroke_width_to_length_ratio=2,
+        )
+
+        arr2 = Arrow(
+            decoder_m.get_right(),
+            channels_vg_diagonal.get_left(),
+            color=GRAY_B,
+            stroke_width=3,
+            buff=0.3,
+            max_tip_length_to_length_ratio=0.08,
+            max_stroke_width_to_length_ratio=2,
+        )
+
+        self.play(
+            LaggedStart(
+                FadeIn(output_image),
+                FadeIn(arr1),
+                FadeIn(decoder_m),
+                FadeIn(arr2),
+                FadeIn(channels_vg_diagonal),
+                lag_ratio=3,
+            ),
+            run_time=5,
+        )
+
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
+
+        # screen capture of cursor clicking an image and opening
+
+        full_flow = (
+            VGroup(
+                channels_vg_diagonal.copy(),
+                encoder_m,
+                output_image,
+                decoder_m,
+                channels_vg_diagonal,
+            )
+            .arrange(RIGHT, buff=2.5)
+            .scale_to_fit_width(12)
+            .shift(UP * 1.3)
+        )
+
+        arrows_flow = VGroup()
+        for i in range(len(full_flow) - 1):
+            arrows_flow.add(
+                Arrow(
+                    full_flow[i].get_right(),
+                    full_flow[i + 1].get_left(),
+                    color=GRAY_B,
+                    stroke_width=3,
+                    buff=0.3,
+                    max_tip_length_to_length_ratio=0.08,
+                    max_stroke_width_to_length_ratio=2,
+                )
+            )
+
+        self.play(LaggedStart(*[FadeIn(mob) for mob in full_flow.submobjects]))
+        self.wait(2)
+
+        arrow_to_grow = Arrow(
+            full_flow[0].get_right(),
+            full_flow[-1].get_left(),
+            color=GRAY_B,
+            stroke_width=3,
+            buff=0.3,
+            max_tip_length_to_length_ratio=0.02,
+            max_stroke_width_to_length_ratio=2,
+        )
+        self.bring_to_back(arrow_to_grow)
+        self.play(GrowArrow(arrow_to_grow), run_time=2)
+
+        self.wait(2)
+
+        input_img = full_flow[0].copy().scale(1.5)
+        output_img = full_flow[-1].copy().scale(1.5)
+        not_equal = Tex("$\\neq$").scale(1.5)
+        aux_vg = (
+            VGroup(input_img, not_equal, output_img)
+            .arrange(RIGHT, buff=1)
+            .next_to(full_flow, DOWN, buff=2)
+        )
+
+        self.play(
+            TransformFromCopy(full_flow[0], input_img),
+            FadeIn(not_equal),
+            TransformFromCopy(full_flow[-1], output_img),
+        )
+
+        self.wait(2)
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
+
+        # final scene
+
+        big_frame = RoundedRectangle(
+            height=9,
+            width=16,
+            stroke_width=10,
+            stroke_opacity=1,
+            color=REDUCIBLE_VIOLET,
+        ).scale(0.55)
+
+        question_mark_center = Text("?", font="CMU Serif", weight=BOLD).scale(4)
+
+        self.play(Create(big_frame))
+        self.wait(3)
+        self.play(Write(question_mark_center))
+        self.wait(3)
+
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
+
+
+class JPEGDiagramMap(MovingCameraScene):
     def construct(self):
         self.build_diagram()
 
