@@ -262,3 +262,6 @@ def zigzag(n):
         n: index
         for n, index in enumerate(sorted(((x, y) for x in xs for y in xs), key=compare))
     }
+
+def two_d_to_1d_index(i, j, block_size=8):
+    return j * block_size + i
