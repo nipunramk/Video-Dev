@@ -1039,7 +1039,7 @@ class IntroChromaSubsampling(ImageUtils):
         self.wait(2)
 
     def animate_chroma_subsampling(self):
-        gradient_image = ImageMobject("colors2.png")
+        gradient_image = ImageMobject("r.png")
         gradient_image.set_resampling_algorithm(RESAMPLING_ALGORITHMS["nearest"])
         gradient_image.scale(30)
 
@@ -1068,7 +1068,7 @@ class IntroChromaSubsampling(ImageUtils):
         u_vg = VGroup(u_channel, u_t).arrange(DOWN, buff=0.5)
         v_vg = VGroup(v_channel, v_t).arrange(DOWN, buff=0.5)
 
-        self.play(FadeIn(gradient))
+        self.play(Write(gradient))
 
         self.wait(2)
 
