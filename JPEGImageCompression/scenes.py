@@ -1237,14 +1237,24 @@ class IntroChromaSubsampling(ImageUtils):
             .arrange(RIGHT, buff=1)
             .next_to(u_channel, RIGHT, buff=2)
         )
+        average_t = (
+            Text("Average of:", font="SF Mono")
+            .scale(0.3)
+            .next_to(four_pixels_vg, UP, buff=0.5)
+        )
 
-        self.play(FadeIn(equal_sign))
         new_pixel_annotation = (
             Square()
             .set_opacity(0)
             .scale_to_fit_height(new_pixel_guide.height)
             .move_to(new_pixel_guide)
         )
+        new_pixel_t = (
+            Text("New pixel value:", font="SF Mono")
+            .scale(0.3)
+            .next_to(new_pixel_annotation, UP, buff=0.5)
+        )
+        self.play(FadeIn(equal_sign), FadeIn(average_t), FadeIn(new_pixel_t))
 
         for j in range(0, pix_array.shape[1] * 2, 4):
             for i in range(0, pix_array.shape[0], 2):
@@ -1298,6 +1308,7 @@ class IntroChromaSubsampling(ImageUtils):
                 self.wait()
 
         self.remove(u_channel)
+        self.wait()
         self.play(
             FadeOut(kernel),
             FadeOut(equal_sign),
@@ -1306,6 +1317,8 @@ class IntroChromaSubsampling(ImageUtils):
             FadeOut(new_pixel_guide),
             FadeOut(last_four_pixel),
             FadeOut(four_pixels_vg),
+            FadeOut(new_pixel_t),
+            FadeOut(average_t),
             new_u_channel.animate.move_to(ORIGIN, coor_mask=[1, 0, 0]),
         )
 
