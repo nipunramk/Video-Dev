@@ -148,10 +148,12 @@ class Pixel(Square):
             color = rgb_to_hex(n / 255)
         else:
             color = g2h(n / 255)
+
         super().__init__(side_length=1)
 
         self.set_stroke(BLACK, width=0.2)
         self.set_fill(color, opacity=1)
+        self.color = color
 
 
 class PixelArray(VGroup):
