@@ -1,9 +1,14 @@
+"""
+File to define all the different scenes our video will be composed of.
+"""
+
 from math import sqrt
 from manim import *
 import cv2
 
-from scipy import fftpack
-from typing import Iterable, List
+from functions import *
+from classes import *
+from reducible_colors import *
 
 np.random.seed(23)
 config["assets_dir"] = "assets"
@@ -14,146 +19,6 @@ If you run with caching, since there are some scenes that change pixel arrays,
 there might be some unexpected behavior
 E.g manim -pql JPEGImageCompression/image_compression.py --disable_caching
 """
-
-REDUCIBLE_PURPLE_DARKER = "#3B0893"
-REDUCIBLE_BLUE = "#650FFA"
-REDUCIBLE_PURPLE = "#8c4dfb"
-REDUCIBLE_VIOLET = "#d7b5fe"
-REDUCIBLE_YELLOW = "#ffff5c"
-REDUCIBLE_YELLOW_DARKER = "#7F7F2D"
-REDUCIBLE_GREEN_LIGHTER = "#00cc70"
-REDUCIBLE_GREEN = "#008f4f"
-REDUCIBLE_GREEN_DARKER = "#004F2C"
-
-
-class ReducibleBarChart(BarChart):
-    """
-    Redefinition of the BarChart class to add font personalization
-    """
-
-    def __init__(
-        self,
-        values: Iterable[float],
-        height: float = 4,
-        width: float = 6,
-        n_ticks: int = 4,
-        tick_width: float = 0.2,
-        chart_font: str = "SF Mono",
-        label_y_axis: bool = True,
-        y_axis_label_height: float = 0.25,
-        max_value: float = 1,
-        bar_colors=...,
-        bar_fill_opacity: float = 0.8,
-        bar_stroke_width: float = 3,
-        bar_names: List[str] = ...,
-        bar_label_scale_val: float = 0.75,
-        **kwargs,
-    ):
-        self.chart_font = chart_font
-
-        super().__init__(
-            values,
-            height=height,
-            width=width,
-            n_ticks=n_ticks,
-            tick_width=tick_width,
-            label_y_axis=label_y_axis,
-            y_axis_label_height=y_axis_label_height,
-            max_value=max_value,
-            bar_colors=bar_colors,
-            bar_fill_opacity=bar_fill_opacity,
-            bar_stroke_width=bar_stroke_width,
-            bar_names=bar_names,
-            bar_label_scale_val=bar_label_scale_val,
-            **kwargs,
-        )
-
-    def add_axes(self):
-        x_axis = Line(self.tick_width * LEFT / 2, self.total_bar_width * RIGHT)
-        y_axis = Line(ORIGIN, self.total_bar_height * UP)
-        ticks = VGroup()
-        heights = np.linspace(0, self.total_bar_height, self.n_ticks + 1)
-        values = np.linspace(0, self.max_value, self.n_ticks + 1)
-        for y, _value in zip(heights, values):
-            tick = Line(LEFT, RIGHT)
-            tick.width = self.tick_width
-            tick.move_to(y * UP)
-            ticks.add(tick)
-        y_axis.add(ticks)
-
-        self.add(x_axis, y_axis)
-        self.x_axis, self.y_axis = x_axis, y_axis
-
-        if self.label_y_axis:
-            labels = VGroup()
-            for tick, value in zip(ticks, values):
-                label = Text(str(np.round(value, 2)), font=self.chart_font)
-                label.height = self.y_axis_label_height
-                label.next_to(tick, LEFT, SMALL_BUFF)
-                labels.add(label)
-            self.y_axis_labels = labels
-            self.add(labels)
-
-    def add_bars(self, values):
-        buff = float(self.total_bar_width) / (2 * len(values) + 1)
-        bars = VGroup()
-        for i, value in enumerate(values):
-            bar = Rectangle(
-                height=(value / self.max_value) * self.total_bar_height,
-                width=buff,
-                stroke_width=self.bar_stroke_width,
-                fill_opacity=self.bar_fill_opacity,
-            )
-            bar.move_to((2 * i + 1) * buff * RIGHT, DOWN + LEFT)
-            bars.add(bar)
-        bars.set_color_by_gradient(*self.bar_colors)
-
-        bar_labels = VGroup()
-        for bar, name in zip(bars, self.bar_names):
-            label = Text(str(name), font="SF Mono")
-            label.scale(self.bar_label_scale_val)
-            label.next_to(bar, DOWN, SMALL_BUFF)
-            bar_labels.add(label)
-
-        self.add(bars, bar_labels)
-        self.bars = bars
-        self.bar_labels = bar_labels
-
-class Module(VGroup):
-    def __init__(
-        self,
-        text,
-        fill_color=REDUCIBLE_PURPLE_DARKER,
-        stroke_color=REDUCIBLE_VIOLET,
-        stroke_width=5,
-        text_scale=0.9,
-        text_position=ORIGIN,
-        text_weight=NORMAL,
-        width=4,
-        height=2,
-        **kwargs,
-    ):
-
-        self.rect = (
-            RoundedRectangle(
-                corner_radius=0.1, fill_color=fill_color, width=width, height=height
-            )
-            .set_opacity(1)
-            .set_stroke(stroke_color, width=stroke_width)
-        )
-
-        self.text = Text(str(text), weight=text_weight, font="CMU Serif").scale(
-            text_scale
-        )
-        self.text.next_to(
-            self.rect,
-            direction=ORIGIN,
-            coor_mask=text_position * 0.8,
-            aligned_edge=text_position,
-        )
-
-        super().__init__(self.rect, self.text, **kwargs)
-        # super().arrange(ORIGIN)
 
 class IntroduceRGBAndJPEG(Scene):
     def construct(self):
@@ -1075,8 +940,8 @@ class ImageUtils(Scene):
 
         y, u, v = self.get_yuv_image_from_rgb(pixel_array, mapped=False)
 
-        out_u = u.copy()
-        out_v = v.copy()
+        out_u = np.zeros(u.shape)
+        out_v = np.zeros(v.shape)
         # Downsample with a window of 2 in the horizontal direction
         if mode == "4:2:2":
             # first the u channel
@@ -1089,9 +954,21 @@ class ImageUtils(Scene):
 
         # Downsample with a window of 2 in both directions
         elif mode == "4:2:0":
+            print(u)
             for i in range(0, u.shape[0], 2):
                 for j in range(0, u.shape[1], 2):
-                    out_u[i : i + 2, j : j + 2] = np.mean(u[i : i + 2, j : j + 2])
+                    print(f"{i = }, {j = }")
+
+                    print(u[i : i + 2, j : j + 2])
+                    print(np.mean(u[i : i + 2, j : j + 2]))
+
+                    out_u[i : i + 2, j : j + 2] = int(
+                        np.round(np.mean(u[i : i + 2, j : j + 2]))
+                    )
+
+                    print(out_u)
+                print("--------------")
+                print("--------------")
 
             for i in range(0, v.shape[0], 2):
                 for j in range(0, v.shape[1], 2):
@@ -1107,26 +984,150 @@ class ImageUtils(Scene):
 
 class IntroChromaSubsampling(ImageUtils):
     def construct(self):
-        shed_raw = ImageMobject("shed")
+        self.animate_chroma_subsampling()
+
+    def image_chroma_subsample(self):
+        shed_raw = ImageMobject("colors3.png")
+        shed_raw.set_resampling_algorithm(RESAMPLING_ALGORITHMS["nearest"])
+
         chroma_subsampled = self.chroma_subsample_image(
-            shed_raw.get_pixel_array(), mode="4:2:2"
+            shed_raw.get_pixel_array(), mode="4:2:0"
         )
 
-        chroma_subsampled_mobj = ImageMobject(chroma_subsampled)
+        y, u, v = self.get_yuv_image_from_rgb(shed_raw.get_pixel_array(), mapped=False)
+        y_sub, u_sub, v_sub = (
+            chroma_subsampled[:, :, 0],
+            chroma_subsampled[:, :, 1],
+            chroma_subsampled[:, :, 2],
+        )
 
-        diff_image = shed_raw.get_pixel_array()[:, :, :3] - chroma_subsampled
+        # u_mob = ImageMobject(u)
+        # print(u)
+        # u_sub_mob = ImageMobject(u_sub)
+        # print(u_sub)
+
+        # u_mob.set_resampling_algorithm(RESAMPLING_ALGORITHMS["nearest"])
+        # u_sub_mob.set_resampling_algorithm(RESAMPLING_ALGORITHMS["nearest"])
+
+        # self.add(Group(u_mob, u_sub_mob).arrange(RIGHT, buff=0.01).scale(30))
+
+        chroma_subsampled_mobj = ImageMobject(chroma_subsampled)
+        chroma_subsampled_mobj.set_resampling_algorithm(
+            RESAMPLING_ALGORITHMS["nearest"]
+        )
+
+        diff_image = (shed_raw.get_pixel_array()[:, :, :3] - chroma_subsampled) ** 2
         diff_image = cv2.cvtColor(diff_image, cv2.COLOR_RGB2GRAY)
         diff_image_mobj = ImageMobject(diff_image)
 
-        img_group = Group(shed_raw, chroma_subsampled_mobj, diff_image_mobj).arrange(
-            RIGHT
-        )
+        diff_image_mobj.set_resampling_algorithm(RESAMPLING_ALGORITHMS["nearest"])
+
+        img_group = (
+            Group(shed_raw, chroma_subsampled_mobj, diff_image_mobj).arrange(
+                RIGHT, buff=0.01
+            )
+        ).scale(15)
 
         self.play(
-            FadeIn(img_group.scale(2)),
+            FadeIn(img_group),
             run_time=3,
         )
         self.wait(2)
+
+    def animate_chroma_subsampling(self):
+        gradient_image = ImageMobject("gradient_xsm.png")
+        # gradient_image.set_resampling_algorithm(RESAMPLING_ALGORITHMS["nearest"])
+        # gradient_image.scale(30)
+
+        pix_array = gradient_image.get_pixel_array()
+
+        gradient = PixelArray(pix_array[:, :, :-1]).scale(0.3)
+
+        # r_channel = PixelArray(
+        #     pix_array[:, :, 0], color_mode="GRAY", include_numbers=True
+        # )
+        # g_channel = PixelArray(
+        #     pix_array[:, :, 1], color_mode="GRAY", include_numbers=True
+        # )
+        # b_channel = PixelArray(
+        #     pix_array[:, :, 2], color_mode="GRAY", include_numbers=True
+        # )
+
+        y, u, v = self.get_yuv_image_from_rgb(pix_array, mapped=True)
+        y_channel = PixelArray(y[:, :, 0], color_mode="GRAY").scale(0.5)
+        u_channel = PixelArray(u, color_mode="RGB").scale(0.5)
+        v_channel = PixelArray(v, color_mode="RGB").scale(0.5)
+
+        y_t = Text("Y", font="SF Mono", weight=BOLD).scale(1.5).set_color(GRAY_A)
+        u_t = (
+            Text("Cb", font="SF Mono", weight=BOLD)
+            .scale(1.5)
+            .set_color_by_gradient("#FFFF00", "#0000FF")
+        )
+        v_t = (
+            Text("Cr", font="SF Mono", weight=BOLD)
+            .scale(1.5)
+            .set_color_by_gradient("#00FF00", "#FF0000")
+        )
+
+        y_vg = VGroup(y_channel, y_t).arrange(DOWN, buff=0.5)
+        u_vg = VGroup(u_channel, u_t).arrange(DOWN, buff=0.5)
+        v_vg = VGroup(v_channel, v_t).arrange(DOWN, buff=0.5)
+
+        self.play(FadeIn(gradient))
+
+        self.wait(2)
+
+        self.play(gradient.animate.shift(UP * 2))
+
+        yuv_channels = (
+            VGroup(y_vg, u_vg, v_vg)
+            .arrange(RIGHT, buff=0.5)
+            .scale(0.5)
+            .shift(DOWN * 2),
+        )
+
+        self.play(
+            TransformFromCopy(gradient, y_channel),
+            TransformFromCopy(gradient, u_channel),
+            TransformFromCopy(gradient, v_channel),
+        )
+
+        self.play(FadeIn(y_t), FadeIn(u_t), FadeIn(v_t))
+
+        self.play(
+            LaggedStart(
+                AnimationGroup(
+                    FadeOut(gradient),
+                    FadeOut(y_vg),
+                    FadeOut(v_vg),
+                    FadeOut(u_t),
+                ),
+                u_channel.animate.move_to(ORIGIN).scale(2),
+                lag_ratio=1,
+            ),
+        )
+
+        u_slice = u_channel[0:2]
+        kernel = (
+            Square(color=YELLOW)
+            .scale_to_fit_width(u_slice.width)
+            .move_to(u_slice, aligned_edge=UP)
+        )
+
+        self.play(FadeIn(kernel))
+
+        offset = 0
+        for j in range(0, pix_array.shape[1] * 4, 4):
+            for i in range(0, pix_array.shape[0], 2):
+                print(i + j * 4, i + j * 4 + 2 - 1)
+                next_slice = u_channel[i + j * 4 : i + j * 4 + 2]
+                self.play(
+                    kernel.animate.move_to(next_slice, aligned_edge=UP), run_time=0.5
+                )
+                self.wait()
+
+        self.wait(4)
 
 
 class TestGrayScaleImages(ImageUtils):
@@ -5978,281 +5979,3 @@ class HeatMapExperiments(Introduce2DDCT):
         self.add_foreground_mobject(surround_rect)
 
         return block_image, block_pixel_grid, block, pixel_array_mob_2d, tiny_square_highlight
-# Quick test of gray_scale_value_to_hex
-class TestHexToGrayScale(Scene):
-    def construct(self):
-        for i in range(256):
-            dot = Dot().set_color(gray_scale_value_to_hex(i))
-            self.add(dot)
-            self.wait()
-            self.remove(dot)
-
-def two_d_to_1d_index(i, j, block_size=8):
-    return j * block_size + i
-
-def gray_scale_value_to_hex(value):
-    assert value >= 0 and value <= 255, f'Invalid value {value}'
-    integer_value = int(round(value))
-    hex_string = hex(integer_value).split("x")[-1]
-    if integer_value < 16:
-        hex_string = "0" + hex_string
-    return "#" + hex_string * 3
-
-
-def make_lut_u():
-    return np.array([[[i, 255 - i, 0] for i in range(256)]], dtype=np.uint8)
-
-
-def make_lut_v():
-    return np.array([[[0, 255 - i, i] for i in range(256)]], dtype=np.uint8)
-
-
-def dct1D_manual(f, N):
-    result = []
-    constant = (2 / N) ** 0.5
-    for u in range(N):
-        component = 0
-        if u == 0:
-            factor = 1 / np.sqrt(2)
-        else:
-            factor = 1
-        for i in range(N):
-            component += (
-                constant * factor * np.cos(np.pi * u / (2 * N) * (2 * i + 1)) * f(i)
-            )
-
-        result.append(component)
-
-    return result
-
-
-def f(i):
-    return np.cos((2 * i + 1) * 3 * np.pi / 16)
-
-
-def plot_function(f, N):
-    import matplotlib.pyplot as plt
-
-    x = np.arange(0, N + 0.001, 0.001)
-    y = f(x)
-    print(np.sum(y))
-    print([f(i) for i in range(8)])
-
-    plt.plot(x, y)
-    plt.show()
-
-def compute_dot_product(f, g, sample_points):
-    a = np.array([f(p) for p in sample_points])
-    b = np.array([g(p) for p in sample_points])
-    return np.dot(a, b)
-
-
-def g(i):
-    return np.cos((2 * i + 1) * 5 * np.pi / 16)
-
-
-def h(i):
-    return np.cos((2 * i + 1) * 5 * np.pi / 16) * np.cos((2 * i + 1) * 3 * np.pi / 16)
-
-def func(j, k):
-    def dot_product_func(n):
-        return np.cos((2 * n + 1) * j * np.pi / 16) * np.cos((2 * n + 1) * k * np.pi / 16)
-    return dot_product_func
-
-def get_dct_elem(i, j, N):
-    return np.cos(j * (2 * i + 1) * np.pi / (2 * N))
-
-
-def get_dct_matrix(N):
-    matrix = np.zeros((N, N))
-    for i in range(N):
-        for j in range(N):
-            matrix[j][i] = get_dct_elem(i, j, N)
-
-    return matrix
-
-
-def get_dot_product_matrix(N):
-    dct_matrix = get_dct_matrix(N)
-    dot_product_matrix = np.zeros((N, N))
-    for i in range(N):
-        for j in range(N):
-            value = np.dot(dct_matrix[i], dct_matrix[j])
-            if np.isclose(value, 0):
-                dot_product_matrix[i][j] = 0
-            else:
-                dot_product_matrix[i][j] = value
-
-    return dot_product_matrix
-
-
-def format_block(block):
-    if len(block.shape) < 3:
-        return block.astype(float) - 128
-    # [0, 255] -> [-128, 127]
-    block_centered = block[:, :, 1].astype(float) - 128
-    return block_centered
-
-
-def invert_format_block(block):
-    # [-128, 127] -> [0, 255]
-    new_block = block + 128
-    # in process of dct and inverse dct with quantization,
-    # some values can go out of range
-    new_block[new_block > 255] = 255
-    new_block[new_block < 0] = 0
-    return new_block
-
-def dct_cols(block):
-    return fftpack.dct(block.T, norm="ortho").T
-
-def dct_rows(block):
-    return fftpack.dct(block, norm="ortho")
-
-def dct_1d(row):
-    return fftpack.dct(row, norm="ortho")
-
-
-def idct_1d(row):
-    return fftpack.idct(row, norm="ortho")
-
-
-def dct_2d(block):
-    return fftpack.dct(fftpack.dct(block.T, norm="ortho").T, norm="ortho")
-
-
-def idct_2d(block):
-    return fftpack.idct(fftpack.idct(block.T, norm="ortho").T, norm="ortho")
-
-
-def quantize(block):
-    quant_table = get_quantization_table()
-    return (block / quant_table).round().astype(np.int32)
-
-
-def get_quantization_table():
-    quant_table = np.array(
-        [
-            [16, 11, 10, 16, 24, 40, 51, 61],
-            [12, 12, 14, 19, 26, 58, 60, 55],
-            [14, 13, 16, 24, 40, 57, 69, 56],
-            [14, 17, 22, 29, 51, 87, 80, 62],
-            [18, 22, 37, 56, 68, 109, 103, 77],
-            [24, 35, 55, 64, 81, 104, 113, 92],
-            [49, 64, 78, 87, 103, 121, 120, 101],
-            [72, 92, 95, 98, 112, 100, 103, 99],
-        ]
-    )
-    return quant_table
-
-
-def dequantize(block):
-    quant_table = get_quantization_table()
-    return (block * quant_table).astype(np.float)
-
-
-def rgb2ycbcr(r, g, b):  # in (0,255) range
-    y = 0.299 * r + 0.587 * g + 0.114 * b
-    cb = 128 - 0.168736 * r - 0.331364 * g + 0.5 * b
-    cr = 128 + 0.5 * r - 0.418688 * g - 0.081312 * b
-    return y, cb, cr
-
-
-def ycbcr2rgb(y, cb, cr):
-    r = y + 1.402 * (cr - 128)
-    g = y - 0.34414 * (cb - 128) - 0.71414 * (cr - 128)
-    b = y + 1.772 * (cb - 128)
-    return r, g, b
-
-
-def coords2rgbcolor(i, j, k):
-    """
-    Function to transform coordinates in 3D space to hexadecimal RGB color.
-
-    @param: i - x coordinate
-    @param: j - y coordinate
-    @param: k - z coordinate
-    @return: hex value for the corresponding color
-    """
-    return rgb_to_hex(
-        (
-            (i) / 255,
-            (j) / 255,
-            (k) / 255,
-        )
-    )
-
-
-def coords2ycbcrcolor(i, j, k):
-    """
-    Function to transform coordinates in 3D space to hexadecimal YCbCr color.
-
-    @param: i - x coordinate
-    @param: j - y coordinate
-    @param: k - z coordinate
-    @return: hex value for the corresponding color
-    """
-    y, cb, cr = rgb2ycbcr(i, j, k)
-
-    return rgb_to_hex(
-        (
-            (y) / 255,
-            (cb) / 255,
-            (cr) / 255,
-        )
-    )
-
-
-def index2coords(n, base):
-    """
-    Changes the base of `n` to `base`, assuming n is input in base 10.
-    The result is then returned as coordinates in `len(result)` dimensions.
-
-    This function allows us to iterate over the color cubes sequentially, using
-    enumerate to index every cube, and convert the index of the cube to its corresponding
-    coordinate in space.
-
-    Example: if our ``color_res = 4``:
-
-        - Cube #0 is located at (0, 0, 0)
-        - Cube #15 is located at (0, 3, 3)
-        - Cube #53 is located at (3, 1, 1)
-
-    So, we input our index, and obtain coordinates.
-
-    @param: n - number to be converted
-    @param: base - base to change the input
-    @return: list - coordinates that the number represent in their corresponding space
-    """
-    if base == 10:
-        return n
-
-    result = 0
-    counter = 0
-
-    while n:
-        r = n % base
-        n //= base
-        result += r * 10 ** counter
-        counter += 1
-
-    coords = list(f"{result:03}")
-    return coords
-
-
-def get_zigzag_order(block_size=8):
-    return zigzag(block_size)
-
-
-def zigzag(n):
-    """zigzag rows"""
-
-    def compare(xy):
-        x, y = xy
-        return (x + y, -y if (x + y) % 2 else y)
-
-    xs = range(n)
-    return {
-        n: index
-        for n, index in enumerate(sorted(((x, y) for x in xs for y in xs), key=compare))
-    }
