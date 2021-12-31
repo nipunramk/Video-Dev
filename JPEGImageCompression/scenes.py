@@ -753,6 +753,32 @@ class JPEGDiagramMap(MovingCameraScene):
         )
 
 
+class ShowConfusingImage(Scene):
+    def construct(self):
+        confusing_image = ImageMobject("confusing_image.png").scale(2)
+        clear_image = ImageMobject("clear_image.png").scale(2)
+
+        self.play(FadeIn(confusing_image), run_time=2)
+        self.wait(4)
+
+        self.play(
+            LaggedStart(
+                confusing_image.animate.shift(LEFT * 3),
+                FadeIn(clear_image.shift(RIGHT * 3)),
+                lag_ratio=1,
+            ),
+            run_time=3,
+        )
+
+        """ 
+        some annotations could be made in post production indicating that 
+        because we are more sensitive to brightness than color, we understand 
+        the conflicting colors in the image as brighter and darker because of the shadow,
+        giving their brightness a specific, semantic role within the image. that makes us
+        not pay attention to the actual color the tiles have.
+        """
+
+
 class MotivateAndExplainYCbCr(ThreeDScene):
     def construct(self):
         self.set_camera_orientation(phi=75 * DEGREES, theta=-45 * DEGREES)
