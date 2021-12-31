@@ -449,6 +449,10 @@ class JPEGDiagramScene(Scene):
 
         # screen capture of cursor clicking an image and opening
 
+        output_image = SVGMobject("jpg_file.svg").set_stroke(
+            WHITE, width=3, background=True
+        )
+
         full_flow = (
             VGroup(
                 channels_vg_diagonal.copy(),
