@@ -1106,7 +1106,7 @@ class IntroChromaSubsampling(ImageUtils):
         self.wait(2)
 
     def animate_chroma_subsampling(self):
-        gradient_image = ImageMobject("gradient_xsm.png")
+        gradient_image = ImageMobject("r.png")
         gradient_image.set_resampling_algorithm(RESAMPLING_ALGORITHMS["nearest"])
         gradient_image.scale(30)
 
@@ -1135,7 +1135,7 @@ class IntroChromaSubsampling(ImageUtils):
         u_vg = VGroup(u_channel, u_t).arrange(DOWN, buff=0.5)
         v_vg = VGroup(v_channel, v_t).arrange(DOWN, buff=0.5)
 
-        self.play(FadeIn(gradient))
+        self.play(Write(gradient))
 
         self.wait(2)
 
@@ -1191,7 +1191,7 @@ class IntroChromaSubsampling(ImageUtils):
                     FadeOut(v_vg),
                     FadeOut(u_t),
                 ),
-                u_channel.animate.move_to(DOWN * 0.5).scale(2),
+                u_channel.animate.move_to(DOWN * 0.5 + LEFT * 3).scale(2),
                 FadeIn(chroma_title),
                 lag_ratio=1,
             ),
@@ -1215,26 +1215,59 @@ class IntroChromaSubsampling(ImageUtils):
         This for loop runs through the loaded image's u channel, 
         and creates a new downsampled version as it goes through it.
         """
+
         new_u_channel = VGroup()
+        new_pixel_guide = (
+            u_channel[0]
+            .copy()
+            .scale_to_fit_width(kernel.width)
+            .next_to(u_channel, RIGHT, buff=2)
+        )
+
+        equal_sign = Text("=", font="CMU Serif", weight=BOLD)
+
+        four_pixels_vg = (
+            VGroup(*[u_channel[0].copy() for i in range(4)])
+            .arrange_in_grid(rows=2, cols=2)
+            .scale_to_fit_height(new_pixel_guide.height)
+        ).set_opacity(0)
+
+        guide_vg = (
+            VGroup(new_pixel_guide, equal_sign, four_pixels_vg)
+            .arrange(RIGHT, buff=1)
+            .next_to(u_channel, RIGHT, buff=2)
+        )
+
+        self.play(FadeIn(equal_sign))
+        new_pixel_annotation = (
+            Square()
+            .set_opacity(0)
+            .scale_to_fit_height(new_pixel_guide.height)
+            .move_to(new_pixel_guide)
+        )
+
         for j in range(0, pix_array.shape[1] * 2, 4):
             for i in range(0, pix_array.shape[0], 2):
-                sq_ul = u_channel[i + j * 4].color
-                sq_dl = u_channel[i + j * 4 + 4].color
+                sq_ul = u_channel[i + j * 4]
+                sq_ur = u_channel[i + j * 4 + 1]
 
-                sq_ur = u_channel[i + j * 4 + 2].color
-                sq_dr = u_channel[i + j * 4 + 2 + 4].color
+                sq_dl = u_channel[i + j * 4 + 8]
+                sq_dr = u_channel[i + j * 4 + 8 + 1]
 
                 next_slice = u_channel[i + j * 4 : i + j * 4 + 2]
-                self.play(kernel.animate.move_to(next_slice, aligned_edge=UP))
 
-                sq_ul_rgb = hex_to_rgb(sq_ul)
-                sq_ur_rgb = hex_to_rgb(sq_ur)
-                sq_dl_rgb = hex_to_rgb(sq_dl)
-                sq_dr_rgb = hex_to_rgb(sq_dr)
+                sq_ul_rgb = hex_to_rgb(sq_ul.color)
+                sq_ur_rgb = hex_to_rgb(sq_ur.color)
+                sq_dl_rgb = hex_to_rgb(sq_dl.color)
+                sq_dr_rgb = hex_to_rgb(sq_dr.color)
 
                 four_pixels = np.stack((sq_ul_rgb, sq_ur_rgb, sq_dl_rgb, sq_dr_rgb))
 
                 avg = np.average(four_pixels, axis=0) * 255
+
+                self.play(
+                    kernel.animate.move_to(next_slice, aligned_edge=UP),
+                )
 
                 new_pixel = (
                     Pixel(avg, color_mode="RGB")
@@ -1243,20 +1276,47 @@ class IntroChromaSubsampling(ImageUtils):
                 )
                 new_u_channel.add(new_pixel)
 
-                self.play(FadeIn(new_pixel))
+                last_pixel = new_pixel_annotation
+                new_pixel_annotation = new_pixel.copy().move_to(new_pixel_guide)
+
+                last_four_pixel = four_pixels_vg
+                four_pixels_vg = (
+                    VGroup(sq_ul.copy(), sq_ur.copy(), sq_dl.copy(), sq_dr.copy())
+                    .arrange_in_grid(rows=2, cols=2)
+                    .scale_to_fit_height(new_pixel_annotation.height)
+                    .move_to(last_four_pixel)
+                )
+
+                self.play(
+                    FadeIn(new_pixel),
+                    FadeIn(new_pixel_annotation),
+                    FadeIn(four_pixels_vg),
+                    FadeOut(last_pixel),
+                    FadeOut(last_four_pixel),
+                )
 
                 self.wait()
 
-        self.play(FadeOut(kernel), FadeOut(u_channel))
+        self.remove(u_channel)
+        self.play(
+            FadeOut(kernel),
+            FadeOut(equal_sign),
+            FadeOut(last_pixel),
+            FadeOut(new_pixel_annotation),
+            FadeOut(new_pixel_guide),
+            FadeOut(last_four_pixel),
+            FadeOut(four_pixels_vg),
+            new_u_channel.animate.move_to(ORIGIN, coor_mask=[1, 0, 0]),
+        )
 
         new_v_channel = VGroup()
         for j in range(0, pix_array.shape[1] * 2, 4):
             for i in range(0, pix_array.shape[0], 2):
                 sq_ul = v_channel[i + j * 4].color
-                sq_dl = v_channel[i + j * 4 + 4].color
+                sq_ur = v_channel[i + j * 4 + 1].color
 
-                sq_ur = v_channel[i + j * 4 + 2].color
-                sq_dr = v_channel[i + j * 4 + 2 + 4].color
+                sq_dl = v_channel[i + j * 4 + 8].color
+                sq_dr = v_channel[i + j * 4 + 8 + 1].color
 
                 next_slice = v_channel[i + j * 4 : i + j * 4 + 2]
 
@@ -1295,7 +1355,7 @@ class IntroChromaSubsampling(ImageUtils):
         subsampled_image = (
             PixelArray(sub_pix_array, color_mode="RGB")
             .scale_to_fit_height(y_channel.height)
-            .move_to(u_channel)
+            .move_to(DOWN * 0.5)
         )
         gradient.scale_to_fit_height(subsampled_image.height)
 
