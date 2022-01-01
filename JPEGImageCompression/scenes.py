@@ -5,6 +5,8 @@ File to define all the different scenes our video will be composed of.
 from math import sqrt
 from manim import *
 import cv2
+from itertools import product
+from pprint import pprint
 
 from functions import *
 from classes import *
@@ -781,20 +783,27 @@ class ShowConfusingImage(Scene):
 
 class MotivateAndExplainYCbCr(ThreeDScene):
     def construct(self):
+        self.yuv_plane_animation()
+
+    def yuv_plane_animation(self):
+        color_plane = self.create_yuv_plane(y=127, color_res=128)
+
+        self.add(color_plane)
+
+    def color_cube_animation(self):
         self.set_camera_orientation(phi=75 * DEGREES, theta=-45 * DEGREES)
         self.begin_ambient_camera_rotation(rate=1)
-        self.move_camera(zoom=0.2)
+        self.move_camera(zoom=0.8)
 
         color_resolution = 4
         cubes_rgb = self.create_color_space_cube(
             coords2rgbcolor, color_res=color_resolution, cube_side_length=1
         ).move_to(ORIGIN)
-        cubes_yuv = self.create_color_space_cube(
-            coords2ycbcrcolor, color_res=color_resolution, cube_side_length=1
-        )
+
         self.wait()
 
         self.play(FadeIn(cubes_rgb))
+
         self.wait(6)
 
         anim_group = []
@@ -808,19 +817,7 @@ class MotivateAndExplainYCbCr(ThreeDScene):
 
         self.play(*anim_group)
 
-        # self.play(Rotate(cubes_rgb, angle=PI * 2))
-        # cubes_arranged = cubes_rgb.copy().arrange(OUT, buff=0)
-        # self.play(Transform(cubes_rgb, cubes_arranged))
-
         self.wait(6)
-
-        # cubes_yuv.move_to(cubes_arranged.get_center())
-
-        # this is a very bad way of transforming the grayscale line to
-        # the cube obviously but it illustrates the point at least for now
-        # self.play(Transform(cubes_arranged, cubes_yuv))
-        # self.play(Rotate(cubes_arranged, angle=PI * 2))
-        # self.wait(4)
 
     def create_color_space_cube(
         self,
@@ -872,6 +869,23 @@ class MotivateAndExplainYCbCr(ThreeDScene):
         cubes_rgb = Group(*cubes)
 
         return cubes_rgb
+
+    def create_yuv_plane(self, y=127, color_res=64):
+        color_plane_data = [
+            [y, u * (256 // color_res), v * (256 // color_res)]
+            for u in range(color_res)
+            for v in range(color_res)
+        ]
+
+        rgb_conv = np.array(
+            [ycbcr2rgb4map(c) for c in color_plane_data], dtype=np.uint8
+        ).reshape((color_res, color_res, 3))
+
+        mob = ImageMobject(rgb_conv)
+        mob.set_resampling_algorithm(RESAMPLING_ALGORITHMS["linear"])
+        mob.scale_to_fit_width(4)
+
+        return mob
 
 
 class ImageUtils(Scene):
