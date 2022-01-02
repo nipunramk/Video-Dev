@@ -910,22 +910,46 @@ class MotivateAndExplainYCbCr(Scene):
 
         # YCbCr stands for Y, Chroma Blue and Chroma Red.
 
-        self.play(LaggedStartMap(FadeIn, ycbcr_vg, lag_ratio=0.5))
+        self.play(
+            LaggedStartMap(FadeIn, ycbcr_vg, lag_ratio=0.5),
+        )
+
         self.wait()
         self.play(
-            FadeTransformPieces(
-                ycbcr_vg,
-                ycbcr_vg_vert,
-                stretch=False,
-                # key_map={ycbcr_vg[-1][-2]: ycbcr_vg_vert[-1][6]},
-            )
+            # Y
+            Transform(
+                ycbcr_vg[0],
+                ycbcr_vg_vert[0],
+            ),
+            # C to chroma
+            Transform(
+                ycbcr_vg[1][0],
+                ycbcr_vg_vert[1][:6],
+            ),
+            # b to blue
+            Transform(
+                ycbcr_vg[1][1],
+                ycbcr_vg_vert[1][6:],
+            ),
+            # c to chroma
+            Transform(
+                ycbcr_vg[2][0],
+                ycbcr_vg_vert[2][:6],
+            ),
+            # r to red
+            Transform(
+                ycbcr_vg[2][1],
+                ycbcr_vg_vert[2][6:],
+            ),
         )
         self.wait(2)
 
         # This color space aims to separate the luminance, or brightness
         # from the color components for a given value.
         self.play(Circumscribe(ycbcr_vg_vert[0], color=REDUCIBLE_VIOLET, run_time=2))
+
         self.wait(2)
+
         self.play(Circumscribe(ycbcr_vg_vert[1:], color=REDUCIBLE_VIOLET, run_time=2))
 
         self.play(*[FadeOut(mob) for mob in self.mobjects])
