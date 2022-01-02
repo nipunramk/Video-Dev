@@ -3,15 +3,18 @@ File to define all the different scenes our video will be composed of.
 """
 
 from math import sqrt
+
 from manim import *
 import cv2
+from itertools import product
+from pprint import pprint
 
 from functions import *
 from classes import *
 from reducible_colors import *
 
-np.random.seed(23)
 config["assets_dir"] = "assets"
+np.random.seed(23)
 
 """
 Make sure you run manim CE with --disable_caching flag
@@ -19,6 +22,7 @@ If you run with caching, since there are some scenes that change pixel arrays,
 there might be some unexpected behavior
 E.g manim -pql JPEGImageCompression/image_compression.py --disable_caching
 """
+
 
 class IntroduceRGBAndJPEG(Scene):
     def construct(self):
@@ -272,6 +276,7 @@ class IntroduceRGBAndJPEG(Scene):
             self.play(UpdateFromAlphaFunc(bar, update_function=update), run_time=2)
 
         self.wait(3)
+
 
 class JPEGDiagramScene(Scene):
     def construct(self):
@@ -750,6 +755,7 @@ class JPEGDiagramMap(MovingCameraScene):
             run_time=3,
         )
 
+
 class ShowConfusingImage(Scene):
     def construct(self):
         confusing_image = ImageMobject("confusing_image.png").scale(2)
@@ -776,23 +782,30 @@ class ShowConfusingImage(Scene):
         """
 
 
-class MotivateAndExplainYCbCr(ThreeDScene):
-    def construct(self):
+class MotivateAndExplainRGB(ThreeDScene):
+    def color_cube_animation(self):
         self.set_camera_orientation(phi=75 * DEGREES, theta=-45 * DEGREES)
-        self.move_camera(zoom=0.2)
+        self.begin_ambient_camera_rotation(rate=1)
+        self.move_camera(zoom=0.5)
 
-        color_resolution = 8
+        # change this value to 8 or 16. 8 is pretty slow already, we may not need
+        # that much resolution for this small demo.
+        color_resolution = 3
+
         cubes_rgb = self.create_color_space_cube(
-            coords2rgbcolor, color_res=color_resolution, cube_side_length=1
-        )
-        cubes_yuv = self.create_color_space_cube(
-            coords2ycbcrcolor, color_res=color_resolution, cube_side_length=1
-        )
-        self.wait(2)
-        self.add(
-            cubes_rgb,
-        )
-        self.wait(2)
+            coords2rgbcolor, color_res=color_resolution, cube_side_length=0.8
+        ).move_to(ORIGIN)
+        cubes_rgb_expanded = self.create_color_space_cube(
+            coords2rgbcolor, color_res=color_resolution, cube_side_length=0.8, buff=0.6
+        ).move_to(ORIGIN)
+
+        self.wait()
+
+        self.play(FadeIn(cubes_rgb))
+
+        self.wait(6)
+
+        self.play(Transform(cubes_rgb, cubes_rgb_expanded))
 
         anim_group = []
         # this loop removes every cube that is not in the grayscale diagonal of the RGB colorspace.
@@ -800,33 +813,19 @@ class MotivateAndExplainYCbCr(ThreeDScene):
         # any diagonal cube will have their coordinates matching, so we remove everything else.
         for index, cube in enumerate(cubes_rgb):
             coords = index2coords(index, base=color_resolution)
-            print(coords)
             if not coords[0] == coords[1] == coords[2]:
                 anim_group.append(FadeOut(cube))
-                cubes_rgb.remove(cube)
 
         self.play(*anim_group)
 
-        self.play(Rotate(cubes_rgb, angle=PI * 2))
-        cubes_arranged = cubes_rgb.copy().arrange(OUT, buff=0)
-        self.play(Transform(cubes_rgb, cubes_arranged))
-
-        self.wait()
-
-        cubes_yuv.move_to(cubes_arranged.get_center())
-
-        # this is a very bad way of transforming the grayscale line to
-        # the cube obviously but it illustrates the point at least for now
-        self.play(Transform(cubes_arranged, cubes_yuv))
-        self.play(Rotate(cubes_arranged, angle=PI * 2))
-        self.wait()
+        self.wait(6)
 
     def create_color_space_cube(
         self,
         color_space_func,
         color_res=8,
         cube_side_length=0.1,
-        buff=0.05,
+        buff=0,
     ):
         """
         Creates a YCbCr cube composed of many smaller cubes. The `color_res` argument defines
@@ -848,8 +847,7 @@ class MotivateAndExplainYCbCr(ThreeDScene):
         MAX_COLOR_RES = 256
         discrete_ratio = MAX_COLOR_RES // color_res
 
-        side_length = cube_side_length
-        offset = side_length + buff
+        offset = cube_side_length + buff
         cubes = []
 
         for i in range(color_res):
@@ -863,7 +861,7 @@ class MotivateAndExplainYCbCr(ThreeDScene):
                     color = color_space_func(i_discrete, j_discrete, k_discrete)
 
                     curr_cube = Cube(
-                        side_length=side_length, fill_color=color, fill_opacity=1
+                        fill_color=color, fill_opacity=1, side_length=cube_side_length
                     ).shift((LEFT * i + UP * j + OUT * k) * offset)
 
                     cubes.append(curr_cube)
@@ -871,6 +869,215 @@ class MotivateAndExplainYCbCr(ThreeDScene):
         cubes_rgb = Group(*cubes)
 
         return cubes_rgb
+
+
+class MotivateAndExplainYCbCr(Scene):
+    def construct(self):
+        self.ycbcr_explanation()
+        self.yuv_plane_animation()
+
+    def ycbcr_explanation(self):
+        y_t = Text("Y", font="CMU Serif", weight=BOLD).scale(1.5).set_color(GRAY_B)
+        u_t = (
+            Text("Cb", font="CMU Serif", weight=BOLD)
+            .scale(1.5)
+            .set_color_by_gradient("#FFFF00", "#0000FF")
+        )
+        v_t = (
+            Text("Cr", font="CMU Serif", weight=BOLD)
+            .scale(1.5)
+            .set_color_by_gradient("#00FF00", "#FF0000")
+        )
+
+        v_full_t = (
+            Text("Chroma red", font="CMU Serif", weight=BOLD)
+            .scale(1.5)
+            .set_color_by_gradient("#00FF00", "#FF0000")
+        )
+
+        u_full_t = (
+            Text("Chroma blue", font="CMU Serif", weight=BOLD)
+            .scale(1.5)
+            .set_color_by_gradient("#FFFF00", "#0000FF")
+        )
+
+        ycbcr_vg = VGroup(y_t, u_t, v_t).arrange(RIGHT, buff=1).scale(2)
+        ycbcr_vg_vert = (
+            VGroup(y_t.copy().scale(0.7), u_full_t, v_full_t)
+            .arrange(DOWN, buff=1)
+            .scale_to_fit_height(5)
+        )
+
+        # YCbCr stands for Y, Chroma Blue and Chroma Red.
+
+        self.play(
+            LaggedStartMap(FadeIn, ycbcr_vg, lag_ratio=0.5),
+        )
+
+        self.wait()
+        self.play(
+            # Y
+            Transform(
+                ycbcr_vg[0],
+                ycbcr_vg_vert[0],
+            ),
+            # C to chroma
+            Transform(
+                ycbcr_vg[1][0],
+                ycbcr_vg_vert[1][:6],
+            ),
+            # b to blue
+            Transform(
+                ycbcr_vg[1][1],
+                ycbcr_vg_vert[1][6:],
+            ),
+            # c to chroma
+            Transform(
+                ycbcr_vg[2][0],
+                ycbcr_vg_vert[2][:6],
+            ),
+            # r to red
+            Transform(
+                ycbcr_vg[2][1],
+                ycbcr_vg_vert[2][6:],
+            ),
+        )
+        self.wait(2)
+
+        # This color space aims to separate the luminance, or brightness
+        # from the color components for a given value.
+        self.play(Circumscribe(ycbcr_vg_vert[0], color=REDUCIBLE_VIOLET, run_time=2))
+
+        self.wait(2)
+
+        self.play(Circumscribe(ycbcr_vg_vert[1:], color=REDUCIBLE_VIOLET, run_time=2))
+
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
+
+        self.wait()
+
+    def yuv_plane_animation(self):
+        yuv_title = (
+            Text("YCbCr color space", font="CMU Serif", weight=BOLD)
+            .scale(0.9)
+            .to_edge(UP, buff=0.6)
+        )
+
+        color_plane_0 = self.create_yuv_plane(y=0, color_res=32).move_to(DOWN * 0.5)
+        color_plane_127 = self.create_yuv_plane(y=127, color_res=32).move_to(DOWN * 0.5)
+        color_plane_255 = self.create_yuv_plane(y=255, color_res=32).move_to(DOWN * 0.5)
+        color_plane_0_loop = color_plane_0.copy()
+
+        color_planes = {}
+        for i in range(50, 256, 50):
+            color_planes.update(
+                {i: self.create_yuv_plane(i, color_res=32).move_to(color_plane_0)}
+            )
+
+        print(color_planes)
+
+        y = 0.00
+
+        y_number = (
+            RVariable(var=y, label="Y")
+            .scale(0.7)
+            .next_to(color_plane_0, DOWN, buff=0.5)
+        )
+
+        self.play(FadeIn(color_plane_0), FadeIn(yuv_title), FadeIn(y_number))
+
+        self.wait()
+
+        for y, plane in color_planes.items():
+            self.play(
+                Transform(color_plane_0, plane),
+                y_number.tracker.animate.set_value(y / 255),
+                run_time=2,
+            )
+            self.wait(2)
+
+        self.play(
+            Transform(color_plane_0, color_plane_0_loop),
+            y_number.tracker.animate.set_value(0.00001),
+        )
+        self.wait(2)
+        self.play(FadeOut(color_plane_0), FadeOut(y_number))
+        self.wait()
+
+        planes_diag = (
+            Group(color_plane_0, color_plane_127, color_plane_255)
+            .arrange(DOWN * 1.9 + RIGHT * 1.7, buff=-1.5)
+            .scale(0.7)
+            .move_to(DOWN * 0.5)
+        )
+
+        planes_from_side = (
+            planes_diag.copy()
+            .arrange(IN, buff=1)
+            .rotate(-90 * DEGREES, Y_AXIS)
+            .move_to(DOWN * 0.5)
+        )
+
+        self.play(FadeIn(planes_diag))
+        self.wait()
+        self.play(Transform(planes_diag, planes_from_side))
+        self.wait()
+
+        y_line = Line(
+            planes_from_side[0].get_center(), planes_from_side[-1].get_center()
+        ).set_stroke(GRAY)
+
+        y_0 = (
+            Text("0", font="SF Mono")
+            .scale(0.4)
+            .next_to(planes_from_side[0], UP, buff=0.3)
+        )
+        y_05 = (
+            Text("0.5", font="SF Mono")
+            .scale(0.4)
+            .next_to(planes_from_side[1], UP, buff=0.3)
+        )
+        y_1 = (
+            Text("1", font="SF Mono")
+            .scale(0.4)
+            .next_to(planes_from_side[2], UP, buff=0.3)
+        )
+
+        self.play(
+            Write(y_line),
+            LaggedStart(FadeIn(y_0), FadeIn(y_05), FadeIn(y_1), lag_ratio=0.1),
+            run_time=3,
+        )
+
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
+
+    def create_yuv_plane(self, y=127, color_res=64, return_data=False):
+        """
+        Creates an array of data that corresponds to the U and V values mapped out
+        at a specific y setting. This can return the ndarray itself or an ImageMobject
+        ready to be used.
+
+        Color res at 32 using linear interpolation for the resampling can be quite
+        fast and efficient while still giving the illusion of a very smooth gradient.
+        """
+        color_plane_data = [
+            [y, u * (256 // color_res), v * (256 // color_res)]
+            for u in range(color_res)
+            for v in range(color_res)
+        ]
+
+        rgb_conv = np.array(
+            [ycbcr2rgb4map(c) for c in color_plane_data], dtype=np.uint8
+        ).reshape((color_res, color_res, 3))
+
+        if return_data:
+            return rgb_conv
+
+        mob = ImageMobject(rgb_conv)
+        mob.set_resampling_algorithm(RESAMPLING_ALGORITHMS["linear"])
+        mob.scale_to_fit_width(4)
+
+        return mob
 
 
 class ImageUtils(Scene):
@@ -2061,22 +2268,20 @@ class DCTSliderExperiments(DCTComponents):
 
 class DCTEntireImageSlider(DCTSliderExperiments):
     def construct(self):
-        image_mob = ImageMobject("dog").move_to(UP * 1)
-        
-
-        number_line = self.initialize_slider()
-        dct_components = Tex("DCT Components").next_to(number_line, UP)
+        image_mob = ImageMobject("dog").move_to(LEFT * 2)
+        original_pixel_array = image_mob.get_pixel_array()[2:298, 3:331, 0]
+        print(original_pixel_array.shape)
+        new_pixel_array = self.get_all_blocks(image_mob, 2, 298, 3, 331, 6)
+        relevant_section = new_pixel_array[2:298, 3:331]
+        new_image = self.get_image_mob(new_pixel_array, height=None).move_to(RIGHT * 2)
+        print("MSE\n", np.mean((relevant_section - original_pixel_array) ** 2))
 
         self.play(
             FadeIn(image_mob),
-            FadeIn(number_line),
-            Write(dct_components)
+            FadeIn(new_image),
         )
         # print(new_image.get_pixel_array().shape)
         self.wait()
-
-        self.animate_slider(image_mob, number_line)
-
 
     def get_all_blocks(
         self,
@@ -2117,51 +2322,6 @@ class DCTEntireImageSlider(DCTSliderExperiments):
             start_row : start_row + block_size, start_col : start_col + block_size
         ]
 
-    def initialize_slider(self):
-        number_line = NumberLine(
-            x_range=[0, 64, 4],
-            length=10,
-            color=REDUCIBLE_VIOLET,
-            include_numbers=True,
-            label_direction=UP,
-        )
-        number_line.move_to(DOWN * 2.5)
-
-        return number_line
-
-    def animate_slider(self, image_mob, number_line):
-        original_pixel_array = image_mob.get_pixel_array()[2:298, 3:331, 0]
-        component_tracker = ValueTracker(0)
-        
-        def get_new_image():
-            new_pixel_array = self.get_all_blocks(image_mob, 2, 298, 3, 331, component_tracker.get_value())
-            relevant_section = new_pixel_array[2:298, 3:331]
-            new_image = self.get_image_mob(new_pixel_array, height=None).move_to(UP * 1 + RIGHT * 2)
-            return new_image
-
-        tick = Triangle().scale(0.2).set_color(REDUCIBLE_YELLOW)
-        tick.set_fill(color=REDUCIBLE_YELLOW, opacity=1)
-
-        tick.add_updater(
-            lambda m: m.next_to(number_line.n2p(component_tracker.get_value()), DOWN)
-        )
-
-        new_image = always_redraw(get_new_image)
-        self.play(
-            FadeIn(tick),
-            image_mob.animate.shift(LEFT * 2),
-            FadeIn(new_image),
-        )
-        self.wait()
-    
-
-        self.play(
-            component_tracker.animate.set_value(64),
-            run_time=32,
-            rate_func=linear,
-        ),
-
-        # self.wait()
 
 class DCT1DExperiments(DCTComponents):
     def construct(self):
@@ -2913,7 +3073,7 @@ class DCT1DStepsVisualized(DCT1DExperiments):
         ).arrange(RIGHT, buff=0)
         return pixel_row_mob, np.array(row_values), highlight
 
-    def get_array_obj(self, values, length=5, height=0.5, color=REDUCIBLE_GREEN_LIGHTER):
+    def get_array_obj(self, values, length=5, height=0.5, color=REDUCIBLE_GREEN_DARKER):
         array = VGroup(
             *[Rectangle(height=height, width=length / len(values)) for _ in values]
         ).arrange(RIGHT, buff=0)
@@ -3026,3255 +3186,12 @@ class DCT1DStepsVisualized(DCT1DExperiments):
         )
         return path, dots
 
-class MotivateDCT(DCT1DStepsVisualized):
+
+# Quick test of gray_scale_value_to_hex
+class TestHexToGrayScale(Scene):
     def construct(self):
-        all_equations = self.show_equations()
-
-        self.ask_why(all_equations)
-
-        self.clear()
-
-        image_mob = ImageMobject("dog").move_to(UP * 2)
-        block_image, pixel_grid, block = self.get_pixel_block(image_mob, 126, 126)
-        row = 7
-        print(block[:, :, 0])
-        print(f"Block row: {row}\n", block[:, :, 0][row])
-        pixel_row_mob, row_values = self.get_pixel_row_mob(block, row)
-        print("Selected row values\n", row_values)
-        pixel_row_mob.move_to(UP * 3)
-        self.play(
-            FadeIn(pixel_row_mob)
-        )
-        self.wait()
-
-        row_values_centered = format_block(row_values)
-        print('After centering\n', row_values_centered)
-
-        dct_row_pixels = dct_1d(row_values_centered)
-
-        ax, graph, dots = self.draw_image_graph(dct_row_pixels)
-
-        self.show_graph(ax, graph, dots, pixel_row_mob)
-
-        group, arrow = self.show_summing_different_cosine_waves(graph)
-
-        self.show_pixel_rows_for_cosine_freqs(group, arrow)
-
-        self.describe_dct_broadly(ax, graph, dots, pixel_row_mob, dct_row_pixels)
-
-        self.derive_matrix()
-
-    def show_equations(self):
-        dct_text = Tex("Discrete Cosine Transform (DCT)").scale(1.2)
-        forward_dct = MathTex(r"X_k = \left(\frac{2}{N}\right)^{\frac{1}{2}} \sum_{n=0}^{N-1} \Lambda(n) \cdot \cos \left[\frac{\pi k}{2N}(2n+1)\right]x_n")
-
-        lambda_def = MathTex(r"\Lambda(n) = \left\{\begin{array}{ll} \frac{1}{\sqrt{2}} & \quad n = 0 \\ 1 & \quad n \neq 0 \end{array}\right.").scale(0.8)
-        k_def = MathTex(r"k \in \{0, 1, \ldots , N - 1\}").scale(0.8)
-        additional_def_group = VGroup(k_def, lambda_def).arrange(RIGHT, buff=1)
-
-        dct_group = VGroup(dct_text, forward_dct, additional_def_group).arrange(DOWN)
-
-        idct_text = Tex("Inverse Discrete Cosine Transform (IDCT)").scale(1.2)
-        inverse_dct = MathTex(r"x_k = \frac{X_0}{\sqrt{N}} + \left(\frac{2}{N}\right)^{\frac{1}{2}} \sum_{n=1}^{N-1} \cos \left[\frac{\pi n}{2N}(2k+1)\right]X_n")
-
-        idct_group = VGroup(idct_text, inverse_dct).arrange(DOWN)
-
-        group = VGroup(dct_group, idct_group).arrange(DOWN, buff=1)
-
-        self.play(
-            FadeIn(group)
-        )
-        self.wait()
-
-        return group
-
-    def ask_why(self, equations):
-        self.play(
-            equations.animate.scale(0.7)
-        )
-        surround_rect = SurroundingRectangle(equations, buff=SMALL_BUFF)
-        self.play(
-            Create(surround_rect)
-        )
-
-        question_1 = Tex("Where do these equations from?")
-        question_2 = Tex("Why do we use these transforms?")
-        questions = VGroup(question_1, question_2).arrange(DOWN)
-        questions.next_to(surround_rect, UP)
-
-        self.play(
-            Write(questions[0])
-        )
-        self.wait()
-
-        self.play(
-            Write(questions[1])
-        )
-
-        self.wait()
-
-    def show_summing_different_cosine_waves(self, axes):
-        arrow = MathTex(r"\Updownarrow")
-
-        arrow.next_to(axes, DOWN).shift(DOWN * 1)
-
-        self.play(
-            Write(arrow)
-        )
-        self.wait()
-
-        first_freq = self.get_cosine_wave(lambda x: np.cos(x))
-        second_freq = self.get_cosine_wave(lambda x: np.cos(2 * x))
-        last_freq = self.get_cosine_wave(lambda x: np.cos(7 * x))
-
-        plus = MathTex("+")
-        ellipses = MathTex(r"\cdots")
-
-        group = VGroup(first_freq, plus, second_freq, plus.copy(), ellipses, plus.copy(), last_freq).arrange(RIGHT)
-
-        group.next_to(arrow, DOWN * 2)
-
-        self.play(
-            FadeIn(group)
-        )
-        self.wait()
-
-        return group, arrow
-
-    def get_cosine_wave(self, cosine_function):
-        ax = Axes(
-            x_range=[0, np.pi],
-            y_range=[-1, 1],
-            x_length=2,
-            y_length=2,
-        )
-
-        graph = ax.plot(cosine_function).set_color(REDUCIBLE_YELLOW)
-
-        box = SurroundingRectangle(graph, color=REDUCIBLE_VIOLET)
-        return VGroup(graph, box)
-
-    def get_cosine_wave_with_ax(self, cosine_function):
-        ax = Axes(
-            x_range=[0, np.pi],
-            y_range=[-1, 1],
-            x_length=4.375,
-            y_length=2,
-            tips=False,
-            x_axis_config={"include_numbers": False, "include_ticks": False},
-            y_axis_config={"include_numbers": True, "numbers_to_exclude": [0], "include_ticks": False}
-        )
-
-        graph = ax.plot(cosine_function).set_color(REDUCIBLE_YELLOW)
-        pi_label = MathTex(r"\pi")
-        pi_label.next_to(ax.x_axis, DOWN, aligned_edge=RIGHT)
-        ax.add(pi_label)
-        group = VGroup(ax, graph)
-
-        return group
-
-    def show_pixel_rows_for_cosine_freqs(self, cosine_waves, arrow):
-        new_group = VGroup(*[mob.copy() for mob in cosine_waves]).arrange(RIGHT, buff=0.7)
-        new_group.move_to(cosine_waves.get_center())
-        self.play(
-            FadeOut(arrow),
-            Transform(cosine_waves, new_group)
-        )
-        self.wait()
-
-        first_freq = new_group[0]
-        second_freq = new_group[2]
-        last_freq = new_group[-1]
-
-        first_freq_dct_pixels, _ = self.get_dct_component(1)
-        first_freq_pixel_row = self.make_row_of_pixels(first_freq_dct_pixels, height=SMALL_BUFF * 3)
-        first_freq_pixel_row.next_to(first_freq, UP)
-
-        second_freq_dct_pixels, _ = self.get_dct_component(2)
-        second_freq_pixel_row = self.make_row_of_pixels(second_freq_dct_pixels, height=SMALL_BUFF * 3)
-        second_freq_pixel_row.next_to(second_freq, UP)
-
-        last_freq_dct_pixels, _ = self.get_dct_component(7)
-        last_freq_pixel_row =  self.make_row_of_pixels(last_freq_dct_pixels, height=SMALL_BUFF * 3)
-        last_freq_pixel_row.next_to(last_freq, UP)
-
-        self.play(
-            FadeIn(first_freq_pixel_row),
-            FadeIn(second_freq_pixel_row),
-            FadeIn(last_freq_pixel_row),
-        )
-
-        self.wait()
-
-        weight1 = MathTex(r"X_1").next_to(first_freq_pixel_row, UP)
-        weight2 = MathTex(r"X_2").next_to(second_freq_pixel_row, UP)
-        weightn = MathTex(r"X_N").next_to(last_freq_pixel_row, UP)
-
-        self.play(
-            FadeIn(weight1),
-            FadeIn(weight2),
-            FadeIn(weightn)
-        )
-        self.wait()
-
-        cross = Cross(VGroup(last_freq_pixel_row, last_freq, weightn))
-        self.play(
-            Create(cross)
-        )
-        self.wait()
-
-        self.play(
-            FadeOut(cross),
-            FadeOut(weight1),
-            FadeOut(weight2),
-            FadeOut(weightn),
-            FadeOut(cosine_waves),
-            FadeOut(first_freq_pixel_row),
-            FadeOut(second_freq_pixel_row),
-            FadeOut(last_freq_pixel_row),
-        )
-
-    def describe_dct_broadly(self, ax, graph, dots, pixel_row_mob, dct_row_pixels):
-        group = VGroup(ax, graph, dots, pixel_row_mob)
-        self.play(
-            group.animate.move_to(LEFT * 3.5 + DOWN * 0.5)
-        )
-        self.wait()
-        general_vals = [f"x_{i}" for i in range(len(pixel_row_mob))]
-        array_mob_symbols = self.get_gen_array_obj(general_vals, length=pixel_row_mob.width, height=pixel_row_mob.height)
-        array_mob_symbols.next_to(pixel_row_mob, UP)
-
-        self.play(
-            FadeIn(array_mob_symbols)
-        )
-        self.wait()
-
-        forward_arrow = MathTex(r"\Rightarrow").scale(1.5).shift(RIGHT * SMALL_BUFF * 3)
-        self.play(
-            Write(forward_arrow)
-        )
-        self.wait()
-
-        pixel_space_group = VGroup(group, array_mob_symbols)
-
-        dct_ax = self.get_dct_axis(dct_row_pixels, -80, 80)
-
-        dct_graph, dct_points = self.plot_row_values(dct_ax, dct_row_pixels, color=REDUCIBLE_PURPLE)
-
-        dct_graph_components = VGroup(dct_ax, dct_graph, dct_points).move_to(RIGHT * 3.5 + DOWN * 0.5)
-        self.play(
-            Write(dct_ax),
-        )
-
-        vertical_lines = self.get_vertical_lines_from_points(dct_ax, dct_points)
-
-        self.play(
-            *[Create(line) for line in vertical_lines],
-            *[GrowFromCenter(dot) for dot in dct_points],
-        )
-        self.wait()
-
-        self.play(
-            Create(dct_graph)
-        )
-        self.wait()
-
-        general_dct_vals = [f"X_{i}" for i in range(len(pixel_row_mob))]
-
-        array_mob_dct_symbols = self.get_gen_array_obj(general_dct_vals, length=pixel_row_mob.width + 0.5, height=pixel_row_mob.height + SMALL_BUFF, color=REDUCIBLE_VIOLET)
-        array_mob_dct_symbols.next_to(pixel_row_mob, UP)
-        shift_amount = dct_graph_components.get_center()[0] - array_mob_dct_symbols.get_center()[0]
-        array_mob_dct_symbols.shift(RIGHT * (shift_amount + 0.3))
-
-        self.play(
-            FadeIn(array_mob_dct_symbols)
-        )
-        self.wait()
-
-        dct_space_group = VGroup(dct_graph_components, vertical_lines, array_mob_dct_symbols)
-
-        dct_coeff_description = Tex(r"$X_k$ is the contribution of cosine wave $C_k$")
-
-        dct_coeff_description.move_to(UP * 3.5)
-
-        next_question = Tex(r"What cosine waves $C_k$ should we use?").scale(0.8)
-
-        next_question.next_to(dct_coeff_description, DOWN)
-
-        self.play(
-            Write(dct_coeff_description)
-        )
-        self.wait()
-
-        self.play(
-            Write(next_question)
-        )
-
-        self.wait()
-
-        general_properties = Tex("What properties do we want?")
-        general_properties.move_to(UP * 3.5)
-
-        self.play(
-            ReplacementTransform(dct_coeff_description, general_properties),
-            FadeOut(next_question)
-        )
-        self.wait()
-
-        invertibility = Tex("Invertibility").move_to(general_properties.get_center())
-
-        forward_dct_group = VGroup(pixel_space_group, forward_arrow, dct_space_group)
-
-        self.play(
-            ReplacementTransform(general_properties, invertibility)
-        )
-        self.wait()
-
-        surround_rect_forward = SurroundingRectangle(forward_dct_group, color=REDUCIBLE_YELLOW, buff=MED_SMALL_BUFF)
-
-        self.play(
-            Create(surround_rect_forward)
-        )
-        self.wait()
-
-        self.play(
-            forward_dct_group.animate.scale(0.65).shift(UP * 1.5),
-            surround_rect_forward.animate.scale(0.65).shift(UP * 1.5)
-        )
-
-        self.wait()
-        shift_down = DOWN * 3.5
-        new_idct_group_left = dct_space_group.copy().move_to(pixel_space_group.get_center()).shift(shift_down)
-        new_idct_arrow = forward_arrow.copy().shift(shift_down)
-        new_idct_group_right = pixel_space_group.copy().move_to(dct_space_group.get_center()).shift(shift_down)
-
-        self.play(
-            TransformFromCopy(dct_space_group, new_idct_group_left)
-        )
-        self.wait()
-
-        self.play(
-            TransformFromCopy(forward_arrow, new_idct_arrow)
-        )
-        self.wait()
-
-        self.play(
-            TransformFromCopy(pixel_space_group, new_idct_group_right)
-        )
-        self.wait()
-
-        inverse_dct_group = VGroup(new_idct_group_left, new_idct_arrow, new_idct_group_right)
-
-        surround_rect_inverse = SurroundingRectangle(inverse_dct_group, color=REDUCIBLE_PURPLE, buff=MED_SMALL_BUFF)
-
-        self.play(
-            Create(surround_rect_inverse)
-        )
-        self.wait()
-
-        shift_left = LEFT * 2
-
-        self.play(
-            surround_rect_forward.animate.shift(shift_left),
-            surround_rect_inverse.animate.shift(shift_left),
-            forward_dct_group.animate.shift(shift_left),
-            inverse_dct_group.animate.shift(shift_left),
-        )
-        self.wait()
-
-        forward_transform = MathTex(r"\vec{X} = M \vec{x}")
-        forward_transform.next_to(surround_rect_forward, RIGHT).shift(RIGHT * 1.3)
-        inverse_transform = MathTex(r"\vec{x} = M^{-1} \vec{X}")
-        inverse_transform.next_to(surround_rect_inverse, RIGHT).shift(RIGHT * 1)
-
-        self.play(
-            FadeIn(forward_transform),
-            FadeIn(inverse_transform)
-        )
-        self.wait()
-
-        forward_dct_text = Tex("DCT").scale(1.2)
-        inverse_dct_text = Tex("IDCT").scale(1.2)
-
-        forward_dct_text.next_to(forward_transform, UP)
-        inverse_dct_text.next_to(inverse_transform, UP)
-
-        self.play(
-            FadeIn(forward_dct_text),
-            FadeIn(inverse_dct_text)
-        )
-        self.wait()
-
-        self.clear()
-
-    def derive_matrix(self):
-        matrix_m_def = Tex("How should we define matrix $M$?").move_to(UP * 3.5)
-        self.play(
-            Write(matrix_m_def)
-        )
-        self.wait()
-        row_values = np.ones(8) * 255
-        pixel_row_mob = self.make_row_of_pixels(row_values)
-        pixel_row_mob.next_to(matrix_m_def, DOWN * 2)
-
-        self.play(
-            FadeIn(pixel_row_mob)
-        )
-        self.wait()
-        row_values_centered = format_block(row_values)
-        print('After centering\n', row_values_centered)
-
-        dct_row_pixels = dct_1d(row_values_centered)
-        print(dct_row_pixels)
-
-        ax, graph, dots = self.draw_image_graph(dct_row_pixels)
-
-        self.show_graph(ax, graph, dots, pixel_row_mob)
-
-        cosine_graph = self.get_cosine_wave_with_ax(lambda x: np.cos(0))
-        cosine_graph.next_to(ax, DOWN)
-        cosine_freq_0_func = MathTex(r"y = \cos (0 \cdot x)")
-        cosine_freq_0_func.move_to(DOWN  * 3.5)
-        self.play(
-            FadeIn(cosine_graph),
-            FadeIn(cosine_freq_0_func)
-        )
-        self.wait()
-
-        group = VGroup(ax, graph, dots, pixel_row_mob)
-        self.play(
-            group.animate.move_to(LEFT * 3.5 + DOWN * 0.5),
-            FadeOut(cosine_graph),
-            FadeOut(cosine_freq_0_func)
-        )
-        self.wait()
-        array_mob = self.get_array_obj(row_values)
-        array_mob.next_to(pixel_row_mob, UP)
-
-        self.play(
-            FadeIn(array_mob)
-        )
-        self.wait()
-
-        forward_arrow = MathTex(r"\Rightarrow").scale(1.5).shift(RIGHT * SMALL_BUFF * 3)
-        self.play(
-            Write(forward_arrow)
-        )
-        self.wait()
-
-        pixel_space_group = VGroup(group, array_mob)
-
-        dct_ax = self.get_dct_axis(dct_row_pixels, -360, 360)
-
-        dct_graph, dct_points = self.plot_row_values(dct_ax, dct_row_pixels, color=REDUCIBLE_PURPLE)
-
-        dct_graph_components = VGroup(dct_ax, dct_graph, dct_points).move_to(RIGHT * 3.5 + DOWN * 0.5)
-        self.play(
-            Write(dct_ax),
-        )
-
-        vertical_lines = self.get_vertical_lines_from_points(dct_ax, dct_points)
-
-        self.play(
-            *[Create(line) for line in vertical_lines],
-            *[GrowFromCenter(dot) for dot in dct_points],
-        )
-        self.wait()
-
-        self.play(
-            Create(dct_graph)
-        )
-        self.wait()
-
-        general_dct_vals = ["X_0"] + ["0"] * 7
-
-        array_mob_dct_symbols = self.get_gen_array_obj(general_dct_vals, length=pixel_row_mob.width + 0.5, height=pixel_row_mob.height + SMALL_BUFF, color=REDUCIBLE_VIOLET)
-        array_mob_dct_symbols.next_to(pixel_row_mob, UP)
-        shift_amount = dct_graph_components.get_center()[0] - array_mob_dct_symbols.get_center()[0]
-        array_mob_dct_symbols.shift(RIGHT * (shift_amount + 0.3))
-
-        self.play(
-            FadeIn(array_mob_dct_symbols)
-        )
-        self.wait()
-
-        dct_space_group = VGroup(dct_graph_components, vertical_lines, array_mob_dct_symbols)
-        entire_group = VGroup(pixel_space_group, forward_arrow, dct_space_group)
-
-        self.play(
-            entire_group.animate.scale(0.7).shift(UP * 1.5)
-        )
-        self.wait()
-
-        dct_graph_group = VGroup(dct_ax, dct_graph, dct_points, vertical_lines)
-
-        matrix = self.get_matrix_m()
-
-        vector = self.make_column_vector(row_values)
-        vector.next_to(matrix, RIGHT)
-
-        equals = MathTex("=").scale(1.5)
-
-        result_vector = self.make_column_vector(general_dct_vals)
-        result_vector.next_to(vector, RIGHT)
-
-        matrix_equation = VGroup(matrix, vector, equals, result_vector).arrange(RIGHT, buff=0.5)
-
-        matrix_equation.move_to(DOWN * 2)
-
-        self.play(
-            FadeIn(matrix_equation)
-        )
-
-        self.wait()
-
-        self.play(
-            Indicate(matrix[1][1:])
-        )
-        self.wait()
-
-        self.play(
-            Indicate(vector)
-        )
-        self.wait()
-
-        self.play(
-            LaggedStartMap(Indicate, result_vector[0][1:])
-        )
-        self.wait()
-
-        original_first_row_matrix = matrix[1][0]
-
-        first_row = VGroup(*[Integer(1).scale(0.8) for _ in range(8)]).arrange(RIGHT, buff=0.4).move_to(original_first_row_matrix.get_center())
-        # first_row.stretch_to_fit_width(original_first_row_matrix.width)
-        self.play(
-            Transform(original_first_row_matrix, first_row)
-        )
-        self.wait()
-
-        norm_first_row = VGroup(*[MathTex(r"\frac{1}{\sqrt{8}}").scale(0.6).move_to(element.get_center()) for element in first_row])
-
-        self.play(
-            Transform(original_first_row_matrix, norm_first_row)
-        )
-        self.wait()
-
-        self.center_about_zero_and_animate(matrix_m_def, pixel_space_group, dct_graph_group, vector)
-
-    def center_about_zero_and_animate(self, matrix_m_def, pixel_space_group, dct_graph_group, original_vec):
-        group, array = pixel_space_group
-        ax, graph, dots, pixel_row_mob = group
-
-        tracker = ValueTracker(127)
-
-        def get_new_pixel_space_group():
-            row_values = np.ones(8) * tracker.get_value()
-            pixel_row_mob = self.make_row_of_pixels(row_values + 128)
-            pixel_row_mob.next_to(matrix_m_def, DOWN * 2)
-
-            dct_row_pixels = dct_1d(row_values)
-
-            ax, graph, dots = self.draw_image_graph(dct_row_pixels, centered=True)
-
-            self.show_graph(ax, graph, dots, pixel_row_mob, animate=False)
-
-            group = VGroup(ax, graph, dots, pixel_row_mob)
-            group.move_to(LEFT * 3.5 + DOWN * 0.5)
-            length = 5 
-            if tracker.get_value() <= -99.5:
-                length = 5.5
-            array_mob = self.get_array_obj(row_values, length=length)
-            array_mob.next_to(pixel_row_mob, UP)
-
-            new_pixel_space_group = VGroup(group, array_mob)
-            new_pixel_space_group.scale(0.75).move_to(pixel_space_group.get_center())
-
-            return new_pixel_space_group
-
-        def get_new_dct_space_group():
-            row_values = np.ones(8) * tracker.get_value()
-            dct_row_pixels = dct_1d(row_values)
-            dct_ax = self.get_dct_axis(dct_row_pixels, -360, 360)
-
-            dct_graph, dct_points = self.plot_row_values(dct_ax, dct_row_pixels, color=REDUCIBLE_PURPLE)
-
-            dct_graph_components = VGroup(dct_ax, dct_graph, dct_points).move_to(RIGHT * 3.5 + DOWN * 0.5)
-
-            vertical_lines = self.get_vertical_lines_from_points(dct_ax, dct_points)
-
-            new_dct_graph_group = VGroup(dct_ax, dct_graph, dct_points, vertical_lines)
-            new_dct_graph_group.scale(0.7).move_to(dct_graph_group.get_center())
-            return new_dct_graph_group
-
-        def get_new_column_vector():
-            row_values = np.ones(8) * tracker.get_value()
-            column_vec = self.make_column_vector(row_values)
-            return column_vec.move_to(original_vec.get_center())
-
-        new_pixel_space_group = always_redraw(get_new_pixel_space_group)
-        new_dct_graph_group = always_redraw(get_new_dct_space_group)
-        new_column_vector = always_redraw(get_new_column_vector)
-
-        self.play(
-            ReplacementTransform(pixel_space_group, new_pixel_space_group),
-            ReplacementTransform(dct_graph_group, new_dct_graph_group),
-            ReplacementTransform(original_vec, new_column_vector)
-        )
-        self.wait()
-
-        self.play(
-            tracker.animate.set_value(-128),
-            run_time=5,
-            rate_func=linear,
-        )
-
-        self.play(
-            tracker.animate.set_value(127),
-            run_time=5,
-            rate_func=linear,
-        )
-
-        self.wait()
-
-    def get_matrix_m(self):
-        row0 = self.get_cosine_row_tex(0)
-        row1 = self.get_cosine_row_tex(1)
-        vdots = MathTex(r"\vdots")
-        row7 = self.get_cosine_row_tex(7)
-
-        rows = VGroup(row0, row1, vdots, row7).arrange(DOWN).move_to(DOWN * 2)
-        bracket_pair = MathTex("[", "]")
-        bracket_pair.scale(2)
-        bracket_v_buff = MED_SMALL_BUFF
-        bracket_h_buff = MED_SMALL_BUFF
-        bracket_pair.stretch_to_fit_height(rows.height + 2 * bracket_v_buff)
-        l_bracket, r_bracket = bracket_pair.split()
-        l_bracket.next_to(rows, LEFT, bracket_h_buff)
-        r_bracket.next_to(rows, RIGHT, bracket_h_buff)
-        brackets = VGroup(l_bracket, r_bracket)
-
-        return VGroup(brackets, rows)
-
-    def make_column_vector(self, values):
-        integer_values = []
-        for value in values:
-            if isinstance(value, str):
-                integer_values.append(value)
-            else:
-                integer_values.append(int(value))
-        vector = Matrix([[value] for value in integer_values], v_buff=0.6, element_alignment_corner=DOWN)
-        return vector.scale(0.6)
-
-    def get_cosine_row_tex(self, index):
-        text = MathTex(f"C_{index}^T").scale(0.8)
-        left_arrow = Arrow(RIGHT * 2, ORIGIN, stroke_width=3, max_tip_length_to_length_ratio=0.15).next_to(text, LEFT).set_color(WHITE)
-        right_arrow = Arrow(ORIGIN, RIGHT * 2, stroke_width=3, max_tip_length_to_length_ratio=0.15).next_to(text, RIGHT).set_color(WHITE)
-
-        return VGroup(left_arrow, text, right_arrow)
-
-    def get_vertical_lines_from_points(self, dct_ax, dct_points):
-        x_axis_points = [dct_ax.x_axis.n2p(i) for i in range(len(dct_points))]
-        vertical_lines = [Line(start, end_point.get_center()).set_stroke(color=REDUCIBLE_VIOLET, width=8) for start, end_point in zip(x_axis_points, dct_points)]
-        return VGroup(*vertical_lines)
-
-    def get_gen_array_obj(self, values, length=5, height=0.5, color=REDUCIBLE_GREEN_LIGHTER):
-        array = VGroup(*[Rectangle(height=height, width=length/len(values)) for _ in values]).arrange(RIGHT, buff=0)
-        array.set_color(color)
-        array_text = VGroup(*[MathTex(val).scale(0.6).move_to(array[i].get_center()) for i, val in enumerate(values)])
-        return VGroup(array, array_text)
-
-    def make_row_of_pixels(self, row_values, height=SMALL_BUFF*5, num_pixels=8):
-        row_length = height * num_pixels
-        adjusted_row_values = []
-        for val in row_values:
-            adjusted_row_values.append(int(round(val)))
-        pixel_row_mob = VGroup(
-            *[
-                Rectangle(height=height, width=row_length / num_pixels)
-                .set_stroke(color=REDUCIBLE_GREEN_LIGHTER)
-                .set_fill(color=gray_scale_value_to_hex(value), opacity=1)
-                for value in adjusted_row_values
-            ]
-        ).arrange(RIGHT, buff=0)
-        return pixel_row_mob
-
-    def get_dct_component(self, col, new_value=250, num_pixels=8):
-        dct_row = np.zeros((num_pixels,))
-        dct_row[col] = new_value
-        return idct_1d(dct_row) + 128, dct_row
-
-class CosineSampling(MotivateDCT):
-    def construct(self):
-        ax, graph, cosine_label = self.introduce_cosine()
-        dots = self.get_dots(ax, graph)
-        line_intervals = self.get_intervals(ax, graph)
-        ticks = self.get_ticks_for_x_axis()
-        vertical_lines = self.get_vertical_lines_from_points(ax, dots)
-
-        self.play(
-            *[GrowFromCenter(line) for line in line_intervals],
-            *[Write(tick) for tick in ticks]
-        )
-        self.wait()
-
-        self.play(
-            LaggedStartMap(Create, vertical_lines),
-            run_time=2
-        )
-        self.play(
-            LaggedStartMap(GrowFromCenter, dots)
-        )
-        self.wait()
-
-        labels = self.show_sample_x_vals(vertical_lines)
-
-    def introduce_cosine(self):
-        ax, graph  = self.get_cosine_wave_with_ax(lambda x: np.cos(x))
-        self.play(
-            Write(ax)
-        )
-        self.wait()
-
-        self.play(
-            Create(graph)
-        )
-        self.wait()
-
-        cosine_label = MathTex(r"y = \cos(x)")
-        cosine_label.next_to(graph, DOWN)
-        self.play(
-            Write(cosine_label)
-        )
-        self.wait()
-        return ax, graph, cosine_label
-
-    def get_x_y_points(self):
-        x_points = [(j * 2 + 1) * np.pi / 16 for j in range(8)]
-        y_points = [np.cos(x) for x in x_points]
-        return x_points, y_points
-
-    def get_dots(self, ax, graph, color=REDUCIBLE_YELLOW):
-        x_points, y_points = self.get_x_y_points()
-        points = [ax.coords_to_point(x, y) for x, y in zip(x_points, y_points)]
-
-        dots = VGroup(*[Dot().set_color(color).move_to(p) for p in points])
-        return dots
-
-    def get_intervals(self, ax, graph):
-        proportions = np.arange(0, np.pi + 0.0001, np.pi / 8)
-        lines = []
-        for i in range(len(proportions) - 1):
-            start, end = proportions[i], proportions[i + 1]
-            start_point, end_point = ax.x_axis.n2p(start), ax.x_axis.n2p(end)
-            line = Line(start_point, end_point).set_stroke(width=5)
-            if i % 2 == 0:
-                line.set_color(REDUCIBLE_GREEN_LIGHTER)
-            else:
-                line.set_color(REDUCIBLE_GREEN_DARKER)
-
-            lines.append(line)
-
-        return lines
-
-    def show_sample_x_vals(self, vertical_lines):
-        labels = VGroup(*[MathTex(r"\frac{\pi}{16}").scale(0.7)] + [MathTex(r"\frac{" + str(2 * i + 1) + r"\pi}{16}").scale(0.6) for i in range(1, len(vertical_lines))])
-        for label, line in zip(labels, vertical_lines):
-            direction = normalize(line.get_start() - line.get_end())
-            direction = np.array([int(c) for c in direction])
-            label.next_to(line, direction)
-
-        self.play(
-            FadeIn(labels)
-        )
-        self.wait()
-        return labels
-
-    def get_cosine_wave_with_ax(self, cosine_function):
-        ax = Axes(
-            x_range=[0, np.pi],
-            y_range=[-1, 1],
-            x_length=10,
-            y_length=5.5,
-            tips=False,
-            x_axis_config={"include_numbers": False, "include_ticks": False},
-            y_axis_config={"include_numbers": True, "numbers_to_exclude": [0], "include_ticks": False}
-        )
-
-        graph = ax.plot(cosine_function).set_color(REDUCIBLE_YELLOW)
-        pi_label = MathTex(r"\pi")
-        pi_label.next_to(ax.x_axis, DOWN, aligned_edge=RIGHT)
-        ax.add(pi_label)
-
-        group = VGroup(ax, graph)
-
-        return group
-
-    def get_ticks_for_x_axis(self):
-        ax = Axes(
-            x_range=[0, np.pi, np.pi / 8],
-            y_range=[-1, 1],
-            x_length=10,
-            y_length=5.5,
-            tips=False,
-            x_axis_config={"include_numbers": False, "include_ticks": True},
-            y_axis_config={"include_numbers": True, "numbers_to_exclude": [0], "include_ticks": False}
-        )
-        return ax.x_axis.ticks
-
-    def get_vertical_lines_from_points(self, ax, points):
-        x_points = [ax.x_axis.n2p(p) for p in self.get_x_y_points()[0]]
-        vertical_lines = [Line(start_point, end.get_center()).set_stroke(color=REDUCIBLE_VIOLET, width=8) for start_point, end in zip(x_points, points)]
-        return VGroup(*vertical_lines)
-
-class RevisedMotivateDCT(MotivateDCT):
-    def construct(self):
-        image_mob = ImageMobject("dog").move_to(UP * 2)
-        block_image, pixel_grid, block = self.get_pixel_block(image_mob, 126, 126)
-        row = 7
-        print(block[:, :, 0])
-        print(f"Block row: {row}\n", block[:, :, 0][row])
-        pixel_row_mob, row_values = self.get_pixel_row_mob(block, row)
-        print("Selected row values\n", row_values)
-        pixel_row_mob.move_to(UP * 3)
-        self.play(
-            FadeIn(pixel_row_mob)
-        )
-        self.wait()
-
-        row_values_centered = format_block(row_values)
-        print('After centering\n', row_values_centered)
-
-        dct_row_pixels = dct_1d(row_values_centered)
-
-        ax, graph, dots = self.draw_image_graph(dct_row_pixels)
-
-        self.show_graph(ax, graph, dots, pixel_row_mob)
-
-        self.show_summing_different_cosine_waves(graph, dots)
-
-        self.describe_dct_broadly(ax, graph, dots, pixel_row_mob, dct_row_pixels)
-
-        self.clear()
-
-        self.experiment_with_cosine()
-
-    def show_summing_different_cosine_waves(self, graph, original_dots):
-        arrow = MathTex(r"\Updownarrow")
-
-        arrow.next_to(graph, DOWN).shift(DOWN * 1)
-
-        self.play(
-            Write(arrow)
-        )
-        self.wait()
-
-        first_freq, first_axes = self.get_cosine_wave(lambda x: np.cos(x))
-        second_freq, second_axes = self.get_cosine_wave(lambda x: np.cos(2 * x))
-        last_freq, last_axes = self.get_cosine_wave(lambda x: np.cos(7 * x))
-
-        first_freq_dots = self.get_dots(first_axes, first_freq, 1)
-        second_freq_dots = self.get_dots(second_axes, second_freq, 2)
-        last_freq_dots = self.get_dots(last_axes, last_freq, 7)
-
-        first_cosine_graph = VGroup(first_freq, first_freq_dots)
-        second_cosine_graph = VGroup(second_freq, second_freq_dots)
-        last_cosine_graph = VGroup(last_freq, last_freq_dots)
-
-        plus = MathTex("+")
-        ellipses = MathTex(r"\cdots")
-
-        group = VGroup(first_cosine_graph, plus, second_cosine_graph, plus.copy(), ellipses, plus.copy(), last_cosine_graph).arrange(RIGHT)
-
-        group.next_to(arrow, DOWN * 2)
-
-        self.play(
-            FadeIn(group)
-        )
-        self.wait()
-
-        self.emphasize_sampled_points(original_dots, first_freq_dots, second_freq_dots, last_freq_dots)
-
-        self.emphasize_continuous_funcs(graph, first_freq[0], second_freq[0], last_freq[0])
-
-        self.second_empasize_points(original_dots, first_freq_dots, second_freq_dots, last_freq_dots)
-
-        self.play(
-            FadeOut(group),
-            FadeOut(arrow)
-        )
-        self.wait()
-
-    def emphasize_sampled_points(self, original_dots, cosine_1_dots, cosine_2_dots, cosine_7_dots): 
-        group_of_dots = []
-        for i in range(len(original_dots)):
-            group_of_dots.append(VGroup(original_dots[i], cosine_1_dots[i], cosine_2_dots[i], cosine_7_dots[i]))
-
-        self.play(
-            LaggedStartMap(Indicate, group_of_dots),
-            run_time=3
-        )
-        self.wait()
-
-    def emphasize_continuous_funcs(self, original_graph, cosine_1_graph, cosine_2_graph, cosine_7_graph):
-        self.play(
-            ApplyWave(original_graph),
-            ApplyWave(cosine_1_graph),
-            ApplyWave(cosine_2_graph),
-            ApplyWave(cosine_7_graph),
-            run_time=2
-        )
-        self.wait()
-
-    def second_empasize_points(self, original_dots, cosine_1_dots, cosine_2_dots, cosine_7_dots):
-        self.play(
-            Indicate(VGroup(original_dots, cosine_1_dots, cosine_2_dots, cosine_7_dots))
-        )
-        self.wait()
-
-    def describe_dct_broadly(self, ax, graph, dots, pixel_row_mob, dct_row_pixels):
-        group = VGroup(ax, graph, dots, pixel_row_mob)
-        self.play(
-            group.animate.move_to(LEFT * 3.5 + DOWN * 0.5)
-        )
-        self.wait()
-        general_vals = [f"x_{i}" for i in range(len(pixel_row_mob))]
-        array_mob_symbols = self.get_gen_array_obj(general_vals, length=pixel_row_mob.width, height=pixel_row_mob.height)
-        array_mob_symbols.next_to(pixel_row_mob, UP)
-
-        self.play(
-            FadeIn(array_mob_symbols)
-        )
-        self.wait()
-
-        forward_arrow = MathTex(r"\Rightarrow").scale(1.5).shift(RIGHT * SMALL_BUFF * 3)
-        self.play(
-            Write(forward_arrow)
-        )
-        self.wait()
-
-        pixel_space_group = VGroup(group, array_mob_symbols)
-
-        dct_ax = self.get_dct_axis(dct_row_pixels, -80, 80)
-
-        dct_graph, dct_points = self.plot_row_values(dct_ax, dct_row_pixels, color=REDUCIBLE_PURPLE)
-
-        dct_graph_components = VGroup(dct_ax, dct_graph, dct_points).move_to(RIGHT * 3.5 + DOWN * 0.5)
-        self.play(
-            Write(dct_ax),
-        )
-
-        vertical_lines = self.get_vertical_lines_from_points(dct_ax, dct_points)
-
-        self.play(
-            *[Create(line) for line in vertical_lines],
-            *[GrowFromCenter(dot) for dot in dct_points],
-        )
-        self.wait()
-
-        self.play(
-            Create(dct_graph)
-        )
-        self.wait()
-
-        general_dct_vals = [f"X_{i}" for i in range(len(pixel_row_mob))]
-
-        array_mob_dct_symbols = self.get_gen_array_obj(general_dct_vals, length=pixel_row_mob.width + 0.5, height=pixel_row_mob.height + SMALL_BUFF, color=REDUCIBLE_VIOLET)
-        array_mob_dct_symbols.next_to(pixel_row_mob, UP)
-        shift_amount = dct_graph_components.get_center()[0] - array_mob_dct_symbols.get_center()[0]
-        array_mob_dct_symbols.shift(RIGHT * (shift_amount + 0.3))
-
-        self.play(
-            FadeIn(array_mob_dct_symbols)
-        )
-        self.wait()
-
-        dct_space_group = VGroup(dct_graph_components, vertical_lines, array_mob_dct_symbols)
-
-        dct_coeff_label = Tex("DCT coefficients").scale(0.8)
-        brace = Brace(array_mob_dct_symbols, direction=UP)
-        self.play(
-            GrowFromCenter(brace)
-        )
-        dct_coeff_label.next_to(brace, UP)
-        self.play(
-            Write(dct_coeff_label)
-        )
-        self.wait()
-
-        dct_coeff_description = Tex(r"Coefficient $X_k$ is the contribution of cosine wave $C_k$")
-
-        dct_coeff_description.move_to(UP * 3.5)
-
-        shift_up = UP * 1
-        self.play(
-            FadeOut(dct_coeff_label),
-            FadeOut(brace),
-            forward_arrow.animate.shift(shift_up),
-            pixel_space_group.animate.shift(shift_up),
-            dct_space_group.animate.shift(shift_up),
-            Write(dct_coeff_description)
-        )
-        self.wait()
-
-
-        next_question = Tex(r"What cosine waves $C_k$ should we use?")
-
-        next_question.move_to(dct_coeff_description.get_center())
-
-        self.show_dct_intuiton(graph, dots, array_mob_dct_symbols)
-        self.play(
-            ReplacementTransform(dct_coeff_description, next_question)
-        )
-
-        self.wait()
-
-        image_connection = Tex("How do cosine waves relate to pixels on an image?")
-        image_connection.move_to(next_question.get_center())
-
-        self.play(
-            ReplacementTransform(next_question, image_connection)
-        )
-        self.wait()
-
-    def show_dct_intuiton(self, graph, dots, array_mob_dct_symbols):
-        original_smaller_wave = VGroup(graph.copy().scale(0.7), dots.copy().scale(0.7))
-        original_smaller_wave.move_to(DOWN * 2.5).to_edge(LEFT * 2)
-        surround_rect = SurroundingRectangle(original_smaller_wave)
-
-        original_wave_component = VGroup(original_smaller_wave, surround_rect)
-
-        equals = MathTex("=")
-
-        plus = MathTex("+")
-
-        ellipses = MathTex(r"\cdots")
-
-        cosine_0 = self.make_cosine_component_with_weight(0, 1)
-
-        cosine_1 = self.make_cosine_component_with_weight(1, 2)
-
-        cosine_7 = self.make_cosine_component_with_weight(7, 7)
-
-        intuition_equation = VGroup(
-            original_wave_component,
-            equals,
-            cosine_0,
-            plus,
-            cosine_1,
-            plus.copy(),
-            ellipses,
-            plus.copy(),
-            cosine_7
-        ).arrange(RIGHT).move_to(DOWN * 2.6)
-
-        self.play(
-            TransformFromCopy(graph, original_smaller_wave[0]),
-            TransformFromCopy(dots, original_smaller_wave[1]),
-        )
-
-        self.play(
-            Create(surround_rect)
-        )
-        self.wait()
-
-        self.play(
-            Write(equals)
-        )
-        self.wait()
-
-        transforms = self.get_transforms_for_coefficients(array_mob_dct_symbols[1], [cosine_0[0], cosine_1[0], cosine_7[0]], ellipses)
-
-        self.play(
-            FadeIn(cosine_0[1]),
-            FadeIn(cosine_0[2]),
-            FadeIn(cosine_1[1]),
-            FadeIn(cosine_1[2]),
-            FadeIn(cosine_7[1]),
-            FadeIn(cosine_7[2]),
-            FadeIn(intuition_equation[3]),
-            FadeIn(intuition_equation[5]),
-            FadeIn(intuition_equation[6]),
-            FadeIn(intuition_equation[7]),
-            *transforms,
-            run_time=2
-        )
-        self.wait()
-
-    def get_transforms_for_coefficients(self, array_mob_dct_symbols, new_weights, ellipses):
-        transforms = []
-        for i, element in enumerate(array_mob_dct_symbols):
-            if i not in [0, 1, 7]:
-                new_element = element.copy().move_to(ellipses.get_center()).set_stroke(opacity=0).set_fill(opacity=0)
-            elif i == 7:
-                new_element = new_weights[2]
-            else:
-                new_element = new_weights[i]
-            transforms.append(TransformFromCopy(element, new_element))
-        return transforms
-
-    def make_cosine_component_with_weight(self, index, k):
-        graph, _ = self.get_cosine_wave(lambda x: np.cos(x * k))
-        text = MathTex(f"C_{index}")
-        graph[0].set_stroke(opacity=0.3)
-        text.scale(1.5).move_to(graph.get_center())
-        weight_cosine = MathTex(f"X_{index}")
-        weight_cosine.next_to(graph, LEFT, buff=SMALL_BUFF)
-        return VGroup(weight_cosine, graph, text).scale(0.75)
-
-    def experiment_with_cosine(self):
-        ax, graph, cosine_label = self.introduce_cosine(1)
-
-        cosine_group = VGroup(ax, graph, cosine_label)
-
-        question = self.show_input_to_dct(cosine_group)
-
-        cosine_graph_component = self.show_sampling_scheme(cosine_group, question)
-
-    def introduce_cosine(self, k):
-        ax, graph  = self.get_cosine_wave_with_ax(lambda x: np.cos(k * x))
-        self.play(
-            Write(ax)
-        )
-        self.wait()
-
-        self.play(
-            Create(graph)
-        )
-        self.wait()
-
-        cosine_label = MathTex(r"y = \cos(x)").scale(1.2)
-        cosine_label.next_to(graph, DOWN)
-        self.play(
-            Write(cosine_label)
-        )
-        self.wait()
-        return ax, graph, cosine_label
-
-    def show_input_to_dct(self, cosine_group):
-        self.play(
-            cosine_group.animate.scale(0.5).shift(LEFT * 3.5)
-        )
-        self.wait()
-
-        right_arrow = MathTex(r"\Rightarrow").scale(1.5)
-        right_arrow.next_to(cosine_group[0], RIGHT)
-
-        right_arrow.shift(RIGHT * -right_arrow.get_center()[0])
-
-        dct_component_label = Tex(r"DCT($y$)")
-        dct_component_label.next_to(right_arrow, UP)
-
-        arrow_and_label = VGroup(right_arrow, dct_component_label)
-
-        box_around_cosine = SurroundingRectangle(cosine_group, color=REDUCIBLE_VIOLET, buff=SMALL_BUFF)
-
-        dct_mystery_component, box_around_dct = self.get_dct_mystery_component()
-
-        arrow_and_label.move_to((box_around_cosine.get_right() + box_around_dct.get_left()) / 2)
-        
-        self.play(
-            Write(right_arrow),
-            Write(dct_component_label),
-        )
-        self.wait()
-
-        question_mark = Tex("?").scale(4)
-
-        question_mark.move_to(dct_mystery_component.get_center())
-
-        self.play(
-            FadeIn(dct_mystery_component),
-            FadeIn(question_mark),
-            Create(box_around_dct)
-        )
-        self.wait()
-        problem = Tex("Problem: we need sampled points on our cosine wave")
-        problem.move_to(UP * 3.5)
-
-        question = Tex("How should we sample the cosine function?").move_to(problem.get_center())
-
-        self.play(
-            Create(box_around_cosine),
-            Write(problem)
-        )
-        self.wait()
-
-        self.play(
-            FadeOut(right_arrow),
-            FadeOut(dct_component_label),
-            FadeOut(dct_mystery_component),
-            FadeOut(question_mark),
-            FadeOut(box_around_cosine),
-            FadeOut(problem),
-            FadeOut(box_around_dct),
-            cosine_group.animate.scale(2).shift(RIGHT * 3.5),
-            ReplacementTransform(problem, question)
-        )
-
-        return question
-
-    def get_dct_mystery_component(self):
-        min_x, min_y = -80, 80
-        random_dct_row = np.array([np.random.uniform(min_x, min_y) for _ in range(8)])
-        dct_ax = self.get_random_dct_axis(random_dct_row, min_x, min_y)
-
-        dct_graph, dct_points = self.plot_row_values(dct_ax, random_dct_row, color=REDUCIBLE_PURPLE)
-
-        vertical_lines = self.get_vertical_lines_from_points(dct_ax, dct_points)
-        dct_graph_components = VGroup(dct_ax, dct_graph, dct_points, vertical_lines).scale(1.1).move_to(RIGHT * 3.7 + DOWN * 0.3)
-        surround_rect = SurroundingRectangle(dct_graph_components, color=REDUCIBLE_PURPLE)
-        # dct_graph_components.set_stroke(opacity=0.5).set_fill(opacity=0.5)
-
-        return dct_graph_components.fade(0.8), surround_rect
-
-    def get_random_dct_axis(self, dct_row, min_y, max_y):
-        ax = Axes(
-            x_range=[0, dct_row.shape[0] - 1, 1],
-            y_range=[min_y, max_y, 1],
-            y_length=3,
-            x_length=4.375,
-            tips=False,
-            axis_config={"include_numbers": True, "include_ticks": False},
-            x_axis_config={"numbers_to_exclude": list(range(1, dct_row.shape[0] + 1))},
-            y_axis_config={"numbers_to_exclude": list(range(min_y, max_y + 1))},
-        )
-        return ax
-
-    def show_sampling_scheme(self, cosine_group, question):
-        ax, graph, cosine_label = cosine_group
-        dots = self.get_dots(ax, graph, 1, scale=1)
-        line_intervals = self.get_intervals(ax, graph)
-        ticks = self.get_ticks_for_x_axis()
-        vertical_lines = self.get_cosine_vertical_lines_from_points(ax, dots, 1)
-
-        self.play(
-            *[GrowFromCenter(line) for line in line_intervals],
-            *[Write(tick) for tick in ticks]
-        )
-        self.wait()
-
-        self.play(
-            LaggedStartMap(Create, vertical_lines)
-        )
-        self.wait()
-
-        self.play(
-            LaggedStartMap(GrowFromCenter, dots),
-        )
-        self.wait()
-
-        labels = self.show_sample_x_vals(vertical_lines)
-
-        cosine_sampling_math = MathTex(r"y_n = \cos \left[\frac{(2n+1) \pi}{16}\right]", r"\quad n \in \{0, 1, \ldots , 7\}").scale(0.9)
-
-        cosine_sampling_math.move_to(cosine_label.get_center())
-
-        self.play(
-            ReplacementTransform(cosine_label, cosine_sampling_math)
-        )
-        self.wait()
-
-        cosine_sampling_general = MathTex(r"y_n = \cos \left[\frac{(2n+1) \pi}{2N}\right]", r"\quad n \in \{0, 1, \ldots , N - 1\}").scale(0.9)
-
-        cosine_sampling_general.move_to(cosine_label.get_center())
-
-        self.play(
-            ReplacementTransform(cosine_sampling_math, cosine_sampling_general)
-        )
-        self.wait()
-        
-        cosine_function_sample_group = VGroup(ax, graph, dots, line_intervals, ticks, vertical_lines)
-        self.play(
-            FadeOut(labels),
-            FadeOut(question),
-            FadeOut(cosine_sampling_general),
-            cosine_function_sample_group.animate.scale(0.5).shift(LEFT * 3.5)
-        )
-
-        self.play(
-            *[ScaleInPlace(dot, 1.4) for dot in dots],
-        )
-        self.wait()
-
-        y_labels = [f"y_{i}" for i in range(8)]
-
-        cosine_y_array = self.get_gen_array_obj(y_labels, color=REDUCIBLE_GREEN_LIGHTER)
-
-        cosine_y_array.next_to(cosine_function_sample_group, UP * 2.5)
-
-        self.play(
-            FadeIn(cosine_y_array)
-        )
-
-        upper_brace = Brace(cosine_y_array, direction=UP)
-        vector_y_label = MathTex(r"\vec{y}").next_to(upper_brace, UP)
-
-        self.play(
-            GrowFromCenter(upper_brace),
-            Write(vector_y_label)
-        )
-        self.wait()
-
-        right_arrow = MathTex(r"\Rightarrow").scale(1.5)
-        right_arrow.next_to(cosine_function_sample_group[0], RIGHT)
-
-        right_arrow.shift(RIGHT * -right_arrow.get_center()[0])
-
-        dct_component_label = Tex(r"DCT($\vec{y}$)")
-        dct_component_label.next_to(right_arrow, UP)
-
-        arrow_and_label = VGroup(right_arrow, dct_component_label)
-
-        box_around_cosine = SurroundingRectangle(cosine_function_sample_group, color=REDUCIBLE_VIOLET, buff=SMALL_BUFF)
-
-        dct_mystery_component, box_around_dct = self.get_dct_mystery_component()
-
-        arrow_and_label.move_to((box_around_cosine.get_right() + box_around_dct.get_left()) / 2)
-        
-        self.play(
-            Write(right_arrow),
-            Write(dct_component_label),
-        )
-
-        self.wait()
-
-        question_mark = Tex("?").scale(4)
-
-        question_mark.move_to(dct_mystery_component.get_center())
-
-        self.play(
-            FadeIn(dct_mystery_component),
-            FadeIn(question_mark),
-            Create(box_around_dct)
-        )
-        self.wait()
-
-        dct_coeff_labels = [f"X_{i}" for i in range(8)]
-        dct_coeff_array = self.get_gen_array_obj(dct_coeff_labels, color=REDUCIBLE_VIOLET)
-
-        dct_coeff_array.next_to(box_around_dct, UP)
-
-        self.play(
-            FadeIn(dct_coeff_array)
-        )
-        self.wait()
-
-        self.play(
-            arrow_and_label.animate.shift(UP * 2.8 + LEFT * SMALL_BUFF)
-        )
-
-        self.play(
-            Circumscribe(dct_coeff_array, color=REDUCIBLE_YELLOW)
-        )
-        self.wait()
-
-        self.begin_various_cosine_experiments(cosine_function_sample_group, dct_mystery_component, question_mark, box_around_dct)
-
-        self.clear()
-
-        components = VGroup(*[self.get_generic_cosine_component(i) for i in range(8)])
-        components.arrange_in_grid(rows=2, buff=0.5)
-
-        surround_rect = SurroundingRectangle(components, buff=MED_SMALL_BUFF)
-
-        self.play(
-            FadeIn(components)
-        )
-        self.wait()
-
-        self.play(
-            Create(surround_rect)
-        )
-        self.wait()
-
-        sigma = MathTex(r"\Sigma").scale(5).move_to(surround_rect.get_center())
-        self.play(
-            Write(sigma),
-            components.animate.fade(0.7)
-        )
-        self.wait()
-
-        down_arrow = MathTex(r"\Downarrow").next_to(surround_rect, DOWN).scale(1.5)
-
-        self.play(
-            Write(down_arrow)
-        )
-        self.wait()
-
-        def get_random_pixel_row():
-            random_values = np.array([np.random.uniform(0, 255) for _ in range(8)])
-            random_pix_mob = self.make_row_of_pixels(random_values, height=0.8)
-            random_pix_mob.next_to(down_arrow, DOWN)
-            return random_pix_mob
-
-        random_pix_mob = get_random_pixel_row()
-
-        self.play(
-            FadeIn(random_pix_mob)
-        )
-        self.wait()
-
-        for _ in range(20):
-            random_pix_mob.become(get_random_pixel_row())
-            self.wait(0.5)
-
-    def begin_various_cosine_experiments(self, cosine_function_sample_group, dct_mystery_component, question_mark, box_around_dct):
-        frequency_tracker = ValueTracker(1)
-        amplitude_tracker = ValueTracker(1)
-        y_intercept_tracker = ValueTracker(0)
-
-        def get_input_points():
-            k = frequency_tracker.get_value()
-            a = amplitude_tracker.get_value()
-            b = y_intercept_tracker.get_value()
-            return np.array([a * np.cos((j * 2 + 1) * k * np.pi / 16) + b for j in range(8)])
-
-        def get_dct_values():
-            input_points = get_input_points()
-            return dct_1d(input_points)
-
-        def get_dots(ax, graph, scale=1, color=REDUCIBLE_YELLOW):
-            x_points = [(j * 2 + 1) * np.pi / 16 for j in range(8)]
-            y_points = get_input_points()
-            points = [ax.coords_to_point(x, y) for x, y in zip(x_points, y_points)]
-            dots = VGroup(*[Dot().scale(scale).set_color(color).move_to(p) for p in points])
-            return dots
-
-        def get_cosine_vertical_lines_from_points(ax, points, color=REDUCIBLE_VIOLET):
-            x_points = [(j * 2 + 1) * np.pi / 16 for j in range(8)]
-            x_axis_points = [ax.x_axis.n2p(p) for p in x_points]
-            # print([(start_point, end.get_center()) start_point, end in zip(x_points, points)])
-            vertical_lines = [Line(start_point, end.get_center()).set_stroke(color=color, width=8) for start_point, end in zip(x_axis_points, points)]
-            return VGroup(*vertical_lines)
-
-        min_cos_y, max_cos_y = -5, 5
-        def get_input_cosine_graph():
-            nonlocal min_cos_y, max_cos_y
-            scale = 0.5
-            input_points = get_input_points()
-            #TODO: Fix this logic
-            if max(input_points) > max_cos_y or min(input_points) < min_cos_y:
-                max_cos_y = int((max(input_points) * 3) // 1 + 1)
-                min_cos_y = int((min(input_points) * 3) // 1 - 1)
-                max_cos_y = max(abs(max_cos_y), abs(min_cos_y))
-                min_cos_y = -max_cos_y
-            
-                if max_cos_y > 127:
-                    max_cos_y = 128
-                    min_cos_y = -128
-
-            location = cosine_function_sample_group.get_center()
-            k = frequency_tracker.get_value()
-            a = amplitude_tracker.get_value()
-            b = y_intercept_tracker.get_value()
-            ax, graph  = self.get_cosine_wave_with_ax(lambda x: a * np.cos(x * k) + b, min_y=min_cos_y, max_y=max_cos_y)
-            
-            dots = get_dots(ax, graph)
-            for dot in dots:
-                dot.scale(1.4)
-
-            line_intervals = self.get_intervals(ax, graph)
-            ticks = self.get_ticks_for_x_axis()
-            vertical_lines = get_cosine_vertical_lines_from_points(ax, dots)
-
-            new_cosine_function_sample_group = VGroup(ax, graph, dots, line_intervals, ticks, vertical_lines)
-            new_cosine_function_sample_group.scale(scale).move_to(location)
-            for label in ax.y_axis.numbers:
-                label.scale(2).shift(LEFT * SMALL_BUFF)
-
-            new_cosine_function_sample_group.move_to(location)
-
-            return new_cosine_function_sample_group
-
-        min_y, max_y = -5, 5
-        def get_output_dct_graph():
-            nonlocal min_y, max_y
-            dct_values = get_dct_values()
-            # TODO: fix this logic
-            if max(dct_values) > max_y or min(dct_values) < min_y:
-                max_y = int((max(dct_values) * 3) // 1 + 1)
-                min_y = int((min(dct_values) * 3) // 1 - 1)
-                max_y = max(abs(max_y), abs(min_y))
-                min_y = -max_y
-
-                if max_y > 250:
-                    max_y = 250
-                    min_y = -250
-            dct_ax = self.get_dct_axis(dct_values, min_y, max_y)
-
-            dct_graph, dct_points = self.plot_row_values(dct_ax, dct_values, color=REDUCIBLE_PURPLE)
-
-            vertical_lines = self.get_vertical_lines_from_points(dct_ax, dct_points)
-            dct_graph_components = VGroup(dct_ax, dct_graph, dct_points, vertical_lines).scale(1.1).move_to(RIGHT * 3.7 + DOWN * 0.3)
-            return dct_graph_components
-
-        output_dct_graph = always_redraw(get_output_dct_graph)
-
-        self.play(
-            FadeOut(question_mark),
-            FadeOut(box_around_dct),
-            ReplacementTransform(dct_mystery_component, output_dct_graph),
-        )
-        self.wait()
-
-        input_cosine_graph = always_redraw(get_input_cosine_graph)
-        self.play(
-            ReplacementTransform(cosine_function_sample_group, input_cosine_graph)
-        )
-        self.wait()
-
-        self.play(
-            amplitude_tracker.animate.set_value(50),
-            run_time=4
-        )
-        self.wait()
-
-        self.play(
-            amplitude_tracker.animate.set_value(-50),
-            run_time=4
-        )
-        self.wait()
-
-        self.play(
-            amplitude_tracker.animate.set_value(50),
-            run_time=2
-        )
-        self.wait()
-
-        original_pixel_space_rep = self.get_pixel_space_representation()
-        original_pixel_space_rep.move_to(DOWN * 2.8)
-        lower_bound = Integer(0).next_to(original_pixel_space_rep, LEFT)
-        upper_bound = Integer(255).next_to(original_pixel_space_rep, RIGHT)
-        self.play(
-            FadeIn(original_pixel_space_rep),
-            FadeIn(lower_bound),
-            FadeIn(upper_bound)
-        )
-        self.wait()
-
-        new_pixel_space_rep = original_pixel_space_rep.copy().next_to(original_pixel_space_rep, DOWN)
-        new_lower_bound = Integer(-128).next_to(new_pixel_space_rep, LEFT)
-        new_upper_bound = Integer(127).next_to(new_pixel_space_rep, RIGHT)
-        self.play(
-            FadeIn(new_pixel_space_rep),
-            TransformFromCopy(lower_bound, new_lower_bound),
-            TransformFromCopy(upper_bound, new_upper_bound)
-        )
-        self.wait()
-
-        def get_pixel_rep_of_cosine():
-            input_points = get_input_points() + 128
-            pixel_array_mob = self.make_row_of_pixels(input_points, height=SMALL_BUFF*6)
-            pixel_array_mob.next_to(input_cosine_graph, DOWN).shift(RIGHT * SMALL_BUFF * 2)
-            return pixel_array_mob
-
-        pixel_row_mob = always_redraw(get_pixel_rep_of_cosine)
-        self.play(
-            FadeIn(pixel_row_mob),
-            FadeOut(new_pixel_space_rep),
-            FadeOut(original_pixel_space_rep),
-            FadeOut(lower_bound),
-            FadeOut(new_lower_bound),
-            FadeOut(upper_bound),
-            FadeOut(new_upper_bound)
-        )
-        self.wait()
-
-        self.play(
-            amplitude_tracker.animate.set_value(120),
-            run_time=3,
-        )
-        self.wait()
-
-        self.play(
-            amplitude_tracker.animate.set_value(-120),
-            run_time=3
-        )
-
-        self.play(
-            amplitude_tracker.animate.set_value(80),
-            run_time=3
-        )
-        self.wait()
-
-        self.play(
-            y_intercept_tracker.animate.set_value(45),
-            run_time=2
-        )
-
-        self.wait()
-
-        self.play(
-            y_intercept_tracker.animate.set_value(-45),
-            run_time=4
-        )
-
-        self.wait()
-
-        self.play(
-            y_intercept_tracker.animate.set_value(0),
-            run_time=2
-        )
-
-        self.wait()
-
-        self.play(
-            frequency_tracker.animate.set_value(2),
-            run_time=6,
-            rate_func=linear,
-        )
-        self.wait()
-
-        cosine_2x = MathTex(r"\cos(2x)", r" \rightarrow X_2")
-        cosine_2x.move_to(DOWN * 3.2)
-        self.play(
-            Write(cosine_2x[0])
-        )
-        self.wait()
-
-        self.play(
-            Write(cosine_2x[1])
-        )
-        self.wait()
-
-        self.play(
-            amplitude_tracker.animate.set_value(120),
-            run_time=2,
-        )
-
-        self.play(
-            amplitude_tracker.animate.set_value(80),
-            run_time=2,
-        )
-
-        self.play(
-            y_intercept_tracker.animate.set_value(45),
-            run_time=2
-        )
-
-        self.play(
-            y_intercept_tracker.animate.set_value(-45),
-            run_time=2
-        )
-
-        self.play(
-            y_intercept_tracker.animate.set_value(0),
-            run_time=2
-        )
-        self.wait()
-
-        self.play(
-            frequency_tracker.animate.set_value(3),
-            run_time=3,
-            rate_func=linear,
-        )
-        cosine_3x = MathTex(r"\cos(3x)", r" \rightarrow X_3")
-        cosine_3x.move_to(DOWN * 3.2)
-        self.play(
-            ReplacementTransform(cosine_2x, cosine_3x)
-        )
-        self.wait()
-
-        self.play(
-            frequency_tracker.animate.set_value(4),
-            run_time=2,
-            rate_func=linear,
-        )
-
-        cosine_kx = MathTex(r"\cos(kx)", r" \rightarrow X_k")
-        cosine_kx.move_to(DOWN * 3.2)
-        self.play(
-            ReplacementTransform(cosine_3x, cosine_kx)
-        )
-        self.wait()
-
-        self.play(
-            frequency_tracker.animate.set_value(5),
-            run_time=2,
-            rate_func=linear,
-        )
-        self.wait()
-
-        self.play(
-            frequency_tracker.animate.set_value(6),
-            run_time=2,
-            rate_func=linear,
-        )
-        self.wait()
-
-        self.play(
-            frequency_tracker.animate.set_value(7),
-            run_time=2,
-            rate_func=linear,
-        )
-        self.wait()
-
-        self.play(
-            y_intercept_tracker.animate.set_value(45),
-            run_time=2
-        )
-
-        self.play(
-            y_intercept_tracker.animate.set_value(-45),
-            run_time=2
-        )
-
-        self.play(
-            y_intercept_tracker.animate.set_value(0),
-            run_time=2
-        )
-        self.wait()
-
-        self.play(
-            frequency_tracker.animate.set_value(0),
-            run_time=4,
-            rate_func=linear,
-        )
-
-
-        self.play(
-            amplitude_tracker.animate.set_value(120),
-            run_time=2
-        )
-
-        self.play(
-            amplitude_tracker.animate.set_value(-120),
-            run_time=2
-        )
-
-        self.play(
-            amplitude_tracker.animate.set_value(80),
-            run_time=2
-        )
-
-        self.wait()
-
-    def get_generic_cosine_component(self, frequency, cosine_scale=0.5, general_scale=0.5):
-        frequency_tracker = ValueTracker(frequency)
-        amplitude_tracker = ValueTracker(120)
-        y_intercept_tracker = ValueTracker(0)
-
-        def get_input_points():
-            k = frequency_tracker.get_value()
-            a = amplitude_tracker.get_value()
-            b = y_intercept_tracker.get_value()
-            return np.array([a * np.cos((j * 2 + 1) * k * np.pi / 16) + b for j in range(8)])
-
-        def get_dct_values():
-            input_points = get_input_points()
-            return dct_1d(input_points)
-
-        def get_dots(ax, graph, scale=1, color=REDUCIBLE_YELLOW):
-            x_points = [(j * 2 + 1) * np.pi / 16 for j in range(8)]
-            y_points = get_input_points()
-            points = [ax.coords_to_point(x, y) for x, y in zip(x_points, y_points)]
-            dots = VGroup(*[Dot().scale(scale).set_color(color).move_to(p) for p in points])
-            return dots
-
-        def get_cosine_vertical_lines_from_points(ax, points, color=REDUCIBLE_VIOLET):
-            x_points = [(j * 2 + 1) * np.pi / 16 for j in range(8)]
-            x_axis_points = [ax.x_axis.n2p(p) for p in x_points]
-            vertical_lines = [Line(start_point, end.get_center()).set_stroke(color=color, width=8) for start_point, end in zip(x_axis_points, points)]
-            return VGroup(*vertical_lines)
-
-        input_points = get_input_points()
-        #TODO: Fix this logic
-        max_cos_y, min_cos_y = 120, -120
-
-        k = frequency_tracker.get_value()
-        a = amplitude_tracker.get_value()
-        b = y_intercept_tracker.get_value()
-        ax, graph  = self.get_cosine_wave_with_ax(lambda x: a * np.cos(x * k) + b, min_y=min_cos_y, max_y=max_cos_y, include_end_y_axis_nums=False)
-        
-        dots = get_dots(ax, graph)
-        for dot in dots:
-            dot.scale(1.4)
-
-        line_intervals = self.get_intervals(ax, graph)
-        ticks = self.get_ticks_for_x_axis()
-        vertical_lines = get_cosine_vertical_lines_from_points(ax, dots)
-
-        new_cosine_function_sample_group = VGroup(ax, graph, line_intervals, ticks, vertical_lines, dots)
-        new_cosine_function_sample_group.scale(cosine_scale)
-
-        def get_pixel_rep_of_cosine():
-            input_points = get_input_points() + 128
-            pixel_array_mob = self.make_row_of_pixels(input_points, height=SMALL_BUFF*6.3)
-            pixel_array_mob.next_to(new_cosine_function_sample_group, UP, aligned_edge=LEFT)
-            return pixel_array_mob
-
-        pixel_space_mob_cos = get_pixel_rep_of_cosine()
-        x_comp = MathTex(f"X_{frequency}").scale(1.5).next_to(pixel_space_mob_cos, UP)
-
-        return VGroup(new_cosine_function_sample_group, pixel_space_mob_cos, x_comp).scale(general_scale)
-
-    def get_cosine_wave(self, cosine_function, color=REDUCIBLE_VIOLET):
-        ax = Axes(
-            x_range=[0, np.pi],
-            y_range=[-1, 1],
-            x_length=2,
-            y_length=2,
-        )
-
-        graph = ax.plot(cosine_function).set_color(REDUCIBLE_VIOLET)
-
-        box = SurroundingRectangle(graph, color=REDUCIBLE_VIOLET)
-        return VGroup(graph, box), ax
-
-    def get_cosine_wave_with_ax(self, cosine_function, min_y=-1, max_y=1, color=REDUCIBLE_VIOLET, include_end_y_axis_nums=True):
-        if include_end_y_axis_nums:
-            y_range_exclude = range(min_y + 1, max_y)
-        else:
-            y_range_exclude = range(min_y, max_y + 1)
-        ax = Axes(
-            x_range=[0, np.pi],
-            y_range=[min_y, max_y],
-            x_length=10,
-            y_length=5.5,
-            tips=False,
-            x_axis_config={"include_numbers": False, "include_ticks": False},
-            y_axis_config={"include_numbers": True, "numbers_to_exclude": y_range_exclude, "include_ticks": False}
-        )
-
-        graph = ax.plot(cosine_function).set_color(color)
-        pi_label = MathTex(r"\pi")
-        pi_label.next_to(ax.x_axis, DOWN, aligned_edge=RIGHT)
-        ax.add(pi_label)
-
-        group = VGroup(ax, graph)
-
-        return group
-
-    def get_x_y_points(self, k):
-        x_points = [(j * 2 + 1) * np.pi / 16 for j in range(8)]
-        y_points = [np.cos(x * k) for x in x_points]
-        return x_points, y_points
-
-    def get_dots(self, ax, graph, k, color=REDUCIBLE_YELLOW, scale=0.7):
-        x_points, y_points = self.get_x_y_points(k)
-        points = [ax.coords_to_point(x, y) for x, y in zip(x_points, y_points)]
-
-        dots = VGroup(*[Dot().scale(scale).set_color(color).move_to(p) for p in points])
-        return dots
-
-    def get_intervals(self, ax, graph):
-        proportions = np.arange(0, np.pi + 0.0001, np.pi / 8)
-        lines = []
-        for i in range(len(proportions) - 1):
-            start, end = proportions[i], proportions[i + 1]
-            start_point, end_point = ax.x_axis.n2p(start), ax.x_axis.n2p(end)
-            line = Line(start_point, end_point).set_stroke(width=5)
-            if i % 2 == 0:
-                line.set_color(REDUCIBLE_GREEN_LIGHTER)
-            else:
-                line.set_color(REDUCIBLE_GREEN_DARKER)
-
-            lines.append(line)
-
-        return VGroup(*lines)
-
-    def show_sample_x_vals(self, vertical_lines):
-        labels = VGroup(*[MathTex(r"\frac{\pi}{16}").scale(0.7)] + [MathTex(r"\frac{" + str(2 * i + 1) + r"\pi}{16}").scale(0.6) for i in range(1, len(vertical_lines))])
-        for label, line in zip(labels, vertical_lines):
-            direction = normalize(line.get_start() - line.get_end())
-            direction = np.array([int(c) for c in direction])
-            label.next_to(line, direction)
-
-        self.play(
-            FadeIn(labels)
-        )
-        self.wait()
-        return labels
-
-    def get_cosine_vertical_lines_from_points(self, ax, points, k, color=REDUCIBLE_VIOLET):
-        x_points = [ax.x_axis.n2p(p) for p in self.get_x_y_points(k)[0]]
-        vertical_lines = [Line(start_point, end.get_center()).set_stroke(color=color, width=8) for start_point, end in zip(x_points, points)]
-        return VGroup(*vertical_lines)
-
-    def get_ticks_for_x_axis(self):
-        ax = Axes(
-            x_range=[0, np.pi, np.pi / 8],
-            y_range=[-1, 1],
-            x_length=10,
-            y_length=5.5,
-            tips=False,
-            x_axis_config={"include_numbers": False, "include_ticks": True},
-            y_axis_config={"include_numbers": True, "numbers_to_exclude": [0], "include_ticks": False}
-        )
-        return ax.x_axis.ticks
-
-    def make_component(self, text, color=REDUCIBLE_YELLOW, scale=0.8):
-        # geometry is first index, Tex is second index
-        text_mob = Tex(text).scale(scale)
-        rect = Rectangle(color=color, height=1.1, width=3)
-        return VGroup(rect, text_mob)
-
-    def get_pixel_space_representation(self, height=SMALL_BUFF*5, row_length=6):
-        num_pixels = 256
-        row_values = range(256)
-        pixel_row_mob = VGroup(
-            *[
-                Rectangle(height=height, width=row_length / num_pixels)
-                .set_stroke(color=gray_scale_value_to_hex(value))
-                .set_fill(color=gray_scale_value_to_hex(value), opacity=1)
-                for value in row_values
-            ]
-        ).arrange(RIGHT, buff=0)
-        surround_rect = SurroundingRectangle(pixel_row_mob, color=REDUCIBLE_GREEN_LIGHTER, buff=0)
-        return VGroup(pixel_row_mob, surround_rect)
-
-class MathematicallyDefineDCT(RevisedMotivateDCT):
-    def construct(self):
-        image_mob = ImageMobject("dog").move_to(UP * 2)
-        block_image, pixel_grid, block = self.get_pixel_block(image_mob, 126, 126)
-        row = 7
-        print(block[:, :, 0])
-        print(f"Block row: {row}\n", block[:, :, 0][row])
-        pixel_row_mob, row_values = self.get_pixel_row_mob(block, row)
-        print("Selected row values\n", row_values)
-        pixel_row_mob.move_to(UP * 3)
-
-        row_values_centered = format_block(row_values)
-        print('After centering\n', row_values_centered)
-
-        dct_row_pixels = dct_1d(row_values_centered)
-
-        ax, graph, dots = self.draw_image_graph(dct_row_pixels)
-
-        self.show_graph(ax, graph, dots, pixel_row_mob, animate=False)
-
-
-        entire_group = self.get_broad_dct_components(ax, graph, dots, pixel_row_mob, dct_row_pixels)
-
-        entire_group.shift(UP * 1)
-
-        pixel_space_group, forward_arrow, dct_space_group = entire_group
-        self.play(
-            FadeIn(pixel_space_group),
-            FadeIn(forward_arrow),
-            FadeIn(dct_space_group)
-        )
-        self.wait()
-
-        pixel_array_symbols = pixel_space_group[-1]
-        dct_array_mob_symbols = dct_space_group[-1]
-
-        self.play(
-            Circumscribe(pixel_array_symbols)
-        )
-        self.wait()
-
-
-        self.play(
-            Circumscribe(dct_array_mob_symbols)
-        )
-        self.wait()
-
-        dct_math = MathTex(r"X_k = ", r"\sum_{n=0}^{N-1} x_n", r"\cos \left[\frac{(2n+1) \pi k}{2N}\right]")
-
-        dct_math.move_to(DOWN * 2.5)
-
-        self.play(
-            Write(dct_math[0])
-        )
-        self.wait()
-
-        self.play(
-            FadeIn(dct_math[1]),
-            FadeIn(dct_math[2])
-        )
-        self.wait()
-
-        self.play(
-            dct_math[0].animate.set_fill(color=None, opacity=0.5),
-            dct_math[1].animate.set_fill(color=None, opacity=0.5)
-        )
-        self.wait()
-
-        self.play(
-            dct_math[0].animate.set_fill(color=None, opacity=1),
-            dct_math[1].animate.set_fill(color=None, opacity=1),
-        )
-
-        self.play(
-            dct_math.animate.to_edge(LEFT * 2)
-        )
-
-        self.wait()
-
-        brace_up = Brace(pixel_array_symbols, direction=UP)
-
-        self.play(
-            GrowFromCenter(brace_up)
-        )
-        x_vec = MathTex(r"\vec{x}").next_to(brace_up, UP)
-
-        self.play(
-            Write(x_vec)
-        )
-        self.wait()
-
-        C_k_values = [r" \cos (\frac{\pi}{16} \cdot " + str(2 * i + 1) + r" \cdot k)" for i in [0, 1, 2, 7]]
-        C_k_values.insert(-1, r"\vdots")
-        C_k_vec_def = self.make_column_vector(C_k_values, v_buff=1.2)
-
-        self.play(
-            FadeOut(forward_arrow),
-            FadeOut(dct_space_group)
-        )
-        self.wait()
-
-        self.play(
-            Circumscribe(dct_math[2])
-        )
-        self.wait()
-
-        C_k = MathTex(r"\vec{C}_k = ")
-        C_k_vec_def[0][3].shift(UP * SMALL_BUFF * 1.5)
-
-        C_k_vec_group = VGroup(C_k, C_k_vec_def).arrange(RIGHT).move_to(RIGHT * 3.5 + UP * 1.3)
-        self.play(
-            FadeIn(C_k_vec_group)
-        )
-        self.wait()
-
-        double_arrow = MathTex(r"\Longleftrightarrow").next_to(dct_math, RIGHT * 2)
-
-        dot_product_def = MathTex(r"X_k = \vec{C}_k^T \vec{x}").next_to(double_arrow, RIGHT * 2)
-
-        dct_equivalence = VGroup(dct_math, double_arrow, dot_product_def)
-        self.play(
-            Write(double_arrow)
-        )
-        self.wait()
-
-        self.play(
-            Write(dot_product_def)
-        )
-
-        self.wait()
-
-        self.play(
-            FadeOut(pixel_space_group),
-            FadeOut(C_k_vec_group),
-            FadeOut(brace_up),
-            FadeOut(x_vec),
-            dct_equivalence.animate.move_to(UP * 3.2),
-            run_time=2
-
-        )
-        self.wait()
-
-        forward_dct_matrix_eq = self.get_forward_transform_matrix_eq().scale(1.2)
-        self.play(
-            FadeIn(forward_dct_matrix_eq)
-        )
-        self.wait()
-
-        orthoganility = MathTex(r"\vec{C}_i^T \vec{C}_j = 0 \quad \forall i \neq j")
-        orthoganility.next_to(forward_dct_matrix_eq, DOWN)
-
-        self.play(
-            FadeIn(orthoganility)
-        )
-        self.wait()
-
-        entire_group.shift(DOWN * 1)
-
-        self.clear()
-
-        self.add(entire_group)
-
-        forward_dct_matrix_eq.scale(1 / 1.2)
-
-        self.show_invertibility(pixel_space_group, forward_arrow, dct_space_group, forward_dct_matrix_eq, graph, dots)
-
-    def show_invertibility(self, pixel_space_group, forward_arrow, dct_space_group, forward_dct_matrix_eq, graph, dots):
-        original_graph, original_dots = graph.copy(), dots.copy()
-        invertibility = Tex("Invertibility").move_to(UP * 3.5)
-
-        forward_dct_group = VGroup(pixel_space_group, forward_arrow, dct_space_group)
-
-        self.play(
-            Write(invertibility)
-        )
-        self.wait()
-
-        surround_rect_forward = SurroundingRectangle(forward_dct_group, color=REDUCIBLE_YELLOW, buff=MED_SMALL_BUFF)
-
-        self.play(
-            Create(surround_rect_forward)
-        )
-        self.wait()
-
-        self.play(
-            forward_dct_group.animate.scale(0.65).shift(UP * 1.5),
-            surround_rect_forward.animate.scale(0.65).shift(UP * 1.5)
-        )
-
-        self.wait()
-        shift_down = DOWN * 3.5
-        new_idct_group_left = dct_space_group.copy().move_to(pixel_space_group.get_center()).shift(shift_down)
-        new_idct_arrow = forward_arrow.copy().shift(shift_down)
-        new_idct_group_right = pixel_space_group.copy().move_to(dct_space_group.get_center()).shift(shift_down)
-
-        self.play(
-            TransformFromCopy(dct_space_group, new_idct_group_left)
-        )
-        self.wait()
-
-        self.play(
-            TransformFromCopy(forward_arrow, new_idct_arrow)
-        )
-        self.wait()
-
-        self.play(
-            TransformFromCopy(pixel_space_group, new_idct_group_right)
-        )
-        self.wait()
-
-        inverse_dct_group = VGroup(new_idct_group_left, new_idct_arrow, new_idct_group_right)
-
-        surround_rect_inverse = SurroundingRectangle(inverse_dct_group, color=REDUCIBLE_PURPLE, buff=MED_SMALL_BUFF)
-
-        self.play(
-            Create(surround_rect_inverse)
-        )
-        self.wait()
-
-        shift_left = LEFT * 2
-
-        self.play(
-            surround_rect_forward.animate.shift(shift_left),
-            surround_rect_inverse.animate.shift(shift_left),
-            forward_dct_group.animate.shift(shift_left),
-            inverse_dct_group.animate.shift(shift_left),
-        )
-        self.wait()
-
-        forward_transform = MathTex(r"\vec{X} = M \vec{x}")
-        forward_transform.next_to(surround_rect_forward, RIGHT).shift(RIGHT * 1.3)
-        inverse_transform = MathTex(r"\vec{x} = M^{-1} \vec{X}")
-        inverse_transform.next_to(surround_rect_inverse, RIGHT).shift(RIGHT * 1)
-
-        self.play(
-            FadeIn(forward_transform),
-            FadeIn(inverse_transform)
-        )
-        self.wait()
-
-        forward_dct_text = Tex("DCT").scale(1.2)
-        inverse_dct_text = Tex("Inverse DCT").scale(1.2)
-
-        forward_dct_text.next_to(forward_transform, UP)
-        inverse_dct_text.next_to(inverse_transform, UP)
-
-        self.play(
-            FadeIn(forward_dct_text),
-            FadeIn(inverse_dct_text)
-        )
-        self.wait()
-
-
-        inverse_dct_matrix_eq = self.get_inverse_tranform_matrix_eq()
-        inverse_dct_matrix_eq.scale(0.8).move_to(inverse_dct_group.get_center())
-        forward_dct_matrix_eq.scale(0.8).move_to(forward_dct_group.get_center())
-
-        self.play(
-            forward_dct_group.animate.fade(0.9),
-            FadeIn(forward_dct_matrix_eq),
-        )
-        self.wait()
-
-        self.play(
-            inverse_dct_group.animate.fade(0.9),
-            FadeIn(inverse_dct_matrix_eq)
-        )
-        self.wait()
-
-        asterik = Tex("(*)").next_to(inverse_dct_matrix_eq, RIGHT)
-        asterik[0][1].shift(DOWN * SMALL_BUFF)
-        note = Tex("*with additional normalization").scale(0.6)
-
-        note.next_to(inverse_transform, DOWN * 2)
-
-        self.add(asterik, note)
-        self.wait()
-
-        self.play(
-            FadeOut(invertibility),
-            FadeOut(asterik),
-            FadeOut(note),
-            FadeOut(surround_rect_inverse),
-            FadeOut(surround_rect_forward),
-            inverse_dct_group.animate.fade(1),
-            forward_dct_group.animate.fade(1),
-            FadeOut(forward_dct_text),
-            FadeOut(forward_transform),
-            FadeOut(inverse_transform),
-            FadeOut(forward_dct_matrix_eq),
-            inverse_dct_text.animate.move_to(UP * 3.5),
-            inverse_dct_matrix_eq.animate.scale(1 / 0.8).next_to(invertibility, DOWN),
-            run_time=2
-        )
-        self.wait()
-
-        column_split_sum = self.get_column_sum_matrix(inverse_dct_matrix_eq[0])
-        column_split_sum.next_to(inverse_dct_matrix_eq, DOWN)
-
-        self.play(
-            FadeIn(column_split_sum)
-        )
-
-        self.wait()
-
-        self.play(
-            FadeOut(inverse_dct_matrix_eq),
-            column_split_sum.animate.next_to(inverse_dct_text, DOWN)
-        )
-        self.wait()
-
-        self.play(
-            column_split_sum[0].animate.set_color(REDUCIBLE_YELLOW),
-            column_split_sum[2][1].animate.set_color(REDUCIBLE_VIOLET),
-            column_split_sum[4][1].animate.set_color(REDUCIBLE_VIOLET),
-            column_split_sum[8][1].animate.set_color(REDUCIBLE_VIOLET),
-        )
-        self.wait()
-
-        cosine_sum_visual_rep = self.show_summing_different_cosine_waves(original_graph, original_dots)
-
-        cosine_sum_visual_rep.scale(0.75).next_to(column_split_sum, DOWN)
-
-        self.play(
-            FadeIn(cosine_sum_visual_rep)
-        )
-        self.wait()
-
-    def show_summing_different_cosine_waves(self, graph, original_dots):
-        first_freq, first_axes = self.get_cosine_wave(lambda x: 0.5)
-        second_freq, second_axes = self.get_cosine_wave(lambda x: np.cos(x))
-        last_freq, last_axes = self.get_cosine_wave(lambda x: np.cos(7 * x))
-
-        first_freq_dots = self.get_dots(first_axes, first_freq, 0).move_to(first_freq.get_center())
-        second_freq_dots = self.get_dots(second_axes, second_freq, 1)
-        last_freq_dots = self.get_dots(last_axes, last_freq, 7)
-
-        first_surround_rect = second_freq[1].copy().move_to(first_axes.get_center())
-        right_shift = first_freq[1].get_center()[0] - first_surround_rect.get_center()[0]
-        first_surround_rect.shift(RIGHT * right_shift)
-
-        first_cosine_graph = VGroup(first_freq[0], first_surround_rect, first_freq_dots)
-        second_cosine_graph = VGroup(second_freq, second_freq_dots)
-        last_cosine_graph = VGroup(last_freq, last_freq_dots)
-        
-        X_0, X_1, X_7 = MathTex("X_0"), MathTex("X_1"), MathTex("X_7")
-
-        first_cosine_comp = VGroup(X_0,  first_cosine_graph).arrange(RIGHT, buff=SMALL_BUFF)
-        second_cosine_comp = VGroup(X_1,second_cosine_graph).arrange(RIGHT, buff=SMALL_BUFF)
-        last_cosine_comp = VGroup(X_7, last_cosine_graph).arrange(RIGHT, buff=SMALL_BUFF)
-
-        plus = MathTex("+")
-        ellipses = MathTex(r"\cdots")
-        equals = MathTex("=")
-
-        original_graph = VGroup(graph, original_dots)
-        surround_rect_original = SurroundingRectangle(original_graph, color=REDUCIBLE_YELLOW)
-        original_graph = VGroup(original_graph, surround_rect_original)
-
-        group = VGroup(original_graph, equals, first_cosine_comp, plus, second_cosine_comp, plus.copy(), ellipses, plus.copy(), last_cosine_comp).arrange(RIGHT)
-
-        return group
-
-    def get_column_sum_matrix(self, pixel_vec):
-        X_0, X_1, X_7 = MathTex("X_0"), MathTex("X_1"), MathTex("X_7")
-        c_0 = self.get_individual_column_vec(0)
-        c_1 = self.get_individual_column_vec(1)
-        c_7 = self.get_individual_column_vec(7)
-
-        first_elem = VGroup(X_0, c_0).arrange(RIGHT, buff=SMALL_BUFF)
-        second_elem = VGroup(X_1, c_1).arrange(RIGHT, buff=SMALL_BUFF)
-        last_elem = VGroup(X_7, c_7).arrange(RIGHT, buff=SMALL_BUFF)
-
-        plus = MathTex("+")
-        equals = MathTex("=")
-        cdots = MathTex(r"\cdots")
-
-        column_split_equation = VGroup(
-            pixel_vec.copy(),
-            equals,
-            first_elem,
-            plus,
-            second_elem,
-            plus.copy(),
-            cdots,
-            plus.copy(),
-            last_elem,
-        ).arrange(RIGHT)
-
-        return column_split_equation
-
-    def get_matrix_m(self):
-        row0 = self.get_cosine_row_tex(0)
-        row1 = self.get_cosine_row_tex(1)
-        vdots = MathTex(r"\vdots")
-        row7 = self.get_cosine_row_tex(7)
-
-        rows = VGroup(row0, row1, vdots, row7).arrange(DOWN).move_to(DOWN * 2)
-        bracket_pair = MathTex("[", "]")
-        bracket_pair.scale(2)
-        bracket_v_buff = MED_SMALL_BUFF
-        bracket_h_buff = MED_SMALL_BUFF
-        bracket_pair.stretch_to_fit_height(rows.height + 2 * bracket_v_buff)
-        l_bracket, r_bracket = bracket_pair.split()
-        l_bracket.next_to(rows, LEFT, bracket_h_buff)
-        r_bracket.next_to(rows, RIGHT, bracket_h_buff)
-        brackets = VGroup(l_bracket, r_bracket)
-
-        return VGroup(brackets, rows)
-
-    def get_inverse_matrix_m(self):
-        col0 = self.get_cosine_col_tex(0)
-        col1 = self.get_cosine_col_tex(1)
-        cdots = MathTex(r"\cdots")
-        col7 = self.get_cosine_col_tex(7)
-
-        cols = VGroup(col0, col1, cdots, col7).arrange(RIGHT, buff=0.7).move_to(DOWN * 2)
-        bracket_pair = MathTex("[", "]")
-        bracket_pair.scale(2)
-        bracket_v_buff = MED_SMALL_BUFF
-        bracket_h_buff = MED_SMALL_BUFF
-        bracket_pair.stretch_to_fit_height(cols.height + 2 * bracket_v_buff)
-        l_bracket, r_bracket = bracket_pair.split()
-        l_bracket.next_to(cols, LEFT, bracket_h_buff)
-        r_bracket.next_to(cols, RIGHT, bracket_h_buff)
-        brackets = VGroup(l_bracket, r_bracket)
-
-        return VGroup(brackets, cols)
-
-    def make_column_vector(self, values, v_buff=0.6, scale=0.6):
-        integer_values = []
-        for value in values:
-            if isinstance(value, str):
-                integer_values.append(value)
-            else:
-                integer_values.append(int(value))
-        vector = Matrix([[value] for value in integer_values], v_buff=v_buff, element_alignment_corner=DOWN)
-        return vector.scale(scale)
-
-    def get_individual_column_vec(self, index):
-        cosine_col_text = self.get_cosine_col_tex(index)
-        bracket_pair = MathTex("[", "]")
-        bracket_pair.scale(2)
-        bracket_v_buff = MED_SMALL_BUFF
-        bracket_h_buff = MED_SMALL_BUFF
-        bracket_pair.stretch_to_fit_height(cosine_col_text.height + 2 * bracket_v_buff)
-        l_bracket, r_bracket = bracket_pair.split()
-        l_bracket.next_to(cosine_col_text, LEFT, bracket_h_buff)
-        r_bracket.next_to(cosine_col_text, RIGHT, bracket_h_buff)
-        brackets = VGroup(l_bracket, r_bracket)
-
-        return VGroup(brackets, cosine_col_text)
-
-    def get_cosine_row_tex(self, index):
-        text = MathTex(f"C_{index}^T").scale(0.8)
-        left_arrow = Arrow(RIGHT * 2, ORIGIN, stroke_width=3, max_tip_length_to_length_ratio=0.15).next_to(text, LEFT).set_color(WHITE)
-        right_arrow = Arrow(ORIGIN, RIGHT * 2, stroke_width=3, max_tip_length_to_length_ratio=0.15).next_to(text, RIGHT).set_color(WHITE)
-        return VGroup(left_arrow, text, right_arrow)
-
-    def get_cosine_col_tex(self, index):
-        text = MathTex(f"C_{index}").scale(0.8)
-        up_arrow = Arrow(ORIGIN, UP * 1.4, stroke_width=3, max_tip_length_to_length_ratio=0.15).next_to(text, UP).set_color(WHITE)
-        down_arrow = Arrow(ORIGIN, DOWN * 1.4, stroke_width=3, max_tip_length_to_length_ratio=0.15).next_to(text, DOWN).set_color(WHITE)
-        return VGroup(up_arrow, text, down_arrow)
-
-    def get_forward_transform_matrix_eq(self):
-        coeff_vector_values = [f"X_{i}" for i in range(8)]
-        X_coeff_vec = self.make_column_vector(coeff_vector_values)
-        equals = MathTex("=")
-        dct_matrix = self.get_matrix_m()
-        pixel_vector_values = [f"x_{i}" for i in range(8)]
-        pixel_vec = self.make_column_vector(pixel_vector_values)
-
-        matrix_equation = VGroup(X_coeff_vec, equals, dct_matrix, pixel_vec).arrange(RIGHT)
-
-        return matrix_equation
-
-    def get_inverse_tranform_matrix_eq(self):
-        coeff_vector_values = [f"X_{i}" for i in range(8)]
-        X_coeff_vec = self.make_column_vector(coeff_vector_values)
-        equals = MathTex("=")
-        idct_matrix = self.get_inverse_matrix_m()
-        pixel_vector_values = [f"x_{i}" for i in range(8)]
-        pixel_vec = self.make_column_vector(pixel_vector_values)
-
-        matrix_equation = VGroup(pixel_vec, equals, idct_matrix, X_coeff_vec).arrange(RIGHT)
-
-        return matrix_equation
-
-    def get_broad_dct_components(self, ax, graph, dots, pixel_row_mob, dct_row_pixels):
-        group = VGroup(ax, graph, dots, pixel_row_mob).move_to(LEFT * 3.5 + DOWN * 0.5)
-
-        general_vals = [f"x_{i}" for i in range(len(pixel_row_mob))]
-        array_mob_symbols = self.get_gen_array_obj(general_vals, length=pixel_row_mob.width, height=pixel_row_mob.height)
-        array_mob_symbols.next_to(pixel_row_mob, UP)
-
-        forward_arrow = MathTex(r"\Rightarrow").scale(1.5).shift(RIGHT * SMALL_BUFF * 3)
-
-        pixel_space_group = VGroup(group, array_mob_symbols)
-
-        dct_ax = self.get_dct_axis(dct_row_pixels, -80, 80)
-
-        dct_graph, dct_points = self.plot_row_values(dct_ax, dct_row_pixels, color=REDUCIBLE_PURPLE)
-
-        dct_graph_components = VGroup(dct_ax, dct_graph, dct_points).move_to(RIGHT * 3.5 + DOWN * 0.5)
-
-        vertical_lines = self.get_vertical_lines_from_points(dct_ax, dct_points)
-
-        general_dct_vals = [f"X_{i}" for i in range(len(pixel_row_mob))]
-
-        array_mob_dct_symbols = self.get_gen_array_obj(general_dct_vals, length=pixel_row_mob.width + 0.5, height=pixel_row_mob.height + SMALL_BUFF, color=REDUCIBLE_VIOLET)
-        array_mob_dct_symbols.next_to(pixel_row_mob, UP)
-        shift_amount = dct_graph_components.get_center()[0] - array_mob_dct_symbols.get_center()[0]
-        array_mob_dct_symbols.shift(RIGHT * (shift_amount + 0.3))
-
-        dct_space_group = VGroup(dct_graph_components, vertical_lines, array_mob_dct_symbols)
-
-        return VGroup(pixel_space_group, forward_arrow, dct_space_group)
-
-class Introduce2DDCT(DCTExperiments):
-    def construct(self):
-        image_mob = ImageMobject("dog").move_to(UP * 2)
-        self.play(
-            FadeIn(image_mob)
-        )
-        self.wait()
-
-        print("Image size:", image_mob.get_pixel_array().shape)
-
-        pixel_grid = self.add_grid(image_mob)
-
-        block_image, block_pixel_grid, block, pixel_array_mob_2d = self.highlight_pixel_block(image_mob, 125, 125, pixel_grid)
-
-        self.play(
-            *[integer.animate.set_value(integer.get_value() - 128).move_to(integer.get_center()) for integer in pixel_array_mob_2d[1]]
-        )
-        self.wait()
-
-        self.play(
-            block_pixel_grid.animate.scale(0.65).shift(UP * 2.7 + RIGHT * 0.5),
-            block_image.animate.scale(0.65).shift(UP * 2.7 + RIGHT * 0.5),
-            pixel_array_mob_2d.animate.scale(0.65).shift(UP * 2.7 + LEFT * 0.5),
-        )
-
-        block_image, block_pixel_grid, pixel_array_mob_2d, dct_array_2d_row_col_group = self.show_data_flow_dct_2d(pixel_array_mob_2d, block[:, :, 0], block_image, block_pixel_grid)
-
-        self.show_dct_components(dct_array_2d_row_col_group[0])
-
-    def show_data_flow_dct_2d(self, pixel_array_mob_2d, block, block_image, block_pixel_grid):
-        pixel_array_mob_2d_copy_input = pixel_array_mob_2d.copy().move_to(LEFT * 4.5)
-        self.play(
-            TransformFromCopy(pixel_array_mob_2d, pixel_array_mob_2d_copy_input)
-        )
-        self.wait()
-
-        row_rep, col_rep = self.get_2d_dct_mob_reps(pixel_array_mob_2d)
-
-        arrow_top_left = Arrow(pixel_array_mob_2d_copy_input.get_right(), row_rep.get_left()).set_color(REDUCIBLE_YELLOW)
-
-        arrow_top_left_label_top = Tex(r"8 $\cross$ DCT 1D").scale(0.7).next_to(arrow_top_left, UP, buff=SMALL_BUFF)
-        arrow_top_left_label_bottom = Tex("Rows").scale(0.8).next_to(arrow_top_left, DOWN, buff=SMALL_BUFF)
-        self.play(
-            Write(arrow_top_left),
-            Write(arrow_top_left_label_top),
-            Write(arrow_top_left_label_bottom),
-        )
-        self.wait()
-
-        self.play(
-            FadeIn(row_rep[0]),
-            *[GrowFromCenter(arrow) for arrow in row_rep[1]]
-        )
-        self.wait()
-        dct_array_2d_row_group = self.get_dct_array_2d_mob(pixel_array_mob_2d, [row_rep[0]], dct_rows(block - 128), RIGHT * 4.5)
-
-        dct_mob_array_2d, overlay = dct_array_2d_row_group
-
-        arrow_top_right = Arrow(row_rep.get_right(), dct_mob_array_2d.get_left()).set_color(REDUCIBLE_YELLOW)
-
-        self.play(
-            Write(arrow_top_right)
-        )
-        self.wait()
-
-        self.play(
-            FadeIn(dct_mob_array_2d),
-            TransformFromCopy(row_rep[0], overlay[0])
-        )
-        self.wait()
-
-        dct_array_2d_row_group_input = dct_array_2d_row_group.copy().move_to(LEFT * 4.5 + DOWN * 2.7)
-
-        self.play(
-            TransformFromCopy(dct_array_2d_row_group, dct_array_2d_row_group_input)
-        )
-        self.wait()
-
-        col_rep.move_to(DOWN * 2.7)
-
-        arrow_bottom_left = Arrow(dct_array_2d_row_group_input.get_right(), col_rep.get_left()).set_color(REDUCIBLE_VIOLET)
-
-        arrow_bottom_left_label_top = Tex(r"8 $\cross$ DCT 1D").scale(0.7).next_to(arrow_bottom_left, UP, buff=SMALL_BUFF)
-        arrow_bottom_left_label_bottom = Tex("Columns").scale(0.8).next_to(arrow_bottom_left, DOWN, buff=SMALL_BUFF)
-
-        self.play(
-            Write(arrow_bottom_left_label_top),
-            Write(arrow_bottom_left_label_bottom),
-            Write(arrow_bottom_left),
-        )
-        self.wait()
-
-        self.play(
-            FadeIn(col_rep[0]),
-            *[GrowFromCenter(arrow) for arrow in col_rep[1]]
-        )
-        self.wait()
-
-        dct_array_2d_row_col_group = self.get_dct_array_2d_mob(pixel_array_mob_2d, VGroup(row_rep[0], col_rep[0]), dct_2d(block - 128), RIGHT * 4.5 + DOWN * 2.7)
-
-        dct_mob_array_2d_row_col, overlay_row_col = dct_array_2d_row_col_group
-
-        arrow_bottom_right = Arrow(col_rep.get_right(), dct_array_2d_row_col_group.get_left()).set_color(REDUCIBLE_VIOLET)
-
-        self.play(
-            Write(arrow_bottom_right)
-        )
-
-        self.wait()
-
-        self.play(
-            FadeIn(dct_mob_array_2d_row_col, overlay_row_col[0]),
-            TransformFromCopy(col_rep[0], overlay_row_col[1])
-        )
-        self.wait()
-        original_dct_array_2d_row_col_group = dct_array_2d_row_col_group.copy().move_to(LEFT * 4.5)
-        dct_2d_group = VGroup(
-            pixel_array_mob_2d_copy_input,
-            arrow_top_left,
-            row_rep,
-            arrow_top_right,
-            dct_array_2d_row_group,
-            dct_array_2d_row_group_input,
-            arrow_bottom_left,
-            col_rep,
-            arrow_bottom_right,
-            dct_array_2d_row_col_group,
-            arrow_top_left_label_top,
-            arrow_top_left_label_bottom,
-            arrow_bottom_left_label_top,
-            arrow_bottom_left_label_bottom,
-        )
-
-        surround_rect_dct_2d = SurroundingRectangle(dct_2d_group)
-
-        dct_2d_text = Tex("DCT 2D").scale(4)
-
-        dct_2d_text.move_to(surround_rect_dct_2d.get_center())
-
-        self.play(
-            Create(surround_rect_dct_2d)
-        )
-
-        self.play(
-            dct_2d_group.animate.fade(0.8),
-            Write(dct_2d_text)
-        )
-        self.wait()
-
-        self.play(
-            *[elem.animate.fade(1) for elem in dct_2d_group if not (elem is dct_array_2d_row_col_group)],
-            FadeOut(dct_2d_text),
-            FadeOut(surround_rect_dct_2d),
-            Transform(dct_array_2d_row_col_group, original_dct_array_2d_row_col_group),
-            FadeOut(pixel_array_mob_2d),
-            FadeOut(block_image),
-            FadeOut(block_pixel_grid)
-        )
-        self.wait()
-
-        return block_image, block_pixel_grid, pixel_array_mob_2d, dct_array_2d_row_col_group
-
-    def show_dct_components(self, dct_array_2d, rows=8, cols=8):
-        all_dct_components = []
-        for row in range(rows):
-            for col in range(cols):
-                pixel_grid_component = self.get_dct_component(row, col, height=0.8)
-                all_dct_components.append(pixel_grid_component)
-        
-        all_dct_components_group = VGroup(*all_dct_components).arrange_in_grid(rows=rows, buff=SMALL_BUFF)
-        all_dct_components_group.shift(RIGHT * 2)
-
-        lines = []
-        for rect, component in zip(dct_array_2d[0], all_dct_components_group):
-            line = Line(rect.get_center(), component.get_center()).set_stroke(width=1)
-            lines.append(line)
-
-
-
-        self.play(
-            *[Create(line) for line in lines],
-            FadeIn(all_dct_components_group)
-        )
-        self.wait()
-
-    def get_dct_component(self, row, col, height=2):
-        dct_matrix = np.zeros((8, 8))
-        if row == 0 and col == 0:
-            dct_matrix[row][col] = 1016
-        else:
-            dct_matrix[row][col] = 500
-        pixel_array = idct_2d(dct_matrix) + 128
-        all_in_range = (pixel_array >= 0) & (pixel_array <= 255)
-        if not all(all_in_range.flatten()):
-            print("Bad array\n", pixel_array)
-            raise ValueError("All elements in pixel_array must be in range [0, 255]")
-        image_mob = self.get_image_vector_mob(pixel_array, height=height)
-        return image_mob
-
-    def get_image_vector_mob(self, pixel_array, height=2, num_pixels=8):
-        side_length = height / num_pixels
-        adjusted_row_values = np.zeros(pixel_array.shape)
-        for i in range(pixel_array.shape[0]):
-            for j in range(pixel_array.shape[1]):
-                adjusted_row_values[i][j] = int(pixel_array[i][j])
-        pixel_grid_mob = VGroup(
-            *[
-                Square(side_length=side_length)
-                .set_stroke(color=REDUCIBLE_GREEN_LIGHTER, width=0.5)
-                .set_fill(color=gray_scale_value_to_hex(value), opacity=1)
-                for value in adjusted_row_values.flatten()
-            ]
-        ).arrange_in_grid(rows=num_pixels, buff=0)
-        return pixel_grid_mob
-
-
-    def get_2d_dct_mob_reps(self, pixel_array_mob_2d):
-        row_representation = self.make_dct_grid(pixel_array_mob_2d.width, pixel_array_mob_2d.height, rows=True)
-        col_representation = self.make_dct_grid(pixel_array_mob_2d.width, pixel_array_mob_2d.height, rows=False, color=REDUCIBLE_VIOLET)
-        return row_representation, col_representation
-
-    def get_dct_array_2d_mob(self, pixel_array_mob_2d, overlays, dct_values, position, color=REDUCIBLE_YELLOW):
-        dct_mob_array_2d = self.get_2d_pixel_array_mob(dct_values, height=pixel_array_mob_2d.height)
-        dct_mob_array_2d.move_to(position)
-        final_overlays = VGroup()
-        for overlay in overlays:
-            new_overlay = overlay.copy()
-            for rect in new_overlay:
-                rect.set_stroke(opacity=0.4)
-            new_overlay.move_to(position)
-            final_overlays.add(new_overlay)
-        
-        group = VGroup(dct_mob_array_2d, final_overlays)
-
-        return group
-
-    def make_dct_grid(self, width, height, block_size=8, rows=True, color=REDUCIBLE_YELLOW):
-        if rows:
-            rect_width = width
-            rect_height = height / block_size
-        else:
-            rect_width = width / block_size
-            rect_height = height
-
-        grid = VGroup(*[Rectangle(height=rect_height, width=rect_width) for _ in range(block_size)])
-        if rows:
-            grid.arrange(DOWN, buff=0)
-            arrows = VGroup(*[DoubleArrow(start=rect.get_left(), end=rect.get_right(), stroke_width=3, tip_length=SMALL_BUFF, buff=SMALL_BUFF) for rect in grid])
-        else:
-            grid.arrange(RIGHT, buff=0)
-            arrows = VGroup(*[DoubleArrow(start=rect.get_top(), end=rect.get_bottom(), stroke_width=3, tip_length=SMALL_BUFF, buff=SMALL_BUFF) for rect in grid])
-
-        return VGroup(grid, arrows).set_color(color)
-
-    def get_pixel_grid(self, image, num_pixels_in_dimension, color=WHITE):
-        height_pixels = image.get_pixel_array().shape[0]
-        width_pixels = image.get_pixel_array().shape[1]
-        aspect_ratio = width_pixels / height_pixels
-        height_single_cell = image.height / num_pixels_in_dimension
-        width_single_cell = height_single_cell * aspect_ratio
-        pixel_grid = VGroup(
-            *[
-                Rectangle(height=height_single_cell, width=width_single_cell).set_stroke(
-                    color=color, width=1, opacity=0.5
-                )
-                for _ in range(num_pixels_in_dimension ** 2)
-            ]
-        )
-        pixel_grid.arrange_in_grid(rows=num_pixels_in_dimension, buff=0)
-        return pixel_grid
-    
-    def add_grid(self, image_mob):
-        pixel_grid = self.get_pixel_grid(image_mob, 32)
-        pixel_grid.move_to(image_mob.get_center())
-        self.play(
-            Create(pixel_grid)
-        )
-        self.wait()
-
-        return pixel_grid
-
-    def get_2d_pixel_array_mob(self, block, height=3, block_size=8, color=REDUCIBLE_GREEN_LIGHTER):
-        array_mob_2d = VGroup(
-            *[Square(side_length=height/block_size) for _ in range(block_size ** 2)]
-        ).arrange_in_grid(rows=block_size, buff=0).set_color(color)
-
-        array_text = VGroup()
-        for i in range(block_size):
-            for j in range(block_size):
-                val = block[i][j]
-                # For space constraints of rendering negative 3 digit numbers
-                if val < -99:
-                    val = -val
-                integer = Integer(val).scale(0.35 * height / 3).move_to(array_mob_2d[i * block_size + j].get_center())
-                array_text.add(integer)
-
-        return VGroup(array_mob_2d, array_text)
-
-    def highlight_pixel_block(self, image_mob, start_row, start_col, pixel_grid, block_size=8):
-        pixel_array = image_mob.get_pixel_array()
-        height_pixels = pixel_array.shape[0]
-        width_pixels = pixel_array.shape[1]
-        block = pixel_array[
-            start_row : start_row + block_size, start_col : start_col + block_size
-        ]
-        center_row = start_row + block_size // 2
-        center_col = start_col + block_size // 2
-        vertical_pos = (
-            image_mob.get_top()
-            + DOWN * center_row / pixel_array.shape[0] * image_mob.height
-        )
-        horizontal_pos = (
-            image_mob.get_left()
-            + RIGHT * center_col / pixel_array.shape[1] * image_mob.width
-        )
-        pixel_grid_prop = (start_col * width_pixels + start_col) / (height_pixels * width_pixels)
-        tiny_square_highlight = pixel_grid[int(pixel_grid_prop * len(pixel_grid))].copy().set_color(REDUCIBLE_GREEN_LIGHTER)
-        tiny_square_highlight.set_stroke(width=4)
-        self.play(Create(tiny_square_highlight))
-        self.wait()
-
-        block_position = LEFT * 2 + DOWN * 2
-        block_image = self.get_image_mob(block, height=3.5).move_to(block_position)
-        block_pixel_grid = self.get_pixel_grid(block_image, block_size).move_to(
-            block_position
-        )
-        surround_rect = SurroundingRectangle(block_pixel_grid, buff=0).set_color(
-            REDUCIBLE_GREEN_LIGHTER
-        )
-
-        pixel_array_mob_2d = self.get_2d_pixel_array_mob(block[:, :, 1], height=block_image.height)
-        pixel_array_mob_2d.move_to(RIGHT * 2 + DOWN * 2)
-        surround_rect_integer_grid = SurroundingRectangle(pixel_array_mob_2d, buff=0, color=REDUCIBLE_GREEN_LIGHTER)
-        self.play(
-            FadeIn(block_image),
-            FadeIn(block_pixel_grid),
-            FadeIn(pixel_array_mob_2d),
-            TransformFromCopy(tiny_square_highlight, surround_rect),
-            TransformFromCopy(tiny_square_highlight, surround_rect_integer_grid)
-        )
-        self.wait()
-
-        shift_up = UP * 2
-
-        self.play(
-            FadeOut(surround_rect),
-            FadeOut(tiny_square_highlight),
-            FadeOut(surround_rect_integer_grid),
-            FadeOut(image_mob),
-            pixel_array_mob_2d.animate.shift(shift_up),
-            block_image.animate.shift(shift_up),
-            block_pixel_grid.animate.shift(shift_up),
-            FadeOut(pixel_grid)
-        )
-        self.wait()
-
-        return block_image, block_pixel_grid, block, pixel_array_mob_2d
-
-class DemoJPEGWithDCT2D(ThreeDScene, ImageUtils):
-    """
-    TODO: Implement https://www.mathworks.com/help/vision/ref/2didct.html
-    """
-    def construct(self):
-        image_mob = ImageMobject("dog").move_to(LEFT * 2)
-
-        axes = ThreeDAxes(
-            x_range=[0, 7], y_range=[0, 7], z_range=[0, 255], 
-            x_length=5, y_length=5, z_length=5,
-            tips=False,
-            axis_config={"include_ticks": False},
-        ).shift(IN * 1.5 + LEFT * 2)
-
-        axes.set_color(BLACK)
-
-        block_image_2d, pixel_grid_2d, block_2d = self.get_pixel_block(image_mob, 125, 125, height=3)
-        print("Before 2D\n", block_2d[:, :, 1])
-        block_image_2d = self.get_image_vector_mob(block_2d[:, :, 1], height=3)
-        self.add_fixed_in_frame_mobjects(block_image_2d)
-        block_image_2d.move_to(LEFT * 3.5)
-
-        self.play(
-            FadeIn(block_image_2d),
-        )
-        self.wait()
-
-        block_image, block = self.get_pixel_block_for_3d(image_mob, 125, 125, height=axes.x_length)
-
-        print('Before\n', block[:, :, 1])
-        block_centered = format_block(block)
-        print('After centering\n', block_centered)
-
-        dct_block = dct_2d(block_centered)
-        np.set_printoptions(suppress=True)
-        print('DCT block (rounded)\n', np.round(dct_block, decimals=1))
-        expected = invert_format_block(idct_2d(dct_block))
-        actual = self.get_original_matrix_from_func(dct_block)
-        print('Expected\n', expected)
-        print('Actual\n', actual)
-        assert(np.allclose(expected, actual))
-
-
-
-        surface = Surface(
-            lambda u, v: axes.c2p(*self.func(u, v, dct_block)),
-            u_range=[0, 7],
-            v_range=[0, 7],
-            checkerboard_colors=[REDUCIBLE_PURPLE],
-            fill_opacity=0.5,
-            resolution=8,
-            stroke_color=REDUCIBLE_YELLOW,
-            stroke_width=2,
-        )
-        
-        self.position_image_on_axes(axes, block_image)
-
-        # self.add_fixed_in_frame_mobjects(block_image)
-        # lines_to_z, dots_z = self.get_lines_and_dots(axes, block[:, :, 1], block_image)
-        self.set_camera_orientation(theta=70 * DEGREES, phi=80 * DEGREES)
-        self.add(axes, block_image, surface)
-        self.wait()
-
-        number_line = self.initialize_slider(block_image, block[:, :, 1], surface)
-        block_image = self.animate_slider(number_line, axes, block_image, dct_block, block[:, :, 1], surface, block_image_2d)
-
-        # self.begin_ambient_camera_rotation(rate=0.1)
-        # self.wait(5)
-
-    def initialize_slider(self, block_image, block, surface):
-        number_line = NumberLine(
-            x_range=[0, 64, 8],
-            length=10,
-            color=REDUCIBLE_VIOLET,
-            include_numbers=True,
-            label_direction=UP,
-        )
-        self.add_fixed_in_frame_mobjects(number_line)
-        number_line.move_to(DOWN * 3)
-
-        self.play(
-            FadeIn(number_line)
-        )
-        self.wait()
-        return number_line
-
-    def get_image_vector_mob(self, pixel_array, height=2, num_pixels=8, color=WHITE):
-        side_length = height / num_pixels
-        adjusted_row_values = np.zeros(pixel_array.shape)
-        for i in range(pixel_array.shape[0]):
-            for j in range(pixel_array.shape[1]):
-                adjusted_row_values[i][j] = int(pixel_array[i][j])
-        pixel_grid_mob = VGroup(
-            *[
-                Square(side_length=side_length)
-                .set_stroke(color=color, width=0.5)
-                .set_fill(color=gray_scale_value_to_hex(value), opacity=1)
-                for value in adjusted_row_values.flatten()
-            ]
-        ).arrange_in_grid(rows=num_pixels, buff=0)
-        return pixel_grid_mob
-
-    def animate_slider(self, number_line, axes, block_image, dct_block, original_block, surface, block_image_2d):
-        tick = Triangle().scale(0.2).set_color(REDUCIBLE_YELLOW)
-        tick.set_fill(color=REDUCIBLE_YELLOW, opacity=1)
-        self.add_fixed_in_frame_mobjects(tick)
-
-        tracker = ValueTracker(0)
-        tick.add_updater(
-            lambda m: m.next_to(
-                        number_line.n2p(tracker.get_value()),
-                        DOWN
-                    )
-        )
-        self.play( 
-            FadeIn(tick),
-        )
-        self.wait()
-        # surface_pos = RIGHT *
-        def get_new_block():
-            new_partial_block = self.get_partial_block(dct_block, tracker.get_value())
-            print(f'Partial block - {tracker.get_value()} components')
-            print('MSE', np.mean((new_partial_block - original_block) ** 2), '\n')
-
-            new_partial_block_image = self.get_block_image_for_3d(new_partial_block, height=axes.x_length)            
-            self.position_image_on_axes(axes, new_partial_block_image)
-            return new_partial_block_image
-
-        def get_new_surface():
-            new_partial_block_dct = self.get_partial_dct_block(dct_block, tracker.get_value())
-            # print('Generating surface of block:\n', new_partial_block_dct)
-            new_surface = Surface(
-                lambda u, v: axes.c2p(*self.func(u, v, new_partial_block_dct)),
-                u_range=[0, 7],
-                v_range=[0, 7],
-                checkerboard_colors=[REDUCIBLE_PURPLE],
-                fill_opacity=0.5,
-                resolution=8,
-                stroke_color=REDUCIBLE_YELLOW,
-                stroke_width=2,
-            )
-            return new_surface
-        
-        def get_new_block_2d():
-            new_partial_block = self.get_partial_block(dct_block, tracker.get_value())
-
-            new_partial_block_image = self.get_image_vector_mob(new_partial_block, height=3)
-            
-            # TODO comment out this line for the smooth transition
-            self.add_fixed_in_frame_mobjects(new_partial_block_image)
-            new_partial_block_image.move_to(block_image_2d.get_center())
-            return new_partial_block_image
-
-        partial_block_image_2d = always_redraw(get_new_block_2d)
-        # partial_pixel_grid_2d = self.get_pixel_grid(
-        #     partial_block_image_2d, partial_block_2d.shape[0]
-        # )
-        # partial_pixel_grid_2d.move_to(par)
-
-        partial_block = self.get_partial_block(dct_block, tracker.get_value())
-        partial_block_image = always_redraw(get_new_block)
-        partial_block_surface = always_redraw(get_new_surface)
-        self.play(
-            ReplacementTransform(block_image, partial_block_image),
-            ReplacementTransform(surface, partial_block_surface),
-            ReplacementTransform(block_image_2d, partial_block_image_2d),
-        )
-        self.wait()
-        
-       
-        self.play(
-            tracker.animate.set_value(64),
-            run_time=10,
-            rate_func=linear,
-        )
-
-        self.wait()
-        return partial_block_image
-
-
-    # 2D IDCT Function
-    def func(self, x, y, dct_matrix):
-        M, N = 8, 8
-        def C(m):
-            if m == 0:
-                return 1 / np.sqrt(2)
-            return 1
-
-        result = 0
-        norm_factor = 2 / (np.sqrt(M * N))
-        for m in range(M):
-            for n in range(N):
-                cos_mx = np.cos((2 * x + 1) * m * np.pi / (2 * M))
-                cos_ny = np.cos((2 * y + 1) * n * np.pi / (2 * N))
-                result += C(m) * C(n) * dct_matrix[m][n] * cos_mx * cos_ny
-        return np.array([x, y, norm_factor * result + 128])
-
-    def get_original_matrix_from_func(self, dct_matrix):
-        result = np.zeros((8, 8))
-        for x in range(result.shape[0]):
-            for y in range(result.shape[1]):
-                result[x][y] = self.func(x, y, dct_matrix)[2]
-        return result
-
-    def position_image_on_axes(self, axes, block_image):
-        block_image.move_to(axes.c2p(*[np.mean(axes.x_range) + 0.75, np.mean(axes.y_range) + 0.75, 0]))
-        block_image.flip(RIGHT)
-
-    def get_pixel_block_for_3d(self, image_mob, start_row, start_col, block_size=8, height=2):
-        pixel_array = image_mob.get_pixel_array()
-        block = pixel_array[start_row:start_row+block_size, start_col:start_col+block_size]
-
-        block_image = self.get_block_image_for_3d(block[:, :, 1], block_size=block_size, height=height)
-
-        return block_image, block
-
-    def get_block_image_for_3d(self, block, block_size=8, height=2):
-        # this block_image seems to break in 3D scenes, so using the pixel_grid itself
-        # as a proxy for the image
-        block_image = self.get_image_mob(block, height=height)
-        pixel_grid = self.get_pixel_grid(block_image, block_size)
-
-        for i in range(block.shape[0]):
-            for j in range(block.shape[1]):
-                index = two_d_to_1d_index(i, j)
-                pixel_grid[index].set_fill(color=gray_scale_value_to_hex(block[i][j]), opacity=1)
-
-        return pixel_grid
-
-    def get_partial_block(self, dct_block, num_components):
-        """
-        @param: dct_block - dct coefficients of the block
-        @param: num_components - float - number of dct components to
-        include in partial block
-        @return: pixel_array of partial block with num_components of DCT included
-        """
-        dct_matrix = self.get_partial_dct_block(dct_block, num_components)
-
-        pixel_array = idct_2d(dct_matrix)
-        return invert_format_block(pixel_array)
-
-    def get_partial_dct_block(self, dct_block, num_components):
-        """
-        @param: dct_block - dct coefficients of the block
-        @param: num_components - float - number of dct components to
-        include in partial block
-        @return: partial accumulated dct block containing a combination of num_components
-        """
-        from math import floor
-        zigzag = get_zigzag_order()
-        dct_matrix = np.zeros((8, 8))
-        floor_val = floor(num_components)
-        remaining = num_components - floor_val
-        for basis_comp in range(floor_val):
-            row, col = zigzag[basis_comp]
-            dct_matrix[row][col] = dct_block[row][col]
-        
-        if floor_val < dct_block.shape[0] ** 2:
-            row, col = zigzag[floor_val]
-            dct_matrix[row][col] = remaining * dct_block[row][col]
-
-        return dct_matrix
-
-    def get_lines_and_dots(self, axes, block, block_image, color=REDUCIBLE_GREEN_DARKER):
-        lines = VGroup()
-        dots = VGroup()
-        for i in range(block.shape[0]):
-            for j in range(block.shape[1]):
-                index = two_d_to_1d_index(i, j)
-                start = block_image[index].get_center()
-                end = axes.c2p(*[i, j, block[i][j]])
-                dot = Dot().move_to(end).set_color(color=color)
-                dots.add(dot)
-                line = Line(start, end).set_stroke(color=color, width=1)
-                lines.add(line)
-
-        return lines, dots
-
-    def get_pixel_block(self, image_mob, start_row, start_col, block_size=8, height=2):
-        pixel_array = image_mob.get_pixel_array()
-        block = pixel_array[
-            start_row : start_row + block_size, start_col : start_col + block_size
-        ]
-
-        block_image = self.get_image_mob(block, height=height)
-        pixel_grid = self.get_pixel_grid(block_image, block_size)
-
-        return block_image, pixel_grid, block
-
-class HeatMapExperiments(Introduce2DDCT):
-    def construct(self):
-        image_mob = ImageMobject("dog").move_to(UP * 2.5)
-        self.play(
-            FadeIn(image_mob)
-        )
-        self.wait()
-
-        print("Image size:", image_mob.get_pixel_array().shape)
-
-        pixel_grid = self.add_grid(image_mob)
-
-        block_image, block_pixel_grid, block, pixel_array_mob_2d, tiny_square_highlight = self.highlight_pixel_block(image_mob, 125, 125, pixel_grid)
-
-        block_single_channel = block[:, :, 0]
-
-        self.show_changing_blocks_with_dct(image_mob, block_image, block_pixel_grid, pixel_array_mob_2d, block_single_channel, tiny_square_highlight, pixel_grid)
-
-    def show_changing_blocks_with_dct(self, image_mob, block_image, block_pixel_grid, pixel_array_mob_2d, block_single_channel, tiny_square_highlight, pixel_grid):
-        dct_array_2d_mob, dct_heat_map = self.get_array_and_heat_map(block_image, pixel_array_mob_2d, block_single_channel)
-        pixel_array = image_mob.get_pixel_array()
-        height_pixels = pixel_array.shape[0]
-        width_pixels = pixel_array.shape[1]
-
-        self.play(
-            FadeIn(dct_array_2d_mob),
-            FadeIn(dct_heat_map)
-        )
-        self.wait()
-        for _ in range(20):
-            start_row, start_col = np.random.randint(0, height_pixels), np.random.randint(0, width_pixels)
-            print(start_row, start_col)
-            new_block_image, new_block_pixel_grid, new_block = self.get_pixel_block(image_mob, start_row, start_col, height=block_image.height)
-            new_block_image.move_to(block_image.get_center())
-            new_block_pixel_grid.move_to(block_pixel_grid.get_center())
-            
-            new_tiny_square_highlight = self.get_tiny_square(start_row, start_col, image_mob, pixel_array, pixel_grid)
-            tiny_square_highlight.become(new_tiny_square_highlight)
-
-            new_pixel_array_mob_2d = self.get_2d_pixel_array_mob(new_block[:, :, 0], height=pixel_array_mob_2d.height)
-            
-            new_pixel_array_mob_2d.move_to(pixel_array_mob_2d.get_center())
-            
-            block_image.become(new_block_image)
-            block_pixel_grid.become(new_block_pixel_grid)
-            pixel_array_mob_2d.become(new_pixel_array_mob_2d)
-
-            new_block_single_channel = new_block[:, :, 0]
-            new_dct_array_2d_mob, new_dct_heat_map = self.get_array_and_heat_map(new_block_image, new_pixel_array_mob_2d, new_block_single_channel)
-
-            dct_array_2d_mob.become(new_dct_array_2d_mob)
-            dct_heat_map.become(new_dct_heat_map)
+        for i in range(256):
+            dot = Dot().set_color(gray_scale_value_to_hex(i))
+            self.add(dot)
             self.wait()
-        # self.remove(block_image, block_pixel_grid, pixel_array_mob_2d)
-        # self.add(new_block_image, new_pixel_grid, new_pixel_array_mob_2d)
-        # self.wait()
-
-    def get_pixel_block(self, image_mob, start_row, start_col, block_size=8, height=2):
-        pixel_array = image_mob.get_pixel_array()
-        block = pixel_array[
-            start_row : start_row + block_size, start_col : start_col + block_size
-        ]
-
-        block_image = self.get_image_mob(block, height=height)
-        pixel_grid = self.get_pixel_grid(block_image, block_size)
-
-        return block_image, pixel_grid, block
-    
-    def get_array_and_heat_map(self, block_image, pixel_array_mob_2d, block_single_channel):
-        formatted_block = format_block(block_single_channel)
-        dct_values = dct_2d(formatted_block)
-        dct_array_2d_mob = self.get_2d_pixel_array_mob(dct_values, height=pixel_array_mob_2d.height, color=REDUCIBLE_VIOLET)
-        dct_array_2d_mob.move_to(RIGHT * 3.5 + UP * 2)
-
-        dct_heat_map = self.get_heat_map(block_image, dct_values)
-        dct_heat_map.next_to(dct_array_2d_mob, DOWN, aligned_edge=LEFT)
-        shift_down = (-2 - dct_heat_map.get_center()[1])
-        dct_heat_map.shift(UP * shift_down)
-        
-        return dct_array_2d_mob, dct_heat_map
-
-    def get_heat_map(self, block_image, dct_block):
-        block_size = dct_block.shape[0]
-        pixel_grid_dct = self.get_pixel_grid(block_image, block_size)
-        dct_block_abs = np.abs(dct_block)
-        max_dct_coeff = np.amax(dct_block_abs)
-        max_color = REDUCIBLE_YELLOW
-        min_color = REDUCIBLE_PURPLE
-        for i, square in enumerate(pixel_grid_dct):
-            row, col = i // block_size, i % block_size
-            alpha = dct_block_abs[row][col] / max_dct_coeff
-            square.set_fill(
-                color=interpolate_color(min_color, max_color, alpha), opacity=1
-            )
-
-        scale = Line(pixel_grid_dct.get_top(), pixel_grid_dct.get_bottom())
-        scale.set_stroke(width=10).set_color(color=[min_color, max_color])
-        integer_scale = 0.5
-        top_value = Integer(round(max_dct_coeff)).scale(integer_scale)
-        top_value.next_to(scale, RIGHT, aligned_edge=UP)
-        bottom_value = Integer(0).scale(integer_scale)
-        bottom_value.next_to(scale, RIGHT, aligned_edge=DOWN)
-
-        heat_map_scale = VGroup(scale, top_value, bottom_value)
-
-        return VGroup(pixel_grid_dct, heat_map_scale).arrange(RIGHT)
-
-    def get_tiny_square(self, start_row, start_col, image_mob, pixel_array, pixel_grid, block_size=8):
-        center_row = start_row + block_size // 2
-        center_col = start_col + block_size // 2
-        vertical_pos = (
-            image_mob.get_top()
-            + DOWN * center_row / pixel_array.shape[0] * image_mob.height
-        )
-        horizontal_pos = (
-            image_mob.get_left()
-            + RIGHT * center_col / pixel_array.shape[1] * image_mob.width
-        )
-        tiny_square_highlight = Square(side_length=SMALL_BUFF * 0.8)
-        highlight_position = np.array([horizontal_pos[0], vertical_pos[1], 0])
-        tiny_square_highlight.set_color(REDUCIBLE_GREEN_LIGHTER).move_to(highlight_position)
-        return tiny_square_highlight
-        # height_pixels = pixel_array.shape[0]
-        # width_pixels = pixel_array.shape[1]
-        # print(width_pixels, height_pixels)
-        # pixel_grid_prop = (start_row * width_pixels + start_col) / (height_pixels * width_pixels)
-        # tiny_square_highlight = pixel_grid[int(pixel_grid_prop * len(pixel_grid))].copy().set_color(REDUCIBLE_GREEN_LIGHTER)
-        # tiny_square_highlight.set_stroke(width=4)
-        # return tiny_square_highlight
-
-    def highlight_pixel_block(self, image_mob, start_row, start_col, pixel_grid, block_size=8):
-        pixel_array = image_mob.get_pixel_array()
-        height_pixels = pixel_array.shape[0]
-        width_pixels = pixel_array.shape[1]
-        block = pixel_array[
-            start_row : start_row + block_size, start_col : start_col + block_size
-        ]
-        center_row = start_row + block_size // 2
-        center_col = start_col + block_size // 2
-        vertical_pos = (
-            image_mob.get_top()
-            + DOWN * center_row / pixel_array.shape[0] * image_mob.height
-        )
-        horizontal_pos = (
-            image_mob.get_left()
-            + RIGHT * center_col / pixel_array.shape[1] * image_mob.width
-        )
-        tiny_square_highlight = Square(side_length=SMALL_BUFF * 0.8)
-        highlight_position = np.array([horizontal_pos[0], vertical_pos[1], 0])
-        tiny_square_highlight.set_color(REDUCIBLE_GREEN_LIGHTER).move_to(highlight_position)
-        self.play(Create(tiny_square_highlight))
-        self.wait()
-
-        block_position = LEFT * 2 + DOWN * 1
-        block_image = self.get_image_mob(block, height=3.5).move_to(block_position)
-        block_pixel_grid = self.get_pixel_grid(block_image, block_size).move_to(
-            block_position
-        )
-        surround_rect = SurroundingRectangle(block_pixel_grid, buff=0).set_color(
-            REDUCIBLE_GREEN_LIGHTER
-        )
-
-        pixel_array_mob_2d = self.get_2d_pixel_array_mob(block[:, :, 1], height=block_image.height)
-        pixel_array_mob_2d.move_to(RIGHT * 2 + DOWN * 1)
-        surround_rect_integer_grid = SurroundingRectangle(pixel_array_mob_2d, buff=0, color=REDUCIBLE_GREEN_LIGHTER)
-        self.play(
-            FadeIn(block_image),
-            FadeIn(block_pixel_grid),
-            FadeIn(pixel_array_mob_2d),
-            TransformFromCopy(tiny_square_highlight, surround_rect),
-            TransformFromCopy(tiny_square_highlight, surround_rect_integer_grid)
-        )
-        self.wait()
-
-        self.play(
-            pixel_array_mob_2d.animate.scale(0.8).move_to(LEFT * 3.5 + UP * 2),
-            block_image.animate.scale(0.8).move_to(LEFT * 3.5 + DOWN * 2),
-            block_pixel_grid.animate.scale(0.8).move_to(LEFT * 3.5 + DOWN * 2),
-            surround_rect.animate.scale(0.8).move_to(LEFT * 3.5 + DOWN * 2),
-            surround_rect_integer_grid.animate.scale(0.8).move_to(LEFT * 3.5 + UP * 2),
-            image_mob.animate.move_to(ORIGIN),
-            pixel_grid.animate.move_to(ORIGIN),
-            tiny_square_highlight.animate.shift(DOWN * 2.5)
-        )
-        self.wait()
-
-        self.add_foreground_mobject(surround_rect)
-
-        return block_image, block_pixel_grid, block, pixel_array_mob_2d, tiny_square_highlight
+            self.remove(dot)
