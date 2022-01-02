@@ -783,21 +783,46 @@ class ShowConfusingImage(Scene):
 
 
 class MotivateAndExplainRGB(ThreeDScene):
+    def construct(self):
+        self.color_cube_animation()
+
     def color_cube_animation(self):
         self.set_camera_orientation(phi=75 * DEGREES, theta=-45 * DEGREES)
-        self.begin_ambient_camera_rotation(rate=1)
+        self.begin_ambient_camera_rotation(rate=0.4)
         self.move_camera(zoom=0.5)
 
-        # change this value to 8 or 16. 8 is pretty slow already, we may not need
-        # that much resolution for this small demo.
-        color_resolution = 3
+        title = (
+            Text("RGB color space", font="CMU Serif", weight=BOLD)
+            .scale(0.9)
+            .to_edge(UP, buff=0.6)
+        )
 
-        cubes_rgb = self.create_color_space_cube(
-            coords2rgbcolor, color_res=color_resolution, cube_side_length=0.8
-        ).move_to(ORIGIN)
-        cubes_rgb_expanded = self.create_color_space_cube(
-            coords2rgbcolor, color_res=color_resolution, cube_side_length=0.8, buff=0.6
-        ).move_to(ORIGIN)
+        self.add_fixed_in_frame_mobjects(title)
+        self.wait(3)
+
+        # change this value to 8 or 16 for the final renders.
+        # 8 is pretty slow already, we may not need
+        # that much resolution for this small explanation.
+        color_resolution = 8
+
+        cubes_rgb = (
+            self.create_color_space_cube(
+                coords2rgbcolor, color_res=color_resolution, cube_side_length=0.8
+            )
+            .scale_to_fit_height(5)
+            .move_to(ORIGIN)
+        )
+
+        cubes_rgb_expanded = (
+            self.create_color_space_cube(
+                coords2rgbcolor,
+                color_res=color_resolution,
+                cube_side_length=0.8,
+                buff=0.2,
+            )
+            .scale_to_fit_height(5)
+            .move_to(ORIGIN)
+        )
 
         self.wait()
 
