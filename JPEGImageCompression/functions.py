@@ -166,10 +166,35 @@ def rgb2ycbcr(r, g, b):  # in (0,255) range
     return y, cb, cr
 
 
+def rgb2ycbcr4map(c: list):
+    y = 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]
+    cb = 128 - 0.168736 * c[0] - 0.331364 * c[1] + 0.5 * c[2]
+    cr = 128 + 0.5 * c[0] - 0.418688 * c[1] - 0.081312 * c[2]
+    return y, cb, cr
+
+
+# R = Y + 1.4075 * (V - 128)
+# G = Y - 0.3455 * (U - 128) - (0.7169 * (V - 128))
+# B = Y + 1.7790 * (U - 128)
 def ycbcr2rgb(y, cb, cr):
-    r = y + 1.402 * (cr - 128)
+    r = y + 1.4075 * (cr - 128)
     g = y - 0.34414 * (cb - 128) - 0.71414 * (cr - 128)
-    b = y + 1.772 * (cb - 128)
+    b = y + 1.7790 * (cb - 128)
+
+    r = np.clip(r, 0, 255)
+    g = np.clip(g, 0, 255)
+    b = np.clip(b, 0, 255)
+    return r, g, b
+
+
+def ycbcr2rgb4map(c: list):
+    r = c[0] + 1.4075 * (c[2] - 128)
+    g = c[0] - 0.34414 * (c[1] - 128) - 0.71414 * (c[2] - 128)
+    b = c[0] + 1.7790 * (c[1] - 128)
+
+    r = np.clip(r, 0, 255)
+    g = np.clip(g, 0, 255)
+    b = np.clip(b, 0, 255)
     return r, g, b
 
 

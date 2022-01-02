@@ -3,8 +3,11 @@ File to define all the different scenes our video will be composed of.
 """
 
 from math import sqrt
+
 from manim import *
 import cv2
+from itertools import product
+from pprint import pprint
 
 from functions import *
 from classes import *
@@ -776,23 +779,56 @@ class ShowConfusingImage(Scene):
         """
 
 
-class MotivateAndExplainYCbCr(ThreeDScene):
+class MotivateAndExplainRGB(ThreeDScene):
     def construct(self):
-        self.set_camera_orientation(phi=75 * DEGREES, theta=-45 * DEGREES)
-        self.move_camera(zoom=0.2)
+        self.color_cube_animation()
 
+    def color_cube_animation(self):
+        self.set_camera_orientation(phi=75 * DEGREES, theta=-45 * DEGREES)
+        self.begin_ambient_camera_rotation(rate=0.4)
+        self.move_camera(zoom=0.5)
+
+        title = (
+            Text("RGB color space", font="CMU Serif", weight=BOLD)
+            .scale(0.9)
+            .to_edge(UP, buff=0.6)
+        )
+
+        self.add_fixed_in_frame_mobjects(title)
+        self.wait(3)
+
+        # change this value to 8 or 16 for the final renders.
+        # 8 is pretty slow already, we may not need
+        # that much resolution for this small explanation.
         color_resolution = 8
-        cubes_rgb = self.create_color_space_cube(
-            coords2rgbcolor, color_res=color_resolution, cube_side_length=1
+
+        cubes_rgb = (
+            self.create_color_space_cube(
+                coords2rgbcolor, color_res=color_resolution, cube_side_length=0.8
+            )
+            .scale_to_fit_height(5)
+            .move_to(ORIGIN)
         )
-        cubes_yuv = self.create_color_space_cube(
-            coords2ycbcrcolor, color_res=color_resolution, cube_side_length=1
+
+        cubes_rgb_expanded = (
+            self.create_color_space_cube(
+                coords2rgbcolor,
+                color_res=color_resolution,
+                cube_side_length=0.8,
+                buff=0.2,
+            )
+            .scale_to_fit_height(5)
+            .move_to(ORIGIN)
+
         )
-        self.wait(2)
-        self.add(
-            cubes_rgb,
-        )
-        self.wait(2)
+
+        self.wait()
+
+        self.play(FadeIn(cubes_rgb))
+
+        self.wait(6)
+
+        self.play(Transform(cubes_rgb, cubes_rgb_expanded))
 
         anim_group = []
         # this loop removes every cube that is not in the grayscale diagonal of the RGB colorspace.
@@ -803,30 +839,18 @@ class MotivateAndExplainYCbCr(ThreeDScene):
             print(coords)
             if not coords[0] == coords[1] == coords[2]:
                 anim_group.append(FadeOut(cube))
-                cubes_rgb.remove(cube)
 
         self.play(*anim_group)
 
-        self.play(Rotate(cubes_rgb, angle=PI * 2))
-        cubes_arranged = cubes_rgb.copy().arrange(OUT, buff=0)
-        self.play(Transform(cubes_rgb, cubes_arranged))
+        self.wait(6)
 
-        self.wait()
-
-        cubes_yuv.move_to(cubes_arranged.get_center())
-
-        # this is a very bad way of transforming the grayscale line to
-        # the cube obviously but it illustrates the point at least for now
-        self.play(Transform(cubes_arranged, cubes_yuv))
-        self.play(Rotate(cubes_arranged, angle=PI * 2))
-        self.wait()
 
     def create_color_space_cube(
         self,
         color_space_func,
         color_res=8,
         cube_side_length=0.1,
-        buff=0.05,
+        buff=0,
     ):
         """
         Creates a YCbCr cube composed of many smaller cubes. The `color_res` argument defines
@@ -848,8 +872,7 @@ class MotivateAndExplainYCbCr(ThreeDScene):
         MAX_COLOR_RES = 256
         discrete_ratio = MAX_COLOR_RES // color_res
 
-        side_length = cube_side_length
-        offset = side_length + buff
+        offset = cube_side_length + buff
         cubes = []
 
         for i in range(color_res):
@@ -863,7 +886,7 @@ class MotivateAndExplainYCbCr(ThreeDScene):
                     color = color_space_func(i_discrete, j_discrete, k_discrete)
 
                     curr_cube = Cube(
-                        side_length=side_length, fill_color=color, fill_opacity=1
+                        fill_color=color, fill_opacity=1, side_length=cube_side_length
                     ).shift((LEFT * i + UP * j + OUT * k) * offset)
 
                     cubes.append(curr_cube)
@@ -871,6 +894,215 @@ class MotivateAndExplainYCbCr(ThreeDScene):
         cubes_rgb = Group(*cubes)
 
         return cubes_rgb
+
+
+class MotivateAndExplainYCbCr(Scene):
+    def construct(self):
+        self.ycbcr_explanation()
+        self.yuv_plane_animation()
+
+    def ycbcr_explanation(self):
+        y_t = Text("Y", font="CMU Serif", weight=BOLD).scale(1.5).set_color(GRAY_B)
+        u_t = (
+            Text("Cb", font="CMU Serif", weight=BOLD)
+            .scale(1.5)
+            .set_color_by_gradient("#FFFF00", "#0000FF")
+        )
+        v_t = (
+            Text("Cr", font="CMU Serif", weight=BOLD)
+            .scale(1.5)
+            .set_color_by_gradient("#00FF00", "#FF0000")
+        )
+
+        v_full_t = (
+            Text("Chroma red", font="CMU Serif", weight=BOLD)
+            .scale(1.5)
+            .set_color_by_gradient("#00FF00", "#FF0000")
+        )
+
+        u_full_t = (
+            Text("Chroma blue", font="CMU Serif", weight=BOLD)
+            .scale(1.5)
+            .set_color_by_gradient("#FFFF00", "#0000FF")
+        )
+
+        ycbcr_vg = VGroup(y_t, u_t, v_t).arrange(RIGHT, buff=1).scale(2)
+        ycbcr_vg_vert = (
+            VGroup(y_t.copy().scale(0.7), u_full_t, v_full_t)
+            .arrange(DOWN, buff=1)
+            .scale_to_fit_height(5)
+        )
+
+        # YCbCr stands for Y, Chroma Blue and Chroma Red.
+
+        self.play(
+            LaggedStartMap(FadeIn, ycbcr_vg, lag_ratio=0.5),
+        )
+
+        self.wait()
+        self.play(
+            # Y
+            Transform(
+                ycbcr_vg[0],
+                ycbcr_vg_vert[0],
+            ),
+            # C to chroma
+            Transform(
+                ycbcr_vg[1][0],
+                ycbcr_vg_vert[1][:6],
+            ),
+            # b to blue
+            Transform(
+                ycbcr_vg[1][1],
+                ycbcr_vg_vert[1][6:],
+            ),
+            # c to chroma
+            Transform(
+                ycbcr_vg[2][0],
+                ycbcr_vg_vert[2][:6],
+            ),
+            # r to red
+            Transform(
+                ycbcr_vg[2][1],
+                ycbcr_vg_vert[2][6:],
+            ),
+        )
+        self.wait(2)
+
+        # This color space aims to separate the luminance, or brightness
+        # from the color components for a given value.
+        self.play(Circumscribe(ycbcr_vg_vert[0], color=REDUCIBLE_VIOLET, run_time=2))
+
+        self.wait(2)
+
+        self.play(Circumscribe(ycbcr_vg_vert[1:], color=REDUCIBLE_VIOLET, run_time=2))
+
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
+
+        self.wait()
+
+    def yuv_plane_animation(self):
+        yuv_title = (
+            Text("YCbCr color space", font="CMU Serif", weight=BOLD)
+            .scale(0.9)
+            .to_edge(UP, buff=0.6)
+        )
+
+        color_plane_0 = self.create_yuv_plane(y=0, color_res=32).move_to(DOWN * 0.5)
+        color_plane_127 = self.create_yuv_plane(y=127, color_res=32).move_to(DOWN * 0.5)
+        color_plane_255 = self.create_yuv_plane(y=255, color_res=32).move_to(DOWN * 0.5)
+        color_plane_0_loop = color_plane_0.copy()
+
+        color_planes = {}
+        for i in range(50, 256, 50):
+            color_planes.update(
+                {i: self.create_yuv_plane(i, color_res=32).move_to(color_plane_0)}
+            )
+
+        print(color_planes)
+
+        y = 0.00
+
+        y_number = (
+            RVariable(var=y, label="Y")
+            .scale(0.7)
+            .next_to(color_plane_0, DOWN, buff=0.5)
+        )
+
+        self.play(FadeIn(color_plane_0), FadeIn(yuv_title), FadeIn(y_number))
+
+        self.wait()
+
+        for y, plane in color_planes.items():
+            self.play(
+                Transform(color_plane_0, plane),
+                y_number.tracker.animate.set_value(y / 255),
+                run_time=2,
+            )
+            self.wait(2)
+
+        self.play(
+            Transform(color_plane_0, color_plane_0_loop),
+            y_number.tracker.animate.set_value(0.00001),
+        )
+        self.wait(2)
+        self.play(FadeOut(color_plane_0), FadeOut(y_number))
+        self.wait()
+
+        planes_diag = (
+            Group(color_plane_0, color_plane_127, color_plane_255)
+            .arrange(DOWN * 1.9 + RIGHT * 1.7, buff=-1.5)
+            .scale(0.7)
+            .move_to(DOWN * 0.5)
+        )
+
+        planes_from_side = (
+            planes_diag.copy()
+            .arrange(IN, buff=1)
+            .rotate(-90 * DEGREES, Y_AXIS)
+            .move_to(DOWN * 0.5)
+        )
+
+        self.play(FadeIn(planes_diag))
+        self.wait()
+        self.play(Transform(planes_diag, planes_from_side))
+        self.wait()
+
+        y_line = Line(
+            planes_from_side[0].get_center(), planes_from_side[-1].get_center()
+        ).set_stroke(GRAY)
+
+        y_0 = (
+            Text("0", font="SF Mono")
+            .scale(0.4)
+            .next_to(planes_from_side[0], UP, buff=0.3)
+        )
+        y_05 = (
+            Text("0.5", font="SF Mono")
+            .scale(0.4)
+            .next_to(planes_from_side[1], UP, buff=0.3)
+        )
+        y_1 = (
+            Text("1", font="SF Mono")
+            .scale(0.4)
+            .next_to(planes_from_side[2], UP, buff=0.3)
+        )
+
+        self.play(
+            Write(y_line),
+            LaggedStart(FadeIn(y_0), FadeIn(y_05), FadeIn(y_1), lag_ratio=0.1),
+            run_time=3,
+        )
+
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
+
+    def create_yuv_plane(self, y=127, color_res=64, return_data=False):
+        """
+        Creates an array of data that corresponds to the U and V values mapped out
+        at a specific y setting. This can return the ndarray itself or an ImageMobject
+        ready to be used.
+
+        Color res at 32 using linear interpolation for the resampling can be quite
+        fast and efficient while still giving the illusion of a very smooth gradient.
+        """
+        color_plane_data = [
+            [y, u * (256 // color_res), v * (256 // color_res)]
+            for u in range(color_res)
+            for v in range(color_res)
+        ]
+
+        rgb_conv = np.array(
+            [ycbcr2rgb4map(c) for c in color_plane_data], dtype=np.uint8
+        ).reshape((color_res, color_res, 3))
+
+        if return_data:
+            return rgb_conv
+
+        mob = ImageMobject(rgb_conv)
+        mob.set_resampling_algorithm(RESAMPLING_ALGORITHMS["linear"])
+        mob.scale_to_fit_width(4)
+
+        return mob
 
 
 class ImageUtils(Scene):
