@@ -10,8 +10,10 @@ from scipy import fftpack
 
 
 def gray_scale_value_to_hex(value):
-    hex_string = hex(value).split("x")[-1]
-    if value < 16:
+    assert value >= 0 and value <= 255, f'Invalid value {value}'
+    integer_value = int(round(value))
+    hex_string = hex(integer_value).split("x")[-1]
+    if integer_value < 16:
         hex_string = "0" + hex_string
     return "#" + hex_string * 3
 
@@ -109,6 +111,11 @@ def invert_format_block(block):
     new_block[new_block < 0] = 0
     return new_block
 
+def dct_cols(block):
+    return fftpack.dct(block.T, norm="ortho").T
+
+def dct_rows(block):
+    return fftpack.dct(block, norm="ortho")
 
 def dct_1d(row):
     return fftpack.dct(row, norm="ortho")

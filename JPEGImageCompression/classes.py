@@ -143,9 +143,8 @@ class Module(VGroup):
 class Pixel(Square):
     def __init__(self, n: int, color_mode: str):
         assert color_mode in ("RGB", "GRAY"), "Color modes are RGB and GRAY"
-
         if color_mode == "RGB":
-            color = rgb_to_hex(n / 255)
+            color = rgb_to_hex((n / 255, n / 255, n / 255))
         else:
             color = g2h(n / 255)
 

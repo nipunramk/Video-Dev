@@ -5455,7 +5455,7 @@ class Introduce2DDCT(DCTExperiments):
         pixel_grid = self.add_grid(image_mob)
 
         block_image, block_pixel_grid, block, pixel_array_mob_2d = self.highlight_pixel_block(image_mob, 125, 125, pixel_grid)
-
+        print(block[:, :, 0])
         self.play(
             *[integer.animate.set_value(integer.get_value() - 128).move_to(integer.get_center()) for integer in pixel_array_mob_2d[1]]
         )
@@ -5496,7 +5496,7 @@ class Introduce2DDCT(DCTExperiments):
             *[GrowFromCenter(arrow) for arrow in row_rep[1]]
         )
         self.wait()
-        dct_array_2d_row_group = self.get_dct_array_2d_mob(pixel_array_mob_2d, [row_rep[0]], dct_rows(block - 128), RIGHT * 4.5)
+        dct_array_2d_row_group = self.get_dct_array_2d_mob(pixel_array_mob_2d, [row_rep[0]], dct_rows(format_block(block)), RIGHT * 4.5)
 
         dct_mob_array_2d, overlay = dct_array_2d_row_group
 
@@ -5540,7 +5540,7 @@ class Introduce2DDCT(DCTExperiments):
         )
         self.wait()
 
-        dct_array_2d_row_col_group = self.get_dct_array_2d_mob(pixel_array_mob_2d, VGroup(row_rep[0], col_rep[0]), dct_2d(block - 128), RIGHT * 4.5 + DOWN * 2.7)
+        dct_array_2d_row_col_group = self.get_dct_array_2d_mob(pixel_array_mob_2d, VGroup(row_rep[0], col_rep[0]), dct_2d(format_block(block)), RIGHT * 4.5 + DOWN * 2.7)
 
         dct_mob_array_2d_row_col, overlay_row_col = dct_array_2d_row_col_group
 
@@ -6278,3 +6278,288 @@ class HeatMapExperiments(Introduce2DDCT):
         self.add_foreground_mobject(surround_rect)
 
         return block_image, block_pixel_grid, block, pixel_array_mob_2d, tiny_square_highlight
+
+class Quantization(Introduce2DDCT):
+    def construct(self):
+        height = 3.2
+        off_center_horiz = 4.5
+        off_center_vert = 0
+        image_mob = ImageMobject("dog").move_to(UP * 2.5)
+        block_image, pixel_grid, block = self.get_pixel_block(image_mob, 125, 125)
+        block_single_channel = block[:, :, 0]
+        formatted_block = format_block(block_single_channel)
+        dct_values = dct_2d(formatted_block)
+        dct_array_2d_mob = self.get_2d_pixel_array_mob(dct_values, height=height, color=REDUCIBLE_VIOLET)
+        dct_array_2d_mob.move_to(LEFT * off_center_horiz + UP * off_center_vert)
+
+        quantization_table = self.get_2d_pixel_array_mob(get_quantization_table(), height=height, color=GRAY)
+        quantization_table.move_to(UP * off_center_vert)
+
+        self.play(
+            FadeIn(dct_array_2d_mob)
+        )
+        self.wait()
+
+        arrow_1 = Arrow(dct_array_2d_mob.get_right(), quantization_table.get_left())
+        division = Tex("÷").scale(1.3).next_to(arrow_1, UP)
+        self.play(
+            Write(arrow_1),
+            Write(division),
+        )
+        self.wait()
+
+        self.play(
+            FadeIn(quantization_table)
+        )
+        self.wait()
+
+
+        quantized_dct = self.get_2d_pixel_array_mob(quantize(dct_values), height=height, color=REDUCIBLE_YELLOW)
+        quantized_dct.move_to(RIGHT * off_center_horiz + UP * off_center_vert)
+
+        arrow_2 = Arrow(quantization_table.get_right(), quantized_dct.get_left())
+
+        self.play(
+            Write(arrow_2)
+        )
+        self.wait()
+
+        self.play(
+            FadeIn(quantized_dct)
+        )
+        self.wait()
+
+        encode_group = VGroup(dct_array_2d_mob, arrow_1, division, quantization_table, arrow_2, quantized_dct)
+
+        self.play(
+            encode_group.animate.scale(0.8).shift(UP * 2)
+        )
+
+        surround_rect_encode = SurroundingRectangle(encode_group, buff=SMALL_BUFF * 6, color=REDUCIBLE_YELLOW)
+
+        encode_text = Tex("Encoding").scale(0.8).move_to(surround_rect_encode.get_top()).shift(DOWN * 0.3)
+        self.play(
+            Create(surround_rect_encode),
+            Write(encode_text)
+        )
+        self.wait()
+
+        input_decoder_quantized = quantized_dct.copy().move_to(dct_array_2d_mob.get_center() + DOWN * 4)
+        self.play(
+            TransformFromCopy(quantized_dct, input_decoder_quantized)
+        )
+        self.wait()
+
+        decoder_quantization_table = quantization_table.copy().move_to(DOWN * 2)
+        arrow_3 = arrow_1.copy().shift(DOWN * 4)
+        multiply = MathTex(r"\cross").next_to(arrow_3, UP)
+        self.play(
+            Write(arrow_3),
+            Write(multiply)
+        )
+        self.wait()
+
+        self.play(
+            TransformFromCopy(quantization_table, decoder_quantization_table)
+        )
+        self.wait()
+
+        dequantized_dct = self.get_2d_pixel_array_mob(dequantize(quantize(dct_values)), height=quantized_dct.height, color=REDUCIBLE_VIOLET)
+        dequantized_dct.move_to(quantized_dct.get_center() + DOWN * 4)
+        arrow_4 = arrow_2.copy().shift(DOWN * 4)
+        self.play(
+            Write(arrow_4)
+        )
+        self.wait()
+
+        self.play(
+            FadeIn(dequantized_dct)
+        )
+
+        self.wait()
+
+        decode_group = VGroup(input_decoder_quantized, arrow_3, multiply, decoder_quantization_table, arrow_4, dequantized_dct)
+
+        surround_rect_decode = SurroundingRectangle(decode_group, buff=SMALL_BUFF * 6, color=REDUCIBLE_VIOLET)
+
+        self.play(
+            Create(surround_rect_decode)
+        )
+        decode_text = Tex("Decoding").scale(0.8).move_to(surround_rect_decode.get_top()).shift(DOWN * 0.3)
+        self.play(
+            Write(decode_text)
+        )
+        self.wait()
+
+    def get_pixel_block(self, image_mob, start_row, start_col, block_size=8, height=2):
+        pixel_array = image_mob.get_pixel_array()
+        block = pixel_array[
+            start_row : start_row + block_size, start_col : start_col + block_size
+        ]
+
+        block_image = self.get_image_mob(block, height=height)
+        pixel_grid = self.get_pixel_grid(block_image, block_size)
+
+        return block_image, pixel_grid, block
+
+    def get_2d_pixel_array_mob(self, block, height=3, block_size=8, color=REDUCIBLE_GREEN_LIGHTER):
+        array_mob_2d = VGroup(
+            *[Square(side_length=height/block_size) for _ in range(block_size ** 2)]
+        ).arrange_in_grid(rows=block_size, buff=0).set_color(color)
+
+        array_text = VGroup()
+        for i in range(block_size):
+            for j in range(block_size):
+                val = block[i][j]
+                # For space constraints of rendering negative 3 digit numbers
+                if val < -99:
+                    val = -val
+
+
+                integer = Text(str(int(val)), font="SF Mono", weight=LIGHT).scale(0.25 * height / 3).move_to(array_mob_2d[i * block_size + j].get_center())
+                array_text.add(integer)
+
+        return VGroup(array_mob_2d, array_text)
+
+class Redundancy(Quantization):
+    def construct(self):
+        example_matrix = np.array(
+            [
+            [90, -40, 0, 4, 0, 0, 0, 0],
+            [0,   0,  0, 0, 0, 0, 0, 0],
+            [5,   0,  0, 0, 0, 0, 0, 0],
+            [0,   0,  0, 0, 0, 0, 0, 0],
+            [11, -3,  0, 0, 0, 0, 0, 0],
+            [0,   0,  0, 0, 0, 0, 0, 0],
+            [0,   0,  0, 0, 0, 0, 0, 0],
+            [0,   0,  0, 0, 0, 0, 0, 0]
+            ]
+        )
+
+        quantized_dct = self.get_2d_pixel_array_mob(example_matrix, height=4, color=REDUCIBLE_YELLOW)
+        quantized_dct_mob = quantized_dct[0]
+        quantized_dct_values = quantized_dct[1]
+        self.play(
+            FadeIn(quantized_dct)
+        )
+        self.wait()
+
+        zigzag = get_zigzag_order()
+
+        zigzag_path = VGroup()
+        path_points = []
+        new_integers = []
+        new_integers.append(MathTex(r"\{"))
+        original_integers = []
+        for index in range(example_matrix.shape[0] ** 2):
+            i, j = zigzag[index]
+            one_d_index = two_d_to_1d_index(j, i)
+            path_points.append(quantized_dct_mob[one_d_index].get_center())
+            original_integers.append(quantized_dct_values[one_d_index])
+            new_integers.append(quantized_dct_values[one_d_index].copy())
+        zigzag_path.set_points_as_corners(*[path_points]).set_stroke(color=REDUCIBLE_VIOLET, width=3)
+        new_integers.append(MathTex(r"\}"))
+
+        one_d_array = VGroup(*new_integers).scale(0.9).arrange(RIGHT, buff=SMALL_BUFF)
+        one_d_array.next_to(quantized_dct_mob, DOWN * 2)
+
+        self.play(
+            Create(zigzag_path),
+            run_time=5,
+            rate_func=linear
+        )
+
+        self.play(
+            FadeIn(one_d_array[0]),
+            FadeIn(one_d_array[-1]),
+            LaggedStart(
+                *[TransformFromCopy(orig, new) for orig, new in zip(original_integers, one_d_array[1:-1])],
+            ),
+            run_time=3
+        )
+
+        self.play(
+            quantized_dct.animate.shift(UP * 1.7),
+            zigzag_path.animate.shift(UP * 1.7),
+            one_d_array.animate.shift(UP * 2),
+        )
+        self.wait()
+
+        classic_run_length = Tex(r"$\{$", r"90, $-40$, 0, 5, 0[x2], 4, 0[x3], 11, 0[x8], $-3$, 0[x44]" r"$\}$").scale(0.8)
+        classic_run_length.next_to(one_d_array, DOWN)
+        self.play(
+            TransformFromCopy(one_d_array, classic_run_length),
+            run_time=2
+        )
+        self.wait()
+
+        self.play(
+            quantized_dct.animate.shift(LEFT * 3.5),
+            zigzag_path.animate.shift(LEFT * 3.5),
+        )
+
+        self.wait()
+
+
+        jpeg_specific_run_length = Title("JPEG Specific Run-length Encoding", match_underline_width_to_text=True).scale(0.9)
+        jpeg_specific_run_length.move_to(RIGHT * 2.5 + UP * 3.2)
+
+        self.play(
+            Write(jpeg_specific_run_length)
+        )
+        self.wait()
+
+        triplet = MathTex("[(r, s), c]").scale(0.9).next_to(jpeg_specific_run_length, DOWN)
+
+        r_def = Tex(r"$r$ - number of 0's preceding value").scale(0.7)
+        s_def = Tex(r"$s$ - number of bits needed to encode value $c$").scale(0.7)
+        c_def = Tex(r"$c$ - coefficient value").scale(0.7)
+        z_def = Tex("(0, 0) indicates end of block (all 0's)").scale(0.7)
+        triplet.next_to(jpeg_specific_run_length, DOWN)
+
+        r_def.next_to(triplet, DOWN).shift(LEFT * SMALL_BUFF * 3)
+
+        s_def.next_to(r_def, DOWN, aligned_edge=LEFT)
+        c_def.next_to(s_def, DOWN, aligned_edge=LEFT)
+        z_def.next_to(c_def, DOWN, aligned_edge=LEFT)
+
+        self.play(
+            FadeIn(triplet),
+            FadeIn(r_def),
+            FadeIn(s_def),
+            FadeIn(c_def),
+            FadeIn(z_def)
+        )
+        self.wait()
+
+        final_rle = Tex(r"$\{$", "[(0, 7), 90], [(0, 6), -40], [(1, 3), 5], [(2, 3), 4], [(3, 4), 11], [(8, 2), -3], [(0, 0)]", r"$\}$").scale(0.7)
+        final_rle.next_to(classic_run_length, DOWN)
+
+        self.play(
+            TransformFromCopy(classic_run_length, final_rle)
+        )
+        self.wait()
+
+        surround_rect = SurroundingRectangle(final_rle, color=REDUCIBLE_YELLOW)
+
+        self.play(
+            Create(surround_rect)
+        )
+        self.wait()
+
+        huffman_encode_component = self.make_component("Huffman Encode", color=REDUCIBLE_GREEN_LIGHTER)
+
+        huffman_encode_component.next_to(final_rle, DOWN * 2)
+
+        self.play(
+            FadeIn(huffman_encode_component)
+        )
+        self.wait()
+
+
+
+    def make_component(self, text, color=REDUCIBLE_YELLOW, scale=0.8):
+        # geometry is first index, Tex is second index
+        text_mob = Tex(text).scale(scale)
+        rect = Rectangle(color=color, height=1.1, width=3)
+        return VGroup(rect, text_mob)
