@@ -1248,9 +1248,11 @@ class ImageUtils(Scene):
 
             return y_rgb, u_mapped_rgb, v_mapped_rgb
 
-    def chroma_subsample_image(self, pixel_array, mode="4:2:2"):
+    def chroma_downsample_image(self, pixel_array, mode="4:2:2"):
         """
-        Applies chroma subsampling to the image. Modes supported are the most common ones: 4:2:2 and 4:2:0.
+        Applies chroma downsampling to the image. Takes the average of the block.
+
+        Modes supported are the most common ones: 4:2:2 and 4:2:0.
 
         @param: pixel_array - the image to be processed
         @param: mode - a string, either `4:2:2` or `4:2:0`, corresponding to 4:2:2 and 4:2:0 subsampling respectively.
@@ -1277,21 +1279,12 @@ class ImageUtils(Scene):
 
         # Downsample with a window of 2 in both directions
         elif mode == "4:2:0":
-            print(u)
             for i in range(0, u.shape[0], 2):
                 for j in range(0, u.shape[1], 2):
-                    print(f"{i = }, {j = }")
-
-                    print(u[i : i + 2, j : j + 2])
-                    print(np.mean(u[i : i + 2, j : j + 2]))
 
                     out_u[i : i + 2, j : j + 2] = int(
                         np.round(np.mean(u[i : i + 2, j : j + 2]))
                     )
-
-                    print(out_u)
-                print("--------------")
-                print("--------------")
 
             for i in range(0, v.shape[0], 2):
                 for j in range(0, v.shape[1], 2):
@@ -1304,60 +1297,65 @@ class ImageUtils(Scene):
 
         return cv2.cvtColor(ycbcr_sub, cv2.COLOR_YUV2RGB)
 
+    def chroma_subsample_image(self, pixel_array, mode="4:2:2"):
+        """
+        Applies chroma subsampling to the image. Takes the top left pixel of the block.
+
+        Modes supported are the most common ones: 4:2:2 and 4:2:0.
+
+        @param: pixel_array - the image to be processed
+        @param: mode - a string, either `4:2:2` or `4:2:0`, corresponding to 4:2:2 and 4:2:0 subsampling respectively.
+        @param: image - returns back the image in RGB format with subsampling applied
+        """
+        assert mode in (
+            "4:2:2",
+            "4:2:0",
+        ), "Please choose one of the following {'4:2:2', '4:2:0'}"
+
+        y, u, v = self.get_yuv_image_from_rgb(pixel_array, mapped=False)
+
+        out_u = np.zeros(u.shape)
+        out_v = np.zeros(v.shape)
+        # Subsample with a window of 2 in the horizontal direction
+        if mode == "4:2:2":
+            # first the u channel
+            for i in range(0, u.shape[0], 2):
+                out_u[i : i + 2] = u[i]
+
+            # then the v channel
+            for i in range(0, v.shape[0], 2):
+                out_v[i : i + 2] = v[i]
+
+        # Subsample with a window of 2 in both directions
+        elif mode == "4:2:0":
+            for i in range(0, u.shape[0], 2):
+                for j in range(0, u.shape[1], 2):
+
+                    out_u[i : i + 2, j : j + 2] = u[i, j]
+
+            for i in range(0, v.shape[0], 2):
+                for j in range(0, v.shape[1], 2):
+                    out_v[i : i + 2, j : j + 2] = v[i, j]
+
+        ycbcr_sub = np.stack(
+            (y, np.round(out_u).astype("uint8"), np.round(out_v).astype("uint8")),
+            axis=2,
+        )
+
+        return cv2.cvtColor(ycbcr_sub, cv2.COLOR_YUV2RGB)
+
 
 class IntroChromaSubsampling(ImageUtils):
     def construct(self):
-        self.animate_chroma_subsampling()
+        # self.animate_chroma_downsampling()
 
-    def image_chroma_subsample(self):
-        shed_raw = ImageMobject("colors3.png")
-        shed_raw.set_resampling_algorithm(RESAMPLING_ALGORITHMS["nearest"])
+        # top left
+        # self.animate_chroma_subsampling()
+        # self.show_real_world_image_subsampled()
+        self.show_file_size_calculation()
 
-        chroma_subsampled = self.chroma_subsample_image(
-            shed_raw.get_pixel_array(), mode="4:2:0"
-        )
-
-        y, u, v = self.get_yuv_image_from_rgb(shed_raw.get_pixel_array(), mapped=False)
-        y_sub, u_sub, v_sub = (
-            chroma_subsampled[:, :, 0],
-            chroma_subsampled[:, :, 1],
-            chroma_subsampled[:, :, 2],
-        )
-
-        # u_mob = ImageMobject(u)
-        # print(u)
-        # u_sub_mob = ImageMobject(u_sub)
-        # print(u_sub)
-
-        # u_mob.set_resampling_algorithm(RESAMPLING_ALGORITHMS["nearest"])
-        # u_sub_mob.set_resampling_algorithm(RESAMPLING_ALGORITHMS["nearest"])
-
-        # self.add(Group(u_mob, u_sub_mob).arrange(RIGHT, buff=0.01).scale(30))
-
-        chroma_subsampled_mobj = ImageMobject(chroma_subsampled)
-        chroma_subsampled_mobj.set_resampling_algorithm(
-            RESAMPLING_ALGORITHMS["nearest"]
-        )
-
-        diff_image = (shed_raw.get_pixel_array()[:, :, :3] - chroma_subsampled) ** 2
-        diff_image = cv2.cvtColor(diff_image, cv2.COLOR_RGB2GRAY)
-        diff_image_mobj = ImageMobject(diff_image)
-
-        diff_image_mobj.set_resampling_algorithm(RESAMPLING_ALGORITHMS["nearest"])
-
-        img_group = (
-            Group(shed_raw, chroma_subsampled_mobj, diff_image_mobj).arrange(
-                RIGHT, buff=0.01
-            )
-        ).scale(15)
-
-        self.play(
-            FadeIn(img_group),
-            run_time=3,
-        )
-        self.wait(2)
-
-    def animate_chroma_subsampling(self):
+    # average
+    def animate_chroma_downsampling(self):
         gradient_image = ImageMobject("r.png")
         gradient_image.set_resampling_algorithm(RESAMPLING_ALGORITHMS["nearest"])
         gradient_image.scale(30)
@@ -1430,7 +1428,7 @@ class IntroChromaSubsampling(ImageUtils):
         self.wait(4)
 
         chroma_title = (
-            Text("Chroma subsampling: 4:2:0", font="CMU Serif", weight=BOLD)
+            Text("Chroma downsampling: 4:2:0", font="CMU Serif", weight=BOLD)
             .scale(0.7)
             .to_edge(UP, buff=1)
         )
@@ -1616,6 +1614,291 @@ class IntroChromaSubsampling(ImageUtils):
         )
         self.wait(3)
 
+        sub_pix_array = self.chroma_downsample_image(pix_array)
+        subsampled_image = (
+            PixelArray(sub_pix_array, color_mode="RGB")
+            .scale_to_fit_height(y_channel.height)
+            .move_to(DOWN * 0.5)
+        )
+        gradient.scale_to_fit_height(subsampled_image.height)
+
+        sub_channels = VGroup(y_channel, new_u_channel, new_v_channel)
+
+        self.play(
+            FadeTransform(y_channel, subsampled_image),
+            FadeTransform(new_v_channel, subsampled_image),
+            FadeTransform(new_u_channel, subsampled_image),
+            run_time=3,
+        )
+
+        aux_vg = (
+            VGroup(gradient, subsampled_image.copy())
+            .arrange(RIGHT, buff=2)
+            .move_to(DOWN * 0.5)
+        )
+
+        self.play(
+            subsampled_image.animate.move_to(aux_vg[1]),
+            FadeIn(gradient, shift=LEFT),
+        )
+        original_text = (
+            Text("Original image", font="CMU Serif")
+            .scale(0.5)
+            .next_to(gradient, DOWN, buff=0.4)
+        )
+        subsampled_text = (
+            Text("Downsampled Image", font="CMU Serif")
+            .scale(0.5)
+            .next_to(subsampled_image, DOWN, buff=0.4)
+        )
+
+        self.play(FadeIn(original_text), FadeIn(subsampled_text))
+
+        self.wait(4)
+
+    # top left
+    def animate_chroma_subsampling(self):
+        gradient_image = ImageMobject("r.png")
+        gradient_image.set_resampling_algorithm(RESAMPLING_ALGORITHMS["nearest"])
+        gradient_image.scale(30)
+
+        pix_array = gradient_image.get_pixel_array()
+
+        gradient = PixelArray(pix_array[:, :, :-1]).scale(0.3)
+
+        y, u, v = self.get_yuv_image_from_rgb(pix_array, mapped=True)
+        y_channel = PixelArray(y[:, :, 0], color_mode="GRAY").scale(0.5)
+        u_channel = PixelArray(u, color_mode="RGB").scale(0.5)
+        v_channel = PixelArray(v, color_mode="RGB").scale(0.5)
+
+        y_t = Text("Y", font="SF Mono", weight=BOLD).scale(1.5).set_color(GRAY_A)
+        u_t = (
+            Text("Cb", font="SF Mono", weight=BOLD)
+            .scale(1.5)
+            .set_color_by_gradient("#FFFF00", "#0000FF")
+        )
+        v_t = (
+            Text("Cr", font="SF Mono", weight=BOLD)
+            .scale(1.5)
+            .set_color_by_gradient("#00FF00", "#FF0000")
+        )
+
+        y_vg = VGroup(y_channel, y_t).arrange(DOWN, buff=0.5)
+        u_vg = VGroup(u_channel, u_t).arrange(DOWN, buff=0.5)
+        v_vg = VGroup(v_channel, v_t).arrange(DOWN, buff=0.5)
+
+        self.play(Write(gradient))
+
+        self.wait(2)
+
+        self.play(gradient.animate.shift(UP * 2))
+
+        self.wait(2)
+
+        yuv_channels = (
+            VGroup(y_vg, u_vg, v_vg)
+            .arrange(RIGHT, buff=0.5)
+            .scale(0.5)
+            .shift(DOWN * 2),
+        )
+
+        self.play(
+            TransformFromCopy(gradient, y_channel),
+            TransformFromCopy(gradient, u_channel),
+            TransformFromCopy(gradient, v_channel),
+        )
+
+        self.wait(2)
+
+        self.play(FadeIn(y_t), FadeIn(u_t), FadeIn(v_t))
+
+        self.wait(2)
+
+        # we are more sensitive to brightness than we are to color
+
+        self.play(
+            Circumscribe(
+                y_channel,
+                time_width=5,
+                color=REDUCIBLE_YELLOW,
+                run_time=5,
+                fade_in=True,
+                fade_out=True,
+            ),
+        )
+
+        self.wait(4)
+
+        chroma_title = (
+            Text("Chroma subsampling: 4:2:0", font="CMU Serif", weight=BOLD)
+            .scale(0.7)
+            .to_edge(UP, buff=1)
+        )
+
+        self.play(
+            LaggedStart(
+                AnimationGroup(
+                    FadeOut(gradient),
+                    FadeOut(y_vg),
+                    FadeOut(v_vg),
+                    FadeOut(u_t),
+                ),
+                u_channel.animate.move_to(DOWN * 0.5 + LEFT * 3).scale(2),
+                FadeIn(chroma_title),
+                lag_ratio=1,
+            ),
+            run_time=3,
+        )
+
+        self.wait(2)
+
+        u_slice = u_channel[0:2]
+
+        kernel = (
+            Square(color=YELLOW)
+            .scale_to_fit_width(u_slice.width)
+            .move_to(u_slice, aligned_edge=UP)
+        )
+        self.add_foreground_mobject(kernel)
+
+        self.play(FadeIn(kernel))
+
+        """
+        This for loop runs through the loaded image's u channel, 
+        and creates a new subsampled version as it goes through it.
+        """
+
+        new_u_channel = VGroup()
+        new_pixel_guide = (
+            u_channel[0]
+            .copy()
+            .scale_to_fit_width(kernel.width)
+            .next_to(u_channel, RIGHT, buff=2)
+        )
+
+        equal_sign = Text("=", font="CMU Serif", weight=BOLD)
+
+        four_pixels_vg = (
+            VGroup(*[u_channel[0].copy() for i in range(4)])
+            .arrange_in_grid(rows=2, cols=2)
+            .scale_to_fit_height(new_pixel_guide.height)
+        ).set_opacity(0)
+
+        guide_vg = (
+            VGroup(new_pixel_guide, equal_sign, four_pixels_vg)
+            .arrange(RIGHT, buff=1)
+            .next_to(u_channel, RIGHT, buff=2)
+        )
+        average_t = (
+            Text("Top left of:", font="SF Mono")
+            .scale(0.3)
+            .next_to(four_pixels_vg, UP, buff=0.5)
+        )
+
+        new_pixel_annotation = (
+            Square()
+            .set_opacity(0)
+            .scale_to_fit_height(new_pixel_guide.height)
+            .move_to(new_pixel_guide)
+        )
+        new_pixel_t = (
+            Text("New pixel value:", font="SF Mono")
+            .scale(0.3)
+            .next_to(new_pixel_annotation, UP, buff=0.5)
+        )
+        self.play(FadeIn(equal_sign), FadeIn(average_t), FadeIn(new_pixel_t))
+
+        for j in range(0, pix_array.shape[1] * 2, 4):
+            for i in range(0, pix_array.shape[0], 2):
+                sq_ul = u_channel[i + j * 4]
+                sq_ur = u_channel[i + j * 4 + 1]
+
+                sq_dl = u_channel[i + j * 4 + 8]
+                sq_dr = u_channel[i + j * 4 + 8 + 1]
+
+                next_slice = u_channel[i + j * 4 : i + j * 4 + 2]
+
+                self.play(
+                    kernel.animate.move_to(next_slice, aligned_edge=UP),
+                )
+
+                new_pixel = (
+                    Pixel(hex_to_rgb(sq_ul.color) * 255, color_mode="RGB")
+                    .scale_to_fit_width(kernel.width)
+                    .move_to(kernel)
+                )
+                new_u_channel.add(new_pixel)
+
+                last_pixel = new_pixel_annotation
+                new_pixel_annotation = new_pixel.copy().move_to(new_pixel_guide)
+
+                last_four_pixel = four_pixels_vg
+                four_pixels_vg = (
+                    VGroup(
+                        sq_ul.copy().scale(1.5),
+                        sq_ur.copy().set_opacity(0.5),
+                        sq_dl.copy().set_opacity(0.5),
+                        sq_dr.copy().set_opacity(0.5),
+                    )
+                    .arrange_in_grid(rows=2, cols=2)
+                    .scale_to_fit_height(new_pixel_annotation.height)
+                    .move_to(last_four_pixel)
+                )
+
+                self.play(
+                    FadeIn(new_pixel),
+                    FadeIn(new_pixel_annotation),
+                    FadeIn(four_pixels_vg),
+                    FadeOut(last_pixel),
+                    FadeOut(last_four_pixel),
+                )
+
+                self.wait()
+
+        self.remove(u_channel)
+        self.wait()
+        self.play(
+            FadeOut(kernel),
+            FadeOut(equal_sign),
+            FadeOut(last_pixel),
+            FadeOut(new_pixel_annotation),
+            FadeOut(new_pixel_guide),
+            FadeOut(last_four_pixel),
+            FadeOut(four_pixels_vg),
+            FadeOut(new_pixel_t),
+            FadeOut(average_t),
+            new_u_channel.animate.move_to(ORIGIN, coor_mask=[1, 0, 0]),
+        )
+
+        new_v_channel = VGroup()
+        for j in range(0, pix_array.shape[1] * 2, 4):
+            for i in range(0, pix_array.shape[0], 2):
+                sq_ul = v_channel[i + j * 4].color
+
+                next_slice = v_channel[i + j * 4 : i + j * 4 + 2]
+
+                new_pixel = Pixel(
+                    hex_to_rgb(sq_ul) * 255, color_mode="RGB"
+                ).scale_to_fit_width(v_channel[0:2].width)
+
+                new_v_channel.add(new_pixel)
+
+        new_v_channel.arrange_in_grid(rows=4, cols=4, buff=0)
+
+        y_channel.scale_to_fit_height(new_u_channel.height).next_to(
+            new_u_channel, LEFT, buff=0.4
+        )
+        new_v_channel.scale_to_fit_height(new_u_channel.height).next_to(
+            new_u_channel, RIGHT, buff=0.4
+        )
+
+        self.play(
+            FadeIn(y_channel, shift=RIGHT),
+            FadeIn(new_v_channel, shift=LEFT),
+            run_time=3,
+        )
+        self.wait(3)
+
         sub_pix_array = self.chroma_subsample_image(pix_array)
         subsampled_image = (
             PixelArray(sub_pix_array, color_mode="RGB")
@@ -1657,6 +1940,242 @@ class IntroChromaSubsampling(ImageUtils):
         self.play(FadeIn(original_text), FadeIn(subsampled_text))
 
         self.wait(4)
+
+    def show_real_world_image_subsampled(self):
+        shed = ImageMobject("rose.jpg")
+
+        shed_arr = shed.get_pixel_array()
+
+        shed_subsampled_420 = ImageMobject(
+            self.chroma_subsample_image(shed_arr, mode="4:2:0")
+        )
+        shed_subsampled_422 = ImageMobject(
+            self.chroma_subsample_image(shed_arr, mode="4:2:2")
+        )
+
+        img_g = (
+            Group(shed, shed_subsampled_420, shed_subsampled_422)
+            .arrange(RIGHT, buff=0.1)
+            .scale_to_fit_width(12)
+        )
+        text = Tex("Original image").scale(0.6).next_to(shed, DOWN, buff=0.5)
+        text_422 = (
+            Tex("Subsampling 4:2:2")
+            .scale(0.6)
+            .next_to(shed_subsampled_422, DOWN, buff=0.5)
+        )
+        text_420 = (
+            Tex("Subsampling 4:2:0")
+            .scale(0.6)
+            .next_to(shed_subsampled_420, DOWN, buff=0.5)
+        )
+
+        self.play(
+            LaggedStartMap(
+                FadeIn,
+                img_g,
+            ),
+            LaggedStart(
+                FadeIn(text), FadeIn(text_420), FadeIn(text_422), lag_ratio=0.4
+            ),
+        )
+
+    def show_file_size_calculation(self):
+        gradient_image = ImageMobject("r.png")
+        gradient_image.set_resampling_algorithm(RESAMPLING_ALGORITHMS["nearest"])
+        gradient_image.scale(30)
+
+        pix_array = gradient_image.get_pixel_array()
+
+        gradient = PixelArray(pix_array[:, :, :-1]).scale(0.3)
+
+        y, u, v = self.get_yuv_image_from_rgb(pix_array, mapped=True)
+        y_channel = PixelArray(y[:, :, 0], color_mode="GRAY").scale(0.5)
+        u_channel = PixelArray(u, color_mode="RGB").scale(0.5)
+        v_channel = PixelArray(v, color_mode="RGB").scale(0.5)
+
+        y_t = Text("Y", font="SF Mono", weight=BOLD).scale(1.5).set_color(GRAY_A)
+        u_t = Text("Cb", font="SF Mono", weight=BOLD).scale(1.5)
+        v_t = Text("Cr", font="SF Mono", weight=BOLD).scale(1.5)
+
+        new_v_channel = VGroup()
+        for j in range(0, pix_array.shape[1] * 2, 4):
+            for i in range(0, pix_array.shape[0], 2):
+                sq_ul = v_channel[i + j * 4].color
+
+                new_pixel = Pixel(
+                    hex_to_rgb(sq_ul) * 255, color_mode="RGB"
+                ).scale_to_fit_width(v_channel[0:2].width)
+
+                new_v_channel.add(new_pixel)
+
+        new_v_channel.arrange_in_grid(rows=4, cols=4, buff=0)
+
+        new_u_channel = VGroup()
+        for j in range(0, pix_array.shape[1] * 2, 4):
+            for i in range(0, pix_array.shape[0], 2):
+                sq_ul = u_channel[i + j * 4].color
+
+                new_pixel = Pixel(
+                    hex_to_rgb(sq_ul) * 255, color_mode="RGB"
+                ).scale_to_fit_width(u_channel[0:2].width)
+
+                new_u_channel.add(new_pixel)
+
+        new_u_channel.arrange_in_grid(rows=4, cols=4, buff=0)
+
+        y_vg = VGroup(y_channel, y_t).arrange(UP, buff=0.5)
+        u_vg = VGroup(new_u_channel, u_t).arrange(UP, buff=0.5)
+        v_vg = VGroup(new_v_channel, v_t).arrange(UP, buff=0.5)
+
+        channels_vg = (
+            VGroup(y_vg, u_vg, v_vg)
+            .arrange(RIGHT, buff=2.6)
+            .scale(0.4)
+            .to_edge(UP, buff=0.6)
+            .shift(RIGHT * 1)
+        )
+
+        self.play(FadeIn(channels_vg))
+
+        pixel_count_y = (
+            Text("64/64", font="SF Mono").scale(0.5).next_to(y_channel, DOWN, buff=0.5)
+        )
+        pixel_count_u = (
+            Text("16/64", font="SF Mono")
+            .scale(0.5)
+            .next_to(new_u_channel, DOWN, buff=0.5)
+        )
+        pixel_count_v = (
+            Text("16/64", font="SF Mono")
+            .scale(0.5)
+            .next_to(new_v_channel, DOWN, buff=0.5)
+        )
+        pixel_count = (
+            Text("Pixel count", font="CMU Serif", weight=BOLD)
+            .scale(0.4)
+            .to_edge(LEFT, buff=1.6)
+            .move_to(pixel_count_v, coor_mask=[0, 1, 0])
+        )
+
+        self.play(
+            FadeIn(pixel_count),
+            FadeIn(pixel_count_y, shift=DOWN),
+            FadeIn(pixel_count_u, shift=DOWN),
+            FadeIn(pixel_count_v, shift=DOWN),
+        )
+        self.wait(2)
+
+        pixel_ratio_y = (
+            Text("100%", font="SF Mono")
+            .scale(0.5)
+            .next_to(pixel_count_y, DOWN, buff=0.5)
+        )
+        pixel_ratio_u = (
+            Text("25%", font="SF Mono")
+            .scale(0.5)
+            .next_to(pixel_count_u, DOWN, buff=0.5)
+        )
+        pixel_ratio_v = (
+            Text("25%", font="SF Mono")
+            .scale(0.5)
+            .next_to(pixel_count_v, DOWN, buff=0.5)
+        )
+        pixel_ratio = (
+            Text("Pixel ratio", font="CMU Serif", weight=BOLD)
+            .scale(0.4)
+            .to_edge(LEFT, buff=1.6)
+            .move_to(pixel_ratio_v, coor_mask=[0, 1, 0])
+        )
+
+        self.play(
+            FadeIn(pixel_ratio),
+            FadeIn(pixel_ratio_y, shift=DOWN),
+            FadeIn(pixel_ratio_u, shift=DOWN),
+            FadeIn(pixel_ratio_v, shift=DOWN),
+        )
+
+        self.wait()
+
+        fraction_y = (
+            Text("1/3", font="SF Mono")
+            .scale(0.5)
+            .next_to(pixel_ratio_y, DOWN, buff=0.5)
+        )
+        fraction_u = (
+            Text("1/3 · 1/4", font="SF Mono")
+            .scale(0.4)
+            .next_to(pixel_ratio_u, DOWN, buff=0.5)
+        )
+        fraction_v = (
+            Text("1/3 · 1/4", font="SF Mono")
+            .scale(0.4)
+            .next_to(pixel_ratio_v, DOWN, buff=0.5)
+        )
+        fraction_image = (
+            Text(
+                "Fraction of \nthe image",
+                font="CMU Serif",
+                weight=BOLD,
+                should_center=False,
+            )
+            .scale(0.4)
+            .to_edge(LEFT, buff=1.6)
+            .move_to(fraction_u, coor_mask=[0, 1, 0])
+        )
+
+        self.play(
+            FadeIn(fraction_image),
+            FadeIn(fraction_y, shift=DOWN),
+            FadeIn(fraction_u, shift=DOWN),
+            FadeIn(fraction_v, shift=DOWN),
+        )
+
+        self.wait()
+
+        one_over_twelve = Text("1/12", font="SF Mono").scale(0.5)
+
+        self.play(
+            Transform(fraction_u, one_over_twelve.copy().move_to(fraction_u)),
+            Transform(fraction_v, one_over_twelve.copy().move_to(fraction_v)),
+        )
+
+        self.wait()
+
+        total_sum = (
+            Text("6/12", font="SF Mono").scale(0.8).next_to(fraction_u, DOWN, buff=1)
+        )
+        total_sum_ratio = (
+            Text("50%", font="SF Mono").scale(0.8).next_to(fraction_u, DOWN, buff=2)
+        )
+
+        self.wait()
+
+        total_size = (
+            Text(
+                "Final total size \ncompared to original",
+                font="CMU Serif",
+                weight=BOLD,
+                should_center=False,
+            )
+            .scale(0.5)
+            .to_edge(LEFT, buff=1.6)
+            .move_to(
+                VGroup(total_sum, total_sum_ratio).get_center(), coor_mask=[0, 1, 0]
+            )
+            .shift(DOWN * 0.15)
+        )
+
+        self.play(
+            FadeIn(total_size),
+            TransformFromCopy(fraction_y, total_sum.copy()),
+            TransformFromCopy(fraction_u, total_sum.copy()),
+            TransformFromCopy(fraction_v, total_sum.copy()),
+        )
+
+        self.wait()
+
+        self.play(Transform(total_sum, total_sum_ratio))
 
 
 class TestGrayScaleImages(ImageUtils):
