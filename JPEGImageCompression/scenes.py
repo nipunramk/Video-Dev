@@ -1352,14 +1352,9 @@ class IntroChromaSubsampling(ImageUtils):
         # self.animate_chroma_downsampling()
 
         # top left
-        self.animate_chroma_subsampling()
-        self.show_real_world_image_subsampled()
-
-    def test(self):
-        img = ImageMobject("r.png")
-        arr = img.get_pixel_array()
-        # print(arr)
-        print(self.chroma_subsample_image(arr, mode="4:2:0"))
+        # self.animate_chroma_subsampling()
+        # self.show_real_world_image_subsampled()
+        self.show_file_size_calculation()
 
     # average
     def animate_chroma_downsampling(self):
@@ -1881,25 +1876,12 @@ class IntroChromaSubsampling(ImageUtils):
         for j in range(0, pix_array.shape[1] * 2, 4):
             for i in range(0, pix_array.shape[0], 2):
                 sq_ul = v_channel[i + j * 4].color
-                sq_ur = v_channel[i + j * 4 + 1].color
-
-                sq_dl = v_channel[i + j * 4 + 8].color
-                sq_dr = v_channel[i + j * 4 + 8 + 1].color
 
                 next_slice = v_channel[i + j * 4 : i + j * 4 + 2]
 
-                sq_ul_rgb = hex_to_rgb(sq_ul)
-                sq_ur_rgb = hex_to_rgb(sq_ur)
-                sq_dl_rgb = hex_to_rgb(sq_dl)
-                sq_dr_rgb = hex_to_rgb(sq_dr)
-
-                four_pixels = np.stack((sq_ul_rgb, sq_ur_rgb, sq_dl_rgb, sq_dr_rgb))
-
-                avg = np.average(four_pixels, axis=0) * 255
-
-                new_pixel = Pixel(avg, color_mode="RGB").scale_to_fit_width(
-                    v_channel[0:2].width
-                )
+                new_pixel = Pixel(
+                    hex_to_rgb(sq_ul) * 255, color_mode="RGB"
+                ).scale_to_fit_width(v_channel[0:2].width)
 
                 new_v_channel.add(new_pixel)
 
@@ -1999,6 +1981,203 @@ class IntroChromaSubsampling(ImageUtils):
                 FadeIn(text), FadeIn(text_420), FadeIn(text_422), lag_ratio=0.4
             ),
         )
+
+    def show_file_size_calculation(self):
+        gradient_image = ImageMobject("r.png")
+        gradient_image.set_resampling_algorithm(RESAMPLING_ALGORITHMS["nearest"])
+        gradient_image.scale(30)
+
+        pix_array = gradient_image.get_pixel_array()
+
+        gradient = PixelArray(pix_array[:, :, :-1]).scale(0.3)
+
+        y, u, v = self.get_yuv_image_from_rgb(pix_array, mapped=True)
+        y_channel = PixelArray(y[:, :, 0], color_mode="GRAY").scale(0.5)
+        u_channel = PixelArray(u, color_mode="RGB").scale(0.5)
+        v_channel = PixelArray(v, color_mode="RGB").scale(0.5)
+
+        y_t = Text("Y", font="SF Mono", weight=BOLD).scale(1.5).set_color(GRAY_A)
+        u_t = Text("Cb", font="SF Mono", weight=BOLD).scale(1.5)
+        v_t = Text("Cr", font="SF Mono", weight=BOLD).scale(1.5)
+
+        new_v_channel = VGroup()
+        for j in range(0, pix_array.shape[1] * 2, 4):
+            for i in range(0, pix_array.shape[0], 2):
+                sq_ul = v_channel[i + j * 4].color
+
+                new_pixel = Pixel(
+                    hex_to_rgb(sq_ul) * 255, color_mode="RGB"
+                ).scale_to_fit_width(v_channel[0:2].width)
+
+                new_v_channel.add(new_pixel)
+
+        new_v_channel.arrange_in_grid(rows=4, cols=4, buff=0)
+
+        new_u_channel = VGroup()
+        for j in range(0, pix_array.shape[1] * 2, 4):
+            for i in range(0, pix_array.shape[0], 2):
+                sq_ul = u_channel[i + j * 4].color
+
+                new_pixel = Pixel(
+                    hex_to_rgb(sq_ul) * 255, color_mode="RGB"
+                ).scale_to_fit_width(u_channel[0:2].width)
+
+                new_u_channel.add(new_pixel)
+
+        new_u_channel.arrange_in_grid(rows=4, cols=4, buff=0)
+
+        y_vg = VGroup(y_channel, y_t).arrange(UP, buff=0.5)
+        u_vg = VGroup(new_u_channel, u_t).arrange(UP, buff=0.5)
+        v_vg = VGroup(new_v_channel, v_t).arrange(UP, buff=0.5)
+
+        channels_vg = (
+            VGroup(y_vg, u_vg, v_vg)
+            .arrange(RIGHT, buff=2.6)
+            .scale(0.4)
+            .to_edge(UP, buff=0.6)
+            .shift(RIGHT * 1)
+        )
+
+        self.play(FadeIn(channels_vg))
+
+        pixel_count_y = (
+            Text("64/64", font="SF Mono").scale(0.5).next_to(y_channel, DOWN, buff=0.5)
+        )
+        pixel_count_u = (
+            Text("16/64", font="SF Mono")
+            .scale(0.5)
+            .next_to(new_u_channel, DOWN, buff=0.5)
+        )
+        pixel_count_v = (
+            Text("16/64", font="SF Mono")
+            .scale(0.5)
+            .next_to(new_v_channel, DOWN, buff=0.5)
+        )
+        pixel_count = (
+            Text("Pixel count", font="CMU Serif", weight=BOLD)
+            .scale(0.4)
+            .to_edge(LEFT, buff=1.6)
+            .move_to(pixel_count_v, coor_mask=[0, 1, 0])
+        )
+
+        self.play(
+            FadeIn(pixel_count),
+            FadeIn(pixel_count_y, shift=DOWN),
+            FadeIn(pixel_count_u, shift=DOWN),
+            FadeIn(pixel_count_v, shift=DOWN),
+        )
+        self.wait(2)
+
+        pixel_ratio_y = (
+            Text("100%", font="SF Mono")
+            .scale(0.5)
+            .next_to(pixel_count_y, DOWN, buff=0.5)
+        )
+        pixel_ratio_u = (
+            Text("25%", font="SF Mono")
+            .scale(0.5)
+            .next_to(pixel_count_u, DOWN, buff=0.5)
+        )
+        pixel_ratio_v = (
+            Text("25%", font="SF Mono")
+            .scale(0.5)
+            .next_to(pixel_count_v, DOWN, buff=0.5)
+        )
+        pixel_ratio = (
+            Text("Pixel ratio", font="CMU Serif", weight=BOLD)
+            .scale(0.4)
+            .to_edge(LEFT, buff=1.6)
+            .move_to(pixel_ratio_v, coor_mask=[0, 1, 0])
+        )
+
+        self.play(
+            FadeIn(pixel_ratio),
+            FadeIn(pixel_ratio_y, shift=DOWN),
+            FadeIn(pixel_ratio_u, shift=DOWN),
+            FadeIn(pixel_ratio_v, shift=DOWN),
+        )
+
+        self.wait()
+
+        fraction_y = (
+            Text("1/3", font="SF Mono")
+            .scale(0.5)
+            .next_to(pixel_ratio_y, DOWN, buff=0.5)
+        )
+        fraction_u = (
+            Text("1/3 · 1/4", font="SF Mono")
+            .scale(0.4)
+            .next_to(pixel_ratio_u, DOWN, buff=0.5)
+        )
+        fraction_v = (
+            Text("1/3 · 1/4", font="SF Mono")
+            .scale(0.4)
+            .next_to(pixel_ratio_v, DOWN, buff=0.5)
+        )
+        fraction_image = (
+            Text(
+                "Fraction of \nthe image",
+                font="CMU Serif",
+                weight=BOLD,
+                should_center=False,
+            )
+            .scale(0.4)
+            .to_edge(LEFT, buff=1.6)
+            .move_to(fraction_u, coor_mask=[0, 1, 0])
+        )
+
+        self.play(
+            FadeIn(fraction_image),
+            FadeIn(fraction_y, shift=DOWN),
+            FadeIn(fraction_u, shift=DOWN),
+            FadeIn(fraction_v, shift=DOWN),
+        )
+
+        self.wait()
+
+        one_over_twelve = Text("1/12", font="SF Mono").scale(0.5)
+
+        self.play(
+            Transform(fraction_u, one_over_twelve.copy().move_to(fraction_u)),
+            Transform(fraction_v, one_over_twelve.copy().move_to(fraction_v)),
+        )
+
+        self.wait()
+
+        total_sum = (
+            Text("6/12", font="SF Mono").scale(0.8).next_to(fraction_u, DOWN, buff=1)
+        )
+        total_sum_ratio = (
+            Text("50%", font="SF Mono").scale(0.8).next_to(fraction_u, DOWN, buff=2)
+        )
+
+        self.wait()
+
+        total_size = (
+            Text(
+                "Final total size \ncompared to original",
+                font="CMU Serif",
+                weight=BOLD,
+                should_center=False,
+            )
+            .scale(0.5)
+            .to_edge(LEFT, buff=1.6)
+            .move_to(
+                VGroup(total_sum, total_sum_ratio).get_center(), coor_mask=[0, 1, 0]
+            )
+            .shift(DOWN * 0.15)
+        )
+
+        self.play(
+            FadeIn(total_size),
+            TransformFromCopy(fraction_y, total_sum.copy()),
+            TransformFromCopy(fraction_u, total_sum.copy()),
+            TransformFromCopy(fraction_v, total_sum.copy()),
+        )
+
+        self.wait()
+
+        self.play(Transform(total_sum, total_sum_ratio))
 
 
 class TestGrayScaleImages(ImageUtils):
