@@ -960,21 +960,12 @@ class ImageUtils(Scene):
 
         # Downsample with a window of 2 in both directions
         elif mode == "4:2:0":
-            print(u)
             for i in range(0, u.shape[0], 2):
                 for j in range(0, u.shape[1], 2):
-                    print(f"{i = }, {j = }")
-
-                    print(u[i : i + 2, j : j + 2])
-                    print(np.mean(u[i : i + 2, j : j + 2]))
 
                     out_u[i : i + 2, j : j + 2] = int(
                         np.round(np.mean(u[i : i + 2, j : j + 2]))
                     )
-
-                    print(out_u)
-                print("--------------")
-                print("--------------")
 
             for i in range(0, v.shape[0], 2):
                 for j in range(0, v.shape[1], 2):
@@ -1018,20 +1009,10 @@ class ImageUtils(Scene):
 
         # Subsample with a window of 2 in both directions
         elif mode == "4:2:0":
-            print(u)
             for i in range(0, u.shape[0], 2):
                 for j in range(0, u.shape[1], 2):
-                    # print(f"{i = }, {j = }")
-
-                    print(u[i : i + 2, j : j + 2])
-                    print(u[i, j])
 
                     out_u[i : i + 2, j : j + 2] = u[i, j]
-
-                    print(out_u)
-
-                    print("___________")
-                    print()
 
             for i in range(0, v.shape[0], 2):
                 for j in range(0, v.shape[1], 2):
@@ -1048,6 +1029,7 @@ class ImageUtils(Scene):
 class IntroChromaSubsampling(ImageUtils):
     def construct(self):
         self.test()
+        self.animate_chroma_downsampling()
         # self.animate_chroma_subsampling()
 
     def test(self):
@@ -1178,7 +1160,7 @@ class IntroChromaSubsampling(ImageUtils):
         self.wait(4)
 
         chroma_title = (
-            Text("Chroma subsampling: 4:2:0", font="CMU Serif", weight=BOLD)
+            Text("Chroma downsampling: 4:2:0", font="CMU Serif", weight=BOLD)
             .scale(0.7)
             .to_edge(UP, buff=1)
         )
@@ -1364,7 +1346,7 @@ class IntroChromaSubsampling(ImageUtils):
         )
         self.wait(3)
 
-        sub_pix_array = self.chroma_subsample_image(pix_array)
+        sub_pix_array = self.chroma_downsample_image(pix_array)
         subsampled_image = (
             PixelArray(sub_pix_array, color_mode="RGB")
             .scale_to_fit_height(y_channel.height)
@@ -1397,7 +1379,7 @@ class IntroChromaSubsampling(ImageUtils):
             .next_to(gradient, DOWN, buff=0.4)
         )
         subsampled_text = (
-            Text("Subsampled Image", font="CMU Serif")
+            Text("Downsampled Image", font="CMU Serif")
             .scale(0.5)
             .next_to(subsampled_image, DOWN, buff=0.4)
         )
@@ -1540,7 +1522,7 @@ class IntroChromaSubsampling(ImageUtils):
             .next_to(u_channel, RIGHT, buff=2)
         )
         average_t = (
-            Text("Average of:", font="SF Mono")
+            Text("Top left of:", font="SF Mono")
             .scale(0.3)
             .next_to(four_pixels_vg, UP, buff=0.5)
         )
@@ -1568,21 +1550,12 @@ class IntroChromaSubsampling(ImageUtils):
 
                 next_slice = u_channel[i + j * 4 : i + j * 4 + 2]
 
-                sq_ul_rgb = hex_to_rgb(sq_ul.color)
-                sq_ur_rgb = hex_to_rgb(sq_ur.color)
-                sq_dl_rgb = hex_to_rgb(sq_dl.color)
-                sq_dr_rgb = hex_to_rgb(sq_dr.color)
-
-                four_pixels = np.stack((sq_ul_rgb, sq_ur_rgb, sq_dl_rgb, sq_dr_rgb))
-
-                avg = np.average(four_pixels, axis=0) * 255
-
                 self.play(
                     kernel.animate.move_to(next_slice, aligned_edge=UP),
                 )
 
                 new_pixel = (
-                    Pixel(avg, color_mode="RGB")
+                    Pixel(hex_to_rgb(sq_ul.color) * 255, color_mode="RGB")
                     .scale_to_fit_width(kernel.width)
                     .move_to(kernel)
                 )
@@ -1593,7 +1566,12 @@ class IntroChromaSubsampling(ImageUtils):
 
                 last_four_pixel = four_pixels_vg
                 four_pixels_vg = (
-                    VGroup(sq_ul.copy(), sq_ur.copy(), sq_dl.copy(), sq_dr.copy())
+                    VGroup(
+                        sq_ul.copy().scale(1.5),
+                        sq_ur.copy().set_opacity(0.5),
+                        sq_dl.copy().set_opacity(0.5),
+                        sq_dr.copy().set_opacity(0.5),
+                    )
                     .arrange_in_grid(rows=2, cols=2)
                     .scale_to_fit_height(new_pixel_annotation.height)
                     .move_to(last_four_pixel)
