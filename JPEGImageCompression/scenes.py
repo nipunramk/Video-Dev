@@ -1028,63 +1028,17 @@ class ImageUtils(Scene):
 
 class IntroChromaSubsampling(ImageUtils):
     def construct(self):
-        self.test()
-        self.animate_chroma_downsampling()
-        # self.animate_chroma_subsampling()
+        # self.animate_chroma_downsampling()
+
+        # top left
+        self.animate_chroma_subsampling()
+        self.show_real_world_image_subsampled()
 
     def test(self):
         img = ImageMobject("r.png")
         arr = img.get_pixel_array()
         # print(arr)
         print(self.chroma_subsample_image(arr, mode="4:2:0"))
-
-    def image_chroma_subsample(self):
-        shed_raw = ImageMobject("colors3.png")
-        shed_raw.set_resampling_algorithm(RESAMPLING_ALGORITHMS["nearest"])
-
-        chroma_subsampled = self.chroma_subsample_image(
-            shed_raw.get_pixel_array(), mode="4:2:0"
-        )
-
-        y, u, v = self.get_yuv_image_from_rgb(shed_raw.get_pixel_array(), mapped=False)
-        y_sub, u_sub, v_sub = (
-            chroma_subsampled[:, :, 0],
-            chroma_subsampled[:, :, 1],
-            chroma_subsampled[:, :, 2],
-        )
-
-        # u_mob = ImageMobject(u)
-        # print(u)
-        # u_sub_mob = ImageMobject(u_sub)
-        # print(u_sub)
-
-        # u_mob.set_resampling_algorithm(RESAMPLING_ALGORITHMS["nearest"])
-        # u_sub_mob.set_resampling_algorithm(RESAMPLING_ALGORITHMS["nearest"])
-
-        # self.add(Group(u_mob, u_sub_mob).arrange(RIGHT, buff=0.01).scale(30))
-
-        chroma_subsampled_mobj = ImageMobject(chroma_subsampled)
-        chroma_subsampled_mobj.set_resampling_algorithm(
-            RESAMPLING_ALGORITHMS["nearest"]
-        )
-
-        diff_image = (shed_raw.get_pixel_array()[:, :, :3] - chroma_subsampled) ** 2
-        diff_image = cv2.cvtColor(diff_image, cv2.COLOR_RGB2GRAY)
-        diff_image_mobj = ImageMobject(diff_image)
-
-        diff_image_mobj.set_resampling_algorithm(RESAMPLING_ALGORITHMS["nearest"])
-
-        img_group = (
-            Group(shed_raw, chroma_subsampled_mobj, diff_image_mobj).arrange(
-                RIGHT, buff=0.01
-            )
-        ).scale(15)
-
-        self.play(
-            FadeIn(img_group),
-            run_time=3,
-        )
-        self.wait(2)
 
     # average
     def animate_chroma_downsampling(self):
@@ -1685,6 +1639,45 @@ class IntroChromaSubsampling(ImageUtils):
         self.play(FadeIn(original_text), FadeIn(subsampled_text))
 
         self.wait(4)
+
+    def show_real_world_image_subsampled(self):
+        shed = ImageMobject("rose.jpg")
+
+        shed_arr = shed.get_pixel_array()
+
+        shed_subsampled_420 = ImageMobject(
+            self.chroma_subsample_image(shed_arr, mode="4:2:0")
+        )
+        shed_subsampled_422 = ImageMobject(
+            self.chroma_subsample_image(shed_arr, mode="4:2:2")
+        )
+
+        img_g = (
+            Group(shed, shed_subsampled_420, shed_subsampled_422)
+            .arrange(RIGHT, buff=0.1)
+            .scale_to_fit_width(12)
+        )
+        text = Tex("Original image").scale(0.6).next_to(shed, DOWN, buff=0.5)
+        text_422 = (
+            Tex("Subsampling 4:2:2")
+            .scale(0.6)
+            .next_to(shed_subsampled_422, DOWN, buff=0.5)
+        )
+        text_420 = (
+            Tex("Subsampling 4:2:0")
+            .scale(0.6)
+            .next_to(shed_subsampled_420, DOWN, buff=0.5)
+        )
+
+        self.play(
+            LaggedStartMap(
+                FadeIn,
+                img_g,
+            ),
+            LaggedStart(
+                FadeIn(text), FadeIn(text_420), FadeIn(text_422), lag_ratio=0.4
+            ),
+        )
 
 
 class TestGrayScaleImages(ImageUtils):
