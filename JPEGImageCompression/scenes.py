@@ -535,7 +535,6 @@ class JPEGDiagramScene(Scene):
 
         self.play(*[FadeOut(mob) for mob in self.mobjects])
 
-
 class JPEGDiagramMap(MovingCameraScene):
     def construct(self):
         self.build_diagram()
@@ -777,7 +776,6 @@ class ShowConfusingImage(Scene):
         giving their brightness a specific, semantic role within the image. that makes us
         not pay attention to the actual color the tiles have.
         """
-
 
 class MotivateAndExplainRGB(ThreeDScene):
     def construct(self):
@@ -1859,7 +1857,6 @@ class ImageToSignal(ImageUtils):
         self.play(Create(path), run_time=4)
         self.wait()
 
-
 # This class handles animating any row of pixels from an image into a signal
 # Handling this differently since in general, pixel counts per row will be high
 class GeneralImageToSignal(ImageToSignal):
@@ -1944,7 +1941,6 @@ class GeneralImageToSignal(ImageToSignal):
             rate_func=linear,
         )
         self.wait()
-
 
 class DCTExperiments(ImageUtils):
     def construct(self):
@@ -2073,7 +2069,6 @@ class DCTExperiments(ImageUtils):
 
         return VGroup(pixel_grid_dct, heat_map_scale).arrange(RIGHT)
 
-
 class DCTComponents(ImageUtils):
     def construct(self):
         image_mob = ImageMobject("dog").move_to(UP * 2)
@@ -2165,7 +2160,6 @@ class DCTComponents(ImageUtils):
 
     def display_component(self, dct_matrix, row, col):
         pass
-
 
 class DCTSliderExperiments(DCTComponents):
     def construct(self):
@@ -2289,7 +2283,6 @@ class DCTSliderExperiments(DCTComponents):
 
         pixel_array = idct_2d(dct_matrix)
         return invert_format_block(pixel_array)
-
 
 class DCTEntireImageSlider(DCTSliderExperiments):
     def construct(self):
@@ -2564,7 +2557,6 @@ class DCT1DExperiments(DCTComponents):
         )
 
         return ax, graph, dots
-
 
 class DCT1DStepsVisualized(DCT1DExperiments):
     """
