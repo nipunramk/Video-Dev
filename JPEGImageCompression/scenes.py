@@ -1350,9 +1350,9 @@ class IntroChromaSubsampling(ImageUtils):
         # self.animate_chroma_downsampling()
 
         # top left
-        # self.animate_chroma_subsampling()
+        self.animate_chroma_subsampling()
         # self.show_real_world_image_subsampled()
-        self.show_file_size_calculation()
+        # self.show_file_size_calculation()
 
     # average
     def animate_chroma_downsampling(self):
@@ -7306,3 +7306,241 @@ class Redundancy(Quantization):
         text_mob = Tex(text).scale(scale)
         rect = Rectangle(color=color, height=1.1, width=3)
         return VGroup(rect, text_mob)
+
+class IntroAnimations(DemoJPEGWithDCT2D):
+    def construct(self):
+        image_mob = ImageMobject("dog").move_to(LEFT * 2)
+
+        new_pixel_array = self.get_all_blocks(image_mob, 2, 298, 3, 331, 64)
+        relevant_section = new_pixel_array[2:298, 3:331]
+        original_image_mob = self.get_image_mob(new_pixel_array, height=None).move_to(UP * 1 + RIGHT * 2)
+
+        axes = ThreeDAxes(
+            x_range=[0, 7], y_range=[0, 7], z_range=[0, 255], 
+            x_length=5, y_length=5, z_length=5,
+            tips=False,
+            axis_config={"include_ticks": False},
+        ).shift(IN * 1.5 + LEFT * 2)
+
+        axes.set_color(BLACK)
+
+        block_image_2d, pixel_grid_2d, block_2d = self.get_pixel_block(image_mob, 125, 125, height=2)
+        print("Before 2D\n", block_2d[:, :, 1])
+        block_image_2d = self.get_image_vector_mob(block_2d[:, :, 1], height=3)
+        self.add_fixed_in_frame_mobjects(original_image_mob, block_image_2d)
+        original_image_mob.move_to(LEFT * 3.5 + UP * 2.5)
+        block_image_2d.move_to(LEFT * 3.5 + DOWN * 1)
+
+        self.play(
+            FadeIn(block_image_2d),
+            FadeIn(original_image_mob),
+        )
+        self.wait()
+
+        block_image, block = self.get_pixel_block_for_3d(image_mob, 125, 125, height=axes.x_length)
+
+        print('Before\n', block[:, :, 1])
+        block_centered = format_block(block)
+        print('After centering\n', block_centered)
+
+        dct_block = dct_2d(block_centered)
+        np.set_printoptions(suppress=True)
+        print('DCT block (rounded)\n', np.round(dct_block, decimals=1))
+        expected = invert_format_block(idct_2d(dct_block))
+        actual = self.get_original_matrix_from_func(dct_block)
+        print('Expected\n', expected)
+        print('Actual\n', actual)
+        assert(np.allclose(expected, actual))
+
+
+
+        surface = Surface(
+            lambda u, v: axes.c2p(*self.func(u, v, dct_block)),
+            u_range=[0, 7],
+            v_range=[0, 7],
+            checkerboard_colors=[REDUCIBLE_PURPLE],
+            fill_opacity=0.5,
+            resolution=8,
+            stroke_color=REDUCIBLE_YELLOW,
+            stroke_width=2,
+        )
+        
+        self.position_image_on_axes(axes, block_image)
+
+        # self.add_fixed_in_frame_mobjects(block_image)
+        # lines_to_z, dots_z = self.get_lines_and_dots(axes, block[:, :, 1], block_image)
+        self.set_camera_orientation(theta=70 * DEGREES, phi=80 * DEGREES)
+        self.add(axes, block_image, surface)
+        self.wait()
+
+        number_line = self.initialize_slider(block_image, block[:, :, 1], surface)
+        block_image = self.animate_slider(number_line, axes, block_image, dct_block, block[:, :, 1], surface, block_image_2d, image_mob, original_image_mob)
+
+
+    def initialize_slider(self, block_image, block, surface):
+        number_line = NumberLine(
+            x_range=[0, 64, 8],
+            length=10,
+            color=REDUCIBLE_VIOLET,
+            include_numbers=False,
+            label_direction=UP,
+        )
+        self.add_fixed_in_frame_mobjects(number_line)
+        number_line.move_to(DOWN * 3)
+
+        self.play(
+            FadeIn(number_line)
+        )
+        self.wait()
+        return number_line
+
+    def animate_slider(self, number_line, axes, block_image, dct_block, original_block, surface, block_image_2d, image_mob, original_image_mob):
+        tick = Triangle().scale(0.2).set_color(REDUCIBLE_YELLOW)
+        tick.set_fill(color=REDUCIBLE_YELLOW, opacity=1)
+        self.add_fixed_in_frame_mobjects(tick)
+
+        tracker = ValueTracker(0)
+        tick.add_updater(
+            lambda m: m.next_to(
+                        number_line.n2p(tracker.get_value()),
+                        DOWN
+                    )
+        )
+        self.play( 
+            FadeIn(tick),
+        )
+        self.wait()
+        # surface_pos = RIGHT *
+        def get_new_block():
+            new_partial_block = self.get_partial_block(dct_block, tracker.get_value())
+            print(f'Partial block - {tracker.get_value()} components')
+            print('MSE', np.mean((new_partial_block - original_block) ** 2), '\n')
+
+            new_partial_block_image = self.get_block_image_for_3d(new_partial_block, height=axes.x_length)            
+            self.position_image_on_axes(axes, new_partial_block_image)
+            return new_partial_block_image
+
+        def get_new_surface():
+            new_partial_block_dct = self.get_partial_dct_block(dct_block, tracker.get_value())
+            # print('Generating surface of block:\n', new_partial_block_dct)
+            new_surface = Surface(
+                lambda u, v: axes.c2p(*self.func(u, v, new_partial_block_dct)),
+                u_range=[0, 7],
+                v_range=[0, 7],
+                checkerboard_colors=[REDUCIBLE_PURPLE],
+                fill_opacity=0.5,
+                resolution=8,
+                stroke_color=REDUCIBLE_YELLOW,
+                stroke_width=2,
+            )
+            return new_surface
+        
+        def get_new_block_2d():
+            new_partial_block = self.get_partial_block(dct_block, tracker.get_value())
+
+            new_partial_block_image = self.get_image_vector_mob(new_partial_block, height=3)
+            
+            # TODO comment out this line for the smooth transition
+            self.add_fixed_in_frame_mobjects(new_partial_block_image)
+            new_partial_block_image.move_to(block_image_2d.get_center())
+            return new_partial_block_image
+
+            original_pixel_array = image_mob.get_pixel_array()[2:298, 3:331, 0]
+        
+        def get_new_image():
+            new_pixel_array = self.get_all_blocks(image_mob, 2, 298, 3, 331, tracker.get_value() / 8)
+            relevant_section = new_pixel_array[2:298, 3:331]
+            new_image = self.get_image_mob(new_pixel_array, height=None).move_to(UP * 1 + RIGHT * 2)
+            
+            self.add_fixed_in_frame_mobjects(new_image)
+            new_image.move_to(original_image_mob.get_center())
+            return new_image
+        
+        new_image = always_redraw(get_new_image)
+
+        partial_block_image_2d = always_redraw(get_new_block_2d)
+        # partial_pixel_grid_2d = self.get_pixel_grid(
+        #     partial_block_image_2d, partial_block_2d.shape[0]
+        # )
+        # partial_pixel_grid_2d.move_to(par)
+
+        partial_block = self.get_partial_block(dct_block, tracker.get_value())
+        partial_block_image = always_redraw(get_new_block)
+        partial_block_surface = always_redraw(get_new_surface)
+        self.play(
+            ReplacementTransform(block_image, partial_block_image),
+            ReplacementTransform(surface, partial_block_surface),
+            ReplacementTransform(block_image_2d, partial_block_image_2d),
+        )
+        self.wait()
+
+        self.remove(original_image_mob)
+        self.add_foreground_mobject(new_image)
+
+        tiny_square_highlight = Square(side_length=SMALL_BUFF * 0.8, color=REDUCIBLE_YELLOW)
+        surround_rect = SurroundingRectangle(partial_block_image_2d, buff=0, color=REDUCIBLE_YELLOW)
+        self.add_fixed_in_frame_mobjects(tiny_square_highlight, surround_rect)
+        tiny_square_highlight.move_to(new_image.get_center()).shift(UL * 0.2)
+        surround_rect.move_to(partial_block_image_2d.get_center())
+        
+        rc = tiny_square_highlight.get_vertices()[0]
+        lc = tiny_square_highlight.get_vertices()[1]
+
+        end_rc = surround_rect.get_vertices()[0]
+        end_lc = surround_rect.get_vertices()[1]
+
+        right_dashed_line = DashedLine(rc, end_rc).set_stroke(color=REDUCIBLE_YELLOW)
+        left_dashed_line = DashedLine(lc, end_lc).set_stroke(color=REDUCIBLE_YELLOW)
+
+        self.add_fixed_in_frame_mobjects(right_dashed_line, left_dashed_line)
+
+        self.add_foreground_mobjects(tiny_square_highlight, surround_rect, left_dashed_line, right_dashed_line)
+        self.wait()   
+       
+        self.play(
+            tracker.animate.set_value(64),
+            run_time=10,
+            rate_func=linear,
+        )
+
+        self.wait()
+        return partial_block_image
+
+    def get_all_blocks(
+        self,
+        image_mob,
+        start_row,
+        end_row,
+        start_col,
+        end_col,
+        num_components,
+        block_size=8,
+    ):
+        pixel_array = image_mob.get_pixel_array()
+        new_pixel_array = np.zeros((pixel_array.shape[0], pixel_array.shape[1]))
+        for i in range(start_row, end_row, block_size):
+            for j in range(start_col, end_col, block_size):
+                pixel_block = self.get_pixel_block_from_array(pixel_array, i, j)
+                block_centered = format_block(pixel_block)
+                dct_block = dct_2d(block_centered)
+                # quantized_block = quantize(dct_block)
+                # dequantized_block = dequantize(quantized_block)
+                # invert_dct_block = idct_2d(dequantized_block)
+                # compressed_block = invert_format_block(invert_dct_block)
+                # all_in_range = (compressed_block >= 0) & (compressed_block <= 255)
+                # if not all(all_in_range.flatten()):
+                #     print(i, j)
+                #     print(all_in_range)
+                #     print('Bad array\n', compressed_block)
+                #     print('Original array\n', pixel_block[:, :, 0])
+                #     raise ValueError("All elements in compressed_block must be in range [0, 255]")
+                # new_pixel_array[i:i+block_size, j:j+block_size] = compressed_block
+                partial_block = self.get_partial_block(dct_block, num_components)
+                new_pixel_array[i : i + block_size, j : j + block_size] = partial_block
+
+        return new_pixel_array
+
+    def get_pixel_block_from_array(self, pixel_array, start_row, start_col, block_size=8):
+        return pixel_array[
+            start_row : start_row + block_size, start_col : start_col + block_size
+        ]
