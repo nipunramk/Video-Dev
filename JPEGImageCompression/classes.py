@@ -70,7 +70,7 @@ class ReducibleBarChart(BarChart):
         if self.label_y_axis:
             labels = VGroup()
             for tick, value in zip(ticks, values):
-                label = Text(str(np.round(value, 2)), font=self.chart_font)
+                label = Text(str(np.round(value, 2)), font=self.chart_font, weight=MEDIUM)
                 label.height = self.y_axis_label_height
                 label.next_to(tick, LEFT, SMALL_BUFF)
                 labels.add(label)
@@ -93,7 +93,7 @@ class ReducibleBarChart(BarChart):
 
         bar_labels = VGroup()
         for bar, name in zip(bars, self.bar_names):
-            label = Text(str(name), font="SF Mono")
+            label = Text(str(name), font="SF Mono", weight=MEDIUM)
             label.scale(self.bar_label_scale_val)
             label.next_to(bar, DOWN, SMALL_BUFF)
             bar_labels.add(label)
@@ -125,10 +125,16 @@ class Module(VGroup):
             .set_opacity(1)
             .set_stroke(stroke_color, width=stroke_width)
         )
-
-        self.text = Text(str(text), weight=text_weight, font="CMU Serif").scale(
+        if isinstance(text, list):
+            text_mob = VGroup()
+            for string in text:
+                text = Text(str(string), weight=text_weight, font="CMU Serif").scale(text_scale)
+                text_mob.add(text)
+            self.text = text_mob.arrange(DOWN, buff=SMALL_BUFF * 2)
+        else:
+            self.text = Text(str(text), weight=text_weight, font="CMU Serif").scale(
             text_scale
-        )
+            )
         self.text.next_to(
             self.rect,
             direction=ORIGIN,
@@ -170,7 +176,7 @@ class PixelArray(VGroup):
             for p in row:
                 if include_numbers:
                     self.number = (
-                        Text(str(p), font="SF Mono")
+                        Text(str(p), font="SF Mono", weight=MEDIUM)
                         .scale(0.7)
                         .set_color(g2h(1) if p < 180 else g2h(0))
                     )
@@ -237,7 +243,7 @@ class RDecimalNumber(DecimalNumber):
     def string_to_mob(self, string, mob_class=Text, **kwargs):
         if string not in string_to_mob_map:
             string_to_mob_map[string] = mob_class(
-                string, font_size=1.0, font="SF Mono", **kwargs
+                string, font_size=1.0, font="SF Mono", weight=MEDIUM, **kwargs
             )
         mob = string_to_mob_map[string].copy()
         mob.font_size = self._font_size
@@ -353,7 +359,7 @@ class RVariable(VMobject):
         self, var, label, var_type=RDecimalNumber, num_decimal_places=2, **kwargs
     ):
 
-        self.label = Text(label, font="SF Mono") if isinstance(label, str) else label
+        self.label = Text(label, font="SF Mono", weight=MEDIUM) if isinstance(label, str) else label
         equals = Text("=").next_to(self.label, RIGHT)
         self.label.add(equals)
 

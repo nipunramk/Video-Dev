@@ -25,9 +25,9 @@ E.g manim -pql JPEGImageCompression/image_compression.py --disable_caching
 
 class IntroduceRGBAndJPEG(Scene):
     def construct(self):
-        r_t = Text("R", font="SF Mono").scale(3).set_color(RED)
-        g_t = Text("G", font="SF Mono").scale(3).set_color(GREEN)
-        b_t = Text("B", font="SF Mono").scale(3).set_color(BLUE)
+        r_t = Text("R", font="SF Mono", weight=MEDIUM).scale(3).set_color(PURE_RED)
+        g_t = Text("G", font="SF Mono", weight=MEDIUM).scale(3).set_color(PURE_GREEN)
+        b_t = Text("B", font="SF Mono", weight=MEDIUM).scale(3).set_color(PURE_BLUE)
 
         rgb_vg_h = VGroup(r_t, g_t, b_t).arrange(RIGHT, buff=2)
         rgb_vg_v = rgb_vg_h.copy().arrange(DOWN, buff=1).shift(LEFT * 0.7)
@@ -37,18 +37,18 @@ class IntroduceRGBAndJPEG(Scene):
         self.play(Transform(rgb_vg_h, rgb_vg_v))
 
         red_t = (
-            Text("ed", font="SF Mono")
-            .set_color(RED)
+            Text("ed", font="SF Mono", weight=MEDIUM)
+            .set_color(PURE_RED)
             .next_to(r_t, RIGHT, buff=0.3, aligned_edge=DOWN)
         )
         green_t = (
-            Text("reen", font="SF Mono")
-            .set_color(GREEN)
+            Text("reen", font="SF Mono", weight=MEDIUM)
+            .set_color(PURE_GREEN)
             .next_to(g_t, RIGHT, buff=0.3, aligned_edge=DOWN)
         )
         blue_t = (
-            Text("lue", font="SF Mono")
-            .set_color(BLUE)
+            Text("lue", font="SF Mono", weight=MEDIUM)
+            .set_color(PURE_BLUE)
             .next_to(b_t, RIGHT, buff=0.3, aligned_edge=DOWN)
         )
         self.play(LaggedStartMap(FadeIn, [red_t, green_t, blue_t]))
@@ -93,11 +93,11 @@ class IntroduceRGBAndJPEG(Scene):
 
         pixels_vg = VGroup(black, gray1, gray2, gray3, white).arrange(RIGHT, buff=1)
 
-        bk_t = Text("0", font="SF Mono").next_to(black, DOWN, buff=0.5).scale(0.5)
-        g1_t = Text("34", font="SF Mono").next_to(gray1, DOWN, buff=0.5).scale(0.5)
-        g2_t = Text("68", font="SF Mono").next_to(gray2, DOWN, buff=0.5).scale(0.5)
-        g3_t = Text("187", font="SF Mono").next_to(gray3, DOWN, buff=0.5).scale(0.5)
-        wh_t = Text("255", font="SF Mono").next_to(white, DOWN, buff=0.5).scale(0.5)
+        bk_t = Text("0", font="SF Mono", weight=MEDIUM).next_to(black, DOWN, buff=0.5).scale(0.5)
+        g1_t = Text("34", font="SF Mono", weight=MEDIUM).next_to(gray1, DOWN, buff=0.5).scale(0.5)
+        g2_t = Text("68", font="SF Mono", weight=MEDIUM).next_to(gray2, DOWN, buff=0.5).scale(0.5)
+        g3_t = Text("187", font="SF Mono", weight=MEDIUM).next_to(gray3, DOWN, buff=0.5).scale(0.5)
+        wh_t = Text("255", font="SF Mono", weight=MEDIUM).next_to(white, DOWN, buff=0.5).scale(0.5)
 
         self.play(LaggedStartMap(FadeIn, pixels_vg))
         self.wait(2)
@@ -106,22 +106,22 @@ class IntroduceRGBAndJPEG(Scene):
         self.play(LaggedStartMap(FadeOut, [pixels_vg, bk_t, g1_t, g2_t, g3_t, wh_t]))
 
         red_channel = (
-            Rectangle(RED, width=3)
+            Rectangle(PURE_RED, width=3)
             .set_color(BLACK)
             .set_opacity(1)
-            .set_stroke(RED, width=3)
+            .set_stroke(PURE_RED, width=3)
         )
         green_channel = (
-            Rectangle(GREEN, width=3)
+            Rectangle(PURE_GREEN, width=3)
             .set_color(BLACK)
             .set_opacity(1)
-            .set_stroke(GREEN, width=3)
+            .set_stroke(PURE_GREEN, width=3)
         )
         blue_channel = (
-            Rectangle(BLUE, width=3)
+            Rectangle(PURE_BLUE, width=3)
             .set_color(BLACK)
             .set_opacity(1)
-            .set_stroke(BLUE, width=3)
+            .set_stroke(PURE_BLUE, width=3)
         )
 
         channels_vg_h = VGroup(red_channel, green_channel, blue_channel).arrange(
@@ -142,21 +142,21 @@ class IntroduceRGBAndJPEG(Scene):
 
         pixel_r = (
             Square(side_length=0.1)
-            .set_color(RED)
+            .set_color(PURE_RED)
             .set_opacity(1)
             .align_to(red_channel, LEFT)
             .align_to(red_channel, UP)
         )
         pixel_g = (
             Square(side_length=0.1)
-            .set_color(GREEN)
+            .set_color(PURE_GREEN)
             .set_opacity(1)
             .align_to(green_channel, LEFT)
             .align_to(green_channel, UP)
         )
         pixel_b = (
             Square(side_length=0.1)
-            .set_color(BLUE)
+            .set_color(PURE_BLUE)
             .set_opacity(1)
             .align_to(blue_channel, LEFT)
             .align_to(blue_channel, UP)
@@ -177,7 +177,7 @@ class IntroduceRGBAndJPEG(Scene):
         self.wait(2)
 
         eight_bits_r = (
-            Text("8 bits", font="SF Mono")
+            Text("8 bits", font="SF Mono", weight=MEDIUM)
             .scale(0.4)
             .next_to(pixel_r_big, RIGHT, buff=0.3)
         )
@@ -193,7 +193,7 @@ class IntroduceRGBAndJPEG(Scene):
         self.play(Write(brace))
 
         twenty_four_bits = (
-            Text("24 bits / pixel", font="SF Mono").scale(0.4).next_to(brace, RIGHT)
+            Text("24 bits / pixel", font="SF Mono", weight=MEDIUM).scale(0.4).next_to(brace, RIGHT)
         )
 
         self.play(Write(twenty_four_bits), run_time=2)
@@ -206,7 +206,7 @@ class IntroduceRGBAndJPEG(Scene):
         self.wait(2)
 
         three_bytes = (
-            Text("3 bytes / pixel", font="SF Mono")
+            Text("3 bytes / pixel", font="SF Mono", weight=MEDIUM)
             .scale(0.4)
             .next_to(twenty_four_bits, DOWN, buff=0.7)
         )
@@ -218,7 +218,7 @@ class IntroduceRGBAndJPEG(Scene):
         flower_image = ImageMobject("rose.jpg").scale(0.4)
 
         dimensions = (
-            Text("2592 × 1944", font="SF Mono")
+            Text("2592 × 1944", font="SF Mono", weight=MEDIUM)
             .scale(0.7)
             .next_to(flower_image, DOWN, buff=0.3)
         )
@@ -247,7 +247,7 @@ class IntroduceRGBAndJPEG(Scene):
             .to_edge(RIGHT, buff=1)
         )
         annotation = (
-            Text("MB", font="SF Mono").scale(0.4).next_to(chart.y_axis, UP, buff=0.3)
+            Text("MB", font="SF Mono", weight=MEDIUM).scale(0.4).next_to(chart.y_axis, UP, buff=0.3)
         )
 
         self.play(Create(chart.x_axis), Create(chart.y_axis), run_time=3)
@@ -279,22 +279,22 @@ class IntroduceRGBAndJPEG(Scene):
 class JPEGDiagramScene(Scene):
     def construct(self):
         red_channel = (
-            RoundedRectangle(corner_radius=0.1, fill_color=RED, width=3)
-            .set_color(BLACK)
+            RoundedRectangle(corner_radius=0.1, fill_color=PURE_RED, width=3)
+            .set_color(PURE_RED)
             .set_opacity(1)
-            .set_stroke(RED, width=4)
+            .set_stroke(WHITE, width=4)
         )
         green_channel = (
-            RoundedRectangle(corner_radius=0.1, fill_color=GREEN, width=3)
-            .set_color(BLACK)
+            RoundedRectangle(corner_radius=0.1, fill_color=PURE_GREEN, width=3)
+            .set_color(PURE_GREEN)
             .set_opacity(1)
-            .set_stroke(GREEN, width=4)
+            .set_stroke(WHITE, width=4)
         )
         blue_channel = (
-            RoundedRectangle(corner_radius=0.1, fill_color=BLUE, width=3)
-            .set_color(BLACK)
+            RoundedRectangle(corner_radius=0.1, fill_color=PURE_BLUE, width=3)
+            .set_color(PURE_BLUE)
             .set_opacity(1)
-            .set_stroke(BLUE, width=4)
+            .set_stroke(WHITE, width=4)
         )
 
         channels_vg_diagonal = VGroup(red_channel, green_channel, blue_channel).arrange(
@@ -386,7 +386,7 @@ class JPEGDiagramScene(Scene):
             max_tip_length_to_length_ratio=0.08,
             max_stroke_width_to_length_ratio=2,
         )
-        cross_arr = Cross(color="#FF0000", stroke_width=10).scale(0.22).move_to(db_arr)
+        cross_arr = Cross(color=PURE_RED, stroke_width=10).scale(0.22).move_to(db_arr)
 
         self.play(
             LaggedStart(
@@ -408,6 +408,7 @@ class JPEGDiagramScene(Scene):
 
         decoder_m = Module("Decoder", text_weight=BOLD)
 
+        channels_vg_diagonal.set_fill(opacity=0.8)
         decoding_flow = (
             VGroup(output_image, decoder_m, channels_vg_diagonal)
             .arrange(RIGHT, buff=3)
@@ -448,23 +449,48 @@ class JPEGDiagramScene(Scene):
 
         self.play(*[FadeOut(mob) for mob in self.mobjects])
 
+        channels_vg_diagonal.set_fill(opacity=1)
+
         # screen capture of cursor clicking an image and opening
 
         output_image = SVGMobject("jpg_file.svg").set_stroke(
             WHITE, width=3, background=True
         )
 
+        output_red_channel = (
+            RoundedRectangle(corner_radius=0.1, fill_color=PURE_RED, width=3)
+            .set_color(PURE_RED)
+            .set_opacity(0.8)
+            .set_stroke(WHITE, width=4)
+        )
+        output_green_channel = (
+            RoundedRectangle(corner_radius=0.1, fill_color=PURE_GREEN, width=3)
+            .set_color(PURE_GREEN)
+            .set_opacity(0.8)
+            .set_stroke(WHITE, width=4)
+        )
+        output_blue_channel = (
+            RoundedRectangle(corner_radius=0.1, fill_color=PURE_BLUE, width=3)
+            .set_color(PURE_BLUE)
+            .set_opacity(0.8)
+            .set_stroke(WHITE, width=4)
+        )
+
+        output_channels_vg_diagonal = VGroup(output_red_channel, output_green_channel, output_blue_channel).arrange(
+            DOWN * 1.1 + RIGHT * 1.7, buff=-1.4
+        ).scale_to_fit_height(channels_vg_diagonal.height)
+
         full_flow = (
             VGroup(
-                channels_vg_diagonal.copy(),
+                channels_vg_diagonal,
                 encoder_m,
                 output_image,
                 decoder_m,
-                channels_vg_diagonal,
+                output_channels_vg_diagonal,
             )
             .arrange(RIGHT, buff=2.5)
             .scale_to_fit_width(12)
-            .shift(UP * 1.3)
+            .shift(UP * 2)
         )
 
         arrows_flow = VGroup()
@@ -504,7 +530,7 @@ class JPEGDiagramScene(Scene):
         aux_vg = (
             VGroup(input_img, not_equal, output_img)
             .arrange(RIGHT, buff=1)
-            .next_to(full_flow, DOWN, buff=2)
+            .next_to(full_flow, DOWN, buff=1)
         )
 
         self.play(
@@ -514,26 +540,41 @@ class JPEGDiagramScene(Scene):
         )
 
         self.wait(2)
-        self.play(*[FadeOut(mob) for mob in self.mobjects])
+
+        observation = Text("JPEG deliberately loses information", font="CMU Serif")
+        observation.next_to(aux_vg, DOWN, buff=1)
+        self.play(
+            Write(observation)
+        )
+
+        self.wait()
+
+        question = Text("What information can we get rid of?", font="CMU Serif")
+        question.move_to(observation.get_center())
+        self.play(
+            ReplacementTransform(observation, question)
+        )
+        self.wait()
+        # self.play(*[FadeOut(mob) for mob in self.mobjects])
 
         # final scene
 
-        big_frame = RoundedRectangle(
-            height=9,
-            width=16,
-            stroke_width=10,
-            stroke_opacity=1,
-            color=REDUCIBLE_VIOLET,
-        ).scale(0.55)
+        # big_frame = RoundedRectangle(
+        #     height=9,
+        #     width=16,
+        #     stroke_width=10,
+        #     stroke_opacity=1,
+        #     color=REDUCIBLE_VIOLET,
+        # ).scale(0.55)
 
-        question_mark_center = Text("?", font="CMU Serif", weight=BOLD).scale(4)
+        # question_mark_center = Text("?", font="CMU Serif", weight=BOLD).scale(4)
 
-        self.play(Create(big_frame))
-        self.wait(3)
-        self.play(Write(question_mark_center))
-        self.wait(3)
+        # self.play(Create(big_frame))
+        # self.wait(3)
+        # self.play(Write(question_mark_center))
+        # self.wait(3)
 
-        self.play(*[FadeOut(mob) for mob in self.mobjects])
+        # self.play(*[FadeOut(mob) for mob in self.mobjects])
 
 class JPEGDiagramMap(MovingCameraScene):
     def construct(self):
@@ -544,22 +585,22 @@ class JPEGDiagramMap(MovingCameraScene):
         self.play(self.camera.frame.animate.scale(2))
         # input image
         red_channel = (
-            RoundedRectangle(corner_radius=0.1, fill_color=RED, width=3)
-            .set_color(BLACK)
+            RoundedRectangle(corner_radius=0.1, fill_color=PURE_RED, width=3)
+            .set_color(PURE_RED)
             .set_opacity(1)
-            .set_stroke(RED, width=4)
+            .set_stroke(WHITE, width=4)
         )
         green_channel = (
-            RoundedRectangle(corner_radius=0.1, fill_color=GREEN, width=3)
-            .set_color(BLACK)
+            RoundedRectangle(corner_radius=0.1, fill_color=PURE_GREEN, width=3)
+            .set_color(PURE_GREEN)
             .set_opacity(1)
-            .set_stroke(GREEN, width=4)
+            .set_stroke(WHITE, width=4)
         )
         blue_channel = (
-            RoundedRectangle(corner_radius=0.1, fill_color=BLUE, width=3)
-            .set_color(BLACK)
+            RoundedRectangle(corner_radius=0.1, fill_color=PURE_BLUE, width=3)
+            .set_color(PURE_BLUE)
             .set_opacity(1)
-            .set_stroke(BLUE, width=4)
+            .set_stroke(WHITE, width=4)
         )
 
         channels_vg_diagonal = VGroup(red_channel, green_channel, blue_channel).arrange(
@@ -618,9 +659,10 @@ class JPEGDiagramMap(MovingCameraScene):
 
         color_modules = VGroup(ycbcr_m, chroma_sub_m).arrange(DOWN, buff=0.5)
 
+        general_scale = 1.3
         color_treatment_w_modules = VGroup(color_treatment, color_modules).arrange(
             ORIGIN
-        )
+        ).scale(general_scale)
         color_modules.shift(DOWN * 0.4)
 
         # small modules
@@ -630,12 +672,236 @@ class JPEGDiagramMap(MovingCameraScene):
         forward_dct_icon = ImageMobject("dct.png").scale(0.2)
         forward_dct = Group(forward_dct_m, forward_dct_icon).arrange(DOWN, buff=0.5)
 
-        quantizer_m = Module("Quantizer", REDUCIBLE_YELLOW_DARKER, REDUCIBLE_YELLOW)
+        quantizer_m = Module("Quantization", REDUCIBLE_YELLOW_DARKER, REDUCIBLE_YELLOW)
         quantizer_icon = ImageMobject("quantization.png").scale(0.2)
         quantizer = Group(quantizer_m, quantizer_icon).arrange(DOWN, buff=0.5)
 
         lossless_comp_m = Module(
-            "Encoder",
+            ["Lossless", "Encoder"],
+            REDUCIBLE_YELLOW_DARKER,
+            REDUCIBLE_YELLOW,
+        )
+        lossless_icon = ImageMobject("lossless.png").scale(0.2)
+        lossless_icon.flip()
+        lossless_icon.rotate(PI)
+        lossless_comp = Group(lossless_comp_m, lossless_icon).arrange(DOWN, buff=0.5)
+
+        encoding_modules = (
+            Group(forward_dct, quantizer, lossless_comp)
+            .arrange(RIGHT, buff=0.7)
+            .scale_to_fit_width(jpeg_encoder.width - 0.5)
+        )
+        jpeg_encoder_w_modules = Group(jpeg_encoder, encoding_modules).arrange(
+            ORIGIN,
+        ).scale(general_scale)
+        encoding_modules.shift(DOWN * 0.5)
+
+        # decoding
+
+        inverse_dct = Module("Inverse DCT", REDUCIBLE_YELLOW_DARKER, REDUCIBLE_YELLOW)
+        dequantizer = Module("Dequantizer", REDUCIBLE_YELLOW_DARKER, REDUCIBLE_YELLOW)
+        decoder = Module(["Lossless", "Decoder"], REDUCIBLE_YELLOW_DARKER, REDUCIBLE_YELLOW)
+
+        decoding_modules = (
+            VGroup(decoder, dequantizer, inverse_dct)
+            .arrange(RIGHT, buff=0.5)
+            .scale_to_fit_width(jpeg_decoder.width - 0.5)
+        )
+        jpeg_decoder_w_modules = VGroup(jpeg_decoder, decoding_modules).arrange(ORIGIN)
+        decoding_modules.shift(DOWN * 0.5)
+
+        # first row = encoding flow
+        encoding_flow = Group(
+            channels_vg_diagonal.scale(0.6),
+            color_treatment_w_modules,
+            jpeg_encoder_w_modules,
+            output_image,
+        ).arrange(RIGHT, buff=3)
+
+        # second row = decoding flow
+        decoding_flow = VGroup(
+            output_image.copy(), jpeg_decoder_w_modules, channels_vg_diagonal.copy()
+        ).arrange(RIGHT, buff=3)
+
+        whole_map = Group(encoding_flow, decoding_flow).arrange(DOWN, buff=8)
+
+        encode_arrows = VGroup()
+        for i in range(len(encoding_flow.submobjects) - 1):
+            encode_arrows.add(
+                Arrow(
+                    color=GRAY_B,
+                    start=encoding_flow[i].get_right(),
+                    end=encoding_flow[i + 1].get_left(),
+                    stroke_width=3,
+                    buff=0.3,
+                    max_tip_length_to_length_ratio=0.08,
+                    max_stroke_width_to_length_ratio=2,
+                )
+            )
+        decode_arrows = VGroup()
+        for i in range(len(decoding_flow.submobjects) - 1):
+            decode_arrows.add(
+                Arrow(
+                    color=GRAY_B,
+                    start=decoding_flow[i].get_right(),
+                    end=decoding_flow[i + 1].get_left(),
+                    stroke_width=3,
+                    buff=0.3,
+                    max_tip_length_to_length_ratio=0.08,
+                    max_stroke_width_to_length_ratio=2,
+                )
+            )
+
+        # whole map view state
+        self.camera.frame.save_state()
+
+        self.play(FadeIn(encoding_flow))
+        self.play(FadeIn(encode_arrows))
+        self.play(FadeIn(decoding_flow))
+        self.play(FadeIn(decode_arrows))
+
+        self.focus_on(encoding_flow, buff=1.1)
+
+        self.wait(3)
+
+        self.focus_on(channels_vg_diagonal)
+
+        self.wait(3)
+
+        self.focus_on(color_treatment_w_modules)
+
+        self.wait(3)
+
+        self.focus_on(encoding_flow, buff=1.3)
+
+        self.wait(3)
+
+        self.focus_on(jpeg_encoder_w_modules, buff=1.3)
+
+        self.wait(3)
+
+        self.focus_on(forward_dct)
+
+        self.wait(3)
+
+        self.focus_on(quantizer)
+
+        self.wait(3)
+
+        self.focus_on(lossless_comp)
+
+        self.wait(3)
+
+        # self.play(Restore(self.camera.frame), run_time=3)
+
+    def focus_on(self, mobject, buff=2):
+        self.play(
+            self.camera.frame.animate.set_width(mobject.width * buff).move_to(mobject),
+            run_time=3,
+        )
+
+class FocusOnRGB(JPEGDiagramMap):
+    def construct(self):
+        self.build_diagram()
+
+    def build_diagram(self):
+
+        self.play(self.camera.frame.animate.scale(2))
+        # input image
+        red_channel = (
+            RoundedRectangle(corner_radius=0.1, fill_color=PURE_RED, width=3)
+            .set_color(PURE_RED)
+            .set_opacity(1)
+            .set_stroke(WHITE, width=4)
+        )
+        green_channel = (
+            RoundedRectangle(corner_radius=0.1, fill_color=PURE_GREEN, width=3)
+            .set_color(PURE_GREEN)
+            .set_opacity(1)
+            .set_stroke(WHITE, width=4)
+        )
+        blue_channel = (
+            RoundedRectangle(corner_radius=0.1, fill_color=PURE_BLUE, width=3)
+            .set_color(PURE_BLUE)
+            .set_opacity(1)
+            .set_stroke(WHITE, width=4)
+        )
+
+        channels_vg_diagonal = VGroup(red_channel, green_channel, blue_channel).arrange(
+            DOWN * 1.1 + RIGHT * 1.7, buff=-1.4
+        )
+
+        # output image
+        output_image = SVGMobject("jpg_file.svg").set_stroke(
+            WHITE, width=5, background=True
+        )
+
+        # big modules
+        jpeg_encoder = Module(
+            "JPEG Encoder",
+            width=7,
+            height=3,
+            text_position=DOWN,
+            text_weight=BOLD,
+            text_scale=0.8,
+        )
+        jpeg_decoder = Module(
+            "JPEG Decoder",
+            width=7,
+            height=3,
+            text_position=UP,
+            text_weight=BOLD,
+            text_scale=0.8,
+        )
+
+        # color treatment
+        color_treatment = Module(
+            "Color treatment",
+            REDUCIBLE_GREEN_DARKER,
+            REDUCIBLE_GREEN_LIGHTER,
+            height=jpeg_encoder.height,
+            width=3,
+            text_scale=0.5,
+            text_position=UP,
+            text_weight=BOLD,
+        )
+
+        ycbcr_m = Module(
+            "YCbCr",
+            fill_color=REDUCIBLE_YELLOW_DARKER,
+            stroke_color=REDUCIBLE_YELLOW,
+            height=1,
+        ).scale_to_fit_width(color_treatment.width - 0.5)
+
+        chroma_sub_m = Module(
+            "Chroma Subsampling",
+            fill_color=REDUCIBLE_YELLOW_DARKER,
+            stroke_color=REDUCIBLE_YELLOW,
+            text_scale=0.5,
+            height=1,
+        ).scale_to_fit_width(color_treatment.width - 0.5)
+
+        color_modules = VGroup(ycbcr_m, chroma_sub_m).arrange(DOWN, buff=0.5)
+
+        general_scale = 1.3
+        color_treatment_w_modules = VGroup(color_treatment, color_modules).arrange(
+            ORIGIN
+        ).scale(general_scale)
+        color_modules.shift(DOWN * 0.4)
+
+        # small modules
+
+        # encoding
+        forward_dct_m = Module("Forward DCT", REDUCIBLE_YELLOW_DARKER, REDUCIBLE_YELLOW)
+        forward_dct_icon = ImageMobject("dct.png").scale(0.2)
+        forward_dct = Group(forward_dct_m, forward_dct_icon).arrange(DOWN, buff=0.5)
+
+        quantizer_m = Module("Quantization", REDUCIBLE_YELLOW_DARKER, REDUCIBLE_YELLOW)
+        quantizer_icon = ImageMobject("quantization.png").scale(0.2)
+        quantizer = Group(quantizer_m, quantizer_icon).arrange(DOWN, buff=0.5)
+
+        lossless_comp_m = Module(
+            ["Lossless", "Encoder"],
             REDUCIBLE_YELLOW_DARKER,
             REDUCIBLE_YELLOW,
         )
@@ -649,7 +915,7 @@ class JPEGDiagramMap(MovingCameraScene):
         )
         jpeg_encoder_w_modules = Group(jpeg_encoder, encoding_modules).arrange(
             ORIGIN,
-        )
+        ).scale(general_scale)
         encoding_modules.shift(DOWN * 0.5)
 
         # decoding
@@ -713,10 +979,10 @@ class JPEGDiagramMap(MovingCameraScene):
 
         self.play(FadeIn(encoding_flow))
         self.play(FadeIn(encode_arrows))
-        self.play(FadeIn(decoding_flow))
-        self.play(FadeIn(decode_arrows))
+        # self.play(FadeIn(decoding_flow))
+        # self.play(FadeIn(decode_arrows))
 
-        self.focus_on(encoding_flow, buff=1.3)
+        self.focus_on(encoding_flow, buff=1.1)
 
         self.wait(3)
 
@@ -1051,17 +1317,17 @@ class MotivateAndExplainYCbCr(Scene):
         ).set_stroke(GRAY)
 
         y_0 = (
-            Text("0", font="SF Mono")
+            Text("0", font="SF Mono", weight=MEDIUM)
             .scale(0.4)
             .next_to(planes_from_side[0], UP, buff=0.3)
         )
         y_05 = (
-            Text("0.5", font="SF Mono")
+            Text("0.5", font="SF Mono", weight=MEDIUM)
             .scale(0.4)
             .next_to(planes_from_side[1], UP, buff=0.3)
         )
         y_1 = (
-            Text("1", font="SF Mono")
+            Text("1", font="SF Mono", weight=MEDIUM)
             .scale(0.4)
             .next_to(planes_from_side[2], UP, buff=0.3)
         )
@@ -1488,7 +1754,7 @@ class IntroChromaSubsampling(ImageUtils):
             .next_to(u_channel, RIGHT, buff=2)
         )
         average_t = (
-            Text("Average of:", font="SF Mono")
+            Text("Average of:", font="SF Mono", weight=MEDIUM)
             .scale(0.3)
             .next_to(four_pixels_vg, UP, buff=0.5)
         )
@@ -1500,7 +1766,7 @@ class IntroChromaSubsampling(ImageUtils):
             .move_to(new_pixel_guide)
         )
         new_pixel_t = (
-            Text("New pixel value:", font="SF Mono")
+            Text("New pixel value:", font="SF Mono", weight=MEDIUM)
             .scale(0.3)
             .next_to(new_pixel_annotation, UP, buff=0.5)
         )
@@ -1790,7 +2056,7 @@ class IntroChromaSubsampling(ImageUtils):
             .next_to(u_channel, RIGHT, buff=2)
         )
         average_t = (
-            Text("Top left of:", font="SF Mono")
+            Text("Top left of:", font="SF Mono", weight=MEDIUM)
             .scale(0.3)
             .next_to(four_pixels_vg, UP, buff=0.5)
         )
@@ -1802,7 +2068,7 @@ class IntroChromaSubsampling(ImageUtils):
             .move_to(new_pixel_guide)
         )
         new_pixel_t = (
-            Text("New pixel value:", font="SF Mono")
+            Text("New pixel value:", font="SF Mono", weight=MEDIUM)
             .scale(0.3)
             .next_to(new_pixel_annotation, UP, buff=0.5)
         )
@@ -2039,15 +2305,15 @@ class IntroChromaSubsampling(ImageUtils):
         self.play(FadeIn(channels_vg))
 
         pixel_count_y = (
-            Text("64/64", font="SF Mono").scale(0.5).next_to(y_channel, DOWN, buff=0.5)
+            Text("64/64", font="SF Mono", weight=MEDIUM).scale(0.5).next_to(y_channel, DOWN, buff=0.5)
         )
         pixel_count_u = (
-            Text("16/64", font="SF Mono")
+            Text("16/64", font="SF Mono", weight=MEDIUM)
             .scale(0.5)
             .next_to(new_u_channel, DOWN, buff=0.5)
         )
         pixel_count_v = (
-            Text("16/64", font="SF Mono")
+            Text("16/64", font="SF Mono", weight=MEDIUM)
             .scale(0.5)
             .next_to(new_v_channel, DOWN, buff=0.5)
         )
@@ -2067,17 +2333,17 @@ class IntroChromaSubsampling(ImageUtils):
         self.wait(2)
 
         pixel_ratio_y = (
-            Text("100%", font="SF Mono")
+            Text("100%", font="SF Mono", weight=MEDIUM)
             .scale(0.5)
             .next_to(pixel_count_y, DOWN, buff=0.5)
         )
         pixel_ratio_u = (
-            Text("25%", font="SF Mono")
+            Text("25%", font="SF Mono", weight=MEDIUM)
             .scale(0.5)
             .next_to(pixel_count_u, DOWN, buff=0.5)
         )
         pixel_ratio_v = (
-            Text("25%", font="SF Mono")
+            Text("25%", font="SF Mono", weight=MEDIUM)
             .scale(0.5)
             .next_to(pixel_count_v, DOWN, buff=0.5)
         )
@@ -2098,17 +2364,17 @@ class IntroChromaSubsampling(ImageUtils):
         self.wait()
 
         fraction_y = (
-            Text("1/3", font="SF Mono")
+            Text("1/3", font="SF Mono", weight=MEDIUM)
             .scale(0.5)
             .next_to(pixel_ratio_y, DOWN, buff=0.5)
         )
         fraction_u = (
-            Text("1/3 · 1/4", font="SF Mono")
+            Text("1/3 · 1/4", font="SF Mono", weight=MEDIUM)
             .scale(0.4)
             .next_to(pixel_ratio_u, DOWN, buff=0.5)
         )
         fraction_v = (
-            Text("1/3 · 1/4", font="SF Mono")
+            Text("1/3 · 1/4", font="SF Mono", weight=MEDIUM)
             .scale(0.4)
             .next_to(pixel_ratio_v, DOWN, buff=0.5)
         )
@@ -2133,7 +2399,7 @@ class IntroChromaSubsampling(ImageUtils):
 
         self.wait()
 
-        one_over_twelve = Text("1/12", font="SF Mono").scale(0.5)
+        one_over_twelve = Text("1/12", font="SF Mono", weight=MEDIUM).scale(0.5)
 
         self.play(
             Transform(fraction_u, one_over_twelve.copy().move_to(fraction_u)),
@@ -2143,10 +2409,10 @@ class IntroChromaSubsampling(ImageUtils):
         self.wait()
 
         total_sum = (
-            Text("6/12", font="SF Mono").scale(0.8).next_to(fraction_u, DOWN, buff=1)
+            Text("6/12", font="SF Mono", weight=MEDIUM).scale(0.8).next_to(fraction_u, DOWN, buff=1)
         )
         total_sum_ratio = (
-            Text("50%", font="SF Mono").scale(0.8).next_to(fraction_u, DOWN, buff=2)
+            Text("50%", font="SF Mono", weight=MEDIUM).scale(0.8).next_to(fraction_u, DOWN, buff=2)
         )
 
         self.wait()
@@ -7159,7 +7425,7 @@ class Quantization(Introduce2DDCT):
                     val = -val
 
 
-                integer = Text(str(int(val)), font="SF Mono", weight=LIGHT).scale(0.25 * height / 3).move_to(array_mob_2d[i * block_size + j].get_center())
+                integer = Text(str(int(val)), font="SF Mono", weight=MEDIUM).scale(0.25 * height / 3).move_to(array_mob_2d[i * block_size + j].get_center())
                 array_text.add(integer)
 
         return VGroup(array_mob_2d, array_text)
@@ -7380,7 +7646,7 @@ class IntroAnimations(DemoJPEGWithDCT2D):
     def initialize_slider(self, block_image, block, surface):
         number_line = NumberLine(
             x_range=[0, 64, 8],
-            length=10,
+            length=8,
             color=REDUCIBLE_VIOLET,
             include_numbers=False,
             label_direction=UP,
@@ -7395,7 +7661,7 @@ class IntroAnimations(DemoJPEGWithDCT2D):
         return number_line
 
     def animate_slider(self, number_line, axes, block_image, dct_block, original_block, surface, block_image_2d, image_mob, original_image_mob):
-        tick = Triangle().scale(0.2).set_color(REDUCIBLE_YELLOW)
+        tick = Triangle().scale(0.15).set_color(REDUCIBLE_YELLOW)
         tick.set_fill(color=REDUCIBLE_YELLOW, opacity=1)
         self.add_fixed_in_frame_mobjects(tick)
 
@@ -7427,9 +7693,9 @@ class IntroAnimations(DemoJPEGWithDCT2D):
                 lambda u, v: axes.c2p(*self.func(u, v, new_partial_block_dct)),
                 u_range=[0, 7],
                 v_range=[0, 7],
-                checkerboard_colors=[REDUCIBLE_PURPLE],
+                checkerboard_colors=[REDUCIBLE_PURPLE, REDUCIBLE_PURPLE_DARKER],
                 fill_opacity=0.5,
-                resolution=8,
+                resolution=16,
                 stroke_color=REDUCIBLE_YELLOW,
                 stroke_width=2,
             )
@@ -7448,7 +7714,7 @@ class IntroAnimations(DemoJPEGWithDCT2D):
             original_pixel_array = image_mob.get_pixel_array()[2:298, 3:331, 0]
         
         def get_new_image():
-            new_pixel_array = self.get_all_blocks(image_mob, 2, 298, 3, 331, tracker.get_value() / 8)
+            new_pixel_array = self.get_all_blocks(image_mob, 2, 298, 3, 331, tracker.get_value() / 5)
             relevant_section = new_pixel_array[2:298, 3:331]
             new_image = self.get_image_mob(new_pixel_array, height=None).move_to(UP * 1 + RIGHT * 2)
             
@@ -7504,6 +7770,21 @@ class IntroAnimations(DemoJPEGWithDCT2D):
         )
 
         self.wait()
+
+        self.play(
+            tracker.animate.set_value(8),
+            run_time=8,
+            rate_func=linear,
+        )
+
+        self.wait()
+
+        self.play(
+            tracker.animate.set_value(64),
+            run_time=8,
+            rate_func=linear,
+        )
+        self.wait()
         return partial_block_image
 
     def get_all_blocks(
@@ -7544,3 +7825,328 @@ class IntroAnimations(DemoJPEGWithDCT2D):
         return pixel_array[
             start_row : start_row + block_size, start_col : start_col + block_size
         ]
+
+class AnimationIntroDiagram(JPEGDiagramMap):
+    def construct(self):
+        self.build_diagram()
+
+    def build_diagram(self):
+        self.play(self.camera.frame.animate.scale(2))
+        # input image
+
+        red_channel = (
+            RoundedRectangle(corner_radius=0.1, fill_color=RED, width=3)
+            .set_color(BLACK)
+            .set_opacity(1)
+            .set_stroke(RED, width=4)
+        )
+        green_channel = (
+            RoundedRectangle(corner_radius=0.1, fill_color=GREEN, width=3)
+            .set_color(BLACK)
+            .set_opacity(1)
+            .set_stroke(GREEN, width=4)
+        )
+        blue_channel = (
+            RoundedRectangle(corner_radius=0.1, fill_color=BLUE, width=3)
+            .set_color(BLACK)
+            .set_opacity(1)
+            .set_stroke(BLUE, width=4)
+        )
+
+        channels_vg_diagonal = VGroup(red_channel, green_channel, blue_channel).arrange(
+            DOWN * 1.1 + RIGHT * 1.7, buff=-1.4
+        )
+
+        # output image
+        output_image = SVGMobject("jpg_file.svg").set_stroke(
+            WHITE, width=5, background=True
+        )
+
+        # big modules
+        jpeg_encoder = Module(
+            "JPEG Encoder",
+            width=7,
+            height=3,
+            text_position=DOWN,
+            text_weight=BOLD,
+            text_scale=0.8,
+        )
+        jpeg_decoder = Module(
+            "JPEG Decoder",
+            width=7,
+            height=3,
+            text_position=UP,
+            text_weight=BOLD,
+            text_scale=0.8,
+        )
+
+        # color treatment
+        color_treatment = Module(
+            "Color treatment",
+            REDUCIBLE_GREEN_DARKER,
+            REDUCIBLE_GREEN_LIGHTER,
+            height=jpeg_encoder.height,
+            width=3,
+            text_scale=0.5,
+            text_position=UP,
+            text_weight=BOLD,
+        )
+
+        ycbcr_m = Module(
+            "YCbCr",
+            fill_color=REDUCIBLE_YELLOW_DARKER,
+            stroke_color=REDUCIBLE_YELLOW,
+            height=1,
+        ).scale_to_fit_width(color_treatment.width - 0.5)
+
+        chroma_sub_m = Module(
+            "Chroma Subsampling",
+            fill_color=REDUCIBLE_YELLOW_DARKER,
+            stroke_color=REDUCIBLE_YELLOW,
+            text_scale=0.5,
+            height=1,
+        ).scale_to_fit_width(color_treatment.width - 0.5)
+
+        general_scale = 1.3
+        color_modules = VGroup(ycbcr_m, chroma_sub_m).arrange(DOWN, buff=0.5)
+
+        color_treatment_w_modules = VGroup(color_treatment, color_modules).arrange(
+            ORIGIN
+        ).scale(general_scale)
+        color_modules.shift(DOWN * 0.4)
+
+        # small modules
+
+        # encoding
+        forward_dct_m = Module("Forward DCT", REDUCIBLE_YELLOW_DARKER, REDUCIBLE_YELLOW)
+        forward_dct_icon = ImageMobject("dct.png").scale(0.2)
+        forward_dct = Group(forward_dct_m, forward_dct_icon).arrange(DOWN, buff=0.5)
+
+        quantizer_m = Module("Quantization", REDUCIBLE_YELLOW_DARKER, REDUCIBLE_YELLOW)
+        quantizer_icon = ImageMobject("quantization.png").scale(0.2)
+        quantizer = Group(quantizer_m, quantizer_icon).arrange(DOWN, buff=0.5)
+
+        lossless_comp_m = Module(
+            ["Lossless", "Encoder"],
+            REDUCIBLE_YELLOW_DARKER,
+            REDUCIBLE_YELLOW,
+        )
+        lossless_icon = ImageMobject("lossless.png").scale(0.2)
+        lossless_comp = Group(lossless_comp_m, lossless_icon).arrange(DOWN, buff=0.5)
+
+        encoding_modules = (
+            Group(forward_dct, quantizer, lossless_comp)
+            .arrange(RIGHT, buff=0.7)
+            .scale_to_fit_width(jpeg_encoder.width - 0.5)
+        )
+        jpeg_encoder_w_modules = Group(jpeg_encoder, encoding_modules).arrange(
+            ORIGIN,
+        ).scale(general_scale)
+        encoding_modules.shift(DOWN * 0.5)
+
+        # decoding
+
+        inverse_dct = Module("Inverse DCT", REDUCIBLE_YELLOW_DARKER, REDUCIBLE_YELLOW)
+        dequantizer = Module("Dequantizer", REDUCIBLE_YELLOW_DARKER, REDUCIBLE_YELLOW)
+        decoder = Module("Decoder", REDUCIBLE_YELLOW_DARKER, REDUCIBLE_YELLOW)
+
+        decoding_modules = (
+            VGroup(inverse_dct, dequantizer, decoder)
+            .arrange(RIGHT, buff=0.5)
+            .scale_to_fit_width(jpeg_decoder.width - 0.5)
+        )
+        jpeg_decoder_w_modules = VGroup(jpeg_decoder, decoding_modules).arrange(ORIGIN)
+        decoding_modules.shift(DOWN * 0.5)
+
+        # first row = encoding flow
+        encoding_flow = Group(
+            channels_vg_diagonal.scale(0.6),
+            color_treatment_w_modules,
+            jpeg_encoder_w_modules,
+            output_image,
+        ).arrange(RIGHT, buff=3)
+
+        # second row = decoding flow
+        decoding_flow = VGroup(
+            output_image.copy(), jpeg_decoder_w_modules, channels_vg_diagonal.copy()
+        ).arrange(RIGHT, buff=3)
+
+        whole_map = Group(encoding_flow, decoding_flow).arrange(DOWN, buff=8)
+
+        encode_arrows = VGroup()
+        for i in range(len(encoding_flow.submobjects) - 1):
+            encode_arrows.add(
+                Arrow(
+                    color=GRAY_B,
+                    start=encoding_flow[i].get_right(),
+                    end=encoding_flow[i + 1].get_left(),
+                    stroke_width=3,
+                    buff=0.3,
+                    max_tip_length_to_length_ratio=0.08,
+                    max_stroke_width_to_length_ratio=2,
+                )
+            )
+        decode_arrows = VGroup()
+        for i in range(len(decoding_flow.submobjects) - 1):
+            decode_arrows.add(
+                Arrow(
+                    color=GRAY_B,
+                    start=decoding_flow[i].get_right(),
+                    end=decoding_flow[i + 1].get_left(),
+                    stroke_width=3,
+                    buff=0.3,
+                    max_tip_length_to_length_ratio=0.08,
+                    max_stroke_width_to_length_ratio=2,
+                )
+            )
+
+        # whole map view state
+        self.camera.frame.save_state()
+
+        # self.focus_on(encoding_flow, buff=1.3)
+
+
+        self.play(
+            Create(channels_vg_diagonal)
+        )
+        self.play(
+            Write(encode_arrows[0])
+        )
+        self.play(
+            FadeIn(color_treatment_w_modules)
+        )
+        self.play(
+            Write(encode_arrows[1])
+        )
+
+        self.play(
+            FadeIn(jpeg_encoder_w_modules)
+        )
+
+        self.play(
+            Write(encode_arrows[2])
+        )
+
+        self.play(
+            FadeIn(output_image)
+        )
+        self.wait()
+
+        NO_FADE = 1
+        MEDIUM_FADE = 0.75
+        HIGH_FADE = 0.3
+        highlight_rect_ycbr = self.get_highlight_rect(ycbcr_m)
+        self.play(
+            FadeIn(highlight_rect_ycbr),
+            jpeg_encoder.animate.set_opacity(HIGH_FADE),
+            color_treatment.animate.set_opacity(MEDIUM_FADE),
+            chroma_sub_m.animate.set_opacity(MEDIUM_FADE),
+            forward_dct_m.animate.set_opacity(HIGH_FADE),
+            quantizer_m.animate.set_opacity(HIGH_FADE),
+            lossless_comp_m.animate.set_opacity(HIGH_FADE),
+            lossless_icon.animate.set_opacity(HIGH_FADE),
+            quantizer_icon.animate.set_opacity(HIGH_FADE),
+            forward_dct_icon.animate.set_opacity(HIGH_FADE),
+
+        )
+        self.wait()
+
+        highlight_rect_chroma = self.get_highlight_rect(chroma_sub_m)
+
+        self.play(
+            FadeOut(highlight_rect_ycbr),
+            FadeIn(highlight_rect_chroma),
+            ycbcr_m.animate.set_opacity(MEDIUM_FADE),
+            chroma_sub_m.animate.set_opacity(NO_FADE),
+
+        )
+
+        self.wait()
+
+        highlight_rect_dct = self.get_highlight_rect(forward_dct_m)
+        self.play(
+            FadeOut(highlight_rect_chroma),
+            FadeIn(highlight_rect_dct),
+            color_treatment.animate.set_opacity(HIGH_FADE),
+            ycbcr_m.animate.set_opacity(HIGH_FADE),
+            chroma_sub_m.animate.set_opacity(HIGH_FADE),
+            forward_dct_m.animate.set_opacity(NO_FADE),
+            forward_dct_icon.animate.set_opacity(NO_FADE),
+            jpeg_encoder.animate.set_opacity(MEDIUM_FADE),
+            quantizer_m.animate.set_opacity(MEDIUM_FADE),
+            lossless_comp_m.animate.set_opacity(MEDIUM_FADE),
+            lossless_icon.animate.set_opacity(MEDIUM_FADE),
+            quantizer_icon.animate.set_opacity(MEDIUM_FADE),
+        )
+
+        self.wait()
+
+        highlight_rect_quant = self.get_highlight_rect(quantizer_m)
+
+
+        self.play(
+            FadeOut(highlight_rect_dct),
+            FadeIn(highlight_rect_quant),
+            forward_dct_m.animate.set_opacity(MEDIUM_FADE),
+            forward_dct_icon.animate.set_opacity(MEDIUM_FADE),
+            quantizer_m.animate.set_opacity(NO_FADE),
+            quantizer_icon.animate.set_opacity(NO_FADE),
+        )
+        self.wait()
+
+        highlight_rect_lossless = self.get_highlight_rect(lossless_comp_m)
+
+        self.play(
+            FadeOut(highlight_rect_quant),
+            FadeIn(highlight_rect_lossless),
+            quantizer_m.animate.set_opacity(MEDIUM_FADE),
+            quantizer_icon.animate.set_opacity(MEDIUM_FADE),
+            lossless_comp_m.animate.set_opacity(NO_FADE),
+            lossless_icon.animate.set_opacity(NO_FADE),
+        )
+        self.wait()
+
+        # self.wait(3)
+
+        # self.focus_on(channels_vg_diagonal)
+
+        # self.wait(3)
+
+        # self.focus_on(color_treatment_w_modules)
+
+        # self.wait(3)
+
+        # # self.focus_on(encoding_flow, buff=1.3)
+
+        # self.wait(3)
+
+        # self.focus_on(jpeg_encoder_w_modules, buff=1.3)
+
+        # self.wait(3)
+
+        # self.focus_on(forward_dct)
+
+        # self.wait(3)
+
+        # self.focus_on(quantizer)
+
+        # self.wait(3)
+
+        # self.focus_on(lossless_comp)
+
+        # self.wait(3)
+
+        # self.play(Restore(self.camera.frame), run_time=3)
+
+    def get_highlight_rect(self, module):
+        rect = module.rect.copy().set_fill(opacity=0).set_stroke(color=module.rect.get_stroke_color(), width=10, opacity=1)
+        return rect
+
+class AnimateIntroRect(Scene):
+    def construct(self):
+        self.wait()
+        screen_rect = ScreenRectangle(height=4.3).shift(DOWN * 1.5)
+        self.play(
+            Create(screen_rect)
+        )
+        self.wait()
