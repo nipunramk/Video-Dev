@@ -7835,22 +7835,22 @@ class AnimationIntroDiagram(JPEGDiagramMap):
         # input image
 
         red_channel = (
-            RoundedRectangle(corner_radius=0.1, fill_color=RED, width=3)
-            .set_color(BLACK)
+            RoundedRectangle(corner_radius=0.1, fill_color=PURE_RED, width=3)
+            .set_color(PURE_RED)
             .set_opacity(1)
-            .set_stroke(RED, width=4)
+            .set_stroke(WHITE, width=4)
         )
         green_channel = (
-            RoundedRectangle(corner_radius=0.1, fill_color=GREEN, width=3)
-            .set_color(BLACK)
+            RoundedRectangle(corner_radius=0.1, fill_color=PURE_GREEN, width=3)
+            .set_color(PURE_GREEN)
             .set_opacity(1)
-            .set_stroke(GREEN, width=4)
+            .set_stroke(WHITE, width=4)
         )
         blue_channel = (
-            RoundedRectangle(corner_radius=0.1, fill_color=BLUE, width=3)
-            .set_color(BLACK)
+            RoundedRectangle(corner_radius=0.1, fill_color=PURE_BLUE, width=3)
+            .set_color(PURE_BLUE)
             .set_opacity(1)
-            .set_stroke(BLUE, width=4)
+            .set_stroke(WHITE, width=4)
         )
 
         channels_vg_diagonal = VGroup(red_channel, green_channel, blue_channel).arrange(
