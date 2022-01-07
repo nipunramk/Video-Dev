@@ -814,6 +814,20 @@ class JPEGDiagramMap(MovingCameraScene):
 
         self.wait(3)
 
+        circumscribe_rect = chroma_sub_m.rect.copy().set_stroke(color=REDUCIBLE_VIOLET, width=7).set_fill(opacity=0)
+        self.play(
+            ShowPassingFlash(circumscribe_rect, time_width=1.5),
+            run_time=2
+        )
+        self.wait()
+
+        self.play(
+            ShowPassingFlash(circumscribe_rect, time_width=1.5),
+            run_time=2
+        )
+        self.wait()
+
+
         self.focus_on(encoding_flow, buff=1.3)
 
         self.wait(3)
