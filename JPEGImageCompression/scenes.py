@@ -314,11 +314,11 @@ class JPEGDiagramScene(Scene):
         # animations
         self.play(Write(lossy_compression_t))
 
-        self.wait(2)
+        self.wait()
 
-        self.play(lossy_compression_t.animate.scale(0.45).to_edge(UP, buff=0.6))
+        self.play(lossy_compression_t.animate.scale(1.2 / 2).move_to(UP * 3.5))
 
-        self.wait(2)
+        self.wait()
 
         encoding_flow = (
             VGroup(
@@ -328,7 +328,6 @@ class JPEGDiagramScene(Scene):
             )
             .arrange(RIGHT, buff=2)
             .scale_to_fit_width(12)
-            .shift(DOWN * 0.5)
         )
 
         # arrows
@@ -353,33 +352,54 @@ class JPEGDiagramScene(Scene):
         )
 
         self.play(
-            LaggedStart(
-                FadeIn(channels_vg_diagonal),
-                FadeIn(arr1),
-                FadeIn(encoder_m),
-                FadeIn(arr2),
-                FadeIn(output_image),
-                lag_ratio=3,
-            ),
-            run_time=10,
+            FadeIn(channels_vg_diagonal)
+        )
+        self.wait()
+
+        self.play(
+            Write(arr1)
+        )
+        self.wait()
+
+        self.play(
+            FadeIn(encoder_m)
         )
 
-        self.wait(3)
+        self.wait()
 
-        self.play(*[FadeOut(mob) for mob in self.mobjects])
+        self.play(
+            Write(arr2)
+        )
 
+        self.wait()
+
+        self.play(
+            FadeIn(output_image)
+        )
+
+        self.wait()
+
+        self.play(
+            encoding_flow.animate.shift(UP * 1.5),
+            arr1.animate.shift(UP * 1.5),
+            arr2.animate.shift(UP * 1.5)
+        )
+        self.wait()
+
+        channels_vg_diagonal_copy = channels_vg_diagonal.copy()
+        output_image_copy = output_image.copy()
         img_not_equal = (
             VGroup(
-                output_image,
-                channels_vg_diagonal.scale_to_fit_height(output_image.height),
+                channels_vg_diagonal_copy.scale_to_fit_height(output_image.height),
+                output_image_copy
             )
             .arrange(RIGHT, buff=3.5)
             .move_to(ORIGIN)
-            .shift(RIGHT * 0.35)
+            .shift(DOWN * 1.5)
         )
         db_arr = DoubleArrow(
-            output_image.get_right(),
-            channels_vg_diagonal.get_left(),
+            channels_vg_diagonal_copy.get_right(),
+            output_image_copy.get_left(),
             color=GRAY_B,
             stroke_width=3,
             buff=0.3,
@@ -389,30 +409,40 @@ class JPEGDiagramScene(Scene):
         cross_arr = Cross(color=PURE_RED, stroke_width=10).scale(0.22).move_to(db_arr)
 
         self.play(
-            LaggedStart(
-                FadeIn(output_image),
-                FadeIn(channels_vg_diagonal),
-                FadeIn(db_arr),
-                lag_ratio=3,
-            ),
-            run_time=3,
+            TransformFromCopy(channels_vg_diagonal, channels_vg_diagonal_copy),
+            TransformFromCopy(output_image, output_image_copy),
         )
 
         self.wait()
 
+        self.play(
+            Write(db_arr)
+        )
+
         self.play(Write(cross_arr))
 
-        self.wait(3)
+        self.wait()
 
-        self.play(*[FadeOut(mob) for mob in self.mobjects])
+        scaling = 0.8286644206055882
+        
+        self.play(
+            FadeOut(img_not_equal),
+            FadeOut(db_arr),
+            FadeOut(cross_arr),
+            FadeOut(arr1),
+            FadeOut(arr2),
+            FadeOut(encoder_m),
+            FadeOut(channels_vg_diagonal),
+            output_image.animate.scale(scaling).move_to(LEFT * 5.3)
+        )
+        self.wait()
 
         decoder_m = Module("Decoder", text_weight=BOLD)
 
         channels_vg_diagonal.set_fill(opacity=0.8)
         decoding_flow = (
-            VGroup(output_image, decoder_m, channels_vg_diagonal)
-            .arrange(RIGHT, buff=3)
-            .scale_to_fit_width(12)
+            VGroup(output_image, decoder_m.scale(scaling), channels_vg_diagonal.scale(scaling))
+            .arrange(RIGHT, buff=2.45)
         )
 
         arr1 = Arrow(
@@ -436,18 +466,30 @@ class JPEGDiagramScene(Scene):
         )
 
         self.play(
-            LaggedStart(
-                FadeIn(output_image),
-                FadeIn(arr1),
-                FadeIn(decoder_m),
-                FadeIn(arr2),
-                FadeIn(channels_vg_diagonal),
-                lag_ratio=3,
-            ),
-            run_time=5,
+            Write(arr1),
+        )
+        self.wait()
+
+        self.play(
+            FadeIn(decoder_m)
+        )
+        self.wait()
+
+        self.play(
+            Write(arr2)
         )
 
-        self.play(*[FadeOut(mob) for mob in self.mobjects])
+        self.wait()
+
+        self.play(
+            FadeIn(channels_vg_diagonal)
+        )
+        self.wait()
+
+        # In the future, I prefer to use this than to fade out Mobjects
+        # You can add nice cross fades in final cut pro in post processing, no
+        # need to fade out of every scene
+        self.clear()
 
         channels_vg_diagonal.set_fill(opacity=1)
 
@@ -508,7 +550,7 @@ class JPEGDiagramScene(Scene):
             )
 
         self.play(LaggedStart(*[FadeIn(mob) for mob in full_flow.submobjects]))
-        self.wait(2)
+        self.wait()
 
         arrow_to_grow = Arrow(
             full_flow[0].get_right(),
@@ -522,7 +564,7 @@ class JPEGDiagramScene(Scene):
         self.bring_to_back(arrow_to_grow)
         self.play(GrowArrow(arrow_to_grow), run_time=2)
 
-        self.wait(2)
+        self.wait()
 
         input_img = full_flow[0].copy().scale(1.5)
         output_img = full_flow[-1].copy().scale(1.5)
@@ -539,7 +581,7 @@ class JPEGDiagramScene(Scene):
             TransformFromCopy(full_flow[-1], output_img),
         )
 
-        self.wait(2)
+        self.wait()
 
         observation = Text("JPEG deliberately loses information", font="CMU Serif")
         observation.next_to(aux_vg, DOWN, buff=1)
@@ -8145,7 +8187,7 @@ class AnimationIntroDiagram(JPEGDiagramMap):
 class AnimateIntroRect(Scene):
     def construct(self):
         self.wait()
-        screen_rect = ScreenRectangle(height=4.3).shift(DOWN * 1.5)
+        screen_rect = ScreenRectangle(height=4.5).shift(DOWN * 1)
         self.play(
             Create(screen_rect)
         )
