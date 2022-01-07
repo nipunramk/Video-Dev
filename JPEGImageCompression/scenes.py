@@ -1062,11 +1062,23 @@ class FocusOnRGB(JPEGDiagramMap):
 
 class ShowConfusingImage(Scene):
     def construct(self):
-        confusing_image = ImageMobject("confusing_image.png").scale(2)
-        clear_image = ImageMobject("clear_image.png").scale(2)
+        confusing_image = ImageMobject("confusing_image.png").scale(2).shift(UP * 0.5)
+        clear_image = ImageMobject("clear_image.png").scale(2).shift(UP * 0.5)
 
-        self.play(FadeIn(confusing_image), run_time=2)
-        self.wait(4)
+        self.play(FadeIn(confusing_image))
+        what_color = Text("What colors are tiles A and B?", font="CMU Serif", weight=MEDIUM).scale(0.8).move_to(DOWN * 2)
+        self.wait()
+        self.play(
+            Write(what_color)
+        )
+        self.wait()
+
+        same_color = Text("Tiles A and B are the same color!", font="CMU Serif", weight=MEDIUM).scale(0.8).move_to(DOWN * 2)
+
+        self.play(
+            ReplacementTransform(what_color, same_color)
+        )
+        self.wait()
 
         self.play(
             LaggedStart(
@@ -1076,7 +1088,20 @@ class ShowConfusingImage(Scene):
             ),
             run_time=3,
         )
+        self.wait()
 
+        explanation = Text("Our eyes are more sensitve to brightness than color",  font="CMU Serif", weight=MEDIUM).scale(0.8)
+        explanation.move_to(DOWN * 2)
+
+        self.play(
+            ReplacementTransform(same_color, explanation)
+        )
+        self.wait()
+        self.play(
+            explanation[-19:-9].animate.set_color_by_gradient(WHITE, GRAY_D),
+            explanation[-5:].animate.set_color_by_gradient(PURE_RED, PURE_GREEN, BLUE)
+        )
+        self.wait()
         """ 
         some annotations could be made in post production indicating that 
         because we are more sensitive to brightness than color, we understand 
@@ -1345,7 +1370,7 @@ class MotivateAndExplainYCbCr(Scene):
         planes_from_side = (
             planes_diag.copy()
             .arrange(IN, buff=1)
-            .rotate(-90 * DEGREES, Y_AXIS)
+            .rotate(-87 * DEGREES, Y_AXIS)
             .move_to(DOWN * 0.5)
         )
 
@@ -1355,8 +1380,8 @@ class MotivateAndExplainYCbCr(Scene):
         self.wait()
 
         y_line = Line(
-            planes_from_side[0].get_center(), planes_from_side[-1].get_center()
-        ).set_stroke(GRAY)
+            planes_from_side[0].get_left(), planes_from_side[-1].get_right()
+        ).set_stroke(color=[WHITE, BLACK], width=8)
 
         y_0 = (
             Text("0", font="SF Mono", weight=MEDIUM)
@@ -1377,8 +1402,9 @@ class MotivateAndExplainYCbCr(Scene):
         self.play(
             Write(y_line),
             LaggedStart(FadeIn(y_0), FadeIn(y_05), FadeIn(y_1), lag_ratio=0.1),
-            run_time=3,
+            run_time=2,
         )
+        self.wait()
 
         self.play(*[FadeOut(mob) for mob in self.mobjects])
 
