@@ -1,5 +1,6 @@
 from manim import *
 from functions import *
+from reducible_colors import *
 
 class Pixel(Square):
     def __init__(self, n: int, color_mode: str):
@@ -54,3 +55,45 @@ class PixelArray(VGroup):
             return self.dict[one_d_index]
         else:
             return self.dict[value]
+
+class Byte(VGroup):
+    def __init__(
+        self,
+        text,
+        stroke_color=REDUCIBLE_VIOLET,
+        stroke_width=5,
+        text_scale=0.5,
+        h_buff=MED_SMALL_BUFF+SMALL_BUFF,
+        v_buff=MED_SMALL_BUFF,
+        width=6,
+        height=1.5,
+        edge_buff=1,
+        **kwargs,
+    ):
+
+        self.h_buff = h_buff
+        self.text_scale = text_scale
+        self.rect = Rectangle(
+            height=height, width=width
+        ).set_stroke(width=stroke_width, color=stroke_color)
+
+        if isinstance(text, list):
+            text_mobs = []
+            for string in text:
+                text_mobs.append(self.get_text_mob(string))
+            self.text = VGroup(*text_mobs).arrange(DOWN, buff=v_buff)
+        else:
+            self.text = self.get_text_mob(text)
+
+        self.text.move_to(self.rect.get_center())
+        self.text.scale_to_fit_width(self.rect.width - edge_buff)
+        super().__init__(self.rect, self.text, **kwargs)
+
+
+    def get_text_mob(self, string):
+        text = VGroup(*[Text(c, font="SF Mono", weight=MEDIUM).scale(self.text_scale) for c in string.split(',')])
+        if len(text) > 1:
+            text.arrange(RIGHT, buff=self.h_buff)
+        return text
+
+
