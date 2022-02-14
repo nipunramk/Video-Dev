@@ -1,8 +1,13 @@
+import enum
+from math import floor
+from os import ctermid
 from manim import *
-from numpy import subtract
+from numpy import ndarray, subtract
 from functions import *
 from classes import *
 from reducible_colors import *
+
+np.random.seed(1)
 
 config["assets_dir"] = "assets"
 
@@ -780,17 +785,20 @@ class Filtering(Scene):
 
         self.play(Transform(filter_types, filter_types_v))
 
-        line_none = self.underline_filter_type(filter_types_v[0])
         self.wait()
 
-        input_img = self.create_pixel_array()
+        random_data = np.random.randint(127, 140, (8, 8))
+        random_data = np.arange(64).reshape((8, 8))
+        input_img = PixelArray(
+            random_data, include_numbers=True, color_mode="GRAY"
+        ).scale(0.4)
         input_img_t = (
             Text("Input Image", font="CMU Serif")
             .scale(0.5)
             .next_to(input_img, DOWN, buff=0.2)
         )
 
-        output_img = self.create_pixel_array().next_to(input_img, RIGHT, buff=1.6)
+        output_img = input_img.copy().next_to(input_img, RIGHT, buff=0.5)
         output_img_t = (
             Text("Filtered Image", font="CMU Serif")
             .scale(0.5)
@@ -801,8 +809,55 @@ class Filtering(Scene):
             FadeIn(input_img),
             Write(input_img_t),
             FadeIn(output_img),
-            FadeIn(output_img_t),
+            Write(output_img_t),
         )
+
+        line_none = self.underline_filter_type(filter_types_v[0])
+        self.wait()
+
+        zoomed_in_sample = (
+            self.create_pixel_array(2, 2).scale(2).next_to(input_img, LEFT)
+        )
+        a_t = (
+            Text("a", font="SF Mono", weight=BOLD)
+            .scale(0.6)
+            .set_color(REDUCIBLE_VIOLET)
+            .next_to(zoomed_in_sample[0], ORIGIN)
+        )
+        b_t = (
+            Text("b", font="SF Mono", weight=BOLD)
+            .scale(0.6)
+            .set_color(REDUCIBLE_GREEN_LIGHTER)
+            .next_to(zoomed_in_sample[1], ORIGIN)
+        )
+        c_t = (
+            Text("c", font="SF Mono", weight=BOLD)
+            .scale(0.6)
+            .set_color(REDUCIBLE_BLUE)
+            .next_to(zoomed_in_sample[2], ORIGIN)
+        )
+        x_t = (
+            Text("x", font="SF Mono", weight=BOLD)
+            .scale(0.6)
+            .set_color(REDUCIBLE_YELLOW)
+            .next_to(zoomed_in_sample[3], ORIGIN)
+        )
+
+        self.sub_filter_img(random_data)
+        self.up_filter_img(random_data)
+        self.avg_filter_img(random_data)
+        self.paeth_filter_img(random_data)
+
+        self.play(
+            FadeIn(zoomed_in_sample),
+            FadeIn(a_t),
+            FadeIn(b_t),
+            FadeIn(c_t),
+            FadeIn(x_t),
+        )
+
+    #####################################################################
+    # Functions
 
     def underline_filter_type(self, mob: VMobject):
         line = Line(ORIGIN, [mob.width, 0, 0]).next_to(mob, DOWN, buff=0.1)
@@ -813,8 +868,67 @@ class Filtering(Scene):
     def create_pixel_array(self, rows=8, cols=8):
         return (
             VGroup(
-                *[Square(color=WHITE).set_stroke(width=1) for s in range(rows * cols)]
+                *[Square(color=WHITE).set_stroke(width=2) for s in range(rows * cols)]
             )
             .arrange_in_grid(rows=rows, cols=cols, buff=0)
             .scale(0.15)
         )
+
+    def sub_filter_img(self, input_array: ndarray):
+        rows, cols = input_array.shape
+
+        output = np.zeros(input_array.shape, dtype=np.uint8)
+
+        for j in range(cols):
+            for i in range(1, rows):
+                output[j, i] = input_array[j, i] - input_array[j, i - 1]
+
+        return output
+
+    def up_filter_img(self, input_array):
+        rows, cols = input_array.shape
+
+        output = np.zeros(input_array.shape, dtype=np.uint8)
+
+        for j in range(1, cols):
+            for i in range(rows):
+                output[j, i] = input_array[j, i] - input_array[j - 1, i]
+
+        return output
+
+    def avg_filter_img(self, input_array):
+        """
+        Each byte is replaced with the difference between it and the average
+        of the corresponding bytes to its left and above it, truncating any fractional part.
+        """
+
+        rows, cols = input_array.shape
+
+        output = np.zeros(input_array.shape, dtype=np.uint8)
+
+        for j in range(1, cols):
+            for i in range(1, rows):
+                avg = (input_array[j - 1, i] + input_array[j, i - 1]) / 2
+                output[j, i] = floor(input_array[j, i] - avg)
+
+        return output
+
+    def paeth_filter_img(self, input_array):
+        rows, cols = input_array.shape
+
+        output = np.zeros(input_array.shape, dtype=np.uint8)
+
+        for j in range(1, cols):
+            for i in range(1, rows):
+                a = input_array[j - 1, i - 1]  # up-left
+                b = input_array[j - 1, i]  # up
+                c = input_array[j, i - 1]  # left
+
+                base_value = b + c - a
+
+                paeth_dict = {base_value - a: a, base_value - b: b, base_value - c: c}
+                winner = paeth_dict[min(paeth_dict.keys())]
+
+                output[j, i] = input_array[i, j] - winner
+
+        return output
