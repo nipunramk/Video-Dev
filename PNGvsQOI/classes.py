@@ -3,7 +3,7 @@ from functions import *
 from reducible_colors import *
 
 class Pixel(Square):
-    def __init__(self, n: int, color_mode: str):
+    def __init__(self, n: int, color_mode: str, outline=True):
         assert color_mode in ("RGB", "GRAY"), "Color modes are RGB and GRAY"
         if color_mode == "RGB":
             color = rgb_to_hex(n / 255)
@@ -11,14 +11,16 @@ class Pixel(Square):
             color = g2h(n / 255)
 
         super().__init__(side_length=1)
-
-        self.set_stroke(BLACK, width=0.2)
+        if outline:
+            self.set_stroke(BLACK, width=0.2)
+        else:
+            self.set_stroke(color, width=0.2)
         self.set_fill(color, opacity=1)
         self.color = color
 
 
 class PixelArray(VGroup):
-    def __init__(self, img: np.ndarray, include_numbers=False, color_mode="RGB"):
+    def __init__(self, img: np.ndarray, include_numbers=False, color_mode="RGB", buff=0, outline=True):
         self.img = img
         if len(img.shape) == 3:
             rows, cols, channels = img.shape
@@ -36,13 +38,12 @@ class PixelArray(VGroup):
                         .scale(0.7)
                         .set_color(g2h(1) if p < 180 else g2h(0))
                     )
-                    pixels.append(VGroup(Pixel(p, color_mode), self.number))
+                    pixels.append(VGroup(Pixel(p, color_mode, outline=outline), self.number))
                 else:
-                    print(p)
-                    pixels.append(Pixel(p, color_mode))
+                    pixels.append(Pixel(p, color_mode, outline=outline))
 
         super().__init__(*pixels)
-        self.arrange_in_grid(rows, cols, buff=0)
+        self.arrange_in_grid(rows, cols, buff=buff)
 
         self.dict = {index: p for index, p in enumerate(self)}
 
@@ -92,8 +93,14 @@ class Byte(VGroup):
 
     def get_text_mob(self, string):
         text = VGroup(*[Text(c, font="SF Mono", weight=MEDIUM).scale(self.text_scale) for c in string.split(',')])
-        if len(text) > 1:
-            text.arrange(RIGHT, buff=self.h_buff)
+        text.arrange(RIGHT, buff=self.h_buff)
         return text
 
+class RGBMob:
+    def __init__(self, r_mob, g_mob, b_mob):
+        self.r = r_mob
+        self.g = g_mob
+        self.b = b_mob
+        self.indicated = False
+        self.surrounded = None
 
