@@ -2,6 +2,7 @@ from manim import *
 from functions import *
 from reducible_colors import *
 
+
 class Pixel(Square):
     def __init__(self, n: int, color_mode: str, outline=True):
         assert color_mode in ("RGB", "GRAY"), "Color modes are RGB and GRAY"
@@ -20,7 +21,14 @@ class Pixel(Square):
 
 
 class PixelArray(VGroup):
-    def __init__(self, img: np.ndarray, include_numbers=False, color_mode="RGB", buff=0, outline=True):
+    def __init__(
+        self,
+        img: np.ndarray,
+        include_numbers=False,
+        color_mode="RGB",
+        buff=0,
+        outline=True,
+    ):
         self.img = img
         if len(img.shape) == 3:
             rows, cols, channels = img.shape
@@ -38,7 +46,9 @@ class PixelArray(VGroup):
                         .scale(0.7)
                         .set_color(g2h(1) if p < 180 else g2h(0))
                     )
-                    pixels.append(VGroup(Pixel(p, color_mode, outline=outline), self.number))
+                    pixels.append(
+                        VGroup(Pixel(p, color_mode, outline=outline), self.number)
+                    )
                 else:
                     pixels.append(Pixel(p, color_mode, outline=outline))
 
@@ -57,6 +67,7 @@ class PixelArray(VGroup):
         else:
             return self.dict[value]
 
+
 class Byte(VGroup):
     def __init__(
         self,
@@ -64,7 +75,7 @@ class Byte(VGroup):
         stroke_color=REDUCIBLE_VIOLET,
         stroke_width=5,
         text_scale=0.5,
-        h_buff=MED_SMALL_BUFF+SMALL_BUFF,
+        h_buff=MED_SMALL_BUFF + SMALL_BUFF,
         v_buff=MED_SMALL_BUFF,
         width=6,
         height=1.5,
@@ -74,9 +85,9 @@ class Byte(VGroup):
 
         self.h_buff = h_buff
         self.text_scale = text_scale
-        self.rect = Rectangle(
-            height=height, width=width
-        ).set_stroke(width=stroke_width, color=stroke_color)
+        self.rect = Rectangle(height=height, width=width).set_stroke(
+            width=stroke_width, color=stroke_color
+        )
 
         if isinstance(text, list):
             text_mobs = []
@@ -90,11 +101,16 @@ class Byte(VGroup):
         self.text.scale_to_fit_width(self.rect.width - edge_buff)
         super().__init__(self.rect, self.text, **kwargs)
 
-
     def get_text_mob(self, string):
-        text = VGroup(*[Text(c, font="SF Mono", weight=MEDIUM).scale(self.text_scale) for c in string.split(',')])
+        text = VGroup(
+            *[
+                Text(c, font="SF Mono", weight=MEDIUM).scale(self.text_scale)
+                for c in string.split(",")
+            ]
+        )
         text.arrange(RIGHT, buff=self.h_buff)
         return text
+
 
 class RGBMob:
     def __init__(self, r_mob, g_mob, b_mob):
@@ -103,4 +119,3 @@ class RGBMob:
         self.b = b_mob
         self.indicated = False
         self.surrounded = None
-

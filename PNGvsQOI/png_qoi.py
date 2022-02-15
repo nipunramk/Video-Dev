@@ -788,9 +788,9 @@ class Filtering(Scene):
         self.wait()
 
         random_data = np.random.randint(127, 140, (8, 8))
-        random_data = np.arange(64).reshape((8, 8))
+        # random_data = np.arange(64).reshape((8, 8))
         input_img = PixelArray(
-            random_data, include_numbers=True, color_mode="GRAY"
+            random_data, include_numbers=True, color_mode="GRAY", outline=True
         ).scale(0.4)
         input_img_t = (
             Text("Input Image", font="CMU Serif")
@@ -843,10 +843,42 @@ class Filtering(Scene):
             .next_to(zoomed_in_sample[3], ORIGIN)
         )
 
-        self.sub_filter_img(random_data)
-        self.up_filter_img(random_data)
-        self.avg_filter_img(random_data)
-        self.paeth_filter_img(random_data)
+        sub_filtered_data = self.sub_filter_img(random_data)
+        up_filtered_data = self.up_filter_img(random_data)
+        avg_filtered_data = self.avg_filter_img(random_data)
+        paeth_filtered_data = self.paeth_filter_img(random_data)
+
+        sub_filtered_mob = (
+            PixelArray(
+                sub_filtered_data, include_numbers=True, color_mode="GRAY", outline=True
+            )
+            .scale(0.4)
+            .move_to(output_img)
+        )
+        up_filtered_mob = (
+            PixelArray(
+                up_filtered_data, include_numbers=True, color_mode="GRAY", outline=True
+            )
+            .scale(0.4)
+            .move_to(output_img)
+        )
+        avg_filtered_mob = (
+            PixelArray(
+                avg_filtered_data, include_numbers=True, color_mode="GRAY", outline=True
+            )
+            .scale(0.4)
+            .move_to(output_img)
+        )
+        paeth_filtered_mob = (
+            PixelArray(
+                paeth_filtered_data,
+                include_numbers=True,
+                color_mode="GRAY",
+                outline=True,
+            )
+            .scale(0.4)
+            .move_to(output_img)
+        )
 
         self.play(
             FadeIn(zoomed_in_sample),
@@ -855,6 +887,8 @@ class Filtering(Scene):
             FadeIn(c_t),
             FadeIn(x_t),
         )
+        self.wait()
+        self.play(Transform(output_img, paeth_filtered_mob))
 
     #####################################################################
     # Functions
@@ -875,28 +909,31 @@ class Filtering(Scene):
         )
 
     def sub_filter_img(self, input_array: ndarray):
-        rows, cols = input_array.shape
 
+        rows, cols = input_array.shape
         output = np.zeros(input_array.shape, dtype=np.uint8)
 
         for j in range(cols):
             for i in range(1, rows):
-                output[j, i] = input_array[j, i] - input_array[j, i - 1]
+                output[j, i] = abs(input_array[j, i] - input_array[j, i - 1])
+
+        output[:, 0] = input_array[:, 0]
 
         return output
 
-    def up_filter_img(self, input_array):
+    def up_filter_img(self, input_array: ndarray):
         rows, cols = input_array.shape
 
         output = np.zeros(input_array.shape, dtype=np.uint8)
 
         for j in range(1, cols):
             for i in range(rows):
-                output[j, i] = input_array[j, i] - input_array[j - 1, i]
+                output[j, i] = abs(input_array[j, i] - input_array[j - 1, i])
 
+        output[0, :] = input_array[0, :]
         return output
 
-    def avg_filter_img(self, input_array):
+    def avg_filter_img(self, input_array: ndarray):
         """
         Each byte is replaced with the difference between it and the average
         of the corresponding bytes to its left and above it, truncating any fractional part.
@@ -909,11 +946,14 @@ class Filtering(Scene):
         for j in range(1, cols):
             for i in range(1, rows):
                 avg = (input_array[j - 1, i] + input_array[j, i - 1]) / 2
-                output[j, i] = floor(input_array[j, i] - avg)
+                output[j, i] = floor(abs(input_array[j, i] - avg))
+
+        output[:, 0] = input_array[:, 0]
+        output[0, :] = input_array[0, :]
 
         return output
 
-    def paeth_filter_img(self, input_array):
+    def paeth_filter_img(self, input_array: ndarray):
         rows, cols = input_array.shape
 
         output = np.zeros(input_array.shape, dtype=np.uint8)
@@ -926,9 +966,19 @@ class Filtering(Scene):
 
                 base_value = b + c - a
 
-                paeth_dict = {base_value - a: a, base_value - b: b, base_value - c: c}
+                paeth_dict = {
+                    abs(base_value - a): a,
+                    abs(base_value - b): b,
+                    abs(base_value - c): c,
+                }
                 winner = paeth_dict[min(paeth_dict.keys())]
 
-                output[j, i] = input_array[i, j] - winner
+                print(f"output[{j},{i}] is {input_array[j,i] = } - {winner = }")
+
+                output[j, i] = abs(input_array[j, i] - winner)
+
+        output[:, 0] = input_array[:, 0]
+        output[0, :] = input_array[0, :]
+        print(output)
 
         return output
