@@ -103,4 +103,9 @@ class RGBMob:
         self.b = b_mob
         self.indicated = False
         self.surrounded = None
+        self.scaled = 1
+        self.shift = ORIGIN
+
+    def __str__(self):
+        return f'RGB(R: {self.r[1].original_text}, G: {self.g[1].original_text}, B: {self.g[1].original_text}, Indicated: {self.indicated}, Surrounded: {self.surrounded}, Scale: {self.scaled}, Shift: {self.shift})'
 

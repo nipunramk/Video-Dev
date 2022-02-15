@@ -23,11 +23,35 @@ class QOIDemo(Scene):
 		5. Make function to take a list of encoding options (with necessary data) 
 		and demo QOI
 		In demo, make functional example of a full encoding with list, show the entire bitsteam (can shift info out of the window)
+		
+		TODO: Tuesday
+		show_encode_run
+		show_encode_diff_small
+		show_encode_diff_med
+		show_encode_index
+		show_encode_rgb
+		
+		TODO: Wednesday
+		Further complexities we need to deal with to make full animation of QOI
+		1. Moving prev and current pixels when current pixel is a RLE
+		2. Keeping track of index in a visually pleasing manner
+		3. Showing encoding into bytes
+		4. Bring bytes and pixels into focus
+		5. Dealing with initial prev value
 
+		update_index -- handles index tracking
+
+		get_next_animations(curr_encoding, next_encoding)
+		CASES:
+		1. curr_encoding - RGB, next_encoding - anything -> use update_prev_and_current
+		2. curr_encoding - diff, next_encoding - anything -> use update_prev_and_current
+		3. curr_encoding - index, next_encoding - anything -> use unindicate on index and then update_prev_and_current
+		4. curr_encoding - RLE, next_encoding - anything -> new logic from Wednesday (1)
+
+		TODO: Thursday
+		Make fully functioning QOI animation
 		"""
 		self.show_image()
-
-
 
 	def show_image(self):
 		image = ImageMobject("r.png")
@@ -116,28 +140,81 @@ class QOIDemo(Scene):
 	def introduce_qoi_tags(self, flattened_pixels):
 		r_channel, g_channel, b_channel = flattened_pixels
 		rgb_pixels = self.get_rgb_pixels(r_channel, g_channel, b_channel)
-		
-		indices = [50, 51, 52]
+		indices = [1]
 		self.bring_pixel_to_screen(indices[0], flattened_pixels)
 		transforms = self.get_indication_transforms(indices, rgb_pixels)
+		
+		prev_transforms = self.get_indication_transforms([0], rgb_pixels, shift=SMALL_BUFF, direction=np.array([-2.5, 1, 0]), color=REDUCIBLE_VIOLET)
+
 		self.play(
 			*transforms
 		)
+
+		self.play(
+			*prev_transforms
+		)
 		self.wait()
 
-		transforms = self.get_indication_transforms([43], rgb_pixels)
+
+		update_animations = self.update_prev_and_current(0, 1, rgb_pixels)
+		self.play(
+			*update_animations
+		)
+		self.wait()
+
+
+		transforms = self.get_indication_transforms([3], rgb_pixels, extend=True)
 		self.play(
 			*transforms,
 		)
 		self.wait()
 
-		reset_animations = self.reset_indications(rgb_pixels)
+		transforms = self.get_indication_transforms([4], rgb_pixels, extend=True)
 		self.play(
-			*reset_animations
+			*transforms,
 		)
 		self.wait()
 
-	def get_indication_transforms(self, indices, rgb_pixels, opacity=0.2):
+		transforms = self.get_indication_transforms([5], rgb_pixels, extend=True)
+		self.play(
+			*transforms,
+		)
+		self.wait()
+
+		# transforms = self.get_indication_transforms([6], rgb_pixels, extend=True)
+		# self.play(
+		# 	*transforms,
+		# )
+		# self.wait()
+
+		reset_transforms = self.reset_indications(rgb_pixels)
+		self.play(
+			*reset_transforms
+		)
+		self.wait()
+
+		# transforms = self.get_indication_transforms([54], rgb_pixels, extend=True)
+		# self.play(
+		# 	*transforms,
+		# )
+		# self.wait()
+
+		# transforms = self.get_indication_transforms([55], rgb_pixels, extend=True)
+		# self.play(
+		# 	*transforms,
+		# )
+		# self.wait()
+
+		# transforms = self.get_indication_transforms([49], rgb_pixels, shift=SMALL_BUFF, direction=np.array([-2.5, 1, 0]), color=REDUCIBLE_VIOLET)
+		# self.play(
+		# 	*transforms,
+		# )
+		# self.wait()
+
+		
+
+	def get_indication_transforms(self, indices, rgb_pixels, 
+		opacity=0.2, extend=False, shift=SMALL_BUFF, direction=UP, color=REDUCIBLE_YELLOW):
 		indication_transforms = []
 		all_other_indices = [index for index in range(len(rgb_pixels)) if index not in indices]
 		for index in all_other_indices:
@@ -150,21 +227,99 @@ class QOIDemo(Scene):
 			indication_transforms.extend(animations)
 		
 		animations = []
-		pixels = [rgb_pixels[index] for index in indices] 
+		if extend:
+			last_pixel_index = indices[0] - 1
+			while rgb_pixels[last_pixel_index].surrounded is None:
+				last_pixel_index -= 1
+			original_rect = rgb_pixels[last_pixel_index].surrounded
+			indicated_pixels = self.get_indicated_pixels([rgb_pixels[index] for index in range(last_pixel_index, indices[-1] + 1)], shift=shift, direction=direction)
+			surrounded_rects = self.get_surrounded_rects(indicated_pixels, color=color)
+			animations.append(Transform(original_rect, VGroup(*surrounded_rects)))
+
+		pixels = [rgb_pixels[index] for index in indices]
+		indicated_pixels = self.get_indicated_pixels(pixels, shift=shift, direction=direction)
 		for pixel in pixels:
 			pixel.indicated = True
-		indicated_pixels = self.get_indicated_pixels(pixels)
-		surrounded_rects = self.get_surrounded_rects(indicated_pixels)
-		pixels[0].surrounded = VGroup(*surrounded_rects)
+		surrounded_rects = self.get_surrounded_rects(indicated_pixels, color=color)
+		if not extend:
+			pixels[0].surrounded = VGroup(*surrounded_rects)
 		animations.extend(self.get_scale_transforms(pixels, indicated_pixels))
-		animations.extend(
-			[
-			FadeIn(surrounded_rects[0]), FadeIn(surrounded_rects[1]), FadeIn(surrounded_rects[2])
-			]
-		)
+		if not extend:
+			animations.extend(
+				[
+				FadeIn(surrounded_rects[0]), FadeIn(surrounded_rects[1]), FadeIn(surrounded_rects[2])
+				]
+			)
 		indication_transforms.extend(animations)
 
 		return indication_transforms
+
+	def update_prev_and_current(self, prev_index, current_index, rgb_pixels):
+		current_direction_shift = LEFT * 2.5 * SMALL_BUFF
+		current_direction_scale = 1
+		prev_direction_shift = RIGHT * 2.5 * SMALL_BUFF
+		prev_direction_scale = 1 / 1.2
+		next_direction_shift = UP * SMALL_BUFF
+		next_direction_scale = 1.2
+
+		prev_pixel = rgb_pixels[prev_index]
+		current_pixel = rgb_pixels[current_index]
+		next_pixel = rgb_pixels[current_index + 1]
+		
+		animations = []
+		unindicate_prev = self.unindicate_pixels(prev_pixel)
+		indicate_next, next_pixels = self.indicate_next_pixel(rgb_pixels[current_index + 1])
+		transform_curr_to_prev, new_prev_pixels = self.current_to_prev(current_pixel, current_direction_shift)
+		animations.extend(unindicate_prev + indicate_next + transform_curr_to_prev)
+		animations.append(ApplyMethod(prev_pixel.surrounded.move_to, VGroup(*new_prev_pixels).get_center()))
+		animations.append(ApplyMethod(current_pixel.surrounded.move_to, VGroup(*next_pixels).get_center()))
+		prev_pixel.surrounded, current_pixel.surrounded, next_pixel.surrounded = None, prev_pixel.surrounded, current_pixel.surrounded
+		return animations
+
+	def current_to_prev(self, rgb_pixel, shift):
+		rgb_pixel.shift = np.array([shift[0], rgb_pixel.shift[1], 0])
+		animations = []
+		new_pixel = [
+		self.current_to_prev_channel(rgb_pixel.r, shift),
+		self.current_to_prev_channel(rgb_pixel.g, shift),
+		self.current_to_prev_channel(rgb_pixel.b, shift)
+		]
+		animations.append(Transform(rgb_pixel.r, new_pixel[0]))
+		animations.append(Transform(rgb_pixel.g, new_pixel[1]))
+		animations.append(Transform(rgb_pixel.b, new_pixel[2]))
+		return animations, new_pixel
+
+	def current_to_prev_channel(self, channel, shift):
+		return channel.copy().shift(shift)
+
+	def unindicate_pixels(self, rgb_pixel):
+		animations = []
+		if rgb_pixel.indicated:
+			animations.append(Transform(rgb_pixel.r, self.unindicate_pixel(rgb_pixel, rgb_pixel.r)))
+			animations.append(Transform(rgb_pixel.g, self.unindicate_pixel(rgb_pixel, rgb_pixel.g)))
+			animations.append(Transform(rgb_pixel.b, self.unindicate_pixel(rgb_pixel, rgb_pixel.b)))
+			rgb_pixel.indicated = False
+			rgb_pixel.scaled = 1
+			rgb_pixel.shift = ORIGIN
+		return animations
+
+	def indicate_next_pixel(self, next_pixel):
+		animations = []
+		indicated_pixel = self.get_indicated_pixels([next_pixel])
+		next_pixels = [indicated_pixel[0][0], indicated_pixel[1][0], indicated_pixel[2][0]]
+		if not next_pixel.indicated:
+			animations.append(Transform(next_pixel.r, next_pixels[0]))
+			animations.append(Transform(next_pixel.g, next_pixels[1]))
+			animations.append(Transform(next_pixel.b, next_pixels[2]))
+			next_pixel.indicated = True
+		return animations, next_pixels
+
+	def unindicate_pixel(self, original_pixel, channel, opacity=0.2):
+		pixel = channel.copy()
+		pixel.scale(1/original_pixel.scaled).shift(-original_pixel.shift)
+		pixel[0].set_fill(opacity=opacity).set_stroke(opacity=opacity)
+		pixel[1].set_fill(opacity=opacity)
+		return pixel
 
 	def get_scale_transforms(self, pixels, indicated_pixels):
 		transforms = []
@@ -181,19 +336,25 @@ class QOIDemo(Scene):
 		b_pixel = self.get_faded_pixel(pixel.b, opacity=opacity)
 		return [r_pixel, g_pixel, b_pixel]
 
-	def get_indicated_pixels(self, pixels, scale=1.2, shift=SMALL_BUFF, direction=UP):
-		r_pixel = VGroup(*[self.get_indicated_pixel(pixel.r, scale=scale, shift=shift, direction=direction) for pixel in pixels])
-		g_pixel = VGroup(*[self.get_indicated_pixel(pixel.g, scale=scale, shift=shift, direction=direction) for pixel in pixels])
-		b_pixel = VGroup(*[self.get_indicated_pixel(pixel.b, scale=scale, shift=shift, direction=direction) for pixel in pixels])
+	def get_indicated_pixels(self, pixels, scale=1.2, shift=SMALL_BUFF, direction=UP, reset=False):
+		r_pixel = VGroup(*[self.get_indicated_pixel(pixel, pixel.r, scale=scale, shift=shift, direction=direction, reset=reset) for pixel in pixels])
+		g_pixel = VGroup(*[self.get_indicated_pixel(pixel, pixel.g, scale=scale, shift=shift, direction=direction, reset=reset) for pixel in pixels])
+		b_pixel = VGroup(*[self.get_indicated_pixel(pixel, pixel.b, scale=scale, shift=shift, direction=direction, reset=reset) for pixel in pixels])
 		return [r_pixel, g_pixel, b_pixel]
 
-	def get_surrounded_rects(self, indicated_pixels):
-		return [get_glowing_surround_rect(pixel) for pixel in indicated_pixels]
+	def get_surrounded_rects(self, indicated_pixels, color=REDUCIBLE_YELLOW):
+		return [get_glowing_surround_rect(pixel, color=color) for pixel in indicated_pixels]
 
-	def get_indicated_pixel(self, channel, scale=1.2, shift=SMALL_BUFF, direction=UP):
+	def get_indicated_pixel(self, original_pixel, channel, scale=1.2, shift=SMALL_BUFF, direction=UP, indicated=False, reset=False):
 		pixel = channel.copy()
 		pixel = self.get_faded_pixel(pixel, opacity=1)
-		pixel.scale(scale).shift(direction * shift)
+		if not original_pixel.indicated:
+			original_pixel.scaled = scale
+			original_pixel.shift = direction * shift
+			pixel.scale(scale).shift(direction * shift)
+		elif reset:
+			pixel.scale(1/original_pixel.scaled).shift(-original_pixel.shift)
+
 		return pixel
 
 	def get_faded_pixel(self, channel, opacity=0.2):
@@ -219,11 +380,13 @@ class QOIDemo(Scene):
 				if pixel.surrounded:
 					animations.append(FadeOut(pixel.surrounded))
 					pixel.surrounded = None
-				original_pixel = self.get_indicated_pixels([pixel], scale=1/1.2, direction=DOWN)
+				original_pixel = self.get_indicated_pixels([pixel], reset=True)
 				animations.append(Transform(pixel.r, original_pixel[0][0]))
 				animations.append(Transform(pixel.g, original_pixel[1][0]))
 				animations.append(Transform(pixel.b, original_pixel[2][0]))
 				pixel.indicated = False
+				pixel.scale = 1
+				pixel.shift = ORIGIN
 			else:
 				original_pixel = self.get_faded_pixels(pixel, opacity=1)
 				animations.append(Transform(pixel.r, original_pixel[0]))
@@ -304,7 +467,7 @@ class QOIDemo(Scene):
 		g_channel_f_mob = PixelArray(g_channel_flattened, buff=MED_SMALL_BUFF, outline=False).scale(0.6).to_edge(LEFT)
 		b_channel_f_mob = PixelArray(b_channel_flattened, buff=MED_SMALL_BUFF, outline=False).scale(0.6).to_edge(LEFT)
 
-		r_channel_f_mob.to_edge(LEFT).shift(DOWN * 1.1)
+		r_channel_f_mob.to_edge(LEFT * 3).shift(DOWN * 1.1)
 		g_channel_f_mob.next_to(r_channel_f_mob, DOWN * 2, aligned_edge=LEFT)
 		b_channel_f_mob.next_to(g_channel_f_mob, DOWN * 2, aligned_edge=LEFT)
 		
