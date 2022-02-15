@@ -909,6 +909,9 @@ class Filtering(Scene):
         )
 
     def sub_filter_img(self, input_array: ndarray):
+        """
+        Compute the sub filter for the whole input array
+        """
 
         rows, cols = input_array.shape
         output = np.zeros(input_array.shape, dtype=np.uint8)
@@ -922,6 +925,10 @@ class Filtering(Scene):
         return output
 
     def up_filter_img(self, input_array: ndarray):
+        """
+        Compute the up filter for the whole input array
+        """
+
         rows, cols = input_array.shape
 
         output = np.zeros(input_array.shape, dtype=np.uint8)
@@ -941,44 +948,54 @@ class Filtering(Scene):
 
         rows, cols = input_array.shape
 
+        padded_data = np.pad(input_array, (1, 0), constant_values=0, mode="constant")
+        print(padded_data)
         output = np.zeros(input_array.shape, dtype=np.uint8)
 
-        for j in range(1, cols):
-            for i in range(1, rows):
-                avg = (input_array[j - 1, i] + input_array[j, i - 1]) / 2
-                output[j, i] = floor(abs(input_array[j, i] - avg))
-
-        output[:, 0] = input_array[:, 0]
-        output[0, :] = input_array[0, :]
+        for j in range(1, cols + 1):
+            for i in range(1, rows + 1):
+                avg = (padded_data[j - 1, i] + padded_data[j, i - 1]) / 2
+                output[j - 1, i - 1] = floor(abs(padded_data[j, i] - avg))
 
         return output
 
     def paeth_filter_img(self, input_array: ndarray):
+        """
+        Computes the paeth predictor for the whole input array
+        """
+
         rows, cols = input_array.shape
 
         output = np.zeros(input_array.shape, dtype=np.uint8)
+        padded_data = np.pad(input_array, (1, 0), constant_values=0, mode="constant")
 
-        for j in range(1, cols):
-            for i in range(1, rows):
-                a = input_array[j - 1, i - 1]  # up-left
-                b = input_array[j - 1, i]  # up
-                c = input_array[j, i - 1]  # left
+        for j in range(1, cols + 1):
+            for i in range(1, rows + 1):
+                a = padded_data[j - 1, i - 1]  # up-left
+                b = padded_data[j - 1, i]  # up
+                c = padded_data[j, i - 1]  # left
 
                 base_value = b + c - a
 
+                # the dictionary is created in this specific order to account
+                # for how PNG deals with ties. The specification says
+                # that in the case of ties, left byte has precedence, then up.
+
                 paeth_dict = {
-                    abs(base_value - a): a,
-                    abs(base_value - b): b,
                     abs(base_value - c): c,
+                    abs(base_value - b): b,
+                    abs(base_value - a): a,
                 }
+
+                # The min function will output the first instance it found in case of ties.
+                # So that's why we built the dict that way.
                 winner = paeth_dict[min(paeth_dict.keys())]
 
-                print(f"output[{j},{i}] is {input_array[j,i] = } - {winner = }")
+                # print(
+                #     f"output[{j-1},{i-1}] is {padded_data[j,i] = } - {winner = } which equals {abs(padded_data[j, i] - winner)}"
+                # )
 
-                output[j, i] = abs(input_array[j, i] - winner)
+                output[j - 1, i - 1] = abs(padded_data[j, i] - winner)
 
-        output[:, 0] = input_array[:, 0]
-        output[0, :] = input_array[0, :]
         print(output)
-
         return output
