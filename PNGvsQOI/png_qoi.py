@@ -1,8 +1,7 @@
-import enum
 from math import floor
-from os import ctermid
 from manim import *
-from numpy import ndarray, subtract
+from manim.mobject.geometry import ArrowTriangleFilledTip
+from numpy import ndarray
 from functions import *
 from classes import *
 from reducible_colors import *
@@ -750,9 +749,189 @@ class QOIDemo(Scene):
         return transforms
 
 
-class Filtering(Scene):
+class Filtering(MovingCameraScene):
     def construct(self):
-        self.five_filters_explanation()
+        # self.intro_filtering()
+        # self.play(*[FadeOut(mob) for mob in self.mobjects])
+        self.present_problem()
+        # self.five_filters_explanation()
+
+    def intro_filtering(self):
+        title = Text("Lossless Compression", font="CMU Serif", weight=BOLD).to_edge(UP)
+
+        eg_data = Text(
+            "00000111101010101 0000 11111 00000111101010101",
+            font="SF Mono",
+        ).scale(1.5)
+
+        # eg_data[:17].set_color(RED)
+        # eg_data[27:].set_opacity(0.5)
+
+        eg_data_no_repeats = Text(
+            "0101010001101001001001001001010", font="SF Mono"
+        ).scale(1.5)
+        brace_no_reps = Brace(eg_data_no_repeats, direction=DOWN)
+        question_comp = (
+            Text("?x?", font="SF Mono").scale(1.7).next_to(brace_no_reps, DOWN)
+        )
+
+        brace_zeros = Brace(eg_data[17:21], direction=DOWN)
+        brace_ones = Brace(eg_data[21:26], direction=DOWN)
+
+        comp_zeros = Text("4x0", font="SF Mono").scale(0.5).next_to(brace_zeros, DOWN)
+        comp_ones = Text("5x1", font="SF Mono").scale(0.5).next_to(brace_ones, DOWN)
+
+        self.play(Write(title))
+
+        self.wait()
+
+        self.play(AddTextLetterByLetter(eg_data, run_time=1))
+
+        self.wait()
+
+        self.play(
+            Write(brace_zeros),
+            Write(comp_zeros),
+            Write(brace_ones),
+            Write(comp_ones),
+        )
+
+        self.wait()
+
+        self.play(
+            FadeOut(brace_zeros, shift=UP),
+            FadeOut(brace_ones, shift=UP),
+            FadeOut(comp_zeros, shift=UP),
+            FadeOut(comp_ones, shift=UP),
+            FadeOut(eg_data, shift=UP),
+        )
+
+        self.wait()
+
+        self.play(AddTextLetterByLetter(eg_data_no_repeats, run_time=1))
+
+        self.wait()
+
+        self.play(Write(brace_no_reps, run_time=0.5), Write(question_comp))
+
+    def present_problem(self):
+        repeating_text = (
+            Text("0000000000000", font="SF Mono").scale(2).shift(UP * 1.3 + LEFT * 2)
+        )
+        non_rep_text = (
+            Text("1001001000101", font="SF Mono").scale(2).shift(DOWN * 1.3 + RIGHT * 2)
+        )
+
+        diff = 4
+        gradient_data = np.arange(0, 256, diff, dtype=np.uint8).reshape((8, 8))
+        gradient_image = PixelArray(
+            gradient_data, include_numbers=True, color_mode="GRAY"
+        ).scale(0.6)
+
+        self.play(FadeIn(repeating_text, shift=RIGHT))
+        self.wait()
+        self.play(FadeIn(non_rep_text, shift=LEFT))
+
+        self.play(FadeOut(repeating_text), FadeOut(non_rep_text))
+
+        self.wait()
+
+        self.play(Write(gradient_image))
+
+        self.wait()
+
+        self.play(gradient_image.animate.shift(LEFT * 3))
+
+        self.wait()
+
+        question_1 = (
+            Text(
+                " How can we represent this data\n in a more repetitive way?",
+                font="CMU Serif",
+            )
+            .scale(0.7)
+            .next_to(gradient_image, RIGHT, buff=0.5)
+            .shift(UP * 0.9)
+        )
+        question_2 = (
+            Text("Any patterns to be found?", font="CMU Serif")
+            .scale(0.7)
+            .next_to(question_1, DOWN, buff=1.3, aligned_edge=LEFT)
+        )
+
+        self.play(Write(question_1))
+
+        self.wait()
+
+        self.play(Write(question_2))
+
+        self.wait()
+
+        self.play(FadeOut(question_1), FadeOut(question_2))
+
+        row_to_focus_on = gradient_image[0:8]
+
+        self.play(
+            self.camera.frame.animate.set_width(row_to_focus_on.width * 1.3)
+            .move_to(row_to_focus_on)
+            .shift(UP),
+            run_time=3,
+        )
+
+        self.wait()
+
+        diff_t = Text(f"+{diff}", font="SF Mono").scale(0.3).set_color(REDUCIBLE_YELLOW)
+
+        arrows = VGroup()
+        diffs = VGroup()
+        for i in range(1, 8):
+            arrow = (
+                CurvedArrow(
+                    gradient_image[i - 1].get_center() + UP * 0.3,
+                    gradient_image[i].get_center() + UP * 0.3,
+                    radius=-0.5,
+                )
+                .set_color(REDUCIBLE_YELLOW)
+                .set_stroke(width=1)
+            )
+            arrow.pop_tips()
+            arrow.add_tip(
+                tip_shape=ArrowTriangleFilledTip, tip_length=0.05, at_start=False
+            )
+
+            arrows.add(arrow)
+            self.play(Write(arrow))
+
+            diff_copy = diff_t.copy().next_to(arrow, UP, buff=0.1)
+            diffs.add(diff_copy)
+            self.play(FadeIn(diff_copy, shift=UP * 0.2))
+
+        self.wait()
+
+        diff_buff = (
+            PixelArray(
+                np.array(
+                    [
+                        [0, 4, 4, 4, 4, 4, 4, 4],
+                    ]
+                ),
+                color_mode="GRAY",
+                include_numbers=True,
+            )
+            .scale_to_fit_width(gradient_image.width)
+            .next_to(gradient_image, UP * 0.45, buff=2)
+        )
+
+        [
+            p.set_color(REDUCIBLE_PURPLE)
+            .set_opacity(0.5)
+            .set_stroke(REDUCIBLE_PURPLE, width=3, opacity=1)
+            for p in diff_buff
+        ]
+
+        diff_buff.numbers.set_color(WHITE).set_opacity(1).set_stroke(width=0)
+
+        self.play(LaggedStartMap(FadeIn, diff_buff))
 
     def five_filters_explanation(self):
         # intro for the name of the filters
@@ -787,7 +966,7 @@ class Filtering(Scene):
 
         self.wait()
 
-        random_data = np.random.randint(127, 140, (8, 8))
+        random_data = np.random.randint(127, 140, (9, 8))
         # random_data = np.arange(64).reshape((8, 8))
         input_img = PixelArray(
             random_data, include_numbers=True, color_mode="GRAY", outline=True
@@ -880,17 +1059,71 @@ class Filtering(Scene):
             .move_to(output_img)
         )
 
-        self.play(
-            FadeIn(zoomed_in_sample),
-            FadeIn(a_t),
-            FadeIn(b_t),
-            FadeIn(c_t),
-            FadeIn(x_t),
-        )
+        # self.play(
+        #     FadeIn(zoomed_in_sample),
+        #     FadeIn(a_t),
+        #     FadeIn(b_t),
+        #     FadeIn(c_t),
+        #     FadeIn(x_t),
+        # )
         self.wait()
-        self.play(Transform(output_img, paeth_filtered_mob))
+
+        # filter_row_3 = (
+        #     self.up_filter_row(random_data, 0, True).scale(0.4).move_to(output_img)
+        # )
+
+        filtered_data = random_data.copy()
+
+        surr_rect = SurroundingRectangle(input_img[0 : random_data.shape[1]])
+        self.play(Write(surr_rect))
+        for row in range(random_data.shape[0]):
+            if row % 2 == 0:
+                filtered_row = self.sub_filter_row(random_data, row, return_row=True)
+                filtered_data[row, :] = filtered_row
+                filter_sub = (
+                    PixelArray(filtered_data, include_numbers=True, color_mode="GRAY")
+                    .scale(0.4)
+                    .move_to(output_img)
+                )
+
+                next_row_slice = slice(
+                    row * random_data.shape[1],
+                    row * random_data.shape[1] + random_data.shape[1],
+                )
+                next_surr_rect = SurroundingRectangle(
+                    input_img[next_row_slice], buff=0, color=REDUCIBLE_YELLOW
+                )
+                self.play(
+                    Transform(output_img, filter_sub),
+                    Transform(surr_rect, next_surr_rect),
+                )
+                print(f"sub filtering row {row}")
+            else:
+                filtered_row = self.up_filter_row(random_data, row, return_row=True)
+                filtered_data[row, :] = filtered_row
+                filter_up = (
+                    PixelArray(filtered_data, include_numbers=True, color_mode="GRAY")
+                    .scale(0.4)
+                    .move_to(output_img)
+                )
+
+                next_row_slice = slice(
+                    row * random_data.shape[1],
+                    row * random_data.shape[1] + random_data.shape[1],
+                )
+                next_surr_rect = SurroundingRectangle(
+                    input_img[next_row_slice], buff=0, color=REDUCIBLE_YELLOW
+                )
+                self.play(
+                    Transform(output_img, filter_up),
+                    Transform(surr_rect, next_surr_rect),
+                )
+                print(f"up filtering row {row}")
+
+        # self.play(Transform(output_img, filter_row_3))
 
     #####################################################################
+
     # Functions
 
     def underline_filter_type(self, mob: VMobject):
@@ -908,69 +1141,69 @@ class Filtering(Scene):
             .scale(0.15)
         )
 
-    def sub_filter_img(self, input_array: ndarray):
+    def sub_filter_img(self, img: ndarray):
         """
         Compute the sub filter for the whole input array
         """
 
-        rows, cols = input_array.shape
-        output = np.zeros(input_array.shape, dtype=np.uint8)
+        rows, cols = img.shape
+        output = np.zeros(img.shape, dtype=np.int16)
 
-        for j in range(cols):
-            for i in range(1, rows):
-                output[j, i] = abs(input_array[j, i] - input_array[j, i - 1])
+        for j in range(rows):
+            for i in range(1, cols):
+                output[j, i] = int(img[j, i] - img[j, i - 1])
 
-        output[:, 0] = input_array[:, 0]
+        output[:, 0] = img[:, 0]
 
         return output
 
-    def up_filter_img(self, input_array: ndarray):
+    def up_filter_img(self, img: ndarray):
         """
         Compute the up filter for the whole input array
         """
 
-        rows, cols = input_array.shape
+        rows, cols = img.shape
 
-        output = np.zeros(input_array.shape, dtype=np.uint8)
+        output = np.zeros(img.shape, dtype=np.uint8)
 
-        for j in range(1, cols):
-            for i in range(rows):
-                output[j, i] = abs(input_array[j, i] - input_array[j - 1, i])
+        for j in range(1, rows):
+            for i in range(cols):
+                output[j, i] = abs(img[j, i] - img[j - 1, i])
 
-        output[0, :] = input_array[0, :]
+        output[0, :] = img[0, :]
         return output
 
-    def avg_filter_img(self, input_array: ndarray):
+    def avg_filter_img(self, img: ndarray):
         """
         Each byte is replaced with the difference between it and the average
         of the corresponding bytes to its left and above it, truncating any fractional part.
         """
 
-        rows, cols = input_array.shape
+        rows, cols = img.shape
 
-        padded_data = np.pad(input_array, (1, 0), constant_values=0, mode="constant")
+        padded_data = np.pad(img, (1, 0), constant_values=0, mode="constant")
         print(padded_data)
-        output = np.zeros(input_array.shape, dtype=np.uint8)
+        output = np.zeros(img.shape, dtype=np.uint8)
 
-        for j in range(1, cols + 1):
-            for i in range(1, rows + 1):
+        for j in range(1, rows + 1):
+            for i in range(1, cols + 1):
                 avg = (padded_data[j - 1, i] + padded_data[j, i - 1]) / 2
                 output[j - 1, i - 1] = floor(abs(padded_data[j, i] - avg))
 
         return output
 
-    def paeth_filter_img(self, input_array: ndarray):
+    def paeth_filter_img(self, img: ndarray):
         """
         Computes the paeth predictor for the whole input array
         """
 
-        rows, cols = input_array.shape
+        rows, cols = img.shape
 
-        output = np.zeros(input_array.shape, dtype=np.uint8)
-        padded_data = np.pad(input_array, (1, 0), constant_values=0, mode="constant")
+        output = np.zeros(img.shape, dtype=np.uint8)
+        padded_data = np.pad(img, (1, 0), constant_values=0, mode="constant")
 
-        for j in range(1, cols + 1):
-            for i in range(1, rows + 1):
+        for j in range(1, rows + 1):
+            for i in range(1, cols + 1):
                 a = padded_data[j - 1, i - 1]  # up-left
                 b = padded_data[j - 1, i]  # up
                 c = padded_data[j, i - 1]  # left
@@ -999,3 +1232,36 @@ class Filtering(Scene):
 
         print(output)
         return output
+
+    def sub_filter_row(self, img: ndarray, row=0, return_mob=False, return_row=False):
+        rows, cols = img.shape
+        output = img.copy()
+
+        for i in range(1, cols):
+            output[row, i] = img[row, i] - img[row, i - 1]
+
+        output[row, 0] = img[row, 0]
+
+        if return_mob:
+            return PixelArray(output, include_numbers=True, color_mode="GRAY")
+        elif return_row:
+            return output[row, :]
+        else:
+            return output
+
+    def up_filter_row(self, img: ndarray, row=0, return_mob=False, return_row=False):
+        rows, cols = img.shape
+        output = img.copy()
+
+        if row == 0:
+            pass
+        else:
+            for i in range(cols):
+                output[row, i] = img[row, i] - img[row - 1, i]
+
+        if return_mob:
+            return PixelArray(output, include_numbers=True, color_mode="GRAY")
+        elif return_row:
+            return output[row, :]
+        else:
+            return output

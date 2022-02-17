@@ -16,6 +16,7 @@ class Pixel(Square):
             self.set_stroke(BLACK, width=0.2)
         else:
             self.set_stroke(color, width=0.2)
+
         self.set_fill(color, opacity=1)
         self.color = color
 
@@ -37,22 +38,25 @@ class PixelArray(VGroup):
 
         self.shape = img.shape
 
-        pixels = []
+        self.pixels = VGroup()
+        self.numbers = VGroup()
         for row in img:
             for p in row:
                 if include_numbers:
-                    self.number = (
+                    number = (
                         Text(str(p), font="SF Mono", weight=MEDIUM)
                         .scale(0.7)
                         .set_color(g2h(1) if p < 180 else g2h(0))
                     )
-                    pixels.append(
-                        VGroup(Pixel(p, color_mode, outline=outline), self.number)
+
+                    self.numbers.add(number)
+                    self.pixels.add(
+                        VGroup(Pixel(p, color_mode, outline=outline), number)
                     )
                 else:
-                    pixels.append(Pixel(p, color_mode, outline=outline))
+                    self.pixels.add(Pixel(p, color_mode, outline=outline))
 
-        super().__init__(*pixels)
+        super().__init__(*self.pixels)
         self.arrange_in_grid(rows, cols, buff=buff)
 
         self.dict = {index: p for index, p in enumerate(self)}
