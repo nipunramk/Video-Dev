@@ -751,10 +751,16 @@ class QOIDemo(Scene):
 
 class Filtering(MovingCameraScene):
     def construct(self):
-        # self.intro_filtering()
-        # self.play(*[FadeOut(mob) for mob in self.mobjects])
+        self.intro_filtering()
+
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
+
         self.present_problem()
-        # self.five_filters_explanation()
+
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
+        self.play(Restore(self.camera.frame), run_time=3)
+
+        self.five_filters_explanation()
 
     def intro_filtering(self):
         title = Text("Lossless Compression", font="CMU Serif", weight=BOLD).to_edge(UP)
@@ -870,6 +876,8 @@ class Filtering(MovingCameraScene):
         self.play(FadeOut(question_1), FadeOut(question_2))
 
         row_to_focus_on = gradient_image[0:8]
+
+        self.camera.frame.save_state()
 
         self.play(
             self.camera.frame.animate.set_width(row_to_focus_on.width * 1.3)
