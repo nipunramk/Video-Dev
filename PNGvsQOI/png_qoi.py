@@ -758,7 +758,6 @@ class Filtering(MovingCameraScene):
         self.present_problem()
 
         self.play(*[FadeOut(mob) for mob in self.mobjects])
-        self.play(Restore(self.camera.frame), run_time=3)
 
         self.five_filters_explanation()
 
@@ -939,7 +938,131 @@ class Filtering(MovingCameraScene):
 
         diff_buff.numbers.set_color(WHITE).set_opacity(1).set_stroke(width=0)
 
-        self.play(LaggedStartMap(FadeIn, diff_buff))
+        self.play(LaggedStartMap(Write, diff_buff))
+
+        self.wait()
+
+        self.play(
+            self.camera.frame.animate.shift(UP * 1.3), FadeOut(arrows), FadeOut(diffs)
+        )
+
+        braces_comp_filtered_data = Brace(diff_buff[1:], direction=UP)
+        comp_filtered_data_text = (
+            Text("7x4", font="SF Mono")
+            .scale(0.5)
+            .next_to(braces_comp_filtered_data, UP, buff=0.1)
+        )
+
+        self.play(Write(braces_comp_filtered_data), Write(comp_filtered_data_text))
+        self.wait()
+
+        self.play(
+            FadeOut(braces_comp_filtered_data),
+            FadeOut(comp_filtered_data_text),
+            Restore(self.camera.frame),
+            FadeOut(diff_buff),
+        )
+        self.wait()
+
+        full_diff_buff = (
+            PixelArray(
+                np.array(
+                    [
+                        [0, 4, 4, 4, 4, 4, 4, 4],
+                        [32, 4, 4, 4, 4, 4, 4, 4],
+                        [64, 4, 4, 4, 4, 4, 4, 4],
+                        [96, 4, 4, 4, 4, 4, 4, 4],
+                        [128, 4, 4, 4, 4, 4, 4, 4],
+                        [160, 4, 4, 4, 4, 4, 4, 4],
+                        [192, 4, 4, 4, 4, 4, 4, 4],
+                        [224, 4, 4, 4, 4, 4, 4, 4],
+                    ]
+                ),
+                color_mode="GRAY",
+                include_numbers=True,
+            )
+            .scale_to_fit_width(gradient_image.width)
+            .next_to(gradient_image, RIGHT, buff=1.3)
+        )
+
+        [
+            p.set_color(REDUCIBLE_PURPLE)
+            .set_opacity(0.5)
+            .set_stroke(REDUCIBLE_PURPLE, width=3, opacity=1)
+            for p in full_diff_buff
+        ]
+
+        full_diff_buff.numbers.set_color(WHITE).set_opacity(1).set_stroke(width=0)
+
+        self.play(Write(full_diff_buff))
+
+        self.wait()
+
+        self.play(FadeOut(gradient_image), FadeOut(full_diff_buff))
+
+        self.wait()
+
+        # number line
+        zero = (
+            Text(
+                "0",
+                font="SF Mono",
+            )
+            .scale(2)
+            .move_to(ORIGIN)
+        )
+
+        number_line_left = (
+            VGroup(*[Text(str(n), font="SF Mono") for n in range(-3, 0)])
+            .arrange(RIGHT, buff=1.5)
+            .next_to(zero, LEFT, buff=2)
+        )
+
+        number_line_right = (
+            VGroup(*[Text(str(n), font="SF Mono") for n in range(1, 4)])
+            .arrange(RIGHT, buff=1.5)
+            .next_to(zero, RIGHT, buff=2)
+        )
+
+        def gaussian(x, mu=0, sig=1, scale=4, height=5):
+            return (
+                np.exp(-np.power(x - mu, 2.0) / (2 * np.power(sig, 2.0))) * scale
+                + height
+            )
+
+        axes = Axes([-5, 5, 0.1], x_length=16).shift(DOWN * 5)
+        graph = (
+            axes.plot(gaussian, [-5.0, 5.0, 0.1])
+            .set_color(REDUCIBLE_PURPLE)
+            .set_stroke(width=10)
+            # .set_fill(REDUCIBLE_PURPLE)
+            # .set_opacity(0.5)
+        )
+        area = axes.get_area(
+            graph,
+            [-5, 5],
+            color=color_gradient(
+                (
+                    rgba_to_color((0, 0, 0, 0)),
+                    REDUCIBLE_PURPLE,
+                    rgba_to_color((0, 0, 0, 0)),
+                ),
+                10,
+            ),
+            opacity=0.5,
+        )
+
+        self.wait()
+
+        self.play(
+            Write(graph),
+            Write(area),
+            Write(number_line_left),
+            Write(zero),
+            Write(number_line_right),
+        )
+
+        self.wait()
 
     def five_filters_explanation(self):
         # intro for the name of the filters
