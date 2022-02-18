@@ -753,11 +753,13 @@ class Filtering(MovingCameraScene):
     def construct(self):
         self.intro_filtering()
 
-        self.play(*[FadeOut(mob) for mob in self.mobjects])
+        self.clear()
+        self.wait()
 
         self.present_problem()
 
-        self.play(*[FadeOut(mob) for mob in self.mobjects])
+        self.clear()
+        self.wait()
 
         self.five_filters_explanation()
 
