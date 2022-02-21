@@ -751,15 +751,15 @@ class QOIDemo(Scene):
 
 class Filtering(MovingCameraScene):
     def construct(self):
-        self.intro_filtering()
+        # self.intro_filtering()
 
-        self.clear()
-        self.wait()
+        # self.clear()
+        # self.wait()
 
-        self.present_problem()
+        # self.present_problem()
 
-        self.clear()
-        self.wait()
+        # self.clear()
+        # self.wait()
 
         self.five_filters_explanation()
 
@@ -1124,7 +1124,10 @@ class Filtering(MovingCameraScene):
             Write(output_img_t),
         )
 
-        line_none = self.underline_filter_type(filter_types_v[0])
+        self.play(
+            filter_types[0].animate.scale(1.2),
+            filter_types[1:].animate.set_opacity(0.3),
+        )
         self.wait()
 
         zoomed_in_sample = (
@@ -1209,8 +1212,52 @@ class Filtering(MovingCameraScene):
 
         surr_rect = SurroundingRectangle(input_img[0 : random_data.shape[1]])
         self.play(Write(surr_rect))
+
+        none_tag = (
+            Text("NONE", font="SF Mono", weight=BOLD)
+            .scale(0.2)
+            .set_color(REDUCIBLE_YELLOW)
+        )
+        sub_tag = (
+            Text("SUB", font="SF Mono", weight=BOLD)
+            .scale(0.2)
+            .set_color(REDUCIBLE_YELLOW)
+        )
+        up_tag = (
+            Text("UP", font="SF Mono", weight=BOLD)
+            .scale(0.2)
+            .set_color(REDUCIBLE_YELLOW)
+        )
+        avg_tag = (
+            Text("AVG", font="SF Mono", weight=BOLD)
+            .scale(0.2)
+            .set_color(REDUCIBLE_YELLOW)
+        )
+        paeth_tag = (
+            Text("PAETH", font="SF Mono", weight=BOLD)
+            .scale(0.2)
+            .set_color(REDUCIBLE_YELLOW)
+        )
+
         for row in range(random_data.shape[0]):
-            if row % 2 == 0:
+            next_row_slice = slice(
+                row * random_data.shape[1],
+                row * random_data.shape[1] + random_data.shape[1],
+            )
+
+            print(next_row_slice)
+
+            next_surr_rect = SurroundingRectangle(
+                input_img[next_row_slice], buff=0, color=REDUCIBLE_YELLOW
+            )
+            if row == 0:
+                self.play(
+                    Transform(surr_rect, next_surr_rect),
+                    FadeIn(
+                        none_tag.copy().next_to(output_img[next_row_slice], RIGHT, buff=0.3)
+                    ),
+                )
+            elif row == 1:
                 filtered_row = self.sub_filter_row(random_data, row, return_row=True)
                 filtered_data[row, :] = filtered_row
                 filter_sub = (
@@ -1219,41 +1266,64 @@ class Filtering(MovingCameraScene):
                     .move_to(output_img)
                 )
 
-                next_row_slice = slice(
-                    row * random_data.shape[1],
-                    row * random_data.shape[1] + random_data.shape[1],
-                )
-                next_surr_rect = SurroundingRectangle(
-                    input_img[next_row_slice], buff=0, color=REDUCIBLE_YELLOW
-                )
                 self.play(
                     Transform(output_img, filter_sub),
                     Transform(surr_rect, next_surr_rect),
+                    FadeIn(
+                        sub_tag.copy().next_to(output_img[next_row_slice], RIGHT, buff=0.3)
+                    ),
                 )
-                print(f"sub filtering row {row}")
-            else:
-                filtered_row = self.up_filter_row(random_data, row, return_row=True)
+
+            elif row % 4 == 0:
+                filtered_row = self.paeth_filter_row(random_data, row, return_row=True)
                 filtered_data[row, :] = filtered_row
-                filter_up = (
+                filter_sub = (
                     PixelArray(filtered_data, include_numbers=True, color_mode="GRAY")
                     .scale(0.4)
                     .move_to(output_img)
                 )
 
-                next_row_slice = slice(
-                    row * random_data.shape[1],
-                    row * random_data.shape[1] + random_data.shape[1],
-                )
-                next_surr_rect = SurroundingRectangle(
-                    input_img[next_row_slice], buff=0, color=REDUCIBLE_YELLOW
-                )
                 self.play(
-                    Transform(output_img, filter_up),
+                    Transform(output_img, filter_sub),
                     Transform(surr_rect, next_surr_rect),
+                    FadeIn(
+                        paeth_tag.copy().next_to(output_img[next_row_slice], RIGHT, buff=0.3)
+                    ),
                 )
-                print(f"up filtering row {row}")
 
-        # self.play(Transform(output_img, filter_row_3))
+            elif row % 2 == 0:
+                filtered_row = self.up_filter_row(random_data, row, return_row=True)
+                filtered_data[row, :] = filtered_row
+                filter_sub = (
+                    PixelArray(filtered_data, include_numbers=True, color_mode="GRAY")
+                    .scale(0.4)
+                    .move_to(output_img)
+                )
+
+                self.play(
+                    Transform(output_img, filter_sub),
+                    Transform(surr_rect, next_surr_rect),
+                    FadeIn(up_tag.copy().next_to(output_img[next_row_slice], RIGHT, buff=0.3)),
+                )
+
+            else:
+                filtered_row = self.avg_filter_row(random_data, row, return_row=True)
+                filtered_data[row, :] = filtered_row
+                filter_sub = (
+                    PixelArray(filtered_data, include_numbers=True, color_mode="GRAY")
+                    .scale(0.4)
+                    .move_to(output_img)
+                )
+
+                self.play(
+                    Transform(output_img, filter_sub),
+                    Transform(surr_rect, next_surr_rect),
+                    FadeIn(
+                        avg_tag.copy().next_to(output_img[next_row_slice], RIGHT, buff=0.3)
+                    ),
+                )
+
+
 
     #####################################################################
 
@@ -1315,7 +1385,6 @@ class Filtering(MovingCameraScene):
         rows, cols = img.shape
 
         padded_data = np.pad(img, (1, 0), constant_values=0, mode="constant")
-        print(padded_data)
         output = np.zeros(img.shape, dtype=np.uint8)
 
         for j in range(1, rows + 1):
@@ -1391,6 +1460,54 @@ class Filtering(MovingCameraScene):
         else:
             for i in range(cols):
                 output[row, i] = img[row, i] - img[row - 1, i]
+
+        if return_mob:
+            return PixelArray(output, include_numbers=True, color_mode="GRAY")
+        elif return_row:
+            return output[row, :]
+        else:
+            return output
+
+    def avg_filter_row(self, img: ndarray, row=0, return_mob=False, return_row=False):
+        rows, cols = img.shape
+        output = img.copy()
+
+        padded_data = np.pad(img, (1, 0), constant_values=0, mode="constant")
+        output = np.zeros(img.shape, dtype=np.uint8)
+
+        for i in range(1, cols + 1):
+            avg = (padded_data[row - 1, i] + padded_data[row, i - 1]) / 2
+            output[row, i - 1] = floor(abs(padded_data[row, i] - avg))
+
+        if return_mob:
+            return PixelArray(output, include_numbers=True, color_mode="GRAY")
+        elif return_row:
+            return output[row, :]
+        else:
+            return output
+
+    def paeth_filter_row(self, img: ndarray, row=0, return_mob=False, return_row=False):
+        rows, cols = img.shape
+        output = img.copy()
+
+        padded_data = np.pad(img, (1, 0), constant_values=0, mode="constant")
+        output = np.zeros(img.shape, dtype=np.uint8)
+
+        for i in range(1, cols + 1):
+            a = padded_data[row - 1, i - 1]  # up-left
+            b = padded_data[row - 1, i]  # up
+            c = padded_data[row, i - 1]  # left
+
+            base_value = b + c - a
+
+            paeth_dict = {
+                abs(base_value - c): c,
+                abs(base_value - b): b,
+                abs(base_value - a): a,
+            }
+            winner = paeth_dict[min(paeth_dict.keys())]
+
+            output[row, i - 1] = abs(padded_data[row, i] - winner)
 
         if return_mob:
             return PixelArray(output, include_numbers=True, color_mode="GRAY")
