@@ -25,11 +25,11 @@ class QOIDemo(Scene):
 		In demo, make functional example of a full encoding with list, show the entire bitsteam (can shift info out of the window)
 		
 		TODO: Tuesday
-		show_encode_run
-		show_encode_diff_small
-		show_encode_diff_med
-		show_encode_index
-		show_encode_rgb
+		show_encode_run - DONE
+		show_encode_diff_small - DONE
+		show_encode_diff_med - DONE
+		show_encode_index - make rectangles in index smaller
+		show_encode_rgb - DONE
 		
 		TODO: Wednesday
 		Further complexities we need to deal with to make full animation of QOI
@@ -51,7 +51,77 @@ class QOIDemo(Scene):
 		TODO: Thursday
 		Make fully functioning QOI animation
 		"""
-		self.show_image()
+		new_pixel_array, pixel_array_mob = self.show_image()
+		flattened_pixels = self.show_rgb_split(new_pixel_array, pixel_array_mob)
+		self.introduce_qoi_tags(flattened_pixels)
+		qoi_data = self.get_qoi_encoding(new_pixel_array)
+
+		self.animate_encoding_of_qoi(flattened_pixels, qoi_data)
+		all_qoi_byte_mobs = self.get_all_qoi_data(qoi_data)
+		
+		self.play(
+			flattened_pixels.animate.scale_to_fit_width(config.frame_x_radius * 2 - 1).move_to(UP * 3),
+			run_time=3
+		)
+		arranged_bytes = self.arrange_bytes(all_qoi_byte_mobs)
+		arranged_bytes.next_to(flattened_pixels, DOWN)
+		self.play(
+			FadeIn(arranged_bytes)
+		)
+		self.wait()
+
+		print('Total number of bytes in QOI bitstream:', self.get_total_number_of_bytes(qoi_data))
+		print('Total number of bytes in RGB image', 64 * 3)
+		print('Compression ratio:', self.get_total_number_of_bytes(qoi_data) / (64 * 3))
+
+	def get_total_number_of_bytes(self, encoded_data):
+		total = 0
+		for data in encoded_data:
+			tag = data[0]
+			if tag == QOI_RUN or tag == QOI_DIFF_SMALL or tag == QOI_INDEX:
+				total += 1
+			elif tag == QOI_DIFF_SMALL:
+				total += 2
+			else:
+				tag += 4
+		return total
+
+	def arrange_bytes(self, all_qoi_byte_mobs):
+		rows = []
+		length = 0
+		row = []
+		for byte in all_qoi_byte_mobs:
+			row.append(byte)
+			print('Byte width', byte.width)
+			length += byte.width
+			if length > 11:
+				print('Row size', len(row))
+				rows.append(VGroup(*row).arrange(RIGHT, buff=0))
+				length = 0
+				row = []
+		if len(row) > 0:
+			rows.append(VGroup(*row).arrange(RIGHT, buff=0))
+		entire_group = VGroup(*rows).arrange(DOWN, buff=SMALL_BUFF)
+		entire_group[-1].next_to(entire_group[-2], DOWN, aligned_edge=LEFT, buff=SMALL_BUFF)
+		return entire_group
+
+	def get_all_qoi_data(self, encoded_data):
+		byte_mobs = []
+		for data in encoded_data:
+			if data[0] == QOI_RUN:
+				run_length = data[1]
+				byte_mobs.append(self.get_run_bytes_with_data(run_length))
+			elif data[0] == QOI_RGB:
+				r, g, b = data[1], data[2], data[3]
+				byte_mobs.append(self.get_rgb_bytes_with_data(r, g, b))
+			elif data[0] == QOI_DIFF_SMALL:
+				byte_mobs.append(self.get_small_diff_bytes_with_data(data[1], data[2], data[3]))
+			elif data[0] == QOI_DIFF_MED:
+				byte_mobs.append(self.get_large_diff_bytes_with_data(data[1], data[2], data[3]))
+			else:
+				# QOI_INDEX
+				byte_mobs.append(self.get_index_bytes_with_data(data[1]))
+		return VGroup(*byte_mobs).arrange(RIGHT, buff=0).scale(0.4)
 
 	def show_image(self):
 		image = ImageMobject("r.png")
@@ -62,10 +132,18 @@ class QOIDemo(Scene):
 		)
 		self.wait()
 
-		flattened_pixels = self.show_rgb_split(pixel_array, pixel_array_mob)
-		self.introduce_qoi_tags(flattened_pixels)
-		qoi_data = self.get_qoi_encoding(pixel_array)
-		print('QOI_ENCODING:\n', qoi_data)
+		new_pixel_array = pixel_array.copy()
+		new_pixel_array[1][4] = np.array([new_pixel_array[1][4][0] - 2, new_pixel_array[1][4][1] + 1, new_pixel_array[1][4][2] + 0, new_pixel_array[1][4][3]])
+		new_pixel_array[7][0] = np.array([new_pixel_array[6][7][0] + 2, new_pixel_array[6][7][1] - 5, new_pixel_array[6][7][2] - 1, new_pixel_array[6][7][3]])
+		new_pixel_array_mob = PixelArray(new_pixel_array).scale(0.4).shift(UP * 2)
+
+		self.play(
+			Transform(pixel_array_mob, new_pixel_array_mob)
+		)
+		self.wait()
+
+		return new_pixel_array, pixel_array_mob
+		
 
 	def get_qoi_encoding(self, pixel_array):
 		"""
@@ -131,11 +209,150 @@ class QOIDemo(Scene):
 
 				prev_rgb = current_rgb
 		
-		print('INDEX:\n', indices)
 		return encodings
 
-	def animate_encoding_of_qoi(pixel_array):
-		pass
+	def animate_encoding_of_qoi(self, flattened_pixels, encoded_data):
+		"""
+		Requirements:
+		RGB Encoding: 
+		1. Just get the RGB data simply and display
+		RUN Encoding
+		1. Just get the Run data and display
+		2. Need to handle properly transitioning from run (update_prev_and_current for run)
+		DIFF encodings
+		1. Just get the diff data and display
+		Index encodings
+		1. Need to store position of previously seen pixel in rgb_pixels_array
+		2. Handling Unindication of index pixel properly
+
+		General needs:
+		Fade Encoded bytes toward left direction
+		Handle bringing pixels to screen when out of bounds
+		Do a final zoom out of the entire encoding and show savings
+		"""
+		r_channel, g_channel, b_channel = flattened_pixels
+		rgb_pixels = self.get_rgb_pixels(r_channel, g_channel, b_channel)
+
+		# iteration 0
+		transforms = self.get_indication_transforms([0], rgb_pixels)
+		
+		self.play(
+			*transforms
+		)
+		self.wait()
+
+		fadeout = self.show_encode_rgb_simple(0, rgb_pixels)
+
+		# iteration 0 -> 1
+		update_animations = self.update_prev_and_current(-1, 0, rgb_pixels)
+		self.play(
+			*update_animations + fadeout
+		)
+		self.wait()
+
+		prev_transforms = self.get_indication_transforms([0], rgb_pixels, shift=SMALL_BUFF, direction=np.array([-2.5, 1, 0]), color=REDUCIBLE_VIOLET)
+		self.play(
+			*prev_transforms
+		)
+		self.wait()
+		prev_index = 0
+		current_index = 1
+		counter = 0
+		print(encoded_data)
+		index_map = {}
+		self.update_index(prev_index, rgb_pixels, index_map)
+		for data in encoded_data[1:]:
+			return_val = self.bring_pixel_to_screen(current_index, flattened_pixels, target_x_pos=-2.5, animate=False, BUFF=1.5)
+			if return_val:
+				animations, shift_amount = return_val
+				self.play(
+					rgb_pixels[current_index].surrounded.animate.shift(shift_amount),
+					rgb_pixels[prev_index].surrounded.animate.shift(shift_amount),
+					*animations
+				)
+				# self.wait()
+			print(data, 'Curr:', current_index, 'Prev:', prev_index)
+			if data[0] == QOI_RUN:
+				run_length = data[1]
+				fadeout = self.show_encode_run_simple(current_index, run_length, rgb_pixels)
+				update_animations = self.update_prev_and_current_after_run(prev_index, current_index, run_length, rgb_pixels)
+				self.play(
+					*update_animations + fadeout
+				)
+				self.bring_to_back(rgb_pixels[prev_index].r)
+				self.bring_to_back(rgb_pixels[prev_index].g)
+				self.bring_to_back(rgb_pixels[prev_index].b)
+				self.wait()
+
+				current_index += run_length
+				prev_index = current_index - 1
+			elif data[0] == QOI_RGB:
+				fadeout = self.show_encode_rgb_simple(current_index, rgb_pixels)
+				update_animations = self.update_prev_and_current(prev_index, current_index, rgb_pixels)
+				self.play(
+					*update_animations + fadeout
+				)
+				self.bring_to_back(rgb_pixels[prev_index].r)
+				self.bring_to_back(rgb_pixels[prev_index].g)
+				self.bring_to_back(rgb_pixels[prev_index].b)
+				self.wait()
+				current_index += 1
+				prev_index += 1
+			elif data[0] == QOI_DIFF_SMALL:
+				fadeout = self.show_encode_diff_small_simple(current_index, rgb_pixels)
+				update_animations = self.update_prev_and_current(prev_index, current_index, rgb_pixels)
+				self.play(
+					*update_animations + fadeout
+				)
+				self.bring_to_back(rgb_pixels[prev_index].r)
+				self.bring_to_back(rgb_pixels[prev_index].g)
+				self.bring_to_back(rgb_pixels[prev_index].b)
+				self.wait()
+				current_index += 1
+				prev_index += 1
+			elif data[0] == QOI_DIFF_MED:
+				fadeout = self.show_encode_diff_med_simple(current_index, rgb_pixels)
+				update_animations = self.update_prev_and_current(prev_index, current_index, rgb_pixels)
+				self.play(
+					*update_animations + fadeout
+				)
+				self.bring_to_back(rgb_pixels[prev_index].r)
+				self.bring_to_back(rgb_pixels[prev_index].g)
+				self.bring_to_back(rgb_pixels[prev_index].b)
+				self.wait()
+				current_index += 1
+				prev_index += 1
+			else:
+				# QOI_INDEX
+				index = data[1]
+				fadeout = self.show_encoding_index_simple(current_index, index, index_map, rgb_pixels)
+				update_animations = self.update_prev_and_current(prev_index, current_index, rgb_pixels)
+				self.bring_to_back(rgb_pixels[prev_index - 1].r)
+				self.bring_to_back(rgb_pixels[prev_index - 1].g)
+				self.bring_to_back(rgb_pixels[prev_index - 1].b)
+				self.play(
+					*update_animations + fadeout
+				)
+				self.bring_to_back(rgb_pixels[prev_index].r)
+				self.bring_to_back(rgb_pixels[prev_index].g)
+				self.bring_to_back(rgb_pixels[prev_index].b)
+				if current_index != 63:
+					self.wait()
+				current_index += 1
+				prev_index += 1
+
+			self.update_index(prev_index, rgb_pixels, index_map)
+			counter += 1
+
+		reset_transforms = self.reset_indications(rgb_pixels)
+		self.play(
+			*reset_transforms
+		)
+		self.wait()
+
+	def update_index(self, current_index, rgb_pixels, index_map):
+		r, g, b = self.get_rgb_pixel_values(rgb_pixels[current_index])
+		index_map[(r, g, b)] = current_index
 
 	def introduce_qoi_tags(self, flattened_pixels):
 		r_channel, g_channel, b_channel = flattened_pixels
@@ -155,37 +372,36 @@ class QOIDemo(Scene):
 		)
 		self.wait()
 
+		previous = Tex("Previous").scale(0.8).next_to(r_channel[0][0, 0], UP).shift(UP * 1)
+		prev_arrow = Arrow(previous.get_bottom(), r_channel[0][0, 0].get_top(), buff=MED_SMALL_BUFF, max_tip_length_to_length_ratio=0.25)
+		prev_arrow.set_color(REDUCIBLE_VIOLET)
+		
+		curr = Tex("Current").scale(0.8).next_to(b_channel[0][0, 1], DOWN).shift(DOWN * 1)
+		curr_arrow = Arrow(curr.get_top(),b_channel[0][0, 1].get_bottom(), buff=MED_SMALL_BUFF, max_tip_length_to_length_ratio=0.25)
+		curr_arrow.set_color(REDUCIBLE_YELLOW)
 
-		update_animations = self.update_prev_and_current(0, 1, rgb_pixels)
 		self.play(
-			*update_animations
+			Write(previous),
+			Write(prev_arrow),
+			Write(curr),
+			Write(curr_arrow)
 		)
 		self.wait()
 
-
-		transforms = self.get_indication_transforms([3], rgb_pixels, extend=True)
 		self.play(
-			*transforms,
+			FadeOut(previous),
+			FadeOut(prev_arrow),
+			FadeOut(curr),
+			FadeOut(curr_arrow)
 		)
 		self.wait()
 
-		transforms = self.get_indication_transforms([4], rgb_pixels, extend=True)
-		self.play(
-			*transforms,
-		)
-		self.wait()
-
-		transforms = self.get_indication_transforms([5], rgb_pixels, extend=True)
-		self.play(
-			*transforms,
-		)
-		self.wait()
-
-		# transforms = self.get_indication_transforms([6], rgb_pixels, extend=True)
-		# self.play(
-		# 	*transforms,
-		# )
-		# self.wait()
+		for i in range(3):
+			update_animations = self.update_prev_and_current(i, i + 1, rgb_pixels)
+			self.play(
+				*update_animations
+			)
+			self.wait()
 
 		reset_transforms = self.reset_indications(rgb_pixels)
 		self.play(
@@ -193,25 +409,492 @@ class QOIDemo(Scene):
 		)
 		self.wait()
 
-		# transforms = self.get_indication_transforms([54], rgb_pixels, extend=True)
-		# self.play(
-		# 	*transforms,
-		# )
-		# self.wait()
-
-		# transforms = self.get_indication_transforms([55], rgb_pixels, extend=True)
-		# self.play(
-		# 	*transforms,
-		# )
-		# self.wait()
-
-		# transforms = self.get_indication_transforms([49], rgb_pixels, shift=SMALL_BUFF, direction=np.array([-2.5, 1, 0]), color=REDUCIBLE_VIOLET)
-		# self.play(
-		# 	*transforms,
-		# )
-		# self.wait()
-
+		transforms = self.get_indication_transforms([2], rgb_pixels)
 		
+		prev_transforms = self.get_indication_transforms([1], rgb_pixels, shift=SMALL_BUFF, direction=np.array([-2.5, 1, 0]), color=REDUCIBLE_VIOLET)
+
+		self.play(
+			*transforms
+		)
+
+		self.play(
+			*prev_transforms
+		)
+		self.wait()
+
+		fadeout = self.show_encode_run(2, 4, rgb_pixels)
+
+		reset_transforms = self.reset_indications(rgb_pixels)
+		self.play(
+			*reset_transforms + fadeout
+		)
+		self.wait()
+
+		transforms = self.get_indication_transforms([12], rgb_pixels)
+		
+		prev_transforms = self.get_indication_transforms([11], rgb_pixels, shift=SMALL_BUFF, direction=np.array([-2.5, 1, 0]), color=REDUCIBLE_VIOLET)
+
+		self.play(
+			*transforms
+		)
+
+		self.play(
+			*prev_transforms
+		)
+		self.wait()
+
+		fadeout = self.show_encode_diff_small(12, rgb_pixels, detail=True)
+		reset_transforms = self.reset_indications(rgb_pixels)
+		self.play(
+			*reset_transforms + fadeout
+		)
+		self.wait()
+
+
+		self.bring_pixel_to_screen(56, flattened_pixels)
+
+		transforms = self.get_indication_transforms([56], rgb_pixels)
+		
+		prev_transforms = self.get_indication_transforms([55], rgb_pixels, shift=SMALL_BUFF, direction=np.array([-2.5, 1, 0]), color=REDUCIBLE_VIOLET)
+
+		self.play(
+			*transforms
+		)
+
+		self.play(
+			*prev_transforms
+		)
+		self.wait()
+
+		fadeout = self.show_encode_diff_med(56, rgb_pixels, detail=True)
+
+		reset_transforms = self.reset_indications(rgb_pixels)
+		self.play(
+			*reset_transforms + fadeout
+		)
+		self.wait()
+
+		self.bring_pixel_to_screen(8, flattened_pixels)
+
+		fadeout = self.show_encoding_index(8, 0, rgb_pixels, detail=True)
+
+		reset_transforms = self.reset_indications(rgb_pixels)
+
+		self.play(
+			*reset_transforms + fadeout
+		)
+		self.wait()
+		
+		transforms = self.get_indication_transforms([6], rgb_pixels)
+		
+		prev_transforms = self.get_indication_transforms([5], rgb_pixels, shift=SMALL_BUFF, direction=np.array([-2.5, 1, 0]), color=REDUCIBLE_VIOLET)
+
+		self.play(
+			*transforms
+		)
+
+		self.play(
+			*prev_transforms
+		)
+		self.wait()
+
+		self
+
+		fadeout = self.show_encode_rgb(6, rgb_pixels)
+
+		reset_transforms = self.reset_indications(rgb_pixels)
+		self.play(
+			*reset_transforms + fadeout
+		)
+		self.wait()
+
+	def show_encode_run(self, current_index, run_length, rgb_pixels):
+		qoi_run_bytes = self.get_run_bytes().move_to(DOWN * 2.5)
+		self.play(
+			FadeIn(qoi_run_bytes)
+		)
+		self.wait()
+
+		for curr_index in range(current_index + 1, current_index + run_length):
+			transforms = self.get_indication_transforms([curr_index], rgb_pixels, extend=True)
+			self.play(
+				*transforms
+			)
+			self.wait()
+
+		target_surround = get_glowing_surround_rect(qoi_run_bytes[2].text, buff_min=SMALL_BUFF, buff_max=SMALL_BUFF+0.15).move_to(qoi_run_bytes[2].get_center())
+		self.play(
+			TransformFromCopy(rgb_pixels[current_index].surrounded, target_surround),
+		)
+		self.wait()
+		new_run_text = Text(str(run_length), font='SF Mono', weight=MEDIUM).scale_to_fit_height(qoi_run_bytes[2].text.height).move_to(qoi_run_bytes[2].text.get_center())
+		new_run_text.set_color(REDUCIBLE_YELLOW)
+		dot = Dot().move_to(target_surround.get_center())
+		self.play(
+			Flash(dot),
+			FadeOut(target_surround),
+			Transform(qoi_run_bytes[2].text, new_run_text)
+		)
+		self.wait()
+
+		return [FadeOut(qoi_run_bytes)]
+
+	def show_encode_run_simple(self, current_index, run_length, rgb_pixels, wait_time=1):
+		qoi_run_bytes = self.get_run_bytes_with_data(run_length).move_to(DOWN * 2.5)
+		for curr_index in range(current_index + 1, current_index + run_length):
+			transforms = self.get_indication_transforms([curr_index], rgb_pixels, extend=True)
+			self.play(
+				*transforms
+			)
+			self.wait(wait_time)
+
+		self.play(
+			FadeIn(qoi_run_bytes)
+		)
+		self.wait()
+		return [FadeOut(qoi_run_bytes, shift=LEFT)]
+
+	def show_encode_diff_small(self, current_index, rgb_pixels, detail=False):
+		qoi_diff_bytes = self.get_small_diff_bytes().move_to(DOWN * 2.5)
+		self.play(
+			FadeIn(qoi_diff_bytes)
+		)
+		self.wait()
+
+		curr_r, curr_g, curr_b = self.get_rgb_pixel_values(rgb_pixels[current_index])
+		prev_r, prev_g, prev_b = self.get_rgb_pixel_values(rgb_pixels[current_index - 1])
+
+		dr, dg, db = curr_r - prev_r, curr_g - prev_g, curr_b - prev_b
+
+		dr_text = Text(f"dr = {curr_r} - {prev_r}", font='SF Mono', weight=MEDIUM).scale(0.4)
+		dg_text = Text(f"dg = {curr_g} - {prev_g}", font='SF Mono', weight=MEDIUM).scale(0.4)
+		db_text = Text(f"db = {curr_b} - {prev_b}", font='SF Mono', weight=MEDIUM).scale(0.4)
+
+		text = align_text_vertically(dr_text, dg_text, db_text, aligned_edge=LEFT)
+
+		text.next_to(qoi_diff_bytes, RIGHT, buff=0.5)
+
+		if detail:
+			self.play(
+				FadeIn(text)
+			)
+			self.wait()
+
+		dr_val = get_matching_text(str(int(dr)), qoi_diff_bytes[2].text)
+		dg_val = get_matching_text(str(int(dg)), qoi_diff_bytes[3].text)
+		db_val = get_matching_text(str(int(db)), qoi_diff_bytes[4].text)
+		# something is off with scaling function so perform slight correction
+		dg_val.scale(0.8)
+		self.play(
+			Transform(qoi_diff_bytes[2].text, dr_val),
+			Transform(qoi_diff_bytes[3].text, dg_val),
+			Transform(qoi_diff_bytes[4].text, db_val)
+		)
+		self.wait()
+		fadeouts = []
+		if detail:
+			fadeouts.append(FadeOut(text))
+
+		fadeouts.append(FadeOut(qoi_diff_bytes))
+		return fadeouts
+
+	def show_encode_diff_small_simple(self, current_index, rgb_pixels):
+		curr_r, curr_g, curr_b = self.get_rgb_pixel_values(rgb_pixels[current_index])
+		prev_r, prev_g, prev_b = self.get_rgb_pixel_values(rgb_pixels[current_index - 1])
+
+		dr, dg, db = curr_r - prev_r, curr_g - prev_g, curr_b - prev_b
+		qoi_diff_bytes = self.get_small_diff_bytes_with_data(dr, dg, db).move_to(DOWN * 2.5)
+		self.play(
+			FadeIn(qoi_diff_bytes)
+		)
+		self.wait()
+
+		return [FadeOut(qoi_diff_bytes, direction=LEFT)]
+
+	def show_encode_diff_med(self, current_index, rgb_pixels, detail=False):
+		qoi_diff_med_bytes = self.get_large_diff_bytes().move_to(DOWN * 2.5)
+		self.play(
+			FadeIn(qoi_diff_med_bytes)
+		)
+		self.wait()
+
+		curr_r, curr_g, curr_b = self.get_rgb_pixel_values(rgb_pixels[current_index])
+		prev_r, prev_g, prev_b = self.get_rgb_pixel_values(rgb_pixels[current_index - 1])
+
+		dr, dg, db = curr_r - prev_r, curr_g - prev_g, curr_b - prev_b
+		dr_dg, db_dg = dr - dg, db - dg
+		dg_text = Text(f"dg = {curr_g} - {prev_g}", font='SF Mono', weight=MEDIUM).scale(0.4)
+		dr_dg_text = Text(f"dr - dg = ({curr_r} - {prev_r}) - ({curr_g} - {prev_g})", font='SF Mono', weight=MEDIUM).scale(0.4)
+		db_dg_text = Text(f"db = ({curr_b} - {prev_b}) - ({curr_g} - {prev_g})", font='SF Mono', weight=MEDIUM).scale(0.4)
+
+		text = align_text_vertically(dg_text, dr_dg_text, db_dg_text, aligned_edge=LEFT)
+
+		text.next_to(qoi_diff_med_bytes, RIGHT, buff=0.5)
+
+		if detail:
+			shift_left = LEFT * 3
+			text.shift(shift_left)
+			self.play(
+				qoi_diff_med_bytes.animate.shift(shift_left),
+			)
+			self.play(
+				FadeIn(text)
+			)
+			self.wait()
+
+		dg_val = get_matching_text(str(int(dg)), qoi_diff_med_bytes[3].text)
+		dr_dg_val = get_matching_text(str(int(dr_dg)), qoi_diff_med_bytes[4].text)
+		db_dg_val = get_matching_text(str(int(db_dg)), qoi_diff_med_bytes[5].text)
+		# something is off with scaling function so perform slight correction
+		# dg_val.scale(0.8)
+		self.play(
+			Transform(qoi_diff_med_bytes[3].text, dg_val),
+			Transform(qoi_diff_med_bytes[4].text, dr_dg_val),
+			Transform(qoi_diff_med_bytes[5].text, db_dg_val)
+		)
+		self.wait()
+		fadeouts = []
+		if detail:
+			fadeouts.append(FadeOut(text))
+
+		fadeouts.append(FadeOut(qoi_diff_med_bytes))
+		return fadeouts
+
+	def show_encode_diff_med_simple(self, current_index, rgb_pixels):
+		curr_r, curr_g, curr_b = self.get_rgb_pixel_values(rgb_pixels[current_index])
+		prev_r, prev_g, prev_b = self.get_rgb_pixel_values(rgb_pixels[current_index - 1])
+
+		dr, dg, db = curr_r - prev_r, curr_g - prev_g, curr_b - prev_b
+		dr_dg, db_dg = dr - dg, db - dg
+
+		qoi_diff_bytes = self.get_large_diff_bytes_with_data(dg, dr_dg, db_dg).move_to(DOWN * 2.5)
+		self.play(
+			FadeIn(qoi_diff_bytes)
+		)
+		self.wait()
+
+		return [FadeOut(qoi_diff_bytes, direction=LEFT)]
+
+	def show_encoding_index(self, current_index, index, rgb_pixels, detail=False):
+		if detail:
+			SIZE = 16
+			actual_index = [0] * SIZE
+			index_mob = self.get_index(SIZE, 0.4, 12)
+			index_mob.move_to(UP * 3.2)
+			seen = set()
+			self.play(
+				FadeIn(index_mob)
+			)
+			self.wait()
+			for i in range(current_index + 1):
+				arrow_end = rgb_pixels[i].b[0].get_bottom()
+				if i == 0:
+					curr_arrow = Arrow(arrow_end + DOWN * 1.2, arrow_end, buff=MED_SMALL_BUFF, max_tip_length_to_length_ratio=0.25)
+					curr_arrow.set_color(REDUCIBLE_YELLOW)
+
+					self.play(
+						Write(curr_arrow)
+					)
+					self.wait()
+				else:
+					self.play(
+						Transform(
+							curr_arrow, 
+							Arrow(arrow_end + DOWN * 1.2, arrow_end, buff=MED_SMALL_BUFF, max_tip_length_to_length_ratio=0.25).set_color(REDUCIBLE_YELLOW)
+						)
+					)
+					self.wait()
+
+				compact_pixels = self.get_compact_rgb_with_text(rgb_pixels[i])
+				r, g, b = self.get_rgb_pixel_values(rgb_pixels[i])
+				hash_val =  (r * 3 + g * 5 + b * 7)
+				index_pos = hash_val % SIZE
+				if (r, g, b) not in seen:
+					seen.add((r, g, b))
+					compact_pixels.next_to(index_mob[0][index_pos], DOWN)
+					self.play(
+						TransformFromCopy(rgb_pixels[i].r, compact_pixels[0]),
+						TransformFromCopy(rgb_pixels[i].g, compact_pixels[1]),
+						TransformFromCopy(rgb_pixels[i].b, compact_pixels[2])
+					)
+					self.wait()
+					actual_index[index_pos] = compact_pixels
+
+			index_text = Text("index = (r * 3 + g * 5 + b * 7) % size", font='SF Mono', weight=MEDIUM)
+			index_text.scale(0.5)
+			index_text.move_to(DOWN * 2.5)
+			self.play(
+				FadeIn(index_text)
+			)
+			self.wait()
+
+			index_detail = Text("index = (140 * 77 + 77 * 5 + 251 * 7) % 16", font='SF Mono', weight=MEDIUM).scale(0.5)
+			index_detail.next_to(index_text, DOWN, aligned_edge=LEFT)
+
+			self.play(
+				TransformFromCopy(index_text, index_detail)
+			)
+			self.wait()
+
+			index_answer = Text("index = 2", font='SF Mono', weight=MEDIUM).scale(0.5).next_to(index_detail, DOWN, aligned_edge=LEFT)
+			self.play(
+				TransformFromCopy(index_detail, index_answer)
+			)
+			self.wait()
+
+			indication = self.get_indication_transforms([current_index], rgb_pixels)
+
+			self.play(
+				*[FadeOut(curr_arrow)] + indication,
+			)
+			self.wait()
+
+			glowing_rect = get_glowing_surround_rect(actual_index[2], color=REDUCIBLE_GREEN_LIGHTER)
+
+			indication_index = self.get_indication_transforms([0],  rgb_pixels, color=REDUCIBLE_GREEN_LIGHTER)
+
+			self.play(
+				*indication_index + [FadeIn(glowing_rect)]
+			)
+			self.wait()
+
+			self.play(
+				FadeOut(index_text),
+				FadeOut(index_detail),
+				FadeOut(index_answer)
+			)
+			self.wait()
+
+		qoi_index_bytes = self.get_index_bytes().move_to(DOWN * 2.3)
+		self.play(
+			FadeIn(qoi_index_bytes)
+		)
+		self.wait()
+
+		r, g, b = self.get_rgb_pixel_values(rgb_pixels[index])
+		hash_val =  (r * 3 + g * 5 + b * 7)
+		index_pos = hash_val % SIZE
+
+		index_val = get_matching_text(str(index_pos), qoi_index_bytes[2].text)
+		
+		self.play(
+			Transform(qoi_index_bytes[2].text, index_val),
+		)
+		self.wait()
+
+		fadeouts = []
+		if detail:
+			note = Text("Note: QOI uses an index of size 64 (6 bits)", font='SF Mono', weight=MEDIUM).scale(0.4)
+			note.next_to(qoi_index_bytes, DOWN)
+			self.add(note)
+			self.wait()
+			fadeouts.extend([FadeOut(glowing_rect), FadeOut(note), FadeOut(index_mob)] + [FadeOut(mob) for mob in actual_index if mob != 0])
+
+		return fadeouts + [FadeOut(qoi_index_bytes)]
+
+	def show_encoding_index_simple(self, current_index, index, index_map, rgb_pixels):
+		r, g, b = self.get_rgb_pixel_values(rgb_pixels[current_index])
+		seen_index = index_map[(r, g, b)]
+		if seen_index == current_index - 2:
+			indication_index = self.get_indication_transforms([seen_index],  rgb_pixels, shift=SMALL_BUFF, direction=np.array([-5, 1, 0]), color=REDUCIBLE_GREEN_LIGHTER)
+		else:
+			indication_index = self.get_indication_transforms([seen_index],  rgb_pixels, color=REDUCIBLE_GREEN_LIGHTER)
+
+		qoi_index_bytes = self.get_index_bytes_with_data(index).move_to(DOWN * 2.5)
+
+		self.play(
+			*indication_index,
+			FadeIn(qoi_index_bytes)
+		)
+		self.wait()
+		surrounded_rects = rgb_pixels[seen_index].surrounded
+		reset_transforms = self.unindicate_pixels(rgb_pixels[seen_index])
+		rgb_pixels[seen_index].surrounded = None
+
+		return [FadeOut(qoi_index_bytes, shift=LEFT), FadeOut(surrounded_rects)] + reset_transforms
+
+	def get_compact_rgb_with_text(self, rgb_pixel, height=0.2, width=0.5):
+		r_color = rgb_pixel.r[0].get_color()
+		g_color = rgb_pixel.g[0].get_color()
+		b_color = rgb_pixel.b[0].get_color()
+
+		r_rect = Rectangle(height=height, width=width).set_color(r_color).set_fill(color=r_color, opacity=1)
+		g_rect = Rectangle(height=height, width=width).set_color(g_color).set_fill(color=g_color, opacity=1)
+		b_rect = Rectangle(height=height, width=width).set_color(b_color).set_fill(color=b_color, opacity=1)
+		
+		compact_rects = [r_rect, g_rect, b_rect]
+		VGroup(*compact_rects).arrange(DOWN, buff=SMALL_BUFF/3)
+
+		r, g, b = self.get_rgb_pixel_values(rgb_pixel)
+		
+		g_color = BLACK if g > 200 else WHITE
+		text_in_array = align_text_vertically(
+			Text(str(r), font='SF Mono', weight=MEDIUM).scale(0.2),
+			Text(str(g), font='SF Mono', weight=MEDIUM).scale(0.2).set_color(g_color),
+			Text(str(b), font='SF Mono', weight=MEDIUM).scale(0.2),
+			buff=SMALL_BUFF
+		)
+
+		compact_pixels = []
+		for rect, text in zip(compact_rects, text_in_array):
+			text.scale(1).move_to(rect.get_center())
+			compact_pixels.append(VGroup(rect, text))
+
+		return VGroup(*compact_pixels)
+
+	def get_index(self, size, height, width, index_scale=0.3, color=REDUCIBLE_YELLOW):
+		rect_width = width / size
+		index_mob = VGroup(*[Rectangle(height=height, width=rect_width) for _ in range(size)])
+		indices = [Text(str(int(i)), font='SF Mono', weight=MEDIUM).scale(index_scale) for i in range(size)]
+		index_mob.arrange(RIGHT, buff=0)
+		for i, text in enumerate(indices):
+			text.move_to(index_mob[i].get_center())
+		index_mob.set_color(REDUCIBLE_YELLOW)
+		indices_text = VGroup(*indices)
+		return VGroup(index_mob, indices_text)
+
+	def show_encode_rgb(self, current_index, rgb_pixels):
+		qoi_rgb_bytes = self.get_rbg_bytes().move_to(DOWN * 2.5)
+
+		self.play(
+			FadeIn(qoi_rgb_bytes)
+		)
+		self.wait()
+		r_val, g_val, b_val = self.get_rgb_pixel_values(rgb_pixels[current_index])
+
+		r = get_matching_text(str(int(r_val)), qoi_rgb_bytes[5].text)
+		g = get_matching_text(str(int(g_val)), qoi_rgb_bytes[6].text)
+		b = get_matching_text(str(int(b_val)), qoi_rgb_bytes[7].text)
+
+		self.play(
+			Transform(qoi_rgb_bytes[5].text, r),
+			Transform(qoi_rgb_bytes[6].text, g),
+			Transform(qoi_rgb_bytes[7].text, b)
+		)
+		self.wait()
+
+		return [FadeOut(qoi_rgb_bytes)]
+
+	def show_encode_rgb_simple(self, current_index, rgb_pixels):
+		r_val, g_val, b_val = self.get_rgb_pixel_values(rgb_pixels[current_index])
+		qoi_rgb_bytes = self.get_rgb_bytes_with_data(r_val, g_val, b_val).move_to(DOWN * 2.5)
+
+		self.play(
+			FadeIn(qoi_rgb_bytes)
+		)
+		self.wait()
+
+		return [FadeOut(qoi_rgb_bytes, shift=LEFT)]
+
+	def get_rgb_pixel_values(self, rgb_pixel):
+		"""
+		@param: rgb_pixel - RGB mob
+		"""
+		r_val = int(rgb_pixel.r[1].original_text)
+		g_val = int(rgb_pixel.g[1].original_text)
+		b_val = int(rgb_pixel.b[1].original_text)
+		return [r_val, g_val, b_val]
+
 
 	def get_indication_transforms(self, indices, rgb_pixels, 
 		opacity=0.2, extend=False, shift=SMALL_BUFF, direction=UP, color=REDUCIBLE_YELLOW):
@@ -255,6 +938,16 @@ class QOIDemo(Scene):
 		return indication_transforms
 
 	def update_prev_and_current(self, prev_index, current_index, rgb_pixels):
+		"""
+		@param: prev_index - previous index of QOI encoding
+		@param: current_index - current index of QOI encoding
+		@param: rgb_pixels - list[RGB] of RGB pixels
+		@return: list[Animation] of all indication, resetting, and 
+		scaling animations of updating prev_index to current_index 
+		and current_index to current_index + 1
+		"""
+		if current_index + 1 == len(rgb_pixels):
+			return []
 		current_direction_shift = LEFT * 2.5 * SMALL_BUFF
 		current_direction_scale = 1
 		prev_direction_shift = RIGHT * 2.5 * SMALL_BUFF
@@ -265,6 +958,15 @@ class QOIDemo(Scene):
 		prev_pixel = rgb_pixels[prev_index]
 		current_pixel = rgb_pixels[current_index]
 		next_pixel = rgb_pixels[current_index + 1]
+
+		if prev_index == -1:
+			animations = []
+			indicate_next, next_pixels = self.indicate_next_pixel(rgb_pixels[current_index + 1])
+			animations.append(ApplyMethod(current_pixel.surrounded.move_to, VGroup(*next_pixels).get_center()))
+			current_pixel.surrounded, next_pixel.surrounded = None, current_pixel.surrounded
+			unindicate_prev = self.unindicate_pixels(current_pixel)
+			animations.extend(indicate_next + unindicate_prev)
+			return animations
 		
 		animations = []
 		unindicate_prev = self.unindicate_pixels(prev_pixel)
@@ -274,6 +976,39 @@ class QOIDemo(Scene):
 		animations.append(ApplyMethod(prev_pixel.surrounded.move_to, VGroup(*new_prev_pixels).get_center()))
 		animations.append(ApplyMethod(current_pixel.surrounded.move_to, VGroup(*next_pixels).get_center()))
 		prev_pixel.surrounded, current_pixel.surrounded, next_pixel.surrounded = None, prev_pixel.surrounded, current_pixel.surrounded
+		return animations
+
+	def update_prev_and_current_after_run(self, prev_index, current_index, run_length, rgb_pixels):
+		current_direction_shift = LEFT * 2.5 * SMALL_BUFF
+		current_direction_scale = 1
+		prev_direction_shift = RIGHT * 2.5 * SMALL_BUFF
+		prev_direction_scale = 1 / 1.2
+		next_direction_shift = UP * SMALL_BUFF
+		next_direction_scale = 1.2
+
+		prev_pixel = rgb_pixels[prev_index]
+		current_pixel = rgb_pixels[current_index]
+		
+		new_prev_pixel = rgb_pixels[prev_index + run_length]
+		new_current_pixel = rgb_pixels[current_index + run_length]
+		animations = []
+		
+		unindicate_prev = []
+		for i in range(prev_index, prev_index + run_length):
+			unindicate_prev.extend(self.unindicate_pixels(rgb_pixels[i]))
+			
+		indicate_next, next_pixels = self.indicate_next_pixel(new_current_pixel)
+		transform_curr_to_prev, new_prev_pixels = self.current_to_prev(new_prev_pixel, current_direction_shift)
+		animations.extend(unindicate_prev + indicate_next + transform_curr_to_prev)
+		animations.append(ApplyMethod(prev_pixel.surrounded.move_to, VGroup(*new_prev_pixels).get_center()))
+
+		new_surround_rect = VGroup(*self.get_surrounded_rects(next_pixels))
+		animations.append(ApplyMethod(current_pixel.surrounded.become, new_surround_rect))
+		if run_length == 1:
+			# new_prev_pixel and current_pixel are the same reference
+			prev_pixel.surrounded, current_pixel.surrounded, new_current_pixel.surrounded = None, prev_pixel.surrounded, current_pixel.surrounded
+		else:
+			prev_pixel.surrounded, current_pixel.surrounded, new_prev_pixel.surrounded, new_current_pixel.surrounded = None, None, prev_pixel.surrounded, current_pixel.surrounded
 		return animations
 
 	def current_to_prev(self, rgb_pixel, shift):
@@ -363,14 +1098,13 @@ class QOIDemo(Scene):
 		pixel[1].set_fill(opacity=opacity)
 		return pixel
 
-	def get_rgb_pixels(self, r_channel, b_channel, g_channel):
+	def get_rgb_pixels(self, r_channel, g_channel, b_channel):
 		pixels = []
 		for i in range(len(r_channel[1])):
 			r_mob = VGroup(r_channel[0][0, i], r_channel[1][i])
 			g_mob = VGroup(g_channel[0][0, i], g_channel[1][i])
 			b_mob = VGroup(b_channel[0][0, i], b_channel[1][i])
 			pixels.append(RGBMob(r_mob, g_mob, b_mob))
-
 		return pixels
 
 	def reset_indications(self, rgb_pixels):
@@ -395,23 +1129,25 @@ class QOIDemo(Scene):
 
 		return animations
 
-		
-
-	def bring_pixel_to_screen(self, index, flattened_pixels, target_x_pos=0):
+	def bring_pixel_to_screen(self, index, flattened_pixels, target_x_pos=0, BUFF=1, animate=True):
 		r_channel = flattened_pixels[0]
 		target_pixel = r_channel[0][index]
-		shift_amount = self.get_shift_amount(target_pixel.get_center(), target_x_pos=target_x_pos)
+		shift_amount = self.get_shift_amount(target_pixel.get_center(), target_x_pos=target_x_pos, BUFF=BUFF)
 		if not np.array_equal(shift_amount, ORIGIN):
-			self.play(
-				flattened_pixels.animate.shift(shift_amount)
-			)
-			self.wait()
+			if animate:
+				self.play(
+					flattened_pixels.animate.shift(shift_amount)
+				)
+				self.wait()
+			else:
+				self.bring_to_back(flattened_pixels[0][0][index - 2])
+				self.bring_to_back(flattened_pixels[1][0][index - 2])
+				self.bring_to_back(flattened_pixels[2][0][index - 2])
+				return [ApplyMethod(flattened_pixels.shift, shift_amount)], shift_amount
 
 
-	def get_shift_amount(self, position, target_x_pos=0):
+	def get_shift_amount(self, position, target_x_pos=0, BUFF=1):
 		x_pos = position[0]
-		print(x_pos)
-		BUFF = 1
 		if x_pos > -config.frame_x_radius + BUFF and x_pos < config.frame_x_radius - BUFF:
 			# NO Shift needed
 			return ORIGIN
@@ -522,35 +1258,6 @@ class QOIDemo(Scene):
 
 		return VGroup(r_channel, g_channel, b_channel)
 
-		# qoi_rgb_bytes = self.get_rbg_bytes().move_to(DOWN * 2)
-		# self.add(qoi_rgb_bytes)
-		# self.wait()
-		# self.remove(qoi_rgb_bytes)
-
-		# qoi_index_bytes = self.get_index_bytes().move_to(DOWN * 2)
-		# self.add(qoi_index_bytes)
-		# self.wait()
-
-		# self.remove(qoi_index_bytes)
-
-		# qoi_run_bytes = self.get_run_bytes().move_to(DOWN * 2)
-		# self.add(qoi_run_bytes)
-		# self.wait()
-
-		# self.remove(qoi_run_bytes)
-
-		# qoi_large_diff_bytes = self.get_large_diff_bytes().move_to(DOWN * 2)
-		# self.add(qoi_large_diff_bytes)
-		# self.wait()
-
-		# self.remove(qoi_large_diff_bytes)
-		# qoi_small_diff_bytes = self.get_small_diff_bytes().move_to(DOWN * 2)
-		# self.add(qoi_small_diff_bytes)
-		# self.wait()
-
-		# self.remove(qoi_small_diff_bytes)
-		# self.wait()
-
 	def get_rbg_bytes(self):
 		rgb_tag_byte = Byte(
 			["Byte[0]",
@@ -630,6 +1337,17 @@ class QOIDemo(Scene):
 
 		return qoi_rgb_bytes
 
+	def get_rgb_bytes_with_data(self, r, g, b, label=True):
+		rgb_byte = self.get_rbg_bytes()
+		rgb_byte[-3].text.become(get_matching_text(str(r), rgb_byte[-3].text))
+		rgb_byte[-2].text.become(get_matching_text(str(g), rgb_byte[-2].text))
+		rgb_byte[-1].text.become(get_matching_text(str(b), rgb_byte[-1].text))
+		if label:
+			label = Text("QOI_RGB", font="SF Mono", weight=MEDIUM).scale(0.4)
+			label.next_to(rgb_byte, UP)
+			return VGroup(label, rgb_byte)
+		return rgb_byte
+
 	def get_index_bytes(self):
 		index_tag_byte = Byte(
 			["Byte[0]",
@@ -665,6 +1383,15 @@ class QOIDemo(Scene):
 		).move_to(ORIGIN)
 
 		return qoi_index_bytes
+
+	def get_index_bytes_with_data(self, index, label=True):
+		index_byte = self.get_index_bytes()
+		index_byte[-1].text.become(get_matching_text(str(index), index_byte[-1].text))
+		if label:
+			label = Text("QOI_INDEX", font="SF Mono", weight=MEDIUM).scale(0.4)
+			label.next_to(index_byte, UP)
+			return VGroup(label, index_byte)
+		return index_byte
 
 	def get_run_bytes(self):
 		run_tag_byte = Byte(
@@ -706,6 +1433,15 @@ class QOIDemo(Scene):
 		).move_to(ORIGIN)
 
 		return qoi_index_bytes
+
+	def get_run_bytes_with_data(self, run_length, label=True):
+		run_byte = self.get_run_bytes()
+		run_byte[-1].text.become(get_matching_text(str(run_length), run_byte[-1].text))
+		if label:
+			label = Text("QOI_RUN", font="SF Mono", weight=MEDIUM).scale(0.4)
+			label.next_to(run_byte, UP)
+			return VGroup(label, run_byte)
+		return run_byte
 
 	def get_large_diff_bytes(self):
 		diff_tag_byte = Byte(
@@ -769,6 +1505,17 @@ class QOIDemo(Scene):
 
 		return qoi_diff_bytes
 
+	def get_large_diff_bytes_with_data(self, dg, dr_dg, db_dg, label=True):
+		diff_byte = self.get_large_diff_bytes()
+		diff_byte[-3].text.become(get_matching_text(str(dg), diff_byte[-3].text))
+		diff_byte[-2].text.become(get_matching_text(str(dr_dg), diff_byte[-2].text))
+		diff_byte[-1].text.become(get_matching_text(str(db_dg), diff_byte[-1].text))
+		if label:
+			label = Text("QOI_DIFF_MED", font="SF Mono", weight=MEDIUM).scale(0.4)
+			label.next_to(diff_byte, UP)
+			return VGroup(label, diff_byte)
+		return diff_byte
+
 	def get_small_diff_bytes(self):
 		diff_tag_byte = Byte(
 			["Byte[0]",
@@ -781,11 +1528,12 @@ class QOIDemo(Scene):
 		)
 		tag_value = Byte(
 			"1,0",
-			width=target_text.get_center()[0] + SMALL_BUFF - diff_tag_byte.get_left()[0],
+			width=target_text.get_center()[0] + SMALL_BUFF * 0.3 - diff_tag_byte.get_left()[0],
 			height=diff_tag_byte.height
 		)
 		tag_value.text.scale_to_fit_height(diff_tag_byte.text[1][1].height)
 		tag_value.text.rotate(PI)
+		tag_value.text.shift(RIGHT * SMALL_BUFF * 0.2)
 
 		tag_value.next_to(diff_tag_byte, DOWN, aligned_edge=LEFT, buff=0)
 
@@ -830,6 +1578,17 @@ class QOIDemo(Scene):
 
 		return qoi_diff_bytes
 
+	def get_small_diff_bytes_with_data(self, dr, dg, db, label=True):
+		diff_byte = self.get_small_diff_bytes()
+		diff_byte[-3].text.become(get_matching_text(str(dr), diff_byte[-3].text))
+		diff_byte[-2].text.become(get_matching_text(str(dg), diff_byte[-2].text))
+		diff_byte[-1].text.become(get_matching_text(str(db), diff_byte[-1].text))
+		if label:
+			label = Text("QOI_DIFF_SMALL", font="SF Mono", weight=MEDIUM).scale(0.4)
+			label.next_to(diff_byte, UP)
+			return VGroup(label, diff_byte)
+		return diff_byte
+
 	def get_pixel_values(self, channel, channel_mob, mode='R'):
 		pixel_values_text = VGroup()
 		for p_val, mob in zip(channel.flatten(), channel_mob):
@@ -866,8 +1625,6 @@ class QOIDemo(Scene):
 				transforms.append(TransformFromCopy(original_text[one_d_index], flattened_text[one_d_index]))
 
 		return transforms
-
-
 
 
 
