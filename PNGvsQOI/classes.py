@@ -13,7 +13,14 @@ class Pixel(Square):
 
         super().__init__(side_length=1)
         if outline:
-            self.set_stroke(BLACK, width=0.2)
+            if n == 0:
+                self.set_stroke(
+                    GRAY_B,
+                    width=0.6,
+                )
+            else:
+                self.set_stroke(BLACK, width=0.2)
+
         else:
             self.set_stroke(color, width=0.2)
 

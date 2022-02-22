@@ -1,7 +1,7 @@
 from math import floor
 from manim import *
 from manim.mobject.geometry import ArrowTriangleFilledTip
-from numpy import ndarray
+from numpy import ndarray, rec
 from functions import *
 from classes import *
 from reducible_colors import *
@@ -1100,7 +1100,7 @@ class Filtering(MovingCameraScene):
         self.wait()
 
         random_data = np.random.randint(127, 140, (9, 8))
-        # random_data = np.arange(64).reshape((8, 8))
+
         input_img = PixelArray(
             random_data, include_numbers=True, color_mode="GRAY", outline=True
         ).scale(0.4)
@@ -1110,7 +1110,16 @@ class Filtering(MovingCameraScene):
             .next_to(input_img, DOWN, buff=0.2)
         )
 
-        output_img = input_img.copy().next_to(input_img, RIGHT, buff=0.5)
+        output_img = (
+            PixelArray(
+                np.zeros(random_data.shape, dtype=np.int64),
+                include_numbers=True,
+                color_mode="GRAY",
+                outline=True,
+            )
+            .scale_to_fit_height(input_img.height)
+            .next_to(input_img, RIGHT, buff=0.5)
+        )
         output_img_t = (
             Text("Filtered Image", font="CMU Serif")
             .scale(0.5)
@@ -1210,9 +1219,6 @@ class Filtering(MovingCameraScene):
 
         filtered_data = random_data.copy()
 
-        surr_rect = SurroundingRectangle(input_img[0 : random_data.shape[1]])
-        self.play(Write(surr_rect))
-
         none_tag = (
             Text("NONE", font="SF Mono", weight=BOLD)
             .scale(0.2)
@@ -1239,101 +1245,151 @@ class Filtering(MovingCameraScene):
             .set_color(REDUCIBLE_YELLOW)
         )
 
-        for row in range(random_data.shape[0]):
-            next_row_slice = slice(
-                row * random_data.shape[1],
-                row * random_data.shape[1] + random_data.shape[1],
+        # save general frame view
+        self.camera.frame.save_state()
+
+        row_to_focus_on = self.select_row_indices(0, random_data.shape)
+        row_in_out_img = VGroup(input_img[row_to_focus_on], output_img[row_to_focus_on])
+
+        self.play(
+            self.camera.frame.animate.set_width(row_in_out_img.width * 1.1)
+            .move_to(row_in_out_img)
+            .shift(UP),
+            FadeOut(filter_title),
+            run_time=3,
+        )
+
+        focus_mask_input = Difference(
+            Square().scale(9),
+            Rectangle(
+                width=input_img[row_to_focus_on].width,
+                height=input_img[row_to_focus_on].height,
+            ).move_to(input_img[row_to_focus_on]),
+        )
+
+        focus_mask = (
+            Difference(
+                focus_mask_input,
+                Rectangle(
+                    width=output_img[row_to_focus_on].width,
+                    height=output_img[row_to_focus_on].height,
+                ).move_to(output_img[row_to_focus_on]),
             )
+            .set_opacity(0.5)
+            .set_color(BLACK)
+        )
 
-            print(next_row_slice)
+        black_mask = (
+            Square()
+            .scale(9)
+            .set_color(BLACK)
+            .set_opacity(1)
+            .next_to(row_in_out_img, UP, buff=0)
+            .shift(UP * output_img[1].height)
+        )
 
-            next_surr_rect = SurroundingRectangle(
-                input_img[next_row_slice], buff=0, color=REDUCIBLE_YELLOW
-            )
-            if row == 0:
-                self.play(
-                    Transform(surr_rect, next_surr_rect),
-                    FadeIn(
-                        none_tag.copy().next_to(output_img[next_row_slice], RIGHT, buff=0.3)
-                    ),
-                )
-            elif row == 1:
-                filtered_row = self.sub_filter_row(random_data, row, return_row=True)
-                filtered_data[row, :] = filtered_row
-                filter_sub = (
-                    PixelArray(filtered_data, include_numbers=True, color_mode="GRAY")
-                    .scale(0.4)
-                    .move_to(output_img)
-                )
+        row_height = UP * input_img[1].height
 
-                self.play(
-                    Transform(output_img, filter_sub),
-                    Transform(surr_rect, next_surr_rect),
-                    FadeIn(
-                        sub_tag.copy().next_to(output_img[next_row_slice], RIGHT, buff=0.3)
-                    ),
-                )
+        # show how NONE works on row 0
+        self.play(FadeIn(focus_mask), FadeIn(black_mask))
+        self.wait()
 
-            elif row % 4 == 0:
-                filtered_row = self.paeth_filter_row(random_data, row, return_row=True)
-                filtered_data[row, :] = filtered_row
-                filter_sub = (
-                    PixelArray(filtered_data, include_numbers=True, color_mode="GRAY")
-                    .scale(0.4)
-                    .move_to(output_img)
-                )
+        filtered_data = np.zeros(random_data.shape, dtype=np.int16)
 
-                self.play(
-                    Transform(output_img, filter_sub),
-                    Transform(surr_rect, next_surr_rect),
-                    FadeIn(
-                        paeth_tag.copy().next_to(output_img[next_row_slice], RIGHT, buff=0.3)
-                    ),
-                )
+        filtered_data[0, :] = random_data[0, :]
 
-            elif row % 2 == 0:
-                filtered_row = self.up_filter_row(random_data, row, return_row=True)
-                filtered_data[row, :] = filtered_row
-                filter_sub = (
-                    PixelArray(filtered_data, include_numbers=True, color_mode="GRAY")
-                    .scale(0.4)
-                    .move_to(output_img)
-                )
+        filtered_mob = (
+            PixelArray(filtered_data, include_numbers=True, color_mode="GRAY")
+            .scale_to_fit_height(input_img.height)
+            .move_to(output_img)
+        )
 
-                self.play(
-                    Transform(output_img, filter_sub),
-                    Transform(surr_rect, next_surr_rect),
-                    FadeIn(up_tag.copy().next_to(output_img[next_row_slice], RIGHT, buff=0.3)),
-                )
+        self.play(
+            Transform(output_img, filtered_mob),
+        )
 
-            else:
-                filtered_row = self.avg_filter_row(random_data, row, return_row=True)
-                filtered_data[row, :] = filtered_row
-                filter_sub = (
-                    PixelArray(filtered_data, include_numbers=True, color_mode="GRAY")
-                    .scale(0.4)
-                    .move_to(output_img)
-                )
+        self.wait()
 
-                self.play(
-                    Transform(output_img, filter_sub),
-                    Transform(surr_rect, next_surr_rect),
-                    FadeIn(
-                        avg_tag.copy().next_to(output_img[next_row_slice], RIGHT, buff=0.3)
-                    ),
-                )
+        self.play(
+            input_img.animate.shift(row_height),
+            output_img.animate.shift(row_height),
+        )
+        self.wait()
 
+        # now on row one, show the SUB filter
+        sub_row = self.sub_filter_row(random_data, row=1, return_row=True)
 
+        filtered_data[1, :] = sub_row
+
+        filtered_mob = (
+            PixelArray(filtered_data, include_numbers=True, color_mode="GRAY")
+            .scale_to_fit_height(input_img.height)
+            .move_to(output_img)
+        )
+
+        self.play(Transform(output_img, filtered_mob))
+
+        self.wait()
+
+        self.play(
+            input_img.animate.shift(row_height),
+            output_img.animate.shift(row_height),
+        )
+        self.wait()
+
+        # row 2, show the UP filter
+
+        up_row = self.up_filter_row(random_data, row=2, return_row=True)
+
+        filtered_data[2, :] = up_row
+
+        filtered_mob = (
+            PixelArray(filtered_data, include_numbers=True, color_mode="GRAY")
+            .scale_to_fit_height(input_img.height)
+            .move_to(output_img)
+        )
+
+        self.play(Transform(output_img, filtered_mob))
+
+        self.wait()
+
+        self.play(
+            input_img.animate.shift(row_height),
+            output_img.animate.shift(row_height),
+        )
+        self.wait()
+
+        # row 3, show the avg filter
+
+        avg_row = self.avg_filter_row(random_data, row=3, return_row=True)
+
+        filtered_data[3, :] = avg_row
+
+        filtered_mob = (
+            PixelArray(filtered_data, include_numbers=True, color_mode="GRAY")
+            .scale_to_fit_height(input_img.height)
+            .move_to(output_img)
+        )
+
+        self.play(Transform(output_img, filtered_mob))
+
+        self.wait()
+
+        self.play(
+            input_img.animate.shift(row_height),
+            output_img.animate.shift(row_height),
+        )
+        self.wait()
 
     #####################################################################
 
     # Functions
 
-    def underline_filter_type(self, mob: VMobject):
-        line = Line(ORIGIN, [mob.width, 0, 0]).next_to(mob, DOWN, buff=0.1)
-        self.play(Write(line))
-
-        return line
+    def select_row_indices(self, row, shape):
+        return slice(
+            row * shape[1],
+            row * shape[1] + shape[1],
+        )
 
     def create_pixel_array(self, rows=8, cols=8):
         return (
@@ -1515,3 +1571,14 @@ class Filtering(MovingCameraScene):
             return output[row, :]
         else:
             return output
+
+
+class Test(Scene):
+    def construct(self):
+        self.camera.background_color = YELLOW
+        black_sq = Square().scale(9).set_color(BLACK).set_opacity(0.3)
+        rect = Rectangle().set_color(BLACK).set_opacity(1)
+
+        diff = Difference(black_sq, rect).set_opacity(0.3).set_color(BLACK)
+
+        self.add(diff)
