@@ -1,7 +1,7 @@
 from math import floor
 from manim import *
 from manim.mobject.geometry import ArrowTriangleFilledTip
-from numpy import ndarray, rec
+from numpy import ndarray
 from functions import *
 from classes import *
 from reducible_colors import *
@@ -751,15 +751,15 @@ class QOIDemo(Scene):
 
 class Filtering(MovingCameraScene):
     def construct(self):
-        # self.intro_filtering()
+        self.intro_filtering()
 
-        # self.clear()
-        # self.wait()
+        self.clear()
+        self.wait()
 
-        # self.present_problem()
+        self.present_problem()
 
-        # self.clear()
-        # self.wait()
+        self.clear()
+        self.wait()
 
         self.five_filters_explanation()
 
@@ -1364,6 +1364,28 @@ class Filtering(MovingCameraScene):
         avg_row = self.avg_filter_row(random_data, row=3, return_row=True)
 
         filtered_data[3, :] = avg_row
+
+        filtered_mob = (
+            PixelArray(filtered_data, include_numbers=True, color_mode="GRAY")
+            .scale_to_fit_height(input_img.height)
+            .move_to(output_img)
+        )
+
+        self.play(Transform(output_img, filtered_mob))
+
+        self.wait()
+
+        self.play(
+            input_img.animate.shift(row_height),
+            output_img.animate.shift(row_height),
+        )
+        self.wait()
+
+        # row 4, show the paeth filter
+
+        paeth_row = self.paeth_filter_row(random_data, row=4, return_row=True)
+
+        filtered_data[4, :] = paeth_row
 
         filtered_mob = (
             PixelArray(filtered_data, include_numbers=True, color_mode="GRAY")
