@@ -751,15 +751,15 @@ class QOIDemo(Scene):
 
 class Filtering(MovingCameraScene):
     def construct(self):
-        self.intro_filtering()
+        # self.intro_filtering()
 
-        self.clear()
-        self.wait()
+        # self.clear()
+        # self.wait()
 
-        self.present_problem()
+        # self.present_problem()
 
-        self.clear()
-        self.wait()
+        # self.clear()
+        # self.wait()
 
         self.five_filters_explanation()
 
@@ -1184,6 +1184,56 @@ class Filtering(MovingCameraScene):
         self.play(FadeIn(focus_mask), FadeIn(black_mask))
         self.wait()
 
+        frame_center = self.camera.frame.get_center()
+
+        title_filter = none_t.copy().scale(0.8)
+        self.play(
+            FadeIn(
+                title_filter.move_to(self.camera.frame.get_corner(UL)).shift(
+                    RIGHT * 0.8 + DOWN * 0.5
+                )
+            )
+        )
+
+        x_sq_in = (
+            Square()
+            .set_fill(REDUCIBLE_GREEN)
+            .set_opacity(0.3)
+            .set_stroke(REDUCIBLE_GREEN, opacity=1)
+            .scale(0.2)
+            .move_to(frame_center)
+        )
+
+        x_sq_out = (
+            Square()
+            .set_fill(REDUCIBLE_PURPLE)
+            .set_opacity(0.3)
+            .set_stroke(REDUCIBLE_PURPLE, opacity=1)
+            .scale(0.2)
+            .next_to(x_sq_in, RIGHT, buff=1)
+        )
+
+        x_t_in = Text("x", font="SF Mono", weight=BOLD).scale(0.4).move_to(x_sq_in)
+        x_t_out = Text("x", font="SF Mono", weight=BOLD).scale(0.4).move_to(x_sq_out)
+
+        input_pixel = VGroup(x_sq_in, x_t_in)
+        output_pixel = VGroup(x_sq_out, x_t_out)
+
+        right_arrow = Arrow(
+            input_pixel, output_pixel, max_tip_length_to_length_ratio=0.2
+        ).set_color(WHITE)
+
+        none_definition = (
+            VGroup(input_pixel, right_arrow, output_pixel)
+            .arrange(RIGHT, buff=0.5)
+            .move_to(frame_center)
+            .shift(UP * 0.5)
+        )
+
+        self.wait()
+
+        self.play(Write(none_definition))
+
         filtered_data = np.zeros(random_data.shape, dtype=np.int16)
 
         filtered_data[0, :] = random_data[0, :]
@@ -1193,6 +1243,8 @@ class Filtering(MovingCameraScene):
             .scale_to_fit_height(input_img.height)
             .move_to(output_img)
         )
+
+        self.wait()
 
         self.play(
             Transform(output_img, filtered_mob),
@@ -1207,6 +1259,12 @@ class Filtering(MovingCameraScene):
         self.wait()
 
         # now on row one, show the SUB filter
+        self.play(FadeOut(title_filter))
+        self.wait()
+        title_filter = sub_t.copy().scale(0.8).move_to(title_filter)
+
+        self.play(FadeIn(title_filter), FadeOut(none_definition))
+
         sub_row = self.sub_filter_row(random_data, row=1, return_row=True)
 
         filtered_data[1, :] = sub_row
@@ -1225,7 +1283,6 @@ class Filtering(MovingCameraScene):
             input_img.animate.shift(row_height),
             output_img.animate.shift(row_height),
         )
-        self.wait()
 
         # row 2, show the UP filter
 
