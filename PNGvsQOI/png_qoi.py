@@ -1180,7 +1180,7 @@ class Filtering(MovingCameraScene):
 
         row_height = UP * input_img[1].height
 
-        # show how NONE works on row 0
+        # show how NONE works on row 0 ####################################################
         self.play(FadeIn(focus_mask), FadeIn(black_mask))
         self.wait()
 
@@ -1199,7 +1199,7 @@ class Filtering(MovingCameraScene):
             Square()
             .set_fill(REDUCIBLE_GREEN)
             .set_opacity(0.3)
-            .set_stroke(REDUCIBLE_GREEN, opacity=1)
+            .set_stroke(REDUCIBLE_GREEN, opacity=1, width=2)
             .scale(0.2)
             .move_to(frame_center)
         )
@@ -1208,13 +1208,17 @@ class Filtering(MovingCameraScene):
             Square()
             .set_fill(REDUCIBLE_PURPLE)
             .set_opacity(0.3)
-            .set_stroke(REDUCIBLE_PURPLE, opacity=1)
+            .set_stroke(REDUCIBLE_PURPLE, opacity=1, width=2)
             .scale(0.2)
             .next_to(x_sq_in, RIGHT, buff=1)
         )
 
         x_t_in = Text("x", font="SF Mono", weight=BOLD).scale(0.4).move_to(x_sq_in)
-        x_t_out = Text("x", font="SF Mono", weight=BOLD).scale(0.4).move_to(x_sq_out)
+        x_t_out = (
+            MarkupText("x<sub>out</sub>", font="SF Mono", weight=BOLD)
+            .scale(0.3)
+            .move_to(x_sq_out)
+        )
 
         input_pixel = VGroup(x_sq_in, x_t_in)
         output_pixel = VGroup(x_sq_out, x_t_out)
@@ -1225,7 +1229,7 @@ class Filtering(MovingCameraScene):
 
         none_definition = (
             VGroup(input_pixel, right_arrow, output_pixel)
-            .arrange(RIGHT, buff=0.5)
+            .arrange(RIGHT, buff=0.2)
             .move_to(frame_center)
             .shift(UP * 0.5)
         )
@@ -1258,12 +1262,34 @@ class Filtering(MovingCameraScene):
         )
         self.wait()
 
-        # now on row one, show the SUB filter
-        self.play(FadeOut(title_filter))
-        self.wait()
-        title_filter = sub_t.copy().scale(0.8).move_to(title_filter)
+        # now on row one, show the SUB filter ####################################################
+        title_filter_sub = sub_t.copy().scale(0.8).move_to(title_filter)
 
-        self.play(FadeIn(title_filter), FadeOut(none_definition))
+        self.play(
+            FadeTransform(title_filter, title_filter_sub, stretch=False),
+            FadeOut(none_definition),
+        )
+
+        sub_operation = MathTex(r"x_{out} = x - l").set_color(WHITE).scale(0.45)
+
+        l_t_sub = Text("l", font="SF Mono", weight=BOLD).scale(0.4).set_opacity(0.6)
+
+        left_sub = VGroup(
+            x_sq_in.copy().set_color(REDUCIBLE_GREEN_DARKER), l_t_sub
+        ).arrange(ORIGIN)
+
+        input_sub = VGroup(left_sub, input_pixel.copy()).arrange(RIGHT, buff=0)
+
+        output_sub = output_pixel.copy()
+
+        sub_definition = (
+            VGroup(input_sub, sub_operation, output_sub)
+            .arrange(RIGHT, buff=0.5)
+            .move_to(frame_center)
+            .shift(UP * 0.5)
+        )
+
+        self.play(LaggedStartMap(FadeIn, sub_definition))
 
         sub_row = self.sub_filter_row(random_data, row=1, return_row=True)
 
@@ -1284,7 +1310,41 @@ class Filtering(MovingCameraScene):
             output_img.animate.shift(row_height),
         )
 
-        # row 2, show the UP filter
+        # row 2, show the UP filter ####################################################
+        title_filter_up = up_t.copy().scale(0.8).move_to(title_filter)
+
+        self.play(
+            FadeTransform(title_filter_sub, title_filter_up, stretch=False),
+            FadeOut(sub_definition),
+        )
+
+        up_operation = (
+            MathTex(
+                r"x_{out} = x - u",
+            )
+            .set_color(WHITE)
+            .scale(0.45)
+        )
+
+        u_t_up = Text("u", font="SF Mono", weight=BOLD).scale(0.4).set_opacity(0.6)
+
+        up_up = VGroup(
+            x_sq_in.copy().set_color(REDUCIBLE_GREEN_DARKER), u_t_up
+        ).arrange(ORIGIN)
+
+        input_up = VGroup(
+            up_up.next_to(input_pixel.copy(), UP, buff=0),
+            input_pixel.copy(),
+        )
+
+        up_definition = (
+            VGroup(input_up, up_operation, output_pixel.copy())
+            .arrange(RIGHT, buff=0.5)
+            .move_to(frame_center)
+            .shift(UP * 0.5)
+        )
+
+        self.play(LaggedStartMap(FadeIn, up_definition))
 
         up_row = self.up_filter_row(random_data, row=2, return_row=True)
 
@@ -1306,7 +1366,47 @@ class Filtering(MovingCameraScene):
         )
         self.wait()
 
-        # row 3, show the avg filter
+        # row 3, show the avg filter ####################################################
+        title_filter_avg = avg_t.copy().scale(0.8).move_to(title_filter)
+
+        self.play(
+            FadeTransform(title_filter_up, title_filter_avg, stretch=False),
+            FadeOut(up_definition),
+        )
+
+        avg_operation = (
+            MathTex(
+                r"x_{out} = x - \frac{l + u}{2}",
+            )
+            .set_color(WHITE)
+            .scale(0.45)
+        )
+
+        u_t_avg = Text("u", font="SF Mono", weight=BOLD).scale(0.4).set_opacity(0.6)
+
+        left_avg = VGroup(
+            x_sq_in.copy().set_color(REDUCIBLE_GREEN_DARKER), l_t_sub.copy()
+        ).arrange(ORIGIN)
+
+        up_avg = VGroup(
+            x_sq_in.copy().set_color(REDUCIBLE_GREEN_DARKER), u_t_up
+        ).arrange(ORIGIN)
+
+        main_x_avg = input_pixel.copy()
+        input_avg = VGroup(
+            left_avg.next_to(main_x_avg, LEFT, buff=0),
+            up_avg.next_to(main_x_avg, UP, buff=0),
+            main_x_avg,
+        )
+
+        avg_definition = (
+            VGroup(input_avg, avg_operation, output_pixel.copy())
+            .arrange(RIGHT, buff=0.5)
+            .move_to(frame_center)
+            .shift(UP * 0.5)
+        )
+
+        self.play(LaggedStartMap(FadeIn, avg_definition))
 
         avg_row = self.avg_filter_row(random_data, row=3, return_row=True)
 
@@ -1329,6 +1429,32 @@ class Filtering(MovingCameraScene):
         self.wait()
 
         # row 4, show the paeth filter
+        title_filter_paeth = paeth_t.copy().scale(0.8).move_to(title_filter)
+
+        self.play(
+            FadeTransform(title_filter_avg, title_filter_paeth, stretch=False),
+            FadeOut(avg_definition),
+        )
+
+        up_paeth = up_avg.copy()
+
+        left_paeth = left_avg.copy()
+
+        ul_paeth = VGroup(
+            x_sq_in.copy().set_color(REDUCIBLE_GREEN_DARKER),
+            Text("ul", font="SF Mono", weight=BOLD).set_opacity(0.6).scale(0.35),
+        ).arrange(ORIGIN)
+
+        main_x_paeth = input_pixel.copy()
+
+        input_paeth = (
+            VGroup(ul_paeth, up_paeth, left_paeth, main_x_paeth)
+            .arrange_in_grid(rows=2, cols=2, buff=0)
+            .move_to(frame_center)
+            .shift(UP * 0.5 + LEFT * 2)
+        )
+
+        self.play(FadeIn(input_paeth))
 
         paeth_row = self.paeth_filter_row(random_data, row=4, return_row=True)
 
