@@ -1270,8 +1270,6 @@ class Filtering(MovingCameraScene):
             FadeOut(none_definition),
         )
 
-        sub_operation = MathTex(r"x_{out} = x - l").set_color(WHITE).scale(0.45)
-
         l_t_sub = Text("l", font="SF Mono", weight=BOLD).scale(0.4).set_opacity(0.6)
 
         left_sub = VGroup(
@@ -1280,13 +1278,21 @@ class Filtering(MovingCameraScene):
 
         input_sub = VGroup(left_sub, input_pixel.copy()).arrange(RIGHT, buff=0)
 
-        output_sub = output_pixel.copy()
+        sub_operation = VGroup(
+            output_pixel.copy(),
+            Text("=", font="SF Mono").scale(0.4),
+            input_pixel.copy(),
+            Text("-", font="SF Mono").scale(0.4),
+            VGroup(x_sq_in.copy(), l_t_sub.copy().set_opacity(1)).arrange(ORIGIN),
+        ).arrange(RIGHT, buff=0.2)
 
-        sub_definition = (
-            VGroup(input_sub, sub_operation, output_sub)
-            .arrange(RIGHT, buff=0.5)
-            .move_to(frame_center)
-            .shift(UP * 0.5)
+        sub_definition = VGroup(
+            input_sub.move_to(frame_center).next_to(
+                input_img, UP, buff=0.5, coor_mask=[1, 0, 1]
+            ),
+            sub_operation.move_to(frame_center).next_to(
+                output_img, UP, buff=0.5, coor_mask=[1, 0, 1]
+            ),
         )
 
         self.play(LaggedStartMap(FadeIn, sub_definition))
@@ -1318,14 +1324,6 @@ class Filtering(MovingCameraScene):
             FadeOut(sub_definition),
         )
 
-        up_operation = (
-            MathTex(
-                r"x_{out} = x - u",
-            )
-            .set_color(WHITE)
-            .scale(0.45)
-        )
-
         u_t_up = Text("u", font="SF Mono", weight=BOLD).scale(0.4).set_opacity(0.6)
 
         up_up = VGroup(
@@ -1337,11 +1335,21 @@ class Filtering(MovingCameraScene):
             input_pixel.copy(),
         )
 
-        up_definition = (
-            VGroup(input_up, up_operation, output_pixel.copy())
-            .arrange(RIGHT, buff=0.5)
-            .move_to(frame_center)
-            .shift(UP * 0.5)
+        up_operation = VGroup(
+            output_pixel.copy(),
+            Text("=", font="SF Mono").scale(0.4),
+            input_pixel.copy(),
+            Text("-", font="SF Mono").scale(0.4),
+            VGroup(x_sq_in.copy(), u_t_up.copy().set_opacity(1)).arrange(ORIGIN),
+        ).arrange(RIGHT, buff=0.2)
+
+        up_definition = VGroup(
+            input_up.move_to(frame_center)
+            .next_to(input_img, UP, buff=0.5, coor_mask=[1, 0, 1])
+            .shift(UP * 0.15),
+            up_operation.move_to(frame_center).next_to(
+                output_img, UP, buff=0.5, coor_mask=[1, 0, 1]
+            ),
         )
 
         self.play(LaggedStartMap(FadeIn, up_definition))
@@ -1374,14 +1382,6 @@ class Filtering(MovingCameraScene):
             FadeOut(up_definition),
         )
 
-        avg_operation = (
-            MathTex(
-                r"x_{out} = x - \frac{l + u}{2}",
-            )
-            .set_color(WHITE)
-            .scale(0.45)
-        )
-
         u_t_avg = Text("u", font="SF Mono", weight=BOLD).scale(0.4).set_opacity(0.6)
 
         left_avg = VGroup(
@@ -1399,11 +1399,35 @@ class Filtering(MovingCameraScene):
             main_x_avg,
         )
 
-        avg_definition = (
-            VGroup(input_avg, avg_operation, output_pixel.copy())
-            .arrange(RIGHT, buff=0.5)
-            .move_to(frame_center)
-            .shift(UP * 0.5)
+        avg_operation = VGroup(
+            output_pixel.copy(),
+            Text("=", font="SF Mono").scale(0.4),
+            input_pixel.copy(),
+            Text("-", font="SF Mono").scale(0.4),
+            VGroup(
+                VGroup(
+                    VGroup(x_sq_in.copy(), u_t_avg.copy().set_opacity(1)).arrange(
+                        ORIGIN
+                    ),
+                    Text("+", font="SF Mono").scale(0.4),
+                    VGroup(x_sq_in.copy(), l_t_sub.copy().set_opacity(1)).arrange(
+                        ORIGIN
+                    ),
+                )
+                .arrange(RIGHT, buff=0.2)
+                .scale(0.7),
+                Line(ORIGIN, LEFT).set_stroke(width=1),
+                Text("2", font="SF Mono").scale(0.4),
+            ).arrange(DOWN, buff=0.1),
+        ).arrange(RIGHT, buff=0.2)
+
+        avg_definition = VGroup(
+            input_avg.move_to(frame_center)
+            .next_to(input_img, UP, buff=0.5, coor_mask=[1, 0, 1])
+            .shift(UP * 0.15),
+            avg_operation.move_to(frame_center)
+            .next_to(output_img, UP, buff=0.5, coor_mask=[1, 0, 1])
+            .shift(UP * 0.15),
         )
 
         self.play(LaggedStartMap(FadeIn, avg_definition))
