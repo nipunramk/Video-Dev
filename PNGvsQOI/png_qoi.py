@@ -1500,7 +1500,7 @@ class Filtering(MovingCameraScene):
             )
             .arrange(RIGHT, buff=0.1)
             .move_to(frame_center)
-            .next_to(output_img, UP, coor_mask=[1, 0, 1])
+            .next_to(output_img, UP, coor_mask=[1, 0, 1], aligned_edge=LEFT)
             .shift(UP * 0.5)
         )
         self.play(FadeIn(v_ops))
@@ -1555,7 +1555,9 @@ class Filtering(MovingCameraScene):
 
         self.play(FadeIn(all_ops))
 
-        brace_min = Brace(all_ops, direction=RIGHT, sharpness=1).
+        brace_min = Brace(all_ops, direction=RIGHT, buff=0.05).stretch_to_fit_width(
+            0.15
+        )
 
         double_right_arrow = Tex(r"$\Rightarrow$").scale(0.4)
 
@@ -1564,21 +1566,85 @@ class Filtering(MovingCameraScene):
                 "min(v<sub>l</sub>, v<sub>u</sub>, v<sub>ul</sub>)", font="SF Mono"
             )
             .scale(0.2)
-            .next_to(brace_min, RIGHT, buff=0.2)
+            .next_to(brace_min, RIGHT, buff=0.1)
         )
 
-        win_u = VGroup(
-            v_u_paeth.copy(), double_right_arrow.copy(), v_u_ops[4].copy()
-        ).arrange(RIGHT, buff=0.2)
+        win_u = (
+            VGroup(v_u_paeth.copy(), double_right_arrow.copy(), v_u_ops[4].copy())
+            .arrange(RIGHT, buff=0.1)
+            .scale(0.8)
+            .next_to(brace_min, RIGHT, buff=0.1)
+        )
+
+        win_l = (
+            VGroup(v_l_paeth.copy(), double_right_arrow.copy(), v_l_ops[4].copy())
+            .arrange(RIGHT, buff=0.1)
+            .scale(0.8)
+            .next_to(brace_min, RIGHT, buff=0.1)
+        )
+
+        win_ul = (
+            VGroup(v_ul_paeth.copy(), double_right_arrow.copy(), v_ul_ops[4].copy())
+            .arrange(RIGHT, buff=0.1)
+            .scale(0.8)
+            .next_to(brace_min, RIGHT, buff=0.1)
+        )
 
         self.play(Write(brace_min))
         self.wait()
         self.play(Write(min_t))
         self.wait()
-        self.play(min_t.animate.shift(UP * 0.4))
-        self.play(FadeIn(win_u.next_to(min_t, DOWN, buff=0.3)))
+        self.play(min_t.animate.shift(UP * 0.25))
+        self.play(FadeIn(win_u.next_to(brace_min, RIGHT, buff=0.1)))
 
-        ##############################################3
+        final_result_u = (
+            VGroup(
+                output_pixel.copy(),
+                eq_sign.copy(),
+                input_pixel.copy(),
+                minus_sign.copy(),
+                win_u[2].copy().scale_to_fit_height(output_pixel.height),
+            )
+            .arrange(RIGHT, buff=0.2)
+            .scale(0.7)
+            .next_to(all_ops, DOWN, aligned_edge=LEFT, buff=0.2)
+        )
+
+        final_result_l = (
+            VGroup(
+                output_pixel.copy(),
+                eq_sign.copy(),
+                input_pixel.copy(),
+                minus_sign.copy(),
+                win_l[2].copy().scale_to_fit_height(output_pixel.height),
+            )
+            .arrange(RIGHT, buff=0.2)
+            .scale(0.7)
+            .next_to(all_ops, DOWN, aligned_edge=LEFT, buff=0.2)
+        )
+
+        final_result_ul = (
+            VGroup(
+                output_pixel.copy(),
+                eq_sign.copy(),
+                input_pixel.copy(),
+                minus_sign.copy(),
+                win_ul[2].copy().scale_to_fit_height(output_pixel.height),
+            )
+            .arrange(RIGHT, buff=0.2)
+            .scale(0.7)
+            .next_to(all_ops, DOWN, aligned_edge=LEFT, buff=0.2)
+        )
+
+        self.play(FadeIn(final_result_u))
+
+        self.play(Transform(win_u, win_l), Transform(final_result_u, final_result_l))
+
+        self.wait()
+
+        self.play(Transform(win_u, win_ul), Transform(final_result_u, final_result_ul))
+
+        ##############################################
 
         paeth_row = self.paeth_filter_row(random_data, row=4, return_row=True)
 
