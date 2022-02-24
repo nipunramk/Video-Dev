@@ -1278,11 +1278,14 @@ class Filtering(MovingCameraScene):
 
         input_sub = VGroup(left_sub, input_pixel.copy()).arrange(RIGHT, buff=0)
 
+        eq_sign = Text("=", font="SF Mono").scale(0.4)
+        minus_sign = Text("-", font="SF Mono").scale(0.4)
+
         sub_operation = VGroup(
             output_pixel.copy(),
-            Text("=", font="SF Mono").scale(0.4),
+            eq_sign.copy(),
             input_pixel.copy(),
-            Text("-", font="SF Mono").scale(0.4),
+            minus_sign.copy(),
             VGroup(x_sq_in.copy(), l_t_sub.copy().set_opacity(1)).arrange(ORIGIN),
         ).arrange(RIGHT, buff=0.2)
 
@@ -1337,9 +1340,9 @@ class Filtering(MovingCameraScene):
 
         up_operation = VGroup(
             output_pixel.copy(),
-            Text("=", font="SF Mono").scale(0.4),
+            eq_sign.copy(),
             input_pixel.copy(),
-            Text("-", font="SF Mono").scale(0.4),
+            minus_sign.copy(),
             VGroup(x_sq_in.copy(), u_t_up.copy().set_opacity(1)).arrange(ORIGIN),
         ).arrange(RIGHT, buff=0.2)
 
@@ -1401,9 +1404,9 @@ class Filtering(MovingCameraScene):
 
         avg_operation = VGroup(
             output_pixel.copy(),
-            Text("=", font="SF Mono").scale(0.4),
+            eq_sign.copy(),
             input_pixel.copy(),
-            Text("-", font="SF Mono").scale(0.4),
+            minus_sign.copy(),
             VGroup(
                 VGroup(
                     VGroup(x_sq_in.copy(), u_t_avg.copy().set_opacity(1)).arrange(
@@ -1479,6 +1482,103 @@ class Filtering(MovingCameraScene):
         )
 
         self.play(FadeIn(input_paeth))
+
+        v_t_paeth = Text("v", font="SF Mono", weight=BOLD).scale(0.4)
+
+        v_ops = (
+            VGroup(
+                v_t_paeth,
+                eq_sign.copy(),
+                VGroup(x_sq_in.copy(), u_t_up.copy().set_opacity(1)).arrange(ORIGIN),
+                Text("+", font="SF Mono").scale(0.4),
+                VGroup(x_sq_in.copy(), l_t_sub.copy().set_opacity(1)).arrange(ORIGIN),
+                minus_sign.copy(),
+                VGroup(
+                    x_sq_in.copy(),
+                    Text("ul", font="SF Mono", weight=BOLD).set_opacity(1).scale(0.35),
+                ).arrange(ORIGIN),
+            )
+            .arrange(RIGHT, buff=0.1)
+            .move_to(frame_center)
+            .next_to(output_img, UP, coor_mask=[1, 0, 1])
+            .shift(UP * 0.5)
+        )
+        self.play(FadeIn(v_ops))
+
+        self.wait()
+
+        self.play(v_ops.animate.shift(UP).scale(0.7))
+
+        v_l_paeth = MarkupText("v<sub>l</sub>", font="SF Mono").scale(0.4)
+        v_u_paeth = MarkupText("v<sub>u</sub>", font="SF Mono").scale(0.4)
+        v_ul_paeth = MarkupText("v<sub>ul</sub>", font="SF Mono").scale(0.4)
+
+        v_l_ops = VGroup(
+            v_l_paeth.copy(),
+            eq_sign.copy(),
+            v_t_paeth.copy(),
+            minus_sign.copy(),
+            VGroup(x_sq_in.copy(), l_t_sub.copy().set_opacity(1))
+            .arrange(ORIGIN)
+            .scale(0.7),
+        ).arrange(RIGHT, buff=0.2)
+
+        v_u_ops = VGroup(
+            v_u_paeth.copy(),
+            eq_sign.copy(),
+            v_t_paeth.copy(),
+            minus_sign.copy(),
+            VGroup(x_sq_in.copy(), u_t_up.copy().set_opacity(1))
+            .arrange(ORIGIN)
+            .scale(0.7),
+        ).arrange(RIGHT, buff=0.2)
+
+        v_ul_ops = VGroup(
+            v_ul_paeth.copy(),
+            eq_sign.copy(),
+            v_t_paeth.copy(),
+            minus_sign.copy(),
+            VGroup(
+                x_sq_in.copy(),
+                Text("ul", font="SF Mono", weight=BOLD).set_opacity(1).scale(0.35),
+            )
+            .arrange(ORIGIN)
+            .scale(0.7),
+        ).arrange(RIGHT, buff=0.2)
+
+        all_ops = (
+            VGroup(v_l_ops, v_u_ops, v_ul_ops)
+            .arrange(DOWN, buff=0.2, aligned_edge=LEFT)
+            .scale(0.7)
+            .next_to(v_ops, DOWN, buff=0.2, aligned_edge=LEFT)
+        )
+
+        self.play(FadeIn(all_ops))
+
+        brace_min = Brace(all_ops, direction=RIGHT, sharpness=1).
+
+        double_right_arrow = Tex(r"$\Rightarrow$").scale(0.4)
+
+        min_t = (
+            MarkupText(
+                "min(v<sub>l</sub>, v<sub>u</sub>, v<sub>ul</sub>)", font="SF Mono"
+            )
+            .scale(0.2)
+            .next_to(brace_min, RIGHT, buff=0.2)
+        )
+
+        win_u = VGroup(
+            v_u_paeth.copy(), double_right_arrow.copy(), v_u_ops[4].copy()
+        ).arrange(RIGHT, buff=0.2)
+
+        self.play(Write(brace_min))
+        self.wait()
+        self.play(Write(min_t))
+        self.wait()
+        self.play(min_t.animate.shift(UP * 0.4))
+        self.play(FadeIn(win_u.next_to(min_t, DOWN, buff=0.3)))
+
+        ##############################################3
 
         paeth_row = self.paeth_filter_row(random_data, row=4, return_row=True)
 
