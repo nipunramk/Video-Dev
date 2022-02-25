@@ -1082,44 +1082,36 @@ class Filtering(MovingCameraScene):
         )
 
         self.play(Write(filter_title))
+
         self.wait()
+
         self.play(LaggedStartMap(FadeIn, filter_types))
 
         self.wait()
 
-        filter_types_v = (
-            filter_types.copy()
-            .arrange(DOWN, aligned_edge=LEFT, buff=0.7)
-            .scale(0.8)
-            .to_edge(LEFT)
-            .shift(DOWN * 0.5)
-        )
-
-        self.play(Transform(filter_types, filter_types_v))
-
-        self.wait()
+        self.play(LaggedStartMap(FadeOut, filter_types))
 
         random_data = np.random.randint(127, 140, (9, 8))
 
         input_img = PixelArray(
             random_data, include_numbers=True, color_mode="GRAY", outline=True
         ).scale(0.4)
+
+        output_img = PixelArray(
+            np.zeros(random_data.shape, dtype=np.int64),
+            include_numbers=True,
+            color_mode="GRAY",
+            outline=True,
+        ).scale_to_fit_height(input_img.height)
+
+        _ = VGroup(input_img, output_img).arrange(RIGHT, buff=0.5).move_to(ORIGIN)
+
         input_img_t = (
             Text("Input Image", font="CMU Serif")
             .scale(0.5)
             .next_to(input_img, DOWN, buff=0.2)
         )
 
-        output_img = (
-            PixelArray(
-                np.zeros(random_data.shape, dtype=np.int64),
-                include_numbers=True,
-                color_mode="GRAY",
-                outline=True,
-            )
-            .scale_to_fit_height(input_img.height)
-            .next_to(input_img, RIGHT, buff=0.5)
-        )
         output_img_t = (
             Text("Filtered Image", font="CMU Serif")
             .scale(0.5)
@@ -1133,6 +1125,8 @@ class Filtering(MovingCameraScene):
             Write(output_img_t),
         )
 
+        self.wait()
+
         filtered_data = random_data.copy()
 
         # save general frame view
@@ -1142,10 +1136,12 @@ class Filtering(MovingCameraScene):
         row_in_out_img = VGroup(input_img[row_to_focus_on], output_img[row_to_focus_on])
 
         self.play(
-            self.camera.frame.animate.set_width(row_in_out_img.width * 1.1)
-            .move_to(row_in_out_img)
-            .shift(UP),
-            FadeOut(filter_title),
+            LaggedStart(
+                self.camera.frame.animate.set_width(row_in_out_img.width * 1.3)
+                .move_to(row_in_out_img)
+                .shift(UP),
+                FadeOut(filter_title, run_time=0.5),
+            ),
             run_time=3,
         )
 
@@ -1190,7 +1186,7 @@ class Filtering(MovingCameraScene):
         self.play(
             FadeIn(
                 title_filter.move_to(self.camera.frame.get_corner(UL)).shift(
-                    RIGHT * 0.8 + DOWN * 0.5
+                    RIGHT * 1 + DOWN * 0.6
                 )
             )
         )
@@ -1224,14 +1220,18 @@ class Filtering(MovingCameraScene):
         output_pixel = VGroup(x_sq_out, x_t_out)
 
         right_arrow = Arrow(
-            input_pixel, output_pixel, max_tip_length_to_length_ratio=0.2
+            input_pixel,
+            output_pixel,
+            buff=-1,
+            max_tip_length_to_length_ratio=0.1,
+            max_stroke_width_to_length_ratio=2,
         ).set_color(WHITE)
 
         none_definition = (
             VGroup(input_pixel, right_arrow, output_pixel)
             .arrange(RIGHT, buff=0.2)
             .move_to(frame_center)
-            .shift(UP * 0.5)
+            .shift(UP * 0.15)
         )
 
         self.wait()
@@ -1263,14 +1263,16 @@ class Filtering(MovingCameraScene):
         self.wait()
 
         # now on row one, show the SUB filter ####################################################
-        title_filter_sub = sub_t.copy().scale(0.8).move_to(title_filter)
+        title_filter_sub = (
+            sub_t.copy().scale(0.8).move_to(title_filter, aligned_edge=LEFT)
+        )
 
         self.play(
             FadeTransform(title_filter, title_filter_sub, stretch=False),
             FadeOut(none_definition),
         )
 
-        l_t_sub = Text("l", font="SF Mono", weight=BOLD).scale(0.4).set_opacity(0.6)
+        l_t_sub = Text("L", font="SF Mono", weight=BOLD).scale(0.4).set_opacity(0.6)
 
         left_sub = VGroup(
             x_sq_in.copy().set_color(REDUCIBLE_GREEN_DARKER), l_t_sub
@@ -1320,14 +1322,16 @@ class Filtering(MovingCameraScene):
         )
 
         # row 2, show the UP filter ####################################################
-        title_filter_up = up_t.copy().scale(0.8).move_to(title_filter)
+        title_filter_up = (
+            up_t.copy().scale(0.8).move_to(title_filter, aligned_edge=LEFT)
+        )
 
         self.play(
             FadeTransform(title_filter_sub, title_filter_up, stretch=False),
             FadeOut(sub_definition),
         )
 
-        u_t_up = Text("u", font="SF Mono", weight=BOLD).scale(0.4).set_opacity(0.6)
+        u_t_up = Text("U", font="SF Mono", weight=BOLD).scale(0.4).set_opacity(0.6)
 
         up_up = VGroup(
             x_sq_in.copy().set_color(REDUCIBLE_GREEN_DARKER), u_t_up
@@ -1378,14 +1382,16 @@ class Filtering(MovingCameraScene):
         self.wait()
 
         # row 3, show the avg filter ####################################################
-        title_filter_avg = avg_t.copy().scale(0.8).move_to(title_filter)
+        title_filter_avg = (
+            avg_t.copy().scale(0.8).move_to(title_filter, aligned_edge=LEFT)
+        )
 
         self.play(
             FadeTransform(title_filter_up, title_filter_avg, stretch=False),
             FadeOut(up_definition),
         )
 
-        u_t_avg = Text("u", font="SF Mono", weight=BOLD).scale(0.4).set_opacity(0.6)
+        u_t_avg = Text("U", font="SF Mono", weight=BOLD).scale(0.4).set_opacity(0.6)
 
         left_avg = VGroup(
             x_sq_in.copy().set_color(REDUCIBLE_GREEN_DARKER), l_t_sub.copy()
@@ -1456,7 +1462,9 @@ class Filtering(MovingCameraScene):
         self.wait()
 
         # row 4, show the paeth filter
-        title_filter_paeth = paeth_t.copy().scale(0.8).move_to(title_filter)
+        title_filter_paeth = (
+            paeth_t.copy().scale(0.8).move_to(title_filter, aligned_edge=LEFT)
+        )
 
         self.play(
             FadeTransform(title_filter_avg, title_filter_paeth, stretch=False),
@@ -1469,7 +1477,7 @@ class Filtering(MovingCameraScene):
 
         ul_paeth = VGroup(
             x_sq_in.copy().set_color(REDUCIBLE_GREEN_DARKER),
-            Text("ul", font="SF Mono", weight=BOLD).set_opacity(0.6).scale(0.35),
+            Text("UL", font="SF Mono", weight=BOLD).set_opacity(0.6).scale(0.35),
         ).arrange(ORIGIN)
 
         main_x_paeth = input_pixel.copy()
@@ -1478,7 +1486,8 @@ class Filtering(MovingCameraScene):
             VGroup(ul_paeth, up_paeth, left_paeth, main_x_paeth)
             .arrange_in_grid(rows=2, cols=2, buff=0)
             .move_to(frame_center)
-            .shift(UP * 0.5 + LEFT * 2)
+            .next_to(input_img, UP, buff=0.5, coor_mask=[1, 0, 1])
+            .shift(UP * 0.15)
         )
 
         self.play(FadeIn(input_paeth))
@@ -1495,7 +1504,7 @@ class Filtering(MovingCameraScene):
                 minus_sign.copy(),
                 VGroup(
                     x_sq_in.copy(),
-                    Text("ul", font="SF Mono", weight=BOLD).set_opacity(1).scale(0.35),
+                    Text("UL", font="SF Mono", weight=BOLD).set_opacity(1).scale(0.35),
                 ).arrange(ORIGIN),
             )
             .arrange(RIGHT, buff=0.1)
@@ -1509,9 +1518,9 @@ class Filtering(MovingCameraScene):
 
         self.play(v_ops.animate.shift(UP).scale(0.7))
 
-        v_l_paeth = MarkupText("v<sub>l</sub>", font="SF Mono").scale(0.4)
-        v_u_paeth = MarkupText("v<sub>u</sub>", font="SF Mono").scale(0.4)
-        v_ul_paeth = MarkupText("v<sub>ul</sub>", font="SF Mono").scale(0.4)
+        v_l_paeth = MarkupText("v<sub>L</sub>", font="SF Mono").scale(0.4)
+        v_u_paeth = MarkupText("v<sub>U</sub>", font="SF Mono").scale(0.4)
+        v_ul_paeth = MarkupText("v<sub>UL</sub>", font="SF Mono").scale(0.4)
 
         v_l_ops = VGroup(
             v_l_paeth.copy(),
@@ -1540,7 +1549,7 @@ class Filtering(MovingCameraScene):
             minus_sign.copy(),
             VGroup(
                 x_sq_in.copy(),
-                Text("ul", font="SF Mono", weight=BOLD).set_opacity(1).scale(0.35),
+                Text("UL", font="SF Mono", weight=BOLD).set_opacity(1).scale(0.35),
             )
             .arrange(ORIGIN)
             .scale(0.7),
@@ -1563,7 +1572,7 @@ class Filtering(MovingCameraScene):
 
         min_t = (
             MarkupText(
-                "min(v<sub>l</sub>, v<sub>u</sub>, v<sub>ul</sub>)", font="SF Mono"
+                "min(v<sub>L</sub>, v<sub>U</sub>, v<sub>UL</sub>)", font="SF Mono"
             )
             .scale(0.2)
             .next_to(brace_min, RIGHT, buff=0.1)
@@ -1591,10 +1600,15 @@ class Filtering(MovingCameraScene):
         )
 
         self.play(Write(brace_min))
+
         self.wait()
+
         self.play(Write(min_t))
+
         self.wait()
+
         self.play(min_t.animate.shift(UP * 0.25))
+
         self.play(FadeIn(win_u.next_to(brace_min, RIGHT, buff=0.1)))
 
         final_result_u = (
@@ -1638,14 +1652,6 @@ class Filtering(MovingCameraScene):
 
         self.play(FadeIn(final_result_u))
 
-        self.play(Transform(win_u, win_l), Transform(final_result_u, final_result_l))
-
-        self.wait()
-
-        self.play(Transform(win_u, win_ul), Transform(final_result_u, final_result_ul))
-
-        ##############################################
-
         paeth_row = self.paeth_filter_row(random_data, row=4, return_row=True)
 
         filtered_data[4, :] = paeth_row
@@ -1656,6 +1662,10 @@ class Filtering(MovingCameraScene):
             .move_to(output_img)
         )
 
+        self.wait()
+
+        self.play(Transform(win_u, win_l), Transform(final_result_u, final_result_l))
+
         self.play(Transform(output_img, filtered_mob))
 
         self.wait()
@@ -1664,6 +1674,30 @@ class Filtering(MovingCameraScene):
             input_img.animate.shift(row_height),
             output_img.animate.shift(row_height),
         )
+
+        self.wait()
+
+        paeth_row = self.paeth_filter_row(random_data, row=5, return_row=True)
+
+        filtered_data[5, :] = paeth_row
+
+        filtered_mob = (
+            PixelArray(filtered_data, include_numbers=True, color_mode="GRAY")
+            .scale_to_fit_height(input_img.height)
+            .move_to(output_img)
+        )
+
+        self.play(Transform(win_u, win_ul), Transform(final_result_u, final_result_ul))
+
+        self.play(Transform(output_img, filtered_mob))
+
+        self.wait()
+
+        self.play(
+            input_img.animate.shift(row_height),
+            output_img.animate.shift(row_height),
+        )
+
         self.wait()
 
     #####################################################################
