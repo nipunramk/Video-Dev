@@ -1,7 +1,8 @@
 from math import floor
 from manim import *
 from manim.mobject.geometry import ArrowTriangleFilledTip
-from numpy import ndarray
+from numpy import ndarray, subtract
+from numpy.lib.arraypad import pad
 from functions import *
 from classes import *
 from reducible_colors import *
@@ -753,36 +754,46 @@ class Filtering(MovingCameraScene):
     def construct(self):
         # self.intro_filtering()
 
-        # self.clear()
         # self.wait()
+        # self.clear()
 
         # self.present_problem()
 
-        # self.clear()
         # self.wait()
+        # self.clear()
 
         # self.five_filters_explanation()
 
-        # self.clear()
         # self.wait()
+        # self.clear()
+        # self.play(Restore(self.camera.frame))
 
         # self.channels_are_independent()
 
-        # self.clear()
         # self.wait()
+        # self.clear()
 
         # self.zeros_out_of_bounds()
 
-        # self.clear()
         # self.wait()
+        # self.clear()
 
         # self.what_filter_to_use()
 
-        # self.clear()
         # self.wait()
+        # self.clear()
 
         # self.low_bit_depth_images()
-        self.palette_images()
+
+        # self.wait()
+        # self.clear()
+
+        # self.palette_images()
+
+        # self.wait()
+        # self.clear()
+
+        self.minimum_sum_of_absolute_differences()
 
     def intro_filtering(self):
         title = Text("Lossless Compression", font="CMU Serif", weight=BOLD).to_edge(UP)
@@ -1715,7 +1726,6 @@ class Filtering(MovingCameraScene):
             input_img.animate.shift(row_height),
             output_img.animate.shift(row_height),
         )
-
         self.wait()
 
     def channels_are_independent(self):
@@ -2070,6 +2080,81 @@ class Filtering(MovingCameraScene):
 
         self.play(FadeIn(index_palette))
 
+    def minimum_sum_of_absolute_differences(self):
+        example_row = np.random.randint(60, 65, (20, 10))
+        row_mob = PixelArray(
+            example_row, include_numbers=True, color_mode="GRAY"
+        ).scale(0.5)
+
+        self.play(FadeIn(row_mob))
+
+        self.wait()
+
+        self.play(row_mob.animate.shift(UL * 1.7))
+
+        sub_f_mob, sub_map_mob, sub_score = self.calculate_filtered_rows(
+            example_row, self.sub_filter_img
+        )
+        up_f_mob, up_map_mob, up_score = self.calculate_filtered_rows(
+            example_row, self.up_filter_img
+        )
+        avg_f_mob, avg_map_mob, avg_score = self.calculate_filtered_rows(
+            example_row, self.avg_filter_img
+        )
+        paeth_f_mob, paeth_map_mob, paeth_score = self.calculate_filtered_rows(
+            example_row, self.paeth_filter_img
+        )
+
+        _ = (
+            VGroup(sub_f_mob, sub_map_mob)
+            .arrange(DOWN, buff=0.7)
+            .scale_to_fit_width(row_mob.width)
+            .next_to(row_mob, DOWN, buff=0.7)
+        )
+        _ = (
+            VGroup(up_f_mob, up_map_mob)
+            .arrange(DOWN, buff=0.7)
+            .scale_to_fit_width(row_mob.width)
+            .next_to(row_mob, DOWN, buff=0.7)
+        )
+        _ = (
+            VGroup(avg_f_mob, avg_map_mob)
+            .arrange(DOWN, buff=0.7)
+            .scale_to_fit_width(row_mob.width)
+            .next_to(row_mob, DOWN, buff=0.7)
+        )
+        _ = (
+            VGroup(paeth_f_mob, paeth_map_mob)
+            .arrange(DOWN, buff=0.7)
+            .scale_to_fit_width(row_mob.width)
+            .next_to(row_mob, DOWN, buff=0.7)
+        )
+
+        sub_t = (
+            Text("SUB", font="SF Mono", weight=BOLD)
+            .scale(0.7)
+            .set_color(REDUCIBLE_YELLOW)
+            .next_to(sub_f_mob, RIGHT, buff=0.5)
+        )
+        up_t = (
+            Text("UP", font="SF Mono", weight=BOLD)
+            .scale(0.7)
+            .set_color(REDUCIBLE_YELLOW)
+            .next_to(sub_f_mob, RIGHT, buff=0.5)
+        )
+        avg_t = (
+            Text("AVG", font="SF Mono", weight=BOLD)
+            .scale(0.7)
+            .set_color(REDUCIBLE_YELLOW)
+            .next_to(sub_f_mob, RIGHT, buff=0.5)
+        )
+        paeth_t = (
+            Text("PAETH", font="SF Mono", weight=BOLD)
+            .scale(0.7)
+            .set_color(REDUCIBLE_YELLOW)
+            .next_to(sub_f_mob, RIGHT, buff=0.5)
+        )
+
     #####################################################################
 
     # Functions
@@ -2327,6 +2412,60 @@ class Filtering(MovingCameraScene):
             )
 
         return iterations_r, iterations_g, iterations_b, methods_history
+
+    def calculate_filtered_rows(self, input_array, filter_func=sub_filter_img):
+        filtered_row = filter_func(input_array)[0]
+
+        filtered_mob = PixelArray(
+            np.array([filtered_row]), include_numbers=True, color_mode="GRAY"
+        )
+        [
+            p.set_color(REDUCIBLE_PURPLE)
+            .set_opacity(0.5)
+            .set_stroke(REDUCIBLE_PURPLE, width=3, opacity=1)
+            for p in filtered_mob
+        ]
+        filtered_mob.numbers.set_color(WHITE).set_opacity(1).set_stroke(width=0)
+
+        mapped_row = np.array(
+            [self.png_mapping(p) for p in filtered_row],
+            dtype=np.int16,
+        )
+
+        filter_score = sum(abs(mapped_row))
+
+        mapped_filtered_mob = PixelArray(
+            np.array([mapped_row]), include_numbers=True, color_mode="GRAY"
+        )
+        [
+            p.set_color(REDUCIBLE_GREEN)
+            .set_opacity(0.5)
+            .set_stroke(REDUCIBLE_GREEN, width=3, opacity=1)
+            for p in mapped_filtered_mob
+        ]
+        [
+            n.set_color(WHITE).set_opacity(1).scale(0.7).set_stroke(width=0)
+            for n in mapped_filtered_mob.numbers
+        ]
+
+        return filtered_mob, mapped_filtered_mob, filter_score
+
+    def filter_image_msad(self):
+        """
+        Implement minimum sum of absolute differences on an image
+        and return every part of the iteration
+        """
+
+    def map_num_range(self, x, input_start, input_end, output_start, output_end):
+        return output_start + (
+            (output_end - output_start) / (input_end - input_start)
+        ) * (x - input_start)
+
+    def png_mapping(self, x):
+        if x > 127:
+            return self.map_num_range(x, 128, 255, -128, -1)
+        else:
+            return x
 
 
 class Test(Scene):
