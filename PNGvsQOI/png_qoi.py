@@ -751,17 +751,27 @@ class QOIDemo(Scene):
 
 class Filtering(MovingCameraScene):
     def construct(self):
-        # self.intro_filtering()
+        self.intro_filtering()
 
-        # self.clear()
-        # self.wait()
+        self.clear()
+        self.wait()
 
-        # self.present_problem()
+        self.present_problem()
 
-        # self.clear()
-        # self.wait()
+        self.clear()
+        self.wait()
 
         self.five_filters_explanation()
+
+        self.clear()
+        self.wait()
+
+        self.channels_are_independent()
+
+        self.clear()
+        self.wait()
+
+        self.zeros_out_of_bounds()
 
     def intro_filtering(self):
         title = Text("Lossless Compression", font="CMU Serif", weight=BOLD).to_edge(UP)
@@ -770,9 +780,6 @@ class Filtering(MovingCameraScene):
             "00000111101010101 0000 11111 00000111101010101",
             font="SF Mono",
         ).scale(1.5)
-
-        # eg_data[:17].set_color(RED)
-        # eg_data[27:].set_opacity(0.5)
 
         eg_data_no_repeats = Text(
             "0101010001101001001001001001010", font="SF Mono"
@@ -1091,7 +1098,7 @@ class Filtering(MovingCameraScene):
 
         self.play(LaggedStartMap(FadeOut, filter_types))
 
-        random_data = np.random.randint(127, 140, (9, 8))
+        random_data = np.random.randint(127, 140, (8, 8))
 
         input_img = PixelArray(
             random_data, include_numbers=True, color_mode="GRAY", outline=True
@@ -1700,6 +1707,196 @@ class Filtering(MovingCameraScene):
 
         self.wait()
 
+    def channels_are_independent(self):
+        """
+        Some minor considerations: these operations are done on each channel individually,
+        so we are not mixing up red and green values. Each channel is treated separately.
+        """
+        image = ImageMobject("r.png")
+
+        pixel_array = image.get_pixel_array().astype(int)
+
+        pixel_array_r = pixel_array[:, :, 0]
+        pixel_array_g = pixel_array[:, :, 1]
+        pixel_array_b = pixel_array[:, :, 2]
+
+        px_arr_r = PixelArray(pixel_array_r, color_mode="GRAY").scale(0.4)
+
+        pixel_array_mob_r = VGroup(
+            px_arr_r,
+            Square(color=PURE_RED)
+            .set_opacity(0.2)
+            .scale_to_fit_height(px_arr_r.height),
+        )
+        pixel_array_mob_g = VGroup(
+            PixelArray(pixel_array_g, color_mode="GRAY").scale(0.4),
+            Square(color=PURE_GREEN)
+            .set_opacity(0.2)
+            .scale_to_fit_height(px_arr_r.height),
+        )
+        pixel_array_mob_b = VGroup(
+            PixelArray(pixel_array_b, color_mode="GRAY").scale(0.4),
+            Square(color=PURE_BLUE)
+            .set_opacity(0.2)
+            .scale_to_fit_height(px_arr_r.height),
+        )
+
+        all_channels = (
+            VGroup(pixel_array_mob_r, pixel_array_mob_g, pixel_array_mob_b)
+            .arrange(RIGHT, buff=0.5)
+            .scale(0.7)
+        )
+
+        self.play(FadeIn(all_channels))
+        self.wait()
+
+        self.play(all_channels.animate.shift(UP * 1.2))
+
+        self.wait()
+
+        (
+            iterations_r,
+            iterations_g,
+            iterations_b,
+            methods_history,
+        ) = self.filter_image_randomly(pixel_array)
+
+        first_iteration = (
+            VGroup(iterations_r[0], iterations_g[0], iterations_b[0])
+            .arrange(RIGHT, buff=0.5)
+            .scale_to_fit_width(all_channels.width)
+            .shift(DOWN * 1.2)
+        )
+
+        row_surr_rect = 0
+        rows, cols = pixel_array_r.shape
+
+        surr_rect = SurroundingRectangle(
+            VGroup(
+                iterations_r[0][
+                    slice(row_surr_rect * cols, row_surr_rect * cols + cols)
+                ],
+                iterations_g[0][
+                    slice(row_surr_rect * cols, row_surr_rect * cols + cols)
+                ],
+                iterations_b[0][
+                    slice(row_surr_rect * cols, row_surr_rect * cols + cols)
+                ],
+            ),
+            buff=0,
+            color=REDUCIBLE_YELLOW,
+        )
+
+        method_t = (
+            Text(methods_history[row_surr_rect], font="SF Mono")
+            .set_color(REDUCIBLE_YELLOW)
+            .scale(0.2)
+            .next_to(
+                iterations_r[0][
+                    slice(row_surr_rect * cols, row_surr_rect * cols + cols)
+                ],
+                LEFT,
+                buff=0.2,
+            )
+        )
+
+        self.play(FadeIn(first_iteration))
+        self.play(Write(surr_rect), Write(method_t))
+
+        self.wait()
+
+        for i_r, i_g, i_b in zip(iterations_r[1:], iterations_g[1:], iterations_b[1:]):
+            row_surr_rect += 1
+            print(f"{row_surr_rect = }")
+            print(slice(row_surr_rect * cols, row_surr_rect * cols + cols))
+
+            next_iteration = (
+                VGroup(i_r, i_g, i_b)
+                .arrange(RIGHT, buff=0.5)
+                .scale_to_fit_width(all_channels.width)
+                .shift(DOWN * 1.2)
+            )
+
+            next_surr_rect = SurroundingRectangle(
+                VGroup(
+                    i_r[slice(row_surr_rect * cols, row_surr_rect * cols + cols)],
+                    i_g[slice(row_surr_rect * cols, row_surr_rect * cols + cols)],
+                    i_b[slice(row_surr_rect * cols, row_surr_rect * cols + cols)],
+                ),
+                buff=0,
+            )
+
+            method_t = (
+                Text(methods_history[row_surr_rect], font="SF Mono")
+                .set_color(REDUCIBLE_YELLOW)
+                .scale(0.2)
+                .next_to(
+                    i_r[slice(row_surr_rect * cols, row_surr_rect * cols + cols)],
+                    LEFT,
+                    buff=0.2,
+                )
+            )
+
+            self.play(
+                Transform(first_iteration, next_iteration),
+                Transform(surr_rect, next_surr_rect),
+                Write(method_t),
+            )
+
+            self.wait()
+
+    def zeros_out_of_bounds(self):
+        """
+        Also, because we are dealing with “left” and “up” pixels, edge cases come in.
+        In case we were dealing with an out-of-bounds pixel, we’ll treat that one as if it was 0.
+        """
+
+        random_data = np.random.randint(100, 200, (8, 8))
+        # padded_data = np.pad(random_data, (1, 0), constant_values=0, mode="constant")
+
+        px_arr_mob = (
+            PixelArray(random_data, color_mode="GRAY", include_numbers=True)
+            .scale(1.4)
+            .shift(DOWN * 5 + RIGHT * 2)
+        )
+
+        dashed_row = (
+            VGroup(
+                *[
+                    VGroup(
+                        DashedVMobject(Square()).set_stroke(width=1.5),
+                        Text("0", font="SF Mono").scale(1.5),
+                    ).arrange(ORIGIN)
+                    for _ in range(9)
+                ]
+            )
+            .arrange(LEFT, buff=0)
+            .scale_to_fit_width(px_arr_mob.width + px_arr_mob[0].width)
+            .next_to(px_arr_mob, UP, buff=0, aligned_edge=RIGHT)
+        )
+
+        dashed_col = (
+            VGroup(
+                *[
+                    VGroup(
+                        DashedVMobject(Square()).set_stroke(width=1.5),
+                        Text("0", font="SF Mono").scale(1.5),
+                    ).arrange(ORIGIN)
+                    for _ in range(8)
+                ]
+            )
+            .arrange(DOWN, buff=0)
+            .scale_to_fit_height(px_arr_mob.height)
+            .next_to(px_arr_mob, LEFT, buff=0)
+        )
+
+        self.play(FadeIn(px_arr_mob))
+
+        self.play(LaggedStart(FadeIn(dashed_row), FadeIn(dashed_col)), run_time=2)
+
+    def png_heuristics(self):
+        pass
+
     #####################################################################
 
     # Functions
@@ -1890,6 +2087,73 @@ class Filtering(MovingCameraScene):
             return output[row, :]
         else:
             return output
+
+    def filter_image_randomly(self, img: ndarray):
+        methods = {
+            0: self.sub_filter_row,
+            1: self.up_filter_row,
+            2: self.avg_filter_row,
+            3: self.paeth_filter_row,
+        }
+
+        iterations_r = []
+        iterations_g = []
+        iterations_b = []
+        methods_history = []
+
+        pixel_array_r = img[:, :, 0].astype(np.int16)
+        pixel_array_g = img[:, :, 1].astype(np.int16)
+        pixel_array_b = img[:, :, 2].astype(np.int16)
+
+        pixel_array_r_out = np.zeros((img.shape[0], img.shape[1]), dtype=np.int16)
+        pixel_array_g_out = np.zeros((img.shape[0], img.shape[1]), dtype=np.int16)
+        pixel_array_b_out = np.zeros((img.shape[0], img.shape[1]), dtype=np.int16)
+
+        np.random.seed(2)
+
+        for row in range(len(img)):
+            random_method = np.random.randint(0, 4)
+
+            if random_method == 0:
+                methods_history.append("SUB")
+            elif random_method == 1:
+                methods_history.append("UP")
+            elif random_method == 2:
+                methods_history.append("AVG")
+            elif random_method == 3:
+                methods_history.append("PAETH")
+
+            row_r = methods[random_method](pixel_array_r, row, return_row=True)
+
+            pixel_array_r_out[row, :] = row_r
+
+            iterations_r.append(
+                PixelArray(
+                    pixel_array_r_out, include_numbers=True, color_mode="GRAY"
+                ).scale(0.4)
+            )
+
+            row_g = methods[random_method](pixel_array_g, row, return_row=True)
+
+            pixel_array_g_out[row, :] = row_g
+
+            iterations_g.append(
+                PixelArray(
+                    pixel_array_g_out, include_numbers=True, color_mode="GRAY"
+                ).scale(0.4)
+            )
+
+            row_b = methods[random_method](pixel_array_b, row, return_row=True)
+
+            pixel_array_b_out[row, :] = row_b
+
+            iterations_b.append(
+                PixelArray(
+                    pixel_array_b_out, include_numbers=True, color_mode="GRAY"
+                ).scale(0.4)
+            )
+
+        return iterations_r, iterations_g, iterations_b, methods_history
 
 
 class Test(Scene):

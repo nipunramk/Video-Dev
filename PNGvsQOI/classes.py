@@ -6,6 +6,8 @@ from reducible_colors import *
 class Pixel(Square):
     def __init__(self, n: int, color_mode: str, outline=True):
         assert color_mode in ("RGB", "GRAY"), "Color modes are RGB and GRAY"
+        if n < 0:
+            n = 0
         if color_mode == "RGB":
             color = rgb_to_hex(n / 255)
         else:
@@ -13,13 +15,7 @@ class Pixel(Square):
 
         super().__init__(side_length=1)
         if outline:
-            if n == 0:
-                self.set_stroke(
-                    GRAY_B,
-                    width=0.6,
-                )
-            else:
-                self.set_stroke(BLACK, width=0.2)
+            self.set_stroke(BLACK, width=0.2)
 
         else:
             self.set_stroke(color, width=0.2)
