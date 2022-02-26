@@ -2081,79 +2081,143 @@ class Filtering(MovingCameraScene):
         self.play(FadeIn(index_palette))
 
     def minimum_sum_of_absolute_differences(self):
-        example_row = np.random.randint(60, 65, (20, 10))
-        row_mob = PixelArray(
-            example_row, include_numbers=True, color_mode="GRAY"
-        ).scale(0.5)
+        title = (
+            Text("Minimum sum of absolute differences", font="CMU Serif", weight=BOLD)
+            .scale(0.6)
+            .to_edge(UP)
+        )
+        self.play(FadeIn(title))
 
-        self.play(FadeIn(row_mob))
+        rows, cols = (20, 8)
 
+        random_data = np.random.randint(50, 80, (rows, cols))
+
+        img_mob = (
+            PixelArray(random_data, include_numbers=True, color_mode="GRAY")
+            .scale(0.6)
+            .shift(DOWN * 6 + LEFT * 1.5)
+            .shift(UL * 1.7)
+        )
+
+        black_sq = (
+            Square(color=BLACK)
+            .scale(10)
+            .set_fill(BLACK)
+            .set_opacity(1)
+            .next_to(img_mob, UP, buff=0)
+            .shift(UP * img_mob[0].height)
+        )
+
+        winner_filters = VGroup()
+
+        self.play(FadeIn(img_mob), FadeIn(black_sq), FadeIn(winner_filters))
         self.wait()
 
-        self.play(row_mob.animate.shift(UL * 1.7))
-
-        sub_f_mob, sub_map_mob, sub_score = self.calculate_filtered_rows(
-            example_row, self.sub_filter_img
-        )
-        up_f_mob, up_map_mob, up_score = self.calculate_filtered_rows(
-            example_row, self.up_filter_img
-        )
-        avg_f_mob, avg_map_mob, avg_score = self.calculate_filtered_rows(
-            example_row, self.avg_filter_img
-        )
-        paeth_f_mob, paeth_map_mob, paeth_score = self.calculate_filtered_rows(
-            example_row, self.paeth_filter_img
+        mask = (
+            Difference(
+                Square().scale(10),
+                Rectangle(
+                    width=img_mob[:cols].width, height=img_mob[:cols].height
+                ).move_to(img_mob[:cols]),
+            )
+            .set_color(BLACK)
+            .set_opacity(0.5)
         )
 
-        _ = (
-            VGroup(sub_f_mob, sub_map_mob)
-            .arrange(DOWN, buff=0.7)
-            .scale_to_fit_width(row_mob.width)
-            .next_to(row_mob, DOWN, buff=0.7)
-        )
-        _ = (
-            VGroup(up_f_mob, up_map_mob)
-            .arrange(DOWN, buff=0.7)
-            .scale_to_fit_width(row_mob.width)
-            .next_to(row_mob, DOWN, buff=0.7)
-        )
-        _ = (
-            VGroup(avg_f_mob, avg_map_mob)
-            .arrange(DOWN, buff=0.7)
-            .scale_to_fit_width(row_mob.width)
-            .next_to(row_mob, DOWN, buff=0.7)
-        )
-        _ = (
-            VGroup(paeth_f_mob, paeth_map_mob)
-            .arrange(DOWN, buff=0.7)
-            .scale_to_fit_width(row_mob.width)
-            .next_to(row_mob, DOWN, buff=0.7)
+        self.play(FadeIn(mask))
+        self.wait()
+
+        filter_options = {
+            "sub": self.sub_filter_row,
+            "up": self.up_filter_row,
+            "avg": self.avg_filter_row,
+            "paeth": self.paeth_filter_row,
+        }
+
+        sub_t = Text("SUB", font="SF Mono", weight=BOLD).scale(0.5)
+        up_t = Text("UP", font="SF Mono", weight=BOLD).scale(0.5)
+        avg_t = Text("AVG", font="SF Mono", weight=BOLD).scale(0.5)
+        paeth_t = Text("PAETH", font="SF Mono", weight=BOLD).scale(0.5)
+
+        filter_score_table = (
+            VGroup(sub_t, up_t, avg_t, paeth_t)
+            .arrange(RIGHT, buff=1)
+            .next_to(img_mob, RIGHT, buff=0.5)
+            .shift(UP * 2)
         )
 
-        sub_t = (
-            Text("SUB", font="SF Mono", weight=BOLD)
-            .scale(0.7)
-            .set_color(REDUCIBLE_YELLOW)
-            .next_to(sub_f_mob, RIGHT, buff=0.5)
-        )
-        up_t = (
-            Text("UP", font="SF Mono", weight=BOLD)
-            .scale(0.7)
-            .set_color(REDUCIBLE_YELLOW)
-            .next_to(sub_f_mob, RIGHT, buff=0.5)
-        )
-        avg_t = (
-            Text("AVG", font="SF Mono", weight=BOLD)
-            .scale(0.7)
-            .set_color(REDUCIBLE_YELLOW)
-            .next_to(sub_f_mob, RIGHT, buff=0.5)
-        )
-        paeth_t = (
-            Text("PAETH", font="SF Mono", weight=BOLD)
-            .scale(0.7)
-            .set_color(REDUCIBLE_YELLOW)
-            .next_to(sub_f_mob, RIGHT, buff=0.5)
-        )
+        self.play(FadeIn(filter_score_table))
+
+        for row in range(10):
+
+            row_vg = img_mob[self.select_row_indices(row, (rows, cols))]
+            filter_index = 0
+            mobs_to_remove = VGroup()
+
+            scores = []
+            for name, filter_type in filter_options.items():
+
+                filtered_mob, mapped_mob, filter_score = self.calculate_filtered_rows(
+                    random_data, row, filter_func=filter_type
+                )
+                scores.append(filter_score)
+
+                filtered_mob.scale_to_fit_height(row_vg.height).next_to(
+                    row_vg, RIGHT, buff=0.5
+                )
+
+                mapped_mob.scale_to_fit_height(row_vg.height).next_to(
+                    filtered_mob, DOWN, buff=0.2
+                )
+
+                name_t = (
+                    Text(name, font="SF Mono", weight=BOLD)
+                    .scale(0.5)
+                    .next_to(filtered_mob, RIGHT, buff=0.2)
+                )
+
+                score_t = (
+                    Text(str(filter_score), font="SF Mono")
+                    .next_to(filter_score_table[filter_index], DOWN, buff=0.2)
+                    .scale(0.4)
+                )
+                filter_index += 1
+
+                self.play(
+                    FadeIn(filtered_mob),
+                )
+                self.play(
+                    FadeIn(name_t),
+                )
+                self.play(
+                    FadeIn(mapped_mob),
+                )
+                self.play(
+                    FadeIn(score_t),
+                )
+                self.wait()
+
+                mobs_to_remove.add(score_t)
+                self.play(FadeOut(filtered_mob), FadeOut(mapped_mob), FadeOut(name_t))
+
+            winner_filter = (
+                filter_score_table[np.argmin(scores)]
+                .copy()
+                .next_to(row_vg, LEFT, buff=0.2)
+            )
+
+            self.play(FadeIn(winner_filter))
+            self.bring_to_front(black_sq)
+
+            winner_filters.add(winner_filter)
+
+            self.play(FadeOut(mobs_to_remove))
+            self.wait()
+            self.play(
+                img_mob.animate.shift(UP * row_vg.height),
+                winner_filters.animate.shift(UP * row_vg.height),
+            )
+            self.wait()
 
     #####################################################################
 
@@ -2413,11 +2477,13 @@ class Filtering(MovingCameraScene):
 
         return iterations_r, iterations_g, iterations_b, methods_history
 
-    def calculate_filtered_rows(self, input_array, filter_func=sub_filter_img):
-        filtered_row = filter_func(input_array)[0]
+    def calculate_filtered_rows(self, input_array, row=0, filter_func=sub_filter_row):
+        filtered_row = filter_func(input_array, row=row, return_row=True)
 
         filtered_mob = PixelArray(
-            np.array([filtered_row]), include_numbers=True, color_mode="GRAY"
+            np.array([filtered_row], dtype=np.int16),
+            include_numbers=True,
+            color_mode="GRAY",
         )
         [
             p.set_color(REDUCIBLE_PURPLE)
