@@ -751,25 +751,25 @@ class QOIDemo(Scene):
 
 class Filtering(MovingCameraScene):
     def construct(self):
-        self.intro_filtering()
+        # self.intro_filtering()
 
-        self.clear()
-        self.wait()
+        # self.clear()
+        # self.wait()
 
-        self.present_problem()
+        # self.present_problem()
 
-        self.clear()
-        self.wait()
+        # self.clear()
+        # self.wait()
 
-        self.five_filters_explanation()
+        # self.five_filters_explanation()
 
-        self.clear()
-        self.wait()
+        # self.clear()
+        # self.wait()
 
-        self.channels_are_independent()
+        # self.channels_are_independent()
 
-        self.clear()
-        self.wait()
+        # self.clear()
+        # self.wait()
 
         self.zeros_out_of_bounds()
 
@@ -1864,7 +1864,9 @@ class Filtering(MovingCameraScene):
             VGroup(
                 *[
                     VGroup(
-                        DashedVMobject(Square()).set_stroke(width=1.5),
+                        DashedVMobject(Square()).set_stroke(
+                            width=1.5, color=REDUCIBLE_VIOLET
+                        ),
                         Text("0", font="SF Mono").scale(1.5),
                     ).arrange(ORIGIN)
                     for _ in range(9)
@@ -1879,7 +1881,9 @@ class Filtering(MovingCameraScene):
             VGroup(
                 *[
                     VGroup(
-                        DashedVMobject(Square()).set_stroke(width=1.5),
+                        DashedVMobject(Square()).set_stroke(
+                            width=1.5, color=REDUCIBLE_VIOLET
+                        ),
                         Text("0", font="SF Mono").scale(1.5),
                     ).arrange(ORIGIN)
                     for _ in range(8)
@@ -1890,7 +1894,22 @@ class Filtering(MovingCameraScene):
             .next_to(px_arr_mob, LEFT, buff=0)
         )
 
+        up_arrow = Arrow(
+            px_arr_mob[0].get_center(),
+            dashed_row[-2].get_center(),
+            max_tip_length_to_length_ratio=0.2,
+        ).set_color(REDUCIBLE_YELLOW)
+
+        left_arrow = Arrow(
+            px_arr_mob[0].get_center(),
+            dashed_col[0].get_center(),
+            max_tip_length_to_length_ratio=0.2,
+        ).set_color(REDUCIBLE_YELLOW)
+
         self.play(FadeIn(px_arr_mob))
+
+        self.play(Write(up_arrow))
+        self.play(Write(left_arrow))
 
         self.play(LaggedStart(FadeIn(dashed_row), FadeIn(dashed_col)), run_time=2)
 
