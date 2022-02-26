@@ -771,7 +771,18 @@ class Filtering(MovingCameraScene):
         # self.clear()
         # self.wait()
 
-        self.zeros_out_of_bounds()
+        # self.zeros_out_of_bounds()
+
+        # self.clear()
+        # self.wait()
+
+        # self.what_filter_to_use()
+
+        # self.clear()
+        # self.wait()
+
+        # self.low_bit_depth_images()
+        self.palette_images()
 
     def intro_filtering(self):
         title = Text("Lossless Compression", font="CMU Serif", weight=BOLD).to_edge(UP)
@@ -1913,8 +1924,151 @@ class Filtering(MovingCameraScene):
 
         self.play(LaggedStart(FadeIn(dashed_row), FadeIn(dashed_col)), run_time=2)
 
-    def png_heuristics(self):
-        pass
+    def what_filter_to_use(self):
+        """Natural question: what filter to choose"""
+        none_t = Text("NONE", font="CMU Serif", weight=BOLD).scale(0.7)
+        sub_t = Text("SUB", font="CMU Serif", weight=BOLD).scale(0.7)
+        up_t = Text("UP", font="CMU Serif", weight=BOLD).scale(0.7)
+        avg_t = Text("AVG", font="CMU Serif", weight=BOLD).scale(0.7)
+        paeth_t = Text("PAETH", font="CMU Serif", weight=BOLD).scale(0.7)
+
+        filter_types = (
+            VGroup(none_t, sub_t, up_t, avg_t, paeth_t)
+            .arrange(RIGHT, buff=1)
+            .set_opacity(0.3)
+        )
+
+        self.play(LaggedStartMap(FadeIn, filter_types))
+
+        for filter_name in filter_types:
+            self.play(
+                filter_name.animate.scale(1.2).set_opacity(1),
+                rate_func=there_and_back_with_pause,
+                run_time=1,
+            )
+
+        self.play(
+            Write(
+                Text("?", font="CMU Serif", weight=BOLD).next_to(
+                    filter_types, DOWN, buff=1
+                )
+            )
+        )
+
+    def low_bit_depth_images(self):
+
+        byte_code = Text(r"0x00100101", font="SF Mono").scale(2)
+        rect = (
+            SurroundingRectangle(byte_code, buff=0.1)
+            .set_color(REDUCIBLE_PURPLE)
+            .set_fill(REDUCIBLE_PURPLE, opacity=0.7)
+        )
+        byte_representation = VGroup(rect, byte_code).arrange(ORIGIN)
+
+        byte_t = (
+            Text("Byte length", font="SF Mono")
+            .scale(0.7)
+            .next_to(byte_representation, UP, buff=0.1)
+        )
+
+        pix_1_t = MarkupText("pixel<sub>1</sub>", font="SF Mono").scale_to_fit_width(
+            byte_representation.width / 2 - 0.3
+        )
+        rect_px_1 = (
+            SurroundingRectangle(pix_1_t, buff=0.1)
+            .set_color(REDUCIBLE_GREEN)
+            .set_fill(REDUCIBLE_GREEN, opacity=0.7)
+        )
+
+        pix1_repr = VGroup(rect_px_1, pix_1_t).next_to(
+            byte_representation, DOWN, buff=0.1, aligned_edge=LEFT
+        )
+
+        pix_2_t = MarkupText("pixel<sub>2</sub>", font="SF Mono").scale_to_fit_width(
+            byte_representation.width / 2 - 0.3
+        )
+        rect_px_2 = (
+            SurroundingRectangle(pix_2_t, buff=0.1)
+            .set_color(REDUCIBLE_GREEN)
+            .set_fill(REDUCIBLE_GREEN, opacity=0.7)
+        )
+        pix2_repr = VGroup(rect_px_2, pix_2_t).next_to(
+            byte_representation, DOWN, buff=0.1, aligned_edge=RIGHT
+        )
+
+        self.play(FadeIn(byte_representation), Write(byte_t))
+        self.play(FadeIn(pix1_repr), FadeIn(pix2_repr))
+
+    def palette_images(self):
+        title = (
+            Text("Palette Based Images", font="CMU Serif", weight=BOLD)
+            .scale(0.8)
+            .to_edge(UP)
+        )
+        self.play(FadeIn(title))
+        img = ImageMobject("r.png")
+        px_array = img.get_pixel_array()
+        palette = np.array(
+            [[px_array[0, 0, :3], px_array[0, 1, :3], px_array[1, 2, :3]]]
+        )
+
+        index_palette = VGroup()
+        for j in range(px_array.shape[0]):
+            for i in range(px_array.shape[1]):
+
+                if (px_array[j, i][:3] == palette[0, 0]).all():
+                    index_palette.add(
+                        Text("0", font="SF Mono", weight=BOLD)
+                        .set_color(BLACK)
+                        .scale(0.3)
+                    )
+                elif (px_array[j, i][:3] == palette[0, 1]).all():
+                    index_palette.add(
+                        Text("1", font="SF Mono", weight=BOLD)
+                        .set_color(BLACK)
+                        .scale(0.3)
+                    )
+                elif (px_array[j, i][:3] == palette[0, 2]).all():
+                    index_palette.add(
+                        Text("2", font="SF Mono", weight=BOLD)
+                        .set_color(WHITE)
+                        .scale(0.3)
+                    )
+
+        palette_mob = PixelArray(
+            palette, color_mode="RGB", include_numbers=False
+        ).arrange(DOWN, buff=0)
+
+        img_mob = PixelArray(px_array[:, :, :3], color_mode="RGB")
+
+        zero_index = Text("0", font="SF Mono").scale(0.8)
+        one_index = Text("1", font="SF Mono").scale(0.8)
+        two_index = Text("2", font="SF Mono").scale(0.8)
+
+        indices = VGroup(zero_index, one_index, two_index)
+
+        for palette, index in zip(palette_mob, indices):
+            index.next_to(palette, LEFT, buff=0.2)
+
+        full_palette = VGroup(indices, palette_mob)
+
+        self.play(FadeIn(palette_mob), FadeIn(indices))
+        self.wait()
+
+        self.play(full_palette.animate.shift(LEFT * 2))
+
+        img_mob.scale_to_fit_height(palette_mob.height).next_to(
+            palette_mob, RIGHT, buff=1
+        )
+
+        for pixel, index in zip(img_mob, index_palette):
+            index.next_to(pixel, ORIGIN)
+
+        self.play(FadeIn(img_mob))
+
+        self.wait()
+
+        self.play(FadeIn(index_palette))
 
     #####################################################################
 

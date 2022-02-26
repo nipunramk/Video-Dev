@@ -4,9 +4,9 @@ from reducible_colors import *
 
 
 class Pixel(Square):
-    def __init__(self, n: int, color_mode: str, outline=True):
+    def __init__(self, n, color_mode: str, outline=True):
         assert color_mode in ("RGB", "GRAY"), "Color modes are RGB and GRAY"
-        if n < 0:
+        if isinstance(n, int) and n < 0:
             n = 0
         if color_mode == "RGB":
             color = rgb_to_hex(n / 255)
