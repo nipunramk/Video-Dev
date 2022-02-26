@@ -2111,6 +2111,9 @@ class Filtering(MovingCameraScene):
         winner_filters = VGroup()
 
         self.play(FadeIn(img_mob), FadeIn(black_sq), FadeIn(winner_filters))
+
+        self.bring_to_front(title)
+
         self.wait()
 
         mask = (
@@ -2185,16 +2188,11 @@ class Filtering(MovingCameraScene):
 
                 self.play(
                     FadeIn(filtered_mob),
-                )
-                self.play(
-                    FadeIn(name_t),
-                )
-                self.play(
                     FadeIn(mapped_mob),
-                )
-                self.play(
+                    FadeIn(name_t),
                     FadeIn(score_t),
                 )
+
                 self.wait()
 
                 mobs_to_remove.add(score_t)
@@ -2203,16 +2201,23 @@ class Filtering(MovingCameraScene):
             winner_filter = (
                 filter_score_table[np.argmin(scores)]
                 .copy()
+                .scale(0.8)
                 .next_to(row_vg, LEFT, buff=0.2)
             )
 
-            self.play(FadeIn(winner_filter))
-            self.bring_to_front(black_sq)
-
             winner_filters.add(winner_filter)
 
-            self.play(FadeOut(mobs_to_remove))
+            self.play(
+                FadeIn(winner_filter),
+                Indicate(filter_score_table[np.argmin(scores)]),
+                FadeOut(mobs_to_remove),
+            )
+
+            self.bring_to_front(black_sq)
+            self.bring_to_front(title)
+
             self.wait()
+
             self.play(
                 img_mob.animate.shift(UP * row_vg.height),
                 winner_filters.animate.shift(UP * row_vg.height),
