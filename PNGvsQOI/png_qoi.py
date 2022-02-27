@@ -6,6 +6,7 @@ from numpy.lib.arraypad import pad
 from functions import *
 from classes import *
 from reducible_colors import *
+from itertools import product
 
 np.random.seed(1)
 
@@ -793,7 +794,15 @@ class Filtering(MovingCameraScene):
         # self.wait()
         # self.clear()
 
-        self.minimum_sum_of_absolute_differences()
+        self.filters_combination_problem()
+
+        # self.wait()
+        # self.clear()
+
+        # self.minimum_sum_of_absolute_differences()
+
+        # self.wait()
+        # self.clear()
 
     def intro_filtering(self):
         title = Text("Lossless Compression", font="CMU Serif", weight=BOLD).to_edge(UP)
@@ -2080,6 +2089,23 @@ class Filtering(MovingCameraScene):
 
         self.play(FadeIn(index_palette))
 
+    def filters_combination_problem(self):
+        filter_names = ["none", "sub", "up", "avg", "paeth"]
+
+        all_perms = product(filter_names, repeat=5)
+
+        some_perms = list(all_perms)[800:3000:10]
+
+        self.camera.cairo_line_width_multiple = 0.003
+
+        all_perms_vg = VGroup(
+            *[self.create_filter_names_vg(perm) for perm in some_perms]
+        ).arrange_in_grid(buff=1)
+
+        self.play(FadeIn(all_perms_vg))
+        self.wait()
+        self.play(all_perms_vg.animate.scale(0.15), run_time=3)
+
     def minimum_sum_of_absolute_differences(self):
         title = (
             Text("Minimum sum of absolute differences", font="CMU Serif", weight=BOLD)
@@ -2537,3 +2563,25 @@ class Filtering(MovingCameraScene):
             return self.map_num_range(x, 128, 255, -128, -1)
         else:
             return x
+
+    def create_filter_names_vg(self, name_order):
+        return VGroup(
+            *[self.create_colored_row_with_filter_name(n) for n in name_order]
+        ).arrange(DOWN, buff=0.01)
+
+    def create_colored_row_with_filter_name(self, filter_name):
+        color_dict = {
+            "none": GRAY,
+            "sub": ORANGE,
+            "up": REDUCIBLE_YELLOW,
+            "avg": REDUCIBLE_PURPLE,
+            "paeth": REDUCIBLE_GREEN,
+        }
+        color = color_dict[filter_name]
+
+        return VGroup(
+            Rectangle(height=0.6, width=5)
+            .set_color(color)
+            .set_fill(color, opacity=0.3),
+            Text(filter_name, font="SF Mono").scale(0.5),
+        ).arrange(ORIGIN)
