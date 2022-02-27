@@ -2,9 +2,13 @@ from manim import *
 from functions import *
 from reducible_colors import *
 
+
 class Pixel(Square):
-    def __init__(self, n: int, color_mode: str, outline=True):
+    def __init__(self, n, color_mode: str, outline=True):
         assert color_mode in ("RGB", "GRAY"), "Color modes are RGB and GRAY"
+
+        if isinstance(n, np.int16) and n < 0:
+            n = 0
         if color_mode == "RGB":
             color = rgb_to_hex(n / 255)
         else:
@@ -13,14 +17,23 @@ class Pixel(Square):
         super().__init__(side_length=1)
         if outline:
             self.set_stroke(BLACK, width=0.2)
+
         else:
             self.set_stroke(color, width=0.2)
+
         self.set_fill(color, opacity=1)
         self.color = color
 
 
 class PixelArray(VGroup):
-    def __init__(self, img: np.ndarray, include_numbers=False, color_mode="RGB", buff=0, outline=True):
+    def __init__(
+        self,
+        img: np.ndarray,
+        include_numbers=False,
+        color_mode="RGB",
+        buff=0,
+        outline=True,
+    ):
         self.img = img
         if len(img.shape) == 3:
             rows, cols, channels = img.shape
@@ -29,20 +42,25 @@ class PixelArray(VGroup):
 
         self.shape = img.shape
 
-        pixels = []
+        self.pixels = VGroup()
+        self.numbers = VGroup()
         for row in img:
             for p in row:
                 if include_numbers:
-                    self.number = (
+                    number = (
                         Text(str(p), font="SF Mono", weight=MEDIUM)
                         .scale(0.7)
                         .set_color(g2h(1) if p < 180 else g2h(0))
                     )
-                    pixels.append(VGroup(Pixel(p, color_mode, outline=outline), self.number))
-                else:
-                    pixels.append(Pixel(p, color_mode, outline=outline))
 
-        super().__init__(*pixels)
+                    self.numbers.add(number)
+                    self.pixels.add(
+                        VGroup(Pixel(p, color_mode, outline=outline), number)
+                    )
+                else:
+                    self.pixels.add(Pixel(p, color_mode, outline=outline))
+
+        super().__init__(*self.pixels)
         self.arrange_in_grid(rows, cols, buff=buff)
 
         self.dict = {index: p for index, p in enumerate(self)}
@@ -57,6 +75,7 @@ class PixelArray(VGroup):
         else:
             return self.dict[value]
 
+
 class Byte(VGroup):
     def __init__(
         self,
@@ -64,7 +83,7 @@ class Byte(VGroup):
         stroke_color=REDUCIBLE_VIOLET,
         stroke_width=5,
         text_scale=0.5,
-        h_buff=MED_SMALL_BUFF+SMALL_BUFF,
+        h_buff=MED_SMALL_BUFF + SMALL_BUFF,
         v_buff=MED_SMALL_BUFF,
         width=6,
         height=1.5,
@@ -74,9 +93,9 @@ class Byte(VGroup):
 
         self.h_buff = h_buff
         self.text_scale = text_scale
-        self.rect = Rectangle(
-            height=height, width=width
-        ).set_stroke(width=stroke_width, color=stroke_color)
+        self.rect = Rectangle(height=height, width=width).set_stroke(
+            width=stroke_width, color=stroke_color
+        )
 
         if isinstance(text, list):
             text_mobs = []
@@ -90,11 +109,16 @@ class Byte(VGroup):
         self.text.scale_to_fit_width(self.rect.width - edge_buff)
         super().__init__(self.rect, self.text, **kwargs)
 
-
     def get_text_mob(self, string):
-        text = VGroup(*[Text(c, font="SF Mono", weight=MEDIUM).scale(self.text_scale) for c in string.split(',')])
+        text = VGroup(
+            *[
+                Text(c, font="SF Mono", weight=MEDIUM).scale(self.text_scale)
+                for c in string.split(",")
+            ]
+        )
         text.arrange(RIGHT, buff=self.h_buff)
         return text
+
 
 class RGBMob:
     def __init__(self, r_mob, g_mob, b_mob):
@@ -104,3 +128,83 @@ class RGBMob:
         self.indicated = False
         self.surrounded = None
 
+
+string_to_mob_map = {}
+
+
+class RDecimalNumber(DecimalNumber):
+    def set_submobjects_from_number(self, number):
+        self.number = number
+        self.submobjects = []
+
+        num_string = self.get_num_string(number)
+        self.add(*(map(self.string_to_mob, num_string)))
+
+        # Add non-numerical bits
+        if self.show_ellipsis:
+            self.add(
+                self.string_to_mob("\\dots", Text, color=self.color),
+            )
+
+        if self.unit is not None:
+            self.unit_sign = self.string_to_mob(self.unit, Text)
+            self.add(self.unit_sign)
+
+        self.arrange(
+            buff=self.digit_buff_per_font_unit * self._font_size,
+            aligned_edge=DOWN,
+        )
+
+        # Handle alignment of parts that should be aligned
+        # to the bottom
+        for i, c in enumerate(num_string):
+            if c == "-" and len(num_string) > i + 1:
+                self[i].align_to(self[i + 1], UP)
+                self[i].shift(self[i + 1].height * DOWN / 2)
+            elif c == ",":
+                self[i].shift(self[i].height * DOWN / 2)
+        if self.unit and self.unit.startswith("^"):
+            self.unit_sign.align_to(self, UP)
+
+        # track the initial height to enable scaling via font_size
+        self.initial_height = self.height
+
+        if self.include_background_rectangle:
+            self.add_background_rectangle()
+
+    def string_to_mob(self, string, mob_class=Text, **kwargs):
+        if string not in string_to_mob_map:
+            string_to_mob_map[string] = mob_class(
+                string, font_size=1.0, font="SF Mono", weight=MEDIUM, **kwargs
+            )
+        mob = string_to_mob_map[string].copy()
+        mob.font_size = self._font_size
+        return mob
+
+
+class RVariable(VMobject):
+    def __init__(
+        self, var, label, var_type=RDecimalNumber, num_decimal_places=2, **kwargs
+    ):
+
+        self.label = (
+            Text(label, font="SF Mono", weight=MEDIUM)
+            if isinstance(label, str)
+            else label
+        )
+        equals = Text("=").next_to(self.label, RIGHT)
+        self.label.add(equals)
+
+        self.tracker = ValueTracker(var)
+
+        self.value = RDecimalNumber(
+            self.tracker.get_value(), num_decimal_places=num_decimal_places
+        )
+
+        self.value.add_updater(lambda v: v.set_value(self.tracker.get_value())).next_to(
+            self.label,
+            RIGHT,
+        )
+
+        super().__init__(**kwargs)
+        self.add(self.label, self.value)
