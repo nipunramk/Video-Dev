@@ -2537,14 +2537,3 @@ class Filtering(MovingCameraScene):
             return self.map_num_range(x, 128, 255, -128, -1)
         else:
             return x
-
-
-class Test(Scene):
-    def construct(self):
-        self.camera.background_color = YELLOW
-        black_sq = Square().scale(9).set_color(BLACK).set_opacity(0.3)
-        rect = Rectangle().set_color(BLACK).set_opacity(1)
-
-        diff = Difference(black_sq, rect).set_opacity(0.3).set_color(BLACK)
-
-        self.add(diff)
