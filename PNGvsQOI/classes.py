@@ -127,3 +127,84 @@ class RGBMob:
         self.b = b_mob
         self.indicated = False
         self.surrounded = None
+
+
+string_to_mob_map = {}
+
+
+class RDecimalNumber(DecimalNumber):
+    def set_submobjects_from_number(self, number):
+        self.number = number
+        self.submobjects = []
+
+        num_string = self.get_num_string(number)
+        self.add(*(map(self.string_to_mob, num_string)))
+
+        # Add non-numerical bits
+        if self.show_ellipsis:
+            self.add(
+                self.string_to_mob("\\dots", Text, color=self.color),
+            )
+
+        if self.unit is not None:
+            self.unit_sign = self.string_to_mob(self.unit, Text)
+            self.add(self.unit_sign)
+
+        self.arrange(
+            buff=self.digit_buff_per_font_unit * self._font_size,
+            aligned_edge=DOWN,
+        )
+
+        # Handle alignment of parts that should be aligned
+        # to the bottom
+        for i, c in enumerate(num_string):
+            if c == "-" and len(num_string) > i + 1:
+                self[i].align_to(self[i + 1], UP)
+                self[i].shift(self[i + 1].height * DOWN / 2)
+            elif c == ",":
+                self[i].shift(self[i].height * DOWN / 2)
+        if self.unit and self.unit.startswith("^"):
+            self.unit_sign.align_to(self, UP)
+
+        # track the initial height to enable scaling via font_size
+        self.initial_height = self.height
+
+        if self.include_background_rectangle:
+            self.add_background_rectangle()
+
+    def string_to_mob(self, string, mob_class=Text, **kwargs):
+        if string not in string_to_mob_map:
+            string_to_mob_map[string] = mob_class(
+                string, font_size=1.0, font="SF Mono", weight=MEDIUM, **kwargs
+            )
+        mob = string_to_mob_map[string].copy()
+        mob.font_size = self._font_size
+        return mob
+
+
+class RVariable(VMobject):
+    def __init__(
+        self, var, label, var_type=RDecimalNumber, num_decimal_places=2, **kwargs
+    ):
+
+        self.label = (
+            Text(label, font="SF Mono", weight=MEDIUM)
+            if isinstance(label, str)
+            else label
+        )
+        equals = Text("=").next_to(self.label, RIGHT)
+        self.label.add(equals)
+
+        self.tracker = ValueTracker(var)
+
+        self.value = RDecimalNumber(
+            self.tracker.get_value(), num_decimal_places=num_decimal_places
+        )
+
+        self.value.add_updater(lambda v: v.set_value(self.tracker.get_value())).next_to(
+            self.label,
+            RIGHT,
+        )
+
+        super().__init__(**kwargs)
+        self.add(self.label, self.value)
