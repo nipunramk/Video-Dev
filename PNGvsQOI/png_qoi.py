@@ -794,7 +794,12 @@ class Filtering(MovingCameraScene):
         # self.wait()
         # self.clear()
 
-        self.filters_combination_problem()
+        self.repeating_filters_performance()
+
+        # self.wait()
+        # self.clear()
+
+        # self.combination_explosion()
 
         # self.wait()
         # self.clear()
@@ -2089,7 +2094,120 @@ class Filtering(MovingCameraScene):
 
         self.play(FadeIn(index_palette))
 
-    def filters_combination_problem(self):
+    def repeating_filters_performance(self):
+        rows, cols = 10, 8
+        random_data = np.random.randint(50, 80, (rows, cols))
+
+        img_mob = (
+            PixelArray(random_data, color_mode="GRAY")
+            .scale(0.9)
+            .to_edge(LEFT)
+            .shift(LEFT * 2 + DOWN * 3)
+        )
+
+        comp_ratio = (
+            Text("Compression Ratio", font="CMU Serif", weight=BOLD)
+            .scale(0.7)
+            .next_to(img_mob, RIGHT, buff=2)
+            .shift(UP * 5)
+        )
+
+        cr_number = RVariable(100, label="comp_ratio", num_decimal_places=0).scale(0.9)
+        cr_number[:-1].scale(0)
+
+        cr_number[-1].next_to(comp_ratio, DOWN, buff=0.5)
+
+        percentage = Text("%", font="SF Mono").scale(0.6)
+
+        full_pct = (
+            VGroup(percentage, cr_number[-1])
+            .arrange(RIGHT, buff=0.2, aligned_edge=DOWN)
+            .next_to(comp_ratio, DOWN, buff=0.5)
+            .shift(RIGHT * 0.3)
+        )
+
+        filter_order = ["sub", "avg", "paeth", "avg", "avg", "up", "up"]
+
+        filter_rects = (
+            VGroup(
+                *[
+                    self.create_colored_row_with_filter_name(f).scale_to_fit_height(
+                        img_mob[0].height
+                    )
+                    for f in filter_order
+                ]
+            )
+            .arrange(DOWN, buff=0.3)
+            .next_to(comp_ratio, DOWN)
+        )
+
+        self.play(FadeIn(img_mob), FadeIn(comp_ratio))
+        self.wait()
+
+        self.play(FadeIn(full_pct))
+
+        # row 0
+        row_0 = slice(0 * cols, 0 * cols + cols)
+        self.play(
+            FadeIn(filter_rects[0].next_to(img_mob[row_0], ORIGIN, aligned_edge=RIGHT)),
+            cr_number.tracker.animate.set_value(90),
+        )
+        self.wait()
+
+        # row 1
+        row_1 = slice(1 * cols, 1 * cols + cols)
+        self.play(
+            FadeIn(filter_rects[1].next_to(img_mob[row_1], ORIGIN, aligned_edge=RIGHT)),
+            cr_number.tracker.animate.set_value(80),
+        )
+        self.wait()
+
+        # row 2 (change filter)
+        row_2 = slice(2 * cols, 2 * cols + cols)
+        self.play(
+            FadeIn(filter_rects[2].next_to(img_mob[row_2], ORIGIN, aligned_edge=RIGHT)),
+            cr_number.tracker.animate.set_value(85),
+        )
+        self.wait()
+
+        self.play(
+            FadeTransform(
+                filter_rects[2],
+                filter_rects[3].next_to(img_mob[row_2], ORIGIN, aligned_edge=RIGHT),
+            ),
+            cr_number.tracker.animate.set_value(80),
+        )
+        self.wait()
+
+        # row 3
+        row_3 = slice(3 * cols, 3 * cols + cols)
+        self.play(
+            FadeIn(filter_rects[4].next_to(img_mob[row_3], ORIGIN, aligned_edge=RIGHT)),
+            cr_number.tracker.animate.set_value(70),
+        )
+        self.wait()
+
+        # row 4
+        row_4 = slice(4 * cols, 4 * cols + cols)
+        self.play(
+            FadeIn(filter_rects[5].next_to(img_mob[row_4], ORIGIN, aligned_edge=RIGHT)),
+            cr_number.tracker.animate.set_value(68),
+        )
+        self.wait()
+
+        # row 5
+        row_5 = slice(5 * cols, 5 * cols + cols)
+        self.play(
+            FadeIn(filter_rects[6].next_to(img_mob[row_5], ORIGIN, aligned_edge=RIGHT)),
+            cr_number.tracker.animate.set_value(67),
+        )
+        self.wait()
+
+        self.play(
+            full_pct.animate.scale(1.2).set_color(REDUCIBLE_YELLOW),
+        )
+
+    def combination_explosion(self):
         filter_names = ["none", "sub", "up", "avg", "paeth"]
 
         all_perms = product(filter_names, repeat=5)
