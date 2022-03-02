@@ -753,61 +753,61 @@ class QOIDemo(Scene):
 
 class Filtering(MovingCameraScene):
     def construct(self):
-        self.intro_filtering()
+        # self.intro_filtering()
 
-        self.wait()
-        self.clear()
+        # self.wait()
+        # self.clear()
 
-        self.present_problem()
+        # self.present_problem()
 
-        self.wait()
-        self.clear()
+        # self.wait()
+        # self.clear()
 
-        self.five_filters_explanation()
+        # self.five_filters_explanation()
 
-        self.wait()
-        self.clear()
-        self.play(Restore(self.camera.frame))
+        # self.wait()
+        # self.clear()
+        # self.play(Restore(self.camera.frame))
 
         self.channels_are_independent()
 
-        self.wait()
-        self.clear()
+        # self.wait()
+        # self.clear()
 
-        self.zeros_out_of_bounds()
+        # self.zeros_out_of_bounds()
 
-        self.wait()
-        self.clear()
+        # self.wait()
+        # self.clear()
 
-        self.what_filter_to_use()
+        # self.what_filter_to_use()
 
-        self.wait()
-        self.clear()
+        # self.wait()
+        # self.clear()
 
-        self.low_bit_depth_images()
+        # self.low_bit_depth_images()
 
-        self.wait()
-        self.clear()
+        # self.wait()
+        # self.clear()
 
-        self.palette_images()
+        # self.palette_images()
 
-        self.wait()
-        self.clear()
+        # self.wait()
+        # self.clear()
 
-        self.repeating_filters_performance()
+        # self.repeating_filters_performance()
 
-        self.wait()
-        self.clear()
+        # self.wait()
+        # self.clear()
 
-        self.combination_explosion()
+        # self.combination_explosion()
 
-        self.wait()
-        self.clear()
+        # self.wait()
+        # self.clear()
 
-        self.minimum_sum_of_absolute_differences()
+        # self.minimum_sum_of_absolute_differences()
 
-        self.wait()
-        self.clear()
+        # self.wait()
+        # self.clear()
 
     def intro_filtering(self):
         title = Text("Lossless Compression", font="CMU Serif", weight=BOLD).to_edge(UP)
@@ -1755,26 +1755,17 @@ class Filtering(MovingCameraScene):
         pixel_array_g = pixel_array[:, :, 1]
         pixel_array_b = pixel_array[:, :, 2]
 
-        px_arr_r = PixelArray(pixel_array_r, color_mode="GRAY").scale(0.4)
+        pixel_array_mob_r = PixelArray(
+            self.get_channel_image(pixel_array_r, mode="R"), color_mode="RGB"
+        ).scale(0.4)
 
-        pixel_array_mob_r = VGroup(
-            px_arr_r,
-            Square(color=PURE_RED)
-            .set_opacity(0.2)
-            .scale_to_fit_height(px_arr_r.height),
-        )
-        pixel_array_mob_g = VGroup(
-            PixelArray(pixel_array_g, color_mode="GRAY").scale(0.4),
-            Square(color=PURE_GREEN)
-            .set_opacity(0.2)
-            .scale_to_fit_height(px_arr_r.height),
-        )
-        pixel_array_mob_b = VGroup(
-            PixelArray(pixel_array_b, color_mode="GRAY").scale(0.4),
-            Square(color=PURE_BLUE)
-            .set_opacity(0.2)
-            .scale_to_fit_height(px_arr_r.height),
-        )
+        pixel_array_mob_g = PixelArray(
+            self.get_channel_image(pixel_array_g, mode="G"), color_mode="RGB"
+        ).scale(0.4)
+
+        pixel_array_mob_b = PixelArray(
+            self.get_channel_image(pixel_array_b, mode="B"), color_mode="RGB"
+        ).scale(0.4)
 
         all_channels = (
             VGroup(pixel_array_mob_r, pixel_array_mob_g, pixel_array_mob_b)
@@ -2703,3 +2694,16 @@ class Filtering(MovingCameraScene):
             .set_fill(color, opacity=0.3),
             Text(filter_name, font="SF Mono").scale(0.5),
         ).arrange(ORIGIN)
+
+    def get_channel_image(self, channel, mode="R"):
+        new_channel = np.zeros((channel.shape[0], channel.shape[1], 3))
+        for i in range(channel.shape[0]):
+            for j in range(channel.shape[1]):
+                if mode == "R":
+                    new_channel[i][j] = np.array([channel[i][j], 0, 0])
+                elif mode == "G":
+                    new_channel[i][j] = np.array([0, channel[i][j], 0])
+                else:
+                    new_channel[i][j] = np.array([0, 0, channel[i][j]])
+
+        return new_channel
