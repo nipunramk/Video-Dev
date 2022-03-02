@@ -753,61 +753,56 @@ class QOIDemo(Scene):
 
 class Filtering(MovingCameraScene):
     def construct(self):
-        # self.intro_filtering()
+        self.intro_filtering()
 
-        # self.wait()
-        # self.clear()
+        self.wait()
+        self.clear()
 
-        # self.present_problem()
+        self.present_problem()
 
-        # self.wait()
-        # self.clear()
+        self.wait()
+        self.clear()
 
-        # self.five_filters_explanation()
+        self.five_filters_explanation()
 
-        # self.wait()
-        # self.clear()
-        # self.play(Restore(self.camera.frame))
+        self.wait()
+        self.clear()
+        self.play(Restore(self.camera.frame))
 
         self.channels_are_independent()
 
-        # self.wait()
-        # self.clear()
+        self.wait()
+        self.clear()
 
-        # self.zeros_out_of_bounds()
+        self.what_filter_to_use()
 
-        # self.wait()
-        # self.clear()
+        self.wait()
+        self.clear()
 
-        # self.what_filter_to_use()
+        self.low_bit_depth_images()
 
-        # self.wait()
-        # self.clear()
+        self.wait()
+        self.clear()
 
-        # self.low_bit_depth_images()
+        self.palette_images()
 
-        # self.wait()
-        # self.clear()
+        self.wait()
+        self.clear()
 
-        # self.palette_images()
+        self.repeating_filters_performance()
 
-        # self.wait()
-        # self.clear()
+        self.wait()
+        self.clear()
 
-        # self.repeating_filters_performance()
+        self.combination_explosion()
 
-        # self.wait()
-        # self.clear()
+        self.wait()
+        self.clear()
 
-        # self.combination_explosion()
+        self.minimum_sum_of_absolute_differences()
 
-        # self.wait()
-        # self.clear()
-
-        # self.minimum_sum_of_absolute_differences()
-
-        # self.wait()
-        # self.clear()
+        self.wait()
+        self.clear()
 
     def intro_filtering(self):
         title = Text("Lossless Compression", font="CMU Serif", weight=BOLD).to_edge(UP)
@@ -1826,6 +1821,9 @@ class Filtering(MovingCameraScene):
             )
         )
 
+        methods_vg = VGroup()
+        methods_vg.add(method_t)
+
         self.play(FadeIn(first_iteration))
         self.play(Write(surr_rect), Write(method_t))
 
@@ -1862,6 +1860,7 @@ class Filtering(MovingCameraScene):
                     buff=0.2,
                 )
             )
+            methods_vg.add(method_t)
 
             self.play(
                 Transform(first_iteration, next_iteration),
@@ -1871,27 +1870,26 @@ class Filtering(MovingCameraScene):
 
             self.wait()
 
-    def zeros_out_of_bounds(self):
-        """
-        Also, because we are dealing with “left” and “up” pixels, edge cases come in.
-        In case we were dealing with an out-of-bounds pixel, we’ll treat that one as if it was 0.
-        """
-
-        random_data = np.random.randint(100, 200, (8, 8))
-        # padded_data = np.pad(random_data, (1, 0), constant_values=0, mode="constant")
-
-        px_arr_mob = (
-            PixelArray(random_data, color_mode="GRAY", include_numbers=True)
-            .scale(1.4)
-            .shift(DOWN * 5 + RIGHT * 2)
+        # show padding
+        self.play(
+            self.focus_on(pixel_array_mob_g[0:4]),
+            FadeOut(iterations_r[-1]),
+            FadeOut(iterations_g[-1]),
+            FadeOut(iterations_b[-1]),
+            FadeOut(methods_vg),
+            FadeOut(pixel_array_mob_r),
+            FadeOut(pixel_array_mob_b),
+            run_time=3,
         )
+
+        px_arr_mob = pixel_array_mob_g
 
         dashed_row = (
             VGroup(
                 *[
                     VGroup(
                         DashedVMobject(Square()).set_stroke(
-                            width=1.5, color=REDUCIBLE_VIOLET
+                            width=0.4, color=REDUCIBLE_GREEN
                         ),
                         Text("0", font="SF Mono").scale(1.5),
                     ).arrange(ORIGIN)
@@ -1908,7 +1906,7 @@ class Filtering(MovingCameraScene):
                 *[
                     VGroup(
                         DashedVMobject(Square()).set_stroke(
-                            width=1.5, color=REDUCIBLE_VIOLET
+                            width=0.4, color=REDUCIBLE_GREEN
                         ),
                         Text("0", font="SF Mono").scale(1.5),
                     ).arrange(ORIGIN)
@@ -1920,22 +1918,30 @@ class Filtering(MovingCameraScene):
             .next_to(px_arr_mob, LEFT, buff=0)
         )
 
-        up_arrow = Arrow(
-            px_arr_mob[0].get_center(),
-            dashed_row[-2].get_center(),
-            max_tip_length_to_length_ratio=0.2,
-        ).set_color(REDUCIBLE_YELLOW)
+        up_arrow = (
+            Arrow(
+                px_arr_mob[0].get_center(),
+                dashed_row[-2].get_center(),
+                max_tip_length_to_length_ratio=0.09,
+                max_stroke_width_to_length_ratio=3,
+            )
+            .set_color(REDUCIBLE_YELLOW)
+            .scale(0.6)
+        )
 
-        left_arrow = Arrow(
-            px_arr_mob[0].get_center(),
-            dashed_col[0].get_center(),
-            max_tip_length_to_length_ratio=0.2,
-        ).set_color(REDUCIBLE_YELLOW)
+        left_arrow = (
+            Arrow(
+                px_arr_mob[0].get_center(),
+                dashed_col[0].get_center(),
+                max_tip_length_to_length_ratio=0.09,
+                max_stroke_width_to_length_ratio=3,
+            )
+            .set_color(REDUCIBLE_YELLOW)
+            .scale(0.6)
+        )
 
-        self.play(FadeIn(px_arr_mob))
-
-        self.play(Write(up_arrow))
-        self.play(Write(left_arrow))
+        self.play(FadeIn(up_arrow))
+        self.play(FadeIn(left_arrow))
 
         self.play(LaggedStart(FadeIn(dashed_row), FadeIn(dashed_col)), run_time=2)
 
@@ -2707,3 +2713,8 @@ class Filtering(MovingCameraScene):
                     new_channel[i][j] = np.array([0, 0, channel[i][j]])
 
         return new_channel
+
+    def focus_on(self, mobject, buff=2):
+        return self.camera.frame.animate.set_width(mobject.width * buff).move_to(
+            mobject
+        )
