@@ -753,56 +753,56 @@ class QOIDemo(Scene):
 
 class Filtering(MovingCameraScene):
     def construct(self):
-        self.intro_filtering()
+        # self.intro_filtering()
 
-        self.wait()
-        self.clear()
+        # self.wait()
+        # self.clear()
 
-        self.present_problem()
+        # self.present_problem()
 
-        self.wait()
-        self.clear()
+        # self.wait()
+        # self.clear()
 
-        self.five_filters_explanation()
+        # self.five_filters_explanation()
 
-        self.wait()
-        self.clear()
-        self.play(Restore(self.camera.frame))
+        # self.wait()
+        # self.clear()
+        # self.play(Restore(self.camera.frame))
 
-        self.channels_are_independent()
+        # self.channels_are_independent()
 
-        self.wait()
-        self.clear()
+        # self.wait()
+        # self.clear()
 
-        self.what_filter_to_use()
+        # self.what_filter_to_use()
 
-        self.wait()
-        self.clear()
+        # self.wait()
+        # self.clear()
 
-        self.low_bit_depth_images()
+        # self.low_bit_depth_images()
 
-        self.wait()
-        self.clear()
+        # self.wait()
+        # self.clear()
 
-        self.palette_images()
+        # self.palette_images()
 
-        self.wait()
-        self.clear()
+        # self.wait()
+        # self.clear()
 
-        self.repeating_filters_performance()
+        # self.repeating_filters_performance()
 
-        self.wait()
-        self.clear()
+        # self.wait()
+        # self.clear()
 
-        self.combination_explosion()
+        # self.combination_explosion()
 
-        self.wait()
-        self.clear()
+        # self.wait()
+        # self.clear()
 
         self.minimum_sum_of_absolute_differences()
 
-        self.wait()
-        self.clear()
+        # self.wait()
+        # self.clear()
 
     def intro_filtering(self):
         title = Text("Lossless Compression", font="CMU Serif", weight=BOLD).to_edge(UP)
@@ -2328,16 +2328,22 @@ class Filtering(MovingCameraScene):
                 filter_index += 1
 
                 self.play(
-                    FadeIn(filtered_mob),
-                    FadeIn(mapped_mob),
-                    FadeIn(name_t),
+                    FadeIn(filtered_mob, shift=UP * 0.2),
+                    FadeIn(mapped_mob, shift=UP * 0.2),
+                    FadeIn(name_t, shift=UP * 0.2),
                     FadeIn(score_t),
                 )
 
                 self.wait()
 
                 mobs_to_remove.add(score_t)
-                self.play(FadeOut(filtered_mob), FadeOut(mapped_mob), FadeOut(name_t))
+                self.play(
+                    FadeOut(filtered_mob, shift=UP * 0.2),
+                    FadeOut(mapped_mob, shift=UP * 0.2),
+                    FadeOut(name_t, shift=UP * 0.2),
+                )
+
+                # end for loop
 
             winner_filter = (
                 filter_score_table[np.argmin(scores)]
@@ -2480,7 +2486,7 @@ class Filtering(MovingCameraScene):
         output = img.copy()
 
         for i in range(1, cols):
-            output[row, i] = img[row, i] - img[row, i - 1]
+            output[row, i] = (img[row, i] - img[row, i - 1]) % 256
 
         output[row, 0] = img[row, 0]
 
@@ -2499,7 +2505,7 @@ class Filtering(MovingCameraScene):
             pass
         else:
             for i in range(cols):
-                output[row, i] = img[row, i] - img[row - 1, i]
+                output[row, i] = (img[row, i] - img[row - 1, i]) % 256
 
         if return_mob:
             return PixelArray(output, include_numbers=True, color_mode="GRAY")
@@ -2517,7 +2523,7 @@ class Filtering(MovingCameraScene):
 
         for i in range(1, cols + 1):
             avg = (padded_data[row - 1, i] + padded_data[row, i - 1]) / 2
-            output[row, i - 1] = floor(abs(padded_data[row, i] - avg))
+            output[row, i - 1] = int((padded_data[row, i] - avg) % 256)
 
         if return_mob:
             return PixelArray(output, include_numbers=True, color_mode="GRAY")
@@ -2533,10 +2539,15 @@ class Filtering(MovingCameraScene):
         padded_data = np.pad(img, (1, 0), constant_values=0, mode="constant")
         output = np.zeros(img.shape, dtype=np.uint8)
 
+        print(f"{row = }")
+        print(padded_data)
+
+        padded_row = row + 1
+
         for i in range(1, cols + 1):
-            a = padded_data[row - 1, i - 1]  # up-left
-            b = padded_data[row - 1, i]  # up
-            c = padded_data[row, i - 1]  # left
+            a = padded_data[padded_row - 1, i - 1]  # up-left
+            b = padded_data[padded_row - 1, i]  # up
+            c = padded_data[padded_row, i - 1]  # left
 
             base_value = b + c - a
 
@@ -2547,7 +2558,7 @@ class Filtering(MovingCameraScene):
             }
             winner = paeth_dict[min(paeth_dict.keys())]
 
-            output[row, i - 1] = abs(padded_data[row, i] - winner)
+            output[row, i - 1] = (padded_data[padded_row, i] - winner) % 256
 
         if return_mob:
             return PixelArray(output, include_numbers=True, color_mode="GRAY")
@@ -2656,7 +2667,7 @@ class Filtering(MovingCameraScene):
             for p in mapped_filtered_mob
         ]
         [
-            n.set_color(WHITE).set_opacity(1).scale(0.7).set_stroke(width=0)
+            n.set_color(WHITE).set_opacity(1).scale(0.9).set_stroke(width=0)
             for n in mapped_filtered_mob.numbers
         ]
 
