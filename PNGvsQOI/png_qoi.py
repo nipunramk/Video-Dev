@@ -2521,9 +2521,11 @@ class Filtering(MovingCameraScene):
         padded_data = np.pad(img, (1, 0), constant_values=0, mode="constant")
         output = np.zeros(img.shape, dtype=np.uint8)
 
+        padded_row = row + 1
+
         for i in range(1, cols + 1):
-            avg = (padded_data[row - 1, i] + padded_data[row, i - 1]) / 2
-            output[row, i - 1] = int((padded_data[row, i] - avg) % 256)
+            avg = (padded_data[padded_row - 1, i] + padded_data[padded_row, i - 1]) / 2
+            output[row, i - 1] = int((padded_data[padded_row, i] - avg) % 256)
 
         if return_mob:
             return PixelArray(output, include_numbers=True, color_mode="GRAY")
