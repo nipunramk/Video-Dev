@@ -2027,7 +2027,7 @@ class Filtering(MovingCameraScene):
         )
 
         surr_rect = SurroundingRectangle(
-            iterations_g[-1][9:11], color=PURE_GREEN, buff=0
+            iterations_g[-1][10], color=PURE_GREEN, buff=0
         ).set_stroke(width=1)
 
         self.play(
