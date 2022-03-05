@@ -130,8 +130,16 @@ class RGBMob:
         self.b = b_mob
         self.indicated = False
         self.surrounded = None
+        self.scaled = 1
+        self.shift = ORIGIN
 
+    def __str__(self):
+        return f'RGB(R: {self.r[1].original_text}, G: {self.g[1].original_text}, B: {self.b[1].original_text}, Indicated: {self.indicated}, Surrounded: {self.surrounded[0] if self.surrounded is not None else None}, Scale: {self.scaled}, Shift: {self.shift})'
 
+    def __repr__(self):
+        return self.__str__()
+
+      
 string_to_mob_map = {}
 
 
