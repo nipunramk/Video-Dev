@@ -2714,12 +2714,6 @@ class Filtering(MovingCameraScene):
 
         return filtered_mob, mapped_filtered_mob, filter_score
 
-    def filter_image_msad(self):
-        """
-        Implement minimum sum of absolute differences on an image
-        and return every part of the iteration
-        """
-
     def png_mapping(self, x):
         if x > 127:
             return 256 - x
