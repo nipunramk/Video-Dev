@@ -769,12 +769,7 @@ class Filtering(MovingCameraScene):
         self.clear()
         self.play(Restore(self.camera.frame))
 
-        self.channels_are_independent()
-
-        self.wait()
-        self.clear()
-
-        self.zeros_out_of_bounds()
+        self.minor_considerations()
 
         self.wait()
         self.clear()
@@ -783,6 +778,7 @@ class Filtering(MovingCameraScene):
 
         self.wait()
         self.clear()
+        self.play(Restore(self.camera.frame))
 
         self.low_bit_depth_images()
 
@@ -1742,7 +1738,7 @@ class Filtering(MovingCameraScene):
         )
         self.wait()
 
-    def channels_are_independent(self):
+    def minor_considerations(self):
         """
         Some minor considerations: these operations are done on each channel individually,
         so we are not mixing up red and green values. Each channel is treated separately.
@@ -1755,26 +1751,17 @@ class Filtering(MovingCameraScene):
         pixel_array_g = pixel_array[:, :, 1]
         pixel_array_b = pixel_array[:, :, 2]
 
-        px_arr_r = PixelArray(pixel_array_r, color_mode="GRAY").scale(0.4)
+        pixel_array_mob_r = PixelArray(
+            self.get_channel_image(pixel_array_r, mode="R"), color_mode="RGB"
+        ).scale(0.4)
 
-        pixel_array_mob_r = VGroup(
-            px_arr_r,
-            Square(color=PURE_RED)
-            .set_opacity(0.2)
-            .scale_to_fit_height(px_arr_r.height),
-        )
-        pixel_array_mob_g = VGroup(
-            PixelArray(pixel_array_g, color_mode="GRAY").scale(0.4),
-            Square(color=PURE_GREEN)
-            .set_opacity(0.2)
-            .scale_to_fit_height(px_arr_r.height),
-        )
-        pixel_array_mob_b = VGroup(
-            PixelArray(pixel_array_b, color_mode="GRAY").scale(0.4),
-            Square(color=PURE_BLUE)
-            .set_opacity(0.2)
-            .scale_to_fit_height(px_arr_r.height),
-        )
+        pixel_array_mob_g = PixelArray(
+            self.get_channel_image(pixel_array_g, mode="G"), color_mode="RGB"
+        ).scale(0.4)
+
+        pixel_array_mob_b = PixelArray(
+            self.get_channel_image(pixel_array_b, mode="B"), color_mode="RGB"
+        ).scale(0.4)
 
         all_channels = (
             VGroup(pixel_array_mob_r, pixel_array_mob_g, pixel_array_mob_b)
@@ -1835,6 +1822,9 @@ class Filtering(MovingCameraScene):
             )
         )
 
+        methods_vg = VGroup()
+        methods_vg.add(method_t)
+
         self.play(FadeIn(first_iteration))
         self.play(Write(surr_rect), Write(method_t))
 
@@ -1871,6 +1861,7 @@ class Filtering(MovingCameraScene):
                     buff=0.2,
                 )
             )
+            methods_vg.add(method_t)
 
             self.play(
                 Transform(first_iteration, next_iteration),
@@ -1880,27 +1871,24 @@ class Filtering(MovingCameraScene):
 
             self.wait()
 
-    def zeros_out_of_bounds(self):
-        """
-        Also, because we are dealing with “left” and “up” pixels, edge cases come in.
-        In case we were dealing with an out-of-bounds pixel, we’ll treat that one as if it was 0.
-        """
-
-        random_data = np.random.randint(100, 200, (8, 8))
-        # padded_data = np.pad(random_data, (1, 0), constant_values=0, mode="constant")
-
-        px_arr_mob = (
-            PixelArray(random_data, color_mode="GRAY", include_numbers=True)
-            .scale(1.4)
-            .shift(DOWN * 5 + RIGHT * 2)
+        # show padding
+        self.play(
+            self.focus_on(pixel_array_mob_g[0:4]),
+            FadeOut(pixel_array_mob_r),
+            FadeOut(pixel_array_mob_b),
+            run_time=3,
         )
+
+        self.remove(*iterations_r, *iterations_g[:-1], *iterations_b)
+
+        px_arr_mob = pixel_array_mob_g
 
         dashed_row = (
             VGroup(
                 *[
                     VGroup(
                         DashedVMobject(Square()).set_stroke(
-                            width=1.5, color=REDUCIBLE_VIOLET
+                            width=0.4, color=REDUCIBLE_GREEN
                         ),
                         Text("0", font="SF Mono").scale(1.5),
                     ).arrange(ORIGIN)
@@ -1917,7 +1905,7 @@ class Filtering(MovingCameraScene):
                 *[
                     VGroup(
                         DashedVMobject(Square()).set_stroke(
-                            width=1.5, color=REDUCIBLE_VIOLET
+                            width=0.4, color=REDUCIBLE_GREEN
                         ),
                         Text("0", font="SF Mono").scale(1.5),
                     ).arrange(ORIGIN)
@@ -1929,24 +1917,142 @@ class Filtering(MovingCameraScene):
             .next_to(px_arr_mob, LEFT, buff=0)
         )
 
-        up_arrow = Arrow(
-            px_arr_mob[0].get_center(),
-            dashed_row[-2].get_center(),
-            max_tip_length_to_length_ratio=0.2,
-        ).set_color(REDUCIBLE_YELLOW)
+        up_arrow = (
+            Arrow(
+                px_arr_mob[0].get_center(),
+                dashed_row[-2].get_center(),
+                max_tip_length_to_length_ratio=0.09,
+                max_stroke_width_to_length_ratio=3,
+            )
+            .set_color(REDUCIBLE_YELLOW)
+            .scale(0.6)
+        )
 
-        left_arrow = Arrow(
-            px_arr_mob[0].get_center(),
-            dashed_col[0].get_center(),
-            max_tip_length_to_length_ratio=0.2,
-        ).set_color(REDUCIBLE_YELLOW)
+        left_arrow = (
+            Arrow(
+                px_arr_mob[0].get_center(),
+                dashed_col[0].get_center(),
+                max_tip_length_to_length_ratio=0.09,
+                max_stroke_width_to_length_ratio=3,
+            )
+            .set_color(REDUCIBLE_YELLOW)
+            .scale(0.6)
+        )
 
-        self.play(FadeIn(px_arr_mob))
-
-        self.play(Write(up_arrow))
-        self.play(Write(left_arrow))
+        self.play(FadeIn(up_arrow))
+        self.play(FadeIn(left_arrow))
 
         self.play(LaggedStart(FadeIn(dashed_row), FadeIn(dashed_col)), run_time=2)
+
+        self.wait()
+
+        self.play(
+            FadeOut(dashed_col),
+            FadeOut(dashed_row),
+            FadeOut(left_arrow),
+            FadeOut(up_arrow),
+        )
+
+        line = Line(px_arr_mob[0].get_left(), px_arr_mob[0].get_right()).set_color(
+            REDUCIBLE_PURPLE
+        )
+        left_mark = (
+            Line(UP * 0.03, DOWN * 0.03)
+            .next_to(line, LEFT, buff=0)
+            .set_color(REDUCIBLE_PURPLE)
+        )
+        right_mark = (
+            Line(UP * 0.03, DOWN * 0.03)
+            .next_to(line, RIGHT, buff=0)
+            .set_color(REDUCIBLE_PURPLE)
+        )
+
+        length_vg = (
+            VGroup(left_mark, line, right_mark)
+            .next_to(iterations_g[-1][0], UP, buff=0.06)
+            .set_stroke(width=1)
+        )
+
+        one_byte_t = (
+            Text("1 byte", font="CMU Serif", weight=BOLD)
+            .scale_to_fit_width(length_vg.width - length_vg.width / 10)
+            .next_to(length_vg, UP, buff=0.06)
+        )
+
+        self.play(
+            self.focus_on(iterations_g[-1][0:4].copy().shift(UP * 0.2)),
+            FadeIn(iterations_g[-1]),
+            FadeOut(iterations_r[-1]),
+            FadeOut(iterations_b[-1]),
+            FadeOut(px_arr_mob),
+            run_time=3,
+        )
+
+        self.play(FadeIn(length_vg), FadeIn(one_byte_t))
+
+        self.wait()
+
+        original_pixels = (
+            px_arr_mob[9:11]
+            .copy()
+            .next_to(iterations_g[-1][11], UP, buff=0.29)
+            .scale(0.6)
+        )
+
+        pixel_values = VGroup(
+            Text(str(pixel_array_g[1, 1]), font="SF Mono")
+            .scale(0.1)
+            .set_color(REDUCIBLE_GREEN_DARKER)
+            .move_to(original_pixels[0]),
+            Text(str(pixel_array_g[1, 2]), font="SF Mono")
+            .scale(0.1)
+            .set_color(WHITE)
+            .move_to(original_pixels[1]),
+        )
+
+        step_1 = (
+            Text(f"({pixel_array_g[1,2]} - {pixel_array_g[1,1]}) % 256", font="SF Mono")
+            .scale(0.07)
+            .next_to(original_pixels, DOWN, buff=0.03)
+        )
+        step_2 = (
+            Text(f"({pixel_array_g[1,2] - pixel_array_g[1,1]}) % 256", font="SF Mono")
+            .scale(0.07)
+            .next_to(step_1, DOWN, buff=0.03)
+        )
+        step_3 = (
+            Text(f"{(pixel_array_g[1,2] - pixel_array_g[1,1]) % 256}", font="SF Mono")
+            .scale(0.07)
+            .next_to(step_2, DOWN, buff=0.03)
+        )
+
+        surr_rect = SurroundingRectangle(
+            iterations_g[-1][10], color=PURE_GREEN, buff=0
+        ).set_stroke(width=1)
+
+        self.play(
+            self.focus_on(iterations_g[-1][9:14]),
+            FadeOut(VGroup(*iterations_g[-1][0:8])),
+            FadeOut(length_vg),
+            FadeOut(one_byte_t),
+            run_time=3,
+        )
+
+        self.play(FadeIn(original_pixels), FadeIn(pixel_values), Write(surr_rect))
+
+        self.wait()
+
+        self.play(FadeIn(step_1))
+
+        self.wait()
+
+        self.play(FadeIn(step_2))
+
+        self.wait()
+
+        self.play(
+            FadeIn(step_3), Indicate(iterations_g[-1].numbers[10], color=PURE_GREEN)
+        )
 
     def what_filter_to_use(self):
         """Natural question: what filter to choose"""
@@ -2295,7 +2401,7 @@ class Filtering(MovingCameraScene):
 
         self.play(FadeIn(filter_score_table))
 
-        for row in range(10):
+        for row in range(4):
 
             row_vg = img_mob[self.select_row_indices(row, (rows, cols))]
             filter_index = 0
@@ -2331,16 +2437,22 @@ class Filtering(MovingCameraScene):
                 filter_index += 1
 
                 self.play(
-                    FadeIn(filtered_mob),
-                    FadeIn(mapped_mob),
-                    FadeIn(name_t),
+                    FadeIn(filtered_mob, shift=UP * 0.2),
+                    FadeIn(mapped_mob, shift=UP * 0.2),
+                    FadeIn(name_t, shift=UP * 0.2),
                     FadeIn(score_t),
                 )
 
                 self.wait()
 
                 mobs_to_remove.add(score_t)
-                self.play(FadeOut(filtered_mob), FadeOut(mapped_mob), FadeOut(name_t))
+                self.play(
+                    FadeOut(filtered_mob, shift=UP * 0.2),
+                    FadeOut(mapped_mob, shift=UP * 0.2),
+                    FadeOut(name_t, shift=UP * 0.2),
+                )
+
+                # end for loop
 
             winner_filter = (
                 filter_score_table[np.argmin(scores)]
@@ -2483,7 +2595,7 @@ class Filtering(MovingCameraScene):
         output = img.copy()
 
         for i in range(1, cols):
-            output[row, i] = img[row, i] - img[row, i - 1]
+            output[row, i] = (img[row, i] - img[row, i - 1]) % 256
 
         output[row, 0] = img[row, 0]
 
@@ -2502,7 +2614,7 @@ class Filtering(MovingCameraScene):
             pass
         else:
             for i in range(cols):
-                output[row, i] = img[row, i] - img[row - 1, i]
+                output[row, i] = (img[row, i] - img[row - 1, i]) % 256
 
         if return_mob:
             return PixelArray(output, include_numbers=True, color_mode="GRAY")
@@ -2518,9 +2630,11 @@ class Filtering(MovingCameraScene):
         padded_data = np.pad(img, (1, 0), constant_values=0, mode="constant")
         output = np.zeros(img.shape, dtype=np.uint8)
 
+        padded_row = row + 1
+
         for i in range(1, cols + 1):
-            avg = (padded_data[row - 1, i] + padded_data[row, i - 1]) / 2
-            output[row, i - 1] = floor(abs(padded_data[row, i] - avg))
+            avg = (padded_data[padded_row - 1, i] + padded_data[padded_row, i - 1]) / 2
+            output[row, i - 1] = int((padded_data[padded_row, i] - avg) % 256)
 
         if return_mob:
             return PixelArray(output, include_numbers=True, color_mode="GRAY")
@@ -2536,10 +2650,15 @@ class Filtering(MovingCameraScene):
         padded_data = np.pad(img, (1, 0), constant_values=0, mode="constant")
         output = np.zeros(img.shape, dtype=np.uint8)
 
+        print(f"{row = }")
+        print(padded_data)
+
+        padded_row = row + 1
+
         for i in range(1, cols + 1):
-            a = padded_data[row - 1, i - 1]  # up-left
-            b = padded_data[row - 1, i]  # up
-            c = padded_data[row, i - 1]  # left
+            a = padded_data[padded_row - 1, i - 1]  # up-left
+            b = padded_data[padded_row - 1, i]  # up
+            c = padded_data[padded_row, i - 1]  # left
 
             base_value = b + c - a
 
@@ -2550,7 +2669,7 @@ class Filtering(MovingCameraScene):
             }
             winner = paeth_dict[min(paeth_dict.keys())]
 
-            output[row, i - 1] = abs(padded_data[row, i] - winner)
+            output[row, i - 1] = (padded_data[padded_row, i] - winner) % 256
 
         if return_mob:
             return PixelArray(output, include_numbers=True, color_mode="GRAY")
@@ -2572,13 +2691,13 @@ class Filtering(MovingCameraScene):
         iterations_b = []
         methods_history = []
 
-        pixel_array_r = img[:, :, 0].astype(np.int16)
-        pixel_array_g = img[:, :, 1].astype(np.int16)
-        pixel_array_b = img[:, :, 2].astype(np.int16)
+        pixel_array_r = img[:, :, 0]
+        pixel_array_g = img[:, :, 1]
+        pixel_array_b = img[:, :, 2]
 
-        pixel_array_r_out = np.zeros((img.shape[0], img.shape[1]), dtype=np.int16)
-        pixel_array_g_out = np.zeros((img.shape[0], img.shape[1]), dtype=np.int16)
-        pixel_array_b_out = np.zeros((img.shape[0], img.shape[1]), dtype=np.int16)
+        pixel_array_r_out = np.zeros((img.shape[0], img.shape[1]), dtype=np.uint8)
+        pixel_array_g_out = np.zeros((img.shape[0], img.shape[1]), dtype=np.uint8)
+        pixel_array_b_out = np.zeros((img.shape[0], img.shape[1]), dtype=np.uint8)
 
         np.random.seed(2)
 
@@ -2659,26 +2778,15 @@ class Filtering(MovingCameraScene):
             for p in mapped_filtered_mob
         ]
         [
-            n.set_color(WHITE).set_opacity(1).scale(0.7).set_stroke(width=0)
+            n.set_color(WHITE).set_opacity(1).scale(0.9).set_stroke(width=0)
             for n in mapped_filtered_mob.numbers
         ]
 
         return filtered_mob, mapped_filtered_mob, filter_score
 
-    def filter_image_msad(self):
-        """
-        Implement minimum sum of absolute differences on an image
-        and return every part of the iteration
-        """
-
-    def map_num_range(self, x, input_start, input_end, output_start, output_end):
-        return output_start + (
-            (output_end - output_start) / (input_end - input_start)
-        ) * (x - input_start)
-
     def png_mapping(self, x):
         if x > 127:
-            return self.map_num_range(x, 128, 255, -128, -1)
+            return 256 - x
         else:
             return x
 
@@ -2703,3 +2811,21 @@ class Filtering(MovingCameraScene):
             .set_fill(color, opacity=0.3),
             Text(filter_name, font="SF Mono").scale(0.5),
         ).arrange(ORIGIN)
+
+    def get_channel_image(self, channel, mode="R"):
+        new_channel = np.zeros((channel.shape[0], channel.shape[1], 3))
+        for i in range(channel.shape[0]):
+            for j in range(channel.shape[1]):
+                if mode == "R":
+                    new_channel[i][j] = np.array([channel[i][j], 0, 0])
+                elif mode == "G":
+                    new_channel[i][j] = np.array([0, channel[i][j], 0])
+                else:
+                    new_channel[i][j] = np.array([0, 0, channel[i][j]])
+
+        return new_channel
+
+    def focus_on(self, mobject, buff=2):
+        return self.camera.frame.animate.set_width(mobject.width * buff).move_to(
+            mobject
+        )

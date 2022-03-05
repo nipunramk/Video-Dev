@@ -8,7 +8,7 @@ class Pixel(Square):
         assert color_mode in ("RGB", "GRAY"), "Color modes are RGB and GRAY"
 
         if isinstance(n, np.int16) and n < 0:
-            n = 0
+            n = abs(n)
         if color_mode == "RGB":
             color = rgb_to_hex(n / 255)
         else:
@@ -50,13 +50,16 @@ class PixelArray(VGroup):
                     number = (
                         Text(str(p), font="SF Mono", weight=MEDIUM)
                         .scale(0.7)
-                        .set_color(g2h(1) if p < 180 else g2h(0))
+                        .set_color(g2h(1) if abs(p) < 180 else g2h(0))
                     )
 
                     self.numbers.add(number)
-                    self.pixels.add(
-                        VGroup(Pixel(p, color_mode, outline=outline), number)
-                    )
+
+                    new_pix = VGroup(Pixel(p, color_mode, outline=outline), number)
+                    if p < 0:
+                        new_pix[1].scale(0.8)
+
+                    self.pixels.add(new_pix)
                 else:
                     self.pixels.add(Pixel(p, color_mode, outline=outline))
 
@@ -127,8 +130,16 @@ class RGBMob:
         self.b = b_mob
         self.indicated = False
         self.surrounded = None
+        self.scaled = 1
+        self.shift = ORIGIN
 
+    def __str__(self):
+        return f'RGB(R: {self.r[1].original_text}, G: {self.g[1].original_text}, B: {self.b[1].original_text}, Indicated: {self.indicated}, Surrounded: {self.surrounded[0] if self.surrounded is not None else None}, Scale: {self.scaled}, Shift: {self.shift})'
 
+    def __repr__(self):
+        return self.__str__()
+
+      
 string_to_mob_map = {}
 
 
