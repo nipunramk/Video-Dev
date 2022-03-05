@@ -763,21 +763,22 @@ class Filtering(MovingCameraScene):
         # self.wait()
         # self.clear()
 
-        # self.five_filters_explanation()
+        self.five_filters_explanation()
 
-        # self.wait()
-        # self.clear()
-        # self.play(Restore(self.camera.frame))
+        self.wait()
+        self.clear()
+        self.play(Restore(self.camera.frame))
 
-        # self.channels_are_independent()
+        self.channels_are_independent()
 
-        # self.wait()
-        # self.clear()
+        self.wait()
+        self.clear()
 
-        # self.what_filter_to_use()
+        self.what_filter_to_use()
 
-        # self.wait()
-        # self.clear()
+        self.wait()
+        self.clear()
+        self.play(Restore(self.camera.frame))
 
         # self.low_bit_depth_images()
 
@@ -2292,7 +2293,7 @@ class Filtering(MovingCameraScene):
 
         self.play(FadeIn(filter_score_table))
 
-        for row in range(10):
+        for row in range(4):
 
             row_vg = img_mob[self.select_row_indices(row, (rows, cols))]
             filter_index = 0
