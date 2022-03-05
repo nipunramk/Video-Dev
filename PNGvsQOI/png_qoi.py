@@ -1874,14 +1874,12 @@ class Filtering(MovingCameraScene):
         # show padding
         self.play(
             self.focus_on(pixel_array_mob_g[0:4]),
-            FadeOut(iterations_r[-1]),
-            FadeOut(iterations_g[-1]),
-            FadeOut(iterations_b[-1]),
-            FadeOut(methods_vg),
             FadeOut(pixel_array_mob_r),
             FadeOut(pixel_array_mob_b),
             run_time=3,
         )
+
+        self.remove(*iterations_r, *iterations_g[:-1], *iterations_b)
 
         px_arr_mob = pixel_array_mob_g
 
@@ -1975,13 +1973,85 @@ class Filtering(MovingCameraScene):
             .set_stroke(width=1)
         )
 
+        one_byte_t = (
+            Text("1 byte", font="CMU Serif", weight=BOLD)
+            .scale_to_fit_width(length_vg.width - length_vg.width / 10)
+            .next_to(length_vg, UP, buff=0.06)
+        )
+
         self.play(
+            self.focus_on(iterations_g[-1][0:4].copy().shift(UP * 0.2)),
             FadeIn(iterations_g[-1]),
-            FadeIn(length_vg),
             FadeOut(iterations_r[-1]),
             FadeOut(iterations_b[-1]),
-            self.focus_on(iterations_g[-1][0:4].copy().shift(UP * 0.2)),
             FadeOut(px_arr_mob),
+            run_time=3,
+        )
+
+        self.play(FadeIn(length_vg), FadeIn(one_byte_t))
+
+        self.wait()
+
+        original_pixels = (
+            px_arr_mob[9:11]
+            .copy()
+            .next_to(iterations_g[-1][11], UP, buff=0.29)
+            .scale(0.6)
+        )
+
+        pixel_values = VGroup(
+            Text(str(pixel_array_g[1, 1]), font="SF Mono")
+            .scale(0.1)
+            .set_color(REDUCIBLE_GREEN_DARKER)
+            .move_to(original_pixels[0]),
+            Text(str(pixel_array_g[1, 2]), font="SF Mono")
+            .scale(0.1)
+            .set_color(WHITE)
+            .move_to(original_pixels[1]),
+        )
+
+        step_1 = (
+            Text(f"({pixel_array_g[1,2]} - {pixel_array_g[1,1]}) % 256", font="SF Mono")
+            .scale(0.07)
+            .next_to(original_pixels, DOWN, buff=0.03)
+        )
+        step_2 = (
+            Text(f"({pixel_array_g[1,2] - pixel_array_g[1,1]}) % 256", font="SF Mono")
+            .scale(0.07)
+            .next_to(step_1, DOWN, buff=0.03)
+        )
+        step_3 = (
+            Text(f"{(pixel_array_g[1,2] - pixel_array_g[1,1]) % 256}", font="SF Mono")
+            .scale(0.07)
+            .next_to(step_2, DOWN, buff=0.03)
+        )
+
+        surr_rect = SurroundingRectangle(
+            iterations_g[-1][9:11], color=PURE_GREEN, buff=0
+        ).set_stroke(width=1)
+
+        self.play(
+            self.focus_on(iterations_g[-1][9:14]),
+            FadeOut(VGroup(*iterations_g[-1][0:8])),
+            FadeOut(length_vg),
+            FadeOut(one_byte_t),
+            run_time=3,
+        )
+
+        self.play(FadeIn(original_pixels), FadeIn(pixel_values), Write(surr_rect))
+
+        self.wait()
+
+        self.play(FadeIn(step_1))
+
+        self.wait()
+
+        self.play(FadeIn(step_2))
+
+        self.wait()
+
+        self.play(
+            FadeIn(step_3), Indicate(iterations_g[-1].numbers[10], color=PURE_GREEN)
         )
 
     def what_filter_to_use(self):
@@ -2621,13 +2691,13 @@ class Filtering(MovingCameraScene):
         iterations_b = []
         methods_history = []
 
-        pixel_array_r = img[:, :, 0].astype(np.int16)
-        pixel_array_g = img[:, :, 1].astype(np.int16)
-        pixel_array_b = img[:, :, 2].astype(np.int16)
+        pixel_array_r = img[:, :, 0]
+        pixel_array_g = img[:, :, 1]
+        pixel_array_b = img[:, :, 2]
 
-        pixel_array_r_out = np.zeros((img.shape[0], img.shape[1]), dtype=np.int16)
-        pixel_array_g_out = np.zeros((img.shape[0], img.shape[1]), dtype=np.int16)
-        pixel_array_b_out = np.zeros((img.shape[0], img.shape[1]), dtype=np.int16)
+        pixel_array_r_out = np.zeros((img.shape[0], img.shape[1]), dtype=np.uint8)
+        pixel_array_g_out = np.zeros((img.shape[0], img.shape[1]), dtype=np.uint8)
+        pixel_array_b_out = np.zeros((img.shape[0], img.shape[1]), dtype=np.uint8)
 
         np.random.seed(2)
 
