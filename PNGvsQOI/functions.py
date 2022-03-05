@@ -1,7 +1,9 @@
 """
 File for various PNG and QOI Helper Functions
 """
-from manim import SurroundingRectangle, interpolate, VGroup, rgb_to_hex
+
+from manim import *
+
 from reducible_colors import *
 import numpy as np
 
@@ -45,7 +47,25 @@ def get_glowing_surround_rect(
         rect.set_stroke(color, width=0.5, opacity=1 - i / n)
     return glowing_rect
 
-
 def g2h(n):
     """Abbreviation for grayscale to hex"""
     return rgb_to_hex((n, n, n))
+
+def get_glowing_surround_rect(mob, buff_min=0, buff_max=0.15, color=REDUCIBLE_YELLOW, n=40, opacity_multiplier=1):
+	glowing_rect = VGroup(*[SurroundingRectangle(mob, buff=interpolate(buff_min, buff_max, b)) for b in np.linspace(0, 1, n)])
+	for i, rect in enumerate(glowing_rect):
+		rect.set_stroke(color, width=0.5, opacity=1 - i/n)
+	return glowing_rect
+
+def align_text_vertically(*text, buff=DEFAULT_MOBJECT_TO_MOBJECT_BUFFER, aligned_edge=ORIGIN):
+	start_text = text[0]
+	for i in range(1, len(text)):
+		next_text = text[i]
+		next_text.next_to(start_text, DOWN, buff=buff, aligned_edge=aligned_edge)
+		start_text = next_text
+
+	return VGroup(*text)
+
+def get_matching_text(text, to_match, font='SF Mono', weight=MEDIUM, color=WHITE):
+	return Text(text, font=font, weight=MEDIUM).scale_to_fit_height(to_match.height).move_to(to_match.get_center()).set_color(color)
+

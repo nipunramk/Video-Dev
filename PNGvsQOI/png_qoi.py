@@ -2653,6 +2653,7 @@ class Filtering(MovingCameraScene):
         print(f"{row = }")
         print(padded_data)
 
+
         padded_row = row + 1
 
         for i in range(1, cols + 1):
