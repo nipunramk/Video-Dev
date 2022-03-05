@@ -763,22 +763,22 @@ class Filtering(MovingCameraScene):
         # self.wait()
         # self.clear()
 
-        self.five_filters_explanation()
+        # self.five_filters_explanation()
 
-        self.wait()
-        self.clear()
-        self.play(Restore(self.camera.frame))
+        # self.wait()
+        # self.clear()
+        # self.play(Restore(self.camera.frame))
 
-        self.channels_are_independent()
+        self.minor_considerations()
 
-        self.wait()
-        self.clear()
+        # self.wait()
+        # self.clear()
 
-        self.what_filter_to_use()
+        # self.what_filter_to_use()
 
-        self.wait()
-        self.clear()
-        self.play(Restore(self.camera.frame))
+        # self.wait()
+        # self.clear()
+        # self.play(Restore(self.camera.frame))
 
         # self.low_bit_depth_images()
 
@@ -800,7 +800,7 @@ class Filtering(MovingCameraScene):
         # self.wait()
         # self.clear()
 
-        self.minimum_sum_of_absolute_differences()
+        # self.minimum_sum_of_absolute_differences()
 
         # self.wait()
         # self.clear()
@@ -1738,7 +1738,7 @@ class Filtering(MovingCameraScene):
         )
         self.wait()
 
-    def channels_are_independent(self):
+    def minor_considerations(self):
         """
         Some minor considerations: these operations are done on each channel individually,
         so we are not mixing up red and green values. Each channel is treated separately.
@@ -1945,6 +1945,44 @@ class Filtering(MovingCameraScene):
         self.play(FadeIn(left_arrow))
 
         self.play(LaggedStart(FadeIn(dashed_row), FadeIn(dashed_col)), run_time=2)
+
+        self.wait()
+
+        self.play(
+            FadeOut(dashed_col),
+            FadeOut(dashed_row),
+            FadeOut(left_arrow),
+            FadeOut(up_arrow),
+        )
+
+        line = Line(px_arr_mob[0].get_left(), px_arr_mob[0].get_right()).set_color(
+            REDUCIBLE_PURPLE
+        )
+        left_mark = (
+            Line(UP * 0.03, DOWN * 0.03)
+            .next_to(line, LEFT, buff=0)
+            .set_color(REDUCIBLE_PURPLE)
+        )
+        right_mark = (
+            Line(UP * 0.03, DOWN * 0.03)
+            .next_to(line, RIGHT, buff=0)
+            .set_color(REDUCIBLE_PURPLE)
+        )
+
+        length_vg = (
+            VGroup(left_mark, line, right_mark)
+            .next_to(iterations_g[-1][0], UP, buff=0.06)
+            .set_stroke(width=1)
+        )
+
+        self.play(
+            FadeIn(iterations_g[-1]),
+            FadeIn(length_vg),
+            FadeOut(iterations_r[-1]),
+            FadeOut(iterations_b[-1]),
+            self.focus_on(iterations_g[-1][0:4].copy().shift(UP * 0.2)),
+            FadeOut(px_arr_mob),
+        )
 
     def what_filter_to_use(self):
         """Natural question: what filter to choose"""
@@ -2682,14 +2720,9 @@ class Filtering(MovingCameraScene):
         and return every part of the iteration
         """
 
-    def map_num_range(self, x, input_start, input_end, output_start, output_end):
-        return output_start + (
-            (output_end - output_start) / (input_end - input_start)
-        ) * (x - input_start)
-
     def png_mapping(self, x):
         if x > 127:
-            return self.map_num_range(x, 128, 255, -128, -1)
+            return 256 - x
         else:
             return x
 
