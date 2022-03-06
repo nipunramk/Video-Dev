@@ -773,6 +773,7 @@ class Filtering(MovingCameraScene):
 
         self.wait()
         self.clear()
+        self.play(Restore(self.camera.frame))
 
         self.what_filter_to_use()
 
