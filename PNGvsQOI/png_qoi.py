@@ -753,62 +753,62 @@ class QOIDemo(Scene):
 
 class Filtering(MovingCameraScene):
     def construct(self):
-        # self.intro_filtering()
+        self.intro_filtering()
 
-        # self.wait()
-        # self.clear()
+        self.wait()
+        self.clear()
 
-        # self.present_problem()
+        self.present_problem()
 
-        # self.wait()
-        # self.clear()
+        self.wait()
+        self.clear()
 
-        # self.five_filters_explanation()
+        self.five_filters_explanation()
 
-        # self.wait()
-        # self.clear()
-        # self.play(Restore(self.camera.frame))
+        self.wait()
+        self.clear()
+        self.play(Restore(self.camera.frame))
 
-        # self.minor_considerations()
+        self.minor_considerations()
 
-        # self.wait()
-        # self.clear()
+        self.wait()
+        self.clear()
 
-        # self.what_filter_to_use()
+        self.what_filter_to_use()
 
-        # self.wait()
-        # self.clear()
-        # self.play(Restore(self.camera.frame))
+        self.wait()
+        self.clear()
+        self.play(Restore(self.camera.frame))
 
-        # self.low_bit_depth_images()
+        self.low_bit_depth_images()
 
-        # self.wait()
-        # self.clear()
+        self.wait()
+        self.clear()
 
-        # self.palette_images()
+        self.palette_images()
 
-        # self.wait()
-        # self.clear()
+        self.wait()
+        self.clear()
 
-        # self.repeating_filters_performance()
+        self.repeating_filters_performance()
 
-        # self.wait()
-        # self.clear()
+        self.wait()
+        self.clear()
 
-        # self.combination_explosion()
+        self.combination_explosion()
 
-        # self.wait()
-        # self.clear()
+        self.wait()
+        self.clear()
 
         self.msad_intro()
 
-        # self.wait()
-        # self.clear()
+        self.wait()
+        self.clear()
 
-        # self.minimum_sum_of_absolute_differences()
+        self.minimum_sum_of_absolute_differences()
 
-        # self.wait()
-        # self.clear()
+        self.wait()
+        self.clear()
 
     def intro_filtering(self):
         title = Text("Lossless Compression", font="CMU Serif", weight=BOLD).to_edge(UP)
@@ -2479,6 +2479,13 @@ class Filtering(MovingCameraScene):
             filtered_row[0, i] = random_row[0, i] - random_row[0, i - 1]
 
         filtered_mob = PixelArray(filtered_row, color_mode="GRAY", include_numbers=True)
+        [
+            p.set_color(REDUCIBLE_PURPLE)
+            .set_opacity(0.3)
+            .set_stroke(REDUCIBLE_PURPLE, width=3, opacity=1)
+            for p in filtered_mob
+        ]
+        filtered_mob.numbers.set_color(WHITE).set_opacity(1).set_stroke(width=0)
 
         # byte aligned data
         byte_aligned_row = self.sub_filter_row(random_row, return_row=True)
@@ -2487,20 +2494,64 @@ class Filtering(MovingCameraScene):
             color_mode="GRAY",
             include_numbers=True,
         )
+        [
+            p.set_color(REDUCIBLE_YELLOW)
+            .set_opacity(0.3)
+            .set_stroke(REDUCIBLE_YELLOW, width=3, opacity=1)
+            for p in byte_aligned_mob
+        ]
+        byte_aligned_mob.numbers.set_color(WHITE).set_opacity(1).set_stroke(width=0)
 
         # remapped data
         mapped_row = np.array([self.png_mapping(x) for x in byte_aligned_row])
 
         mapped_mob = PixelArray(
-            mapped_row.reshape((1, len(byte_aligned_row))),
+            mapped_row.reshape((1, len(byte_aligned_row))).astype(np.int16),
             color_mode="GRAY",
             include_numbers=True,
         )
+        [
+            p.set_color(REDUCIBLE_GREEN)
+            .set_opacity(0.3)
+            .set_stroke(REDUCIBLE_GREEN, width=3, opacity=1)
+            for p in mapped_mob
+        ]
+        mapped_mob.numbers.set_color(WHITE).set_opacity(1).set_stroke(width=0)
 
         all_steps = VGroup(row_mob, filtered_mob, byte_aligned_mob, mapped_mob).arrange(
             DOWN, buff=0.4
         )
-        self.play(Write(all_steps))
+
+        self.play(LaggedStartMap(FadeIn, all_steps, lag_ratio=0.5))
+
+        self.wait()
+
+        self.play(all_steps.animate.shift(RIGHT * 2))
+
+        raw_data_t = (
+            Text("Raw data", font="CMU Serif", weight=BOLD)
+            .scale(0.4)
+            .next_to(row_mob, LEFT, buff=0.2)
+        )
+        filtered_data_t = (
+            Text("Filtered, signed data (sub filter)", font="CMU Serif", weight=BOLD)
+            .scale(0.4)
+            .next_to(filtered_mob, LEFT, buff=0.2)
+        )
+        byte_aligned_t = (
+            Text(r"Byte aligned data (mod 256)", font="CMU Serif", weight=BOLD)
+            .scale(0.4)
+            .next_to(byte_aligned_mob, LEFT, buff=0.2)
+        )
+        mapped_t = (
+            Text("Remapped data", font="CMU Serif", weight=BOLD)
+            .scale(0.4)
+            .next_to(mapped_mob, LEFT, buff=0.2)
+        )
+
+        all_text = VGroup(raw_data_t, filtered_data_t, byte_aligned_t, mapped_t)
+
+        self.play(FadeIn(all_text))
 
         self.wait()
 
@@ -2966,8 +3017,16 @@ class Filtering(MovingCameraScene):
 
         return filtered_mob, mapped_filtered_mob, filter_score
 
+    def map_num_range(self, x, input_start, input_end, output_start, output_end):
+        return output_start + (
+            (output_end - output_start) / (input_end - input_start)
+        ) * (x - input_start)
+
     def png_mapping(self, x):
-        return x if (x < 128) else 256 - x
+        if x > 127:
+            return self.map_num_range(x, 128, 255, -128, -1)
+        else:
+            return x
 
     def create_filter_names_vg(self, name_order):
         return VGroup(
