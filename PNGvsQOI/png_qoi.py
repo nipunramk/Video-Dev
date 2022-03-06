@@ -800,7 +800,12 @@ class Filtering(MovingCameraScene):
         # self.wait()
         # self.clear()
 
-        self.minimum_sum_of_absolute_differences()
+        self.msad_intro()
+
+        # self.wait()
+        # self.clear()
+
+        # self.minimum_sum_of_absolute_differences()
 
         # self.wait()
         # self.clear()
@@ -2329,6 +2334,175 @@ class Filtering(MovingCameraScene):
         self.play(FadeIn(all_perms_vg))
         self.wait()
         self.play(all_perms_vg.animate.scale(0.15), run_time=3)
+
+    def msad_intro(self):
+        """
+        we filter with every method and take the filter
+        that works best for each particular row.
+        """
+        title = Text(
+            "Minimum sum of absolute differences", font="CMU Serif", weight=BOLD
+        ).scale(0.6)
+
+        rows, cols = 8, 8
+        random_data = np.random.randint(50, 120, (rows, cols))
+
+        img_mob = PixelArray(random_data, color_mode="GRAY").scale(0.9).shift(DOWN * 3)
+
+        filter_order = ["sub", "avg", "paeth", "up", "sub", "up", "up"]
+
+        filter_rects = (
+            VGroup(
+                *[
+                    self.create_colored_row_with_filter_name(f).scale_to_fit_height(
+                        img_mob[0].height
+                    )
+                    for f in filter_order
+                ]
+            )
+            .arrange(DOWN, buff=0)
+            .move_to(img_mob, aligned_edge=UL)
+        )
+
+        [
+            r[0]
+            .stretch_to_fit_width(img_mob.width)
+            .move_to(img_mob, coor_mask=[1, 0, 0])
+            for r in filter_rects
+        ]
+
+        self.play(FadeIn(title))
+        self.wait()
+        self.play(title.animate.to_edge(UP), FadeIn(img_mob))
+
+        for rect in filter_rects:
+            self.play(FadeIn(rect))
+
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
+        """
+        To do this, we’ll treat the filtered bytes as if 
+        they were signed numbers. This is done by mapping the 128 — 255 
+        range of color values to the -128 — -1 range,
+        while leaving the 0 — 127 range intact
+        """
+
+        line = Line(LEFT * 4, RIGHT * 4).set_color(REDUCIBLE_VIOLET)
+        left_mark = (
+            Line(UP * 0.2, DOWN * 0.2)
+            .next_to(line, LEFT, buff=0)
+            .set_color(REDUCIBLE_VIOLET)
+        )
+        middle_mark = (
+            Line(UP * 0.2, DOWN * 0.2)
+            .next_to(line, ORIGIN, buff=0)
+            .set_color(REDUCIBLE_VIOLET)
+        )
+        right_mark = (
+            Line(UP * 0.2, DOWN * 0.2)
+            .next_to(line, RIGHT, buff=0)
+            .set_color(REDUCIBLE_VIOLET)
+        )
+
+        original_range = VGroup(left_mark, line, middle_mark, right_mark).set_stroke(
+            width=7
+        )
+        zero = Text("0", font="SF Mono").scale(0.6).next_to(left_mark, DOWN, buff=0.2)
+
+        one_27 = (
+            Text("127", font="SF Mono").scale(0.6).next_to(middle_mark, DOWN, buff=0.2)
+        )
+        two_55 = (
+            Text("255", font="SF Mono").scale(0.6).next_to(right_mark, DOWN, buff=0.2)
+        )
+
+        line2 = Line(ORIGIN, RIGHT * 4).set_color(REDUCIBLE_YELLOW)
+        left_mark2 = (
+            Line(UP * 0.2, DOWN * 0.2)
+            .next_to(line2, LEFT, buff=0)
+            .set_color(REDUCIBLE_YELLOW)
+        )
+        right_mark2 = (
+            Line(UP * 0.2, DOWN * 0.2)
+            .next_to(line2, RIGHT, buff=0)
+            .set_color(REDUCIBLE_YELLOW)
+        )
+
+        new_range = (
+            VGroup(left_mark2, line2, right_mark2)
+            .set_stroke(width=7)
+            .next_to(original_range, UP, buff=0.3, aligned_edge=RIGHT)
+        )
+
+        minus_one = (
+            Text("-1", font="SF Mono")
+            .scale(0.6)
+            .next_to(
+                right_mark2,
+                UP,
+                buff=0.2,
+            )
+        )
+        minus_128 = (
+            Text("-128", font="SF Mono").scale(0.6).next_to(left_mark2, UP, buff=0.2)
+        )
+
+        self.play(Write(original_range))
+        self.wait()
+        self.play(
+            FadeIn(zero, shift=DOWN * 0.2),
+            FadeIn(two_55, shift=DOWN * 0.2),
+            FadeIn(one_27, shift=DOWN * 0.2),
+        )
+
+        self.wait()
+
+        self.play(FadeIn(new_range, shift=UP * 0.2))
+
+        self.wait()
+
+        self.play(FadeIn(minus_one, shift=UP * 0.2), FadeIn(minus_128, shift=UP * 0.2))
+
+        self.wait()
+
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
+
+        self.wait()
+
+        random_row = np.random.randint(0, 255, (1, 8))
+
+        # raw data
+        row_mob = PixelArray(random_row, color_mode="GRAY", include_numbers=True)
+
+        # filtered, signed data
+        filtered_row = random_row.copy()
+        for i in range(1, random_row.shape[1]):
+            filtered_row[0, i] = random_row[0, i] - random_row[0, i - 1]
+
+        filtered_mob = PixelArray(filtered_row, color_mode="GRAY", include_numbers=True)
+
+        # byte aligned data
+        byte_aligned_row = self.sub_filter_row(random_row, return_row=True)
+        byte_aligned_mob = PixelArray(
+            byte_aligned_row.reshape((1, len(byte_aligned_row))),
+            color_mode="GRAY",
+            include_numbers=True,
+        )
+
+        # remapped data
+        mapped_row = np.array([self.png_mapping(x) for x in byte_aligned_row])
+
+        mapped_mob = PixelArray(
+            mapped_row.reshape((1, len(byte_aligned_row))),
+            color_mode="GRAY",
+            include_numbers=True,
+        )
+
+        all_steps = VGroup(row_mob, filtered_mob, byte_aligned_mob, mapped_mob).arrange(
+            DOWN, buff=0.4
+        )
+        self.play(Write(all_steps))
+
+        self.wait()
 
     def minimum_sum_of_absolute_differences(self):
         title = (

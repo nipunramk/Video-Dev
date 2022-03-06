@@ -7,8 +7,9 @@ class Pixel(Square):
     def __init__(self, n, color_mode: str, outline=True):
         assert color_mode in ("RGB", "GRAY"), "Color modes are RGB and GRAY"
 
-        if isinstance(n, np.int16) and n < 0:
+        if isinstance(n, np.int16) or n < 0:
             n = abs(n)
+
         if color_mode == "RGB":
             color = rgb_to_hex(n / 255)
         else:
