@@ -2400,8 +2400,13 @@ class Filtering(MovingCameraScene):
             .next_to(img_mob, RIGHT, buff=0.5)
             .shift(UP * 2)
         )
+        final_score_t = (
+            Text("Final filters score", font="SF Mono", weight=BOLD)
+            .scale(0.5)
+            .next_to(filter_score_table, UP, buff=0.3, aligned_edge=LEFT)
+        )
 
-        self.play(FadeIn(filter_score_table))
+        self.play(FadeIn(filter_score_table), FadeIn(final_score_t))
 
         for row in range(4):
 
@@ -2433,7 +2438,11 @@ class Filtering(MovingCameraScene):
 
                 score_t = (
                     Text(str(filter_score), font="SF Mono")
-                    .next_to(filter_score_table[filter_index], DOWN, buff=0.2)
+                    .next_to(
+                        filter_score_table[filter_index],
+                        DOWN,
+                        buff=0.2,
+                    )
                     .scale(0.4)
                 )
                 filter_index += 1
@@ -2652,9 +2661,6 @@ class Filtering(MovingCameraScene):
         padded_data = np.pad(img, (1, 0), constant_values=0, mode="constant")
         output = np.zeros(img.shape, dtype=np.uint8)
 
-        print(f"{row = }")
-        print(padded_data)
-
         padded_row = row + 1
 
         for i in range(1, cols + 1):
@@ -2765,7 +2771,7 @@ class Filtering(MovingCameraScene):
 
         mapped_row = np.array(
             [self.png_mapping(p) for p in filtered_row],
-            dtype=np.int16,
+            dtype=int,
         )
 
         filter_score = sum(abs(mapped_row))
@@ -2787,10 +2793,7 @@ class Filtering(MovingCameraScene):
         return filtered_mob, mapped_filtered_mob, filter_score
 
     def png_mapping(self, x):
-        if x > 127:
-            return 256 - x
-        else:
-            return x
+        return x if (x < 128) else 256 - x
 
     def create_filter_names_vg(self, name_order):
         return VGroup(
