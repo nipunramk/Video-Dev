@@ -753,63 +753,68 @@ class QOIDemo(Scene):
 
 class Filtering(MovingCameraScene):
     def construct(self):
-        self.intro_filtering()
+        # self.intro_filtering()
 
-        self.wait()
-        self.clear()
+        # self.wait()
+        # self.clear()
 
-        self.present_problem()
+        # self.present_problem()
 
-        self.wait()
-        self.clear()
+        # self.wait()
+        # self.clear()
 
-        self.five_filters_explanation()
+        # self.five_filters_explanation()
 
-        self.wait()
-        self.clear()
-        self.play(Restore(self.camera.frame))
+        # self.wait()
+        # self.clear()
+        # self.play(Restore(self.camera.frame))
 
-        self.minor_considerations()
+        # self.minor_considerations()
 
-        self.wait()
-        self.clear()
-        self.play(Restore(self.camera.frame))
+        # self.wait()
+        # self.clear()
+        # self.play(Restore(self.camera.frame))
 
-        self.what_filter_to_use()
+        # self.what_filter_to_use()
 
-        self.wait()
-        self.clear()
-        self.play(Restore(self.camera.frame))
+        # self.wait()
+        # self.clear()
+        # self.play(Restore(self.camera.frame))
 
-        self.low_bit_depth_images()
+        # self.low_bit_depth_images()
 
-        self.wait()
-        self.clear()
+        # self.wait()
+        # self.clear()
 
-        self.palette_images()
+        # self.palette_images()
 
-        self.wait()
-        self.clear()
+        # self.wait()
+        # self.clear()
 
-        self.repeating_filters_performance()
+        # self.repeating_filters_performance()
 
-        self.wait()
-        self.clear()
+        # self.wait()
+        # self.clear()
 
-        self.combination_explosion()
+        # self.combination_explosion()
 
-        self.wait()
-        self.clear()
+        # self.wait()
+        # self.clear()
 
-        self.msad_intro()
+        # self.msad_intro()
 
-        self.wait()
-        self.clear()
+        # self.wait()
+        # self.clear()
 
-        self.minimum_sum_of_absolute_differences()
+        # self.minimum_sum_of_absolute_differences()
 
-        self.wait()
-        self.clear()
+        # self.wait()
+        # self.clear()
+
+        self.png_decoding()
+
+        # self.wait()
+        # self.clear()
 
     def intro_filtering(self):
         title = Text("Lossless Compression", font="CMU Serif", weight=BOLD).to_edge(UP)
@@ -2326,7 +2331,7 @@ class Filtering(MovingCameraScene):
 
         some_perms = list(all_perms)[800:3000:10]
 
-        self.camera.cairo_line_width_multiple = 0.003
+        # self.camera.cairo_line_width_multiple = 0.003
 
         all_perms_vg = VGroup(
             *[self.create_filter_names_vg(perm) for perm in some_perms]
@@ -2430,7 +2435,7 @@ class Filtering(MovingCameraScene):
 
         new_range = (
             VGroup(left_mark2, line2, right_mark2)
-            .set_stroke(width=7)
+            .set_stroke(width=4)
             .next_to(original_range, UP, buff=0.3, aligned_edge=RIGHT)
         )
 
@@ -2481,9 +2486,9 @@ class Filtering(MovingCameraScene):
 
         filtered_mob = PixelArray(filtered_row, color_mode="GRAY", include_numbers=True)
         [
-            p.set_color(REDUCIBLE_PURPLE)
+            p.set_color(REDUCIBLE_YELLOW)
             .set_opacity(0.3)
-            .set_stroke(REDUCIBLE_PURPLE, width=3, opacity=1)
+            .set_stroke(REDUCIBLE_YELLOW, width=3, opacity=1)
             for p in filtered_mob
         ]
         filtered_mob.numbers.set_color(WHITE).set_opacity(1).set_stroke(width=0)
@@ -2496,9 +2501,9 @@ class Filtering(MovingCameraScene):
             include_numbers=True,
         )
         [
-            p.set_color(REDUCIBLE_YELLOW)
+            p.set_color(REDUCIBLE_PURPLE)
             .set_opacity(0.3)
-            .set_stroke(REDUCIBLE_YELLOW, width=3, opacity=1)
+            .set_stroke(REDUCIBLE_PURPLE, width=3, opacity=1)
             for p in byte_aligned_mob
         ]
         byte_aligned_mob.numbers.set_color(WHITE).set_opacity(1).set_stroke(width=0)
@@ -2716,6 +2721,73 @@ class Filtering(MovingCameraScene):
                 winner_filters.animate.shift(UP * row_vg.height),
             )
             self.wait()
+
+    def png_decoding(self):
+        random_data = np.random.randint(50, 80, (1, 10))
+
+        img_mob = (
+            PixelArray(random_data, include_numbers=True, color_mode="GRAY")
+            .scale(0.9)
+            .shift(DOWN * 1.5)
+        )
+
+        byte_aligned_row = self.sub_filter_row(random_data, return_row=True)
+        byte_aligned_mob = PixelArray(
+            byte_aligned_row.reshape((1, len(byte_aligned_row))),
+            color_mode="GRAY",
+            include_numbers=True,
+        ).scale(0.9)
+        [
+            p.set_color(REDUCIBLE_PURPLE)
+            .set_opacity(0.3)
+            .set_stroke(REDUCIBLE_PURPLE, width=3, opacity=1)
+            for p in byte_aligned_mob
+        ]
+        byte_aligned_mob.numbers.set_color(WHITE).set_opacity(1).set_stroke(width=0)
+
+        self.play(FadeIn(byte_aligned_mob))
+
+        self.wait()
+
+        self.play(byte_aligned_mob.animate.shift(UP * 1))
+        sub_t = (
+            Text("SUB", font="CMU Serif", weight=BOLD)
+            .scale(0.7)
+            .next_to(byte_aligned_mob, UP, buff=0.3, aligned_edge=LEFT)
+        )
+        self.play(Write(sub_t))
+
+        self.play(FadeIn(img_mob[0]))
+        arrows = VGroup()
+        for i in range(1, random_data.shape[1]):
+            arrow = Arrow(
+                img_mob[i - 1].get_center(),
+                byte_aligned_mob[i].get_center(),
+                max_stroke_width_to_length_ratio=1,
+                buff=0.6,
+            ).set_color(REDUCIBLE_YELLOW)
+            arrow.pop_tips()
+            arrow.add_tip(
+                tip_shape=ArrowTriangleFilledTip, tip_length=0.15, at_start=False
+            )
+            arrows.add(arrow)
+
+            operation = (
+                VGroup(
+                    Text("(", font="SF Mono").scale(0.3),
+                    img_mob[i - 1].copy().scale(0.2),
+                    Text(" + ", font="SF Mono").scale(0.2),
+                    byte_aligned_mob[i].copy().scale(0.2),
+                    Text(")", font="SF Mono").scale(0.3),
+                )
+                .arrange(RIGHT, buff=0.05)
+                .scale(2.5)
+                .next_to(arrow, DOWN, buff=1.3)
+            )
+
+            self.play(Write(arrow), FadeIn(operation, shift=DOWN * 0.2))
+            self.play(FadeIn(img_mob[i]))
+            self.play(FadeOut(operation, shift=DOWN * 0.2), FadeOut(arrow))
 
     #####################################################################
 
