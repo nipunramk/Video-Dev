@@ -1764,7 +1764,7 @@ class Filtering(MovingCameraScene):
         Some minor considerations: these operations are done on each channel individually,
         so we are not mixing up red and green values. Each channel is treated separately.
         """
-        image = ImageMobject("r.png")
+        image = ImageMobject("r_3_palette.png")
 
         pixel_array = image.get_pixel_array().astype(int)
 
@@ -2157,7 +2157,7 @@ class Filtering(MovingCameraScene):
             .to_edge(UP)
         )
         self.play(FadeIn(title))
-        img = ImageMobject("r.png")
+        img = ImageMobject("r_3_palette.png")
         px_array = img.get_pixel_array()
         palette = np.array(
             [[px_array[0, 0, :3], px_array[0, 1, :3], px_array[1, 2, :3]]]
