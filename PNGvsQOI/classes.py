@@ -51,6 +51,7 @@ class PixelArray(VGroup):
                         Text(str(p), font="SF Mono", weight=MEDIUM)
                         .scale(0.7)
                         .set_color(g2h(1) if abs(p) < 180 else g2h(0))
+                        .set_stroke(opacity=0)
                     )
 
                     self.numbers.add(number)
