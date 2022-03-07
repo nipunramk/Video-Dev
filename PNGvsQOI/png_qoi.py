@@ -751,78 +751,80 @@ class QOIDemo(Scene):
         return transforms
 
 
+###
 """
 Some considerations before rendering:
     — Everything is setup un the construct method. If you don't want to render the 
     first animations, remember to disable them in the construct method. 
     — The five_filters_explanation animation already has important info.
+    — Everything else is adjusted accordingly so you don't have to worry about running it.
 """
 
 
 class Filtering(MovingCameraScene):
     def construct(self):
-        # self.intro_filtering()
+        self.intro_filtering()
 
-        # self.wait()
-        # self.clear()
+        self.wait()
+        self.clear()
 
-        # self.present_problem()
+        self.present_problem()
 
-        # self.wait()
-        # self.clear()
+        self.wait()
+        self.clear()
 
-        # self.five_filters_explanation()
+        self.five_filters_explanation()
 
-        # self.wait()
-        # self.clear()
-        # self.play(Restore(self.camera.frame))
+        self.wait()
+        self.clear()
+        self.play(Restore(self.camera.frame))
 
-        # self.minor_considerations()
+        self.minor_considerations()
 
-        # self.wait()
-        # self.clear()
-        # self.play(Restore(self.camera.frame))
+        self.wait()
+        self.clear()
+        self.play(Restore(self.camera.frame))
 
-        # self.what_filter_to_use()
+        self.what_filter_to_use()
 
-        # self.wait()
-        # self.clear()
-        # self.play(Restore(self.camera.frame))
+        self.wait()
+        self.clear()
+        self.play(Restore(self.camera.frame))
 
-        # self.low_bit_depth_images()
+        self.low_bit_depth_images()
 
-        # self.wait()
-        # self.clear()
+        self.wait()
+        self.clear()
 
-        # self.palette_images()
+        self.palette_images()
 
-        # self.wait()
-        # self.clear()
+        self.wait()
+        self.clear()
 
-        # self.repeating_filters_performance()
+        self.repeating_filters_performance()
 
-        # self.wait()
-        # self.clear()
+        self.wait()
+        self.clear()
 
-        # self.combination_explosion()
+        self.combination_explosion()
 
-        # self.wait()
-        # self.clear()
+        self.wait()
+        self.clear()
 
-        # self.msad_intro()
+        self.msad_intro()
 
-        # self.wait()
-        # self.clear()
+        self.wait()
+        self.clear()
 
-        # self.minimum_sum_of_absolute_differences()
+        self.minimum_sum_of_absolute_differences()
 
-        # self.wait()
-        # self.clear()
+        self.wait()
+        self.clear()
 
         self.png_decoding()
 
-        # self.wait()
-        # self.clear()
+        self.wait()
+        self.clear()
 
     def intro_filtering(self):
         title = Text("Lossless Compression", font="CMU Serif", weight=BOLD).to_edge(UP)
