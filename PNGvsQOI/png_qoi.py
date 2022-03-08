@@ -755,8 +755,7 @@ class QOIDemo(Scene):
 """
 Some considerations before rendering:
     — Everything is setup un the construct method. If you don't want to render the 
-    first animations, remember to disable them in the construct method. 
-    — The five_filters_explanation animation already has important info.
+    first animations, remember to disable them in there. 
     — Everything else is adjusted accordingly so you don't have to worry about running it.
 """
 
