@@ -7,11 +7,11 @@ class Pixel(Square):
     def __init__(self, n, color_mode: str, outline=True):
         assert color_mode in ("RGB", "GRAY"), "Color modes are RGB and GRAY"
 
-        if isinstance(n, np.int16) and n < 0:
-            n = abs(n)
         if color_mode == "RGB":
             color = rgb_to_hex(n / 255)
         else:
+            if isinstance(n, np.int16) or n < 0:
+                n = abs(n)
             color = g2h(n / 255)
 
         super().__init__(side_length=1)
@@ -51,6 +51,7 @@ class PixelArray(VGroup):
                         Text(str(p), font="SF Mono", weight=MEDIUM)
                         .scale(0.7)
                         .set_color(g2h(1) if abs(p) < 180 else g2h(0))
+                        .set_stroke(opacity=0)
                     )
 
                     self.numbers.add(number)
@@ -134,12 +135,12 @@ class RGBMob:
         self.shift = ORIGIN
 
     def __str__(self):
-        return f'RGB(R: {self.r[1].original_text}, G: {self.g[1].original_text}, B: {self.b[1].original_text}, Indicated: {self.indicated}, Surrounded: {self.surrounded[0] if self.surrounded is not None else None}, Scale: {self.scaled}, Shift: {self.shift})'
+        return f"RGB(R: {self.r[1].original_text}, G: {self.g[1].original_text}, B: {self.b[1].original_text}, Indicated: {self.indicated}, Surrounded: {self.surrounded[0] if self.surrounded is not None else None}, Scale: {self.scaled}, Shift: {self.shift})"
 
     def __repr__(self):
         return self.__str__()
 
-      
+
 string_to_mob_map = {}
 
 
