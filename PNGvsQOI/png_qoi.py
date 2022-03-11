@@ -3172,3 +3172,10 @@ class Filtering(MovingCameraScene):
         return self.camera.frame.animate.set_width(mobject.width * buff).move_to(
             mobject
         )
+
+
+class TestBarChart(Scene):
+    def construct(self):
+        barchart = SVGMobject("sample_bar_exp.svg").scale(3)
+
+        self.play(Write(barchart))

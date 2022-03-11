@@ -1,6 +1,7 @@
 from manim import *
 from functions import *
 from reducible_colors import *
+from typing import Iterable
 
 
 class Pixel(Square):
@@ -220,3 +221,99 @@ class RVariable(VMobject):
 
         super().__init__(**kwargs)
         self.add(self.label, self.value)
+
+
+class ReducibleBarChart(BarChart):
+    """
+    Redefinition of the BarChart class to add font personalization
+    """
+
+    def __init__(
+        self,
+        values: Iterable[float],
+        height: float = 4,
+        width: float = 6,
+        n_ticks: int = 4,
+        tick_width: float = 0.2,
+        chart_font: str = "SF Mono",
+        label_y_axis: bool = True,
+        y_axis_label_height: float = 0.25,
+        max_value: float = 1,
+        bar_colors=...,
+        bar_fill_opacity: float = 0.8,
+        bar_stroke_width: float = 3,
+        bar_names: List[str] = ...,
+        bar_label_scale_val: float = 0.75,
+        **kwargs,
+    ):
+        self.chart_font = chart_font
+
+        super().__init__(
+            values,
+            height=height,
+            width=width,
+            n_ticks=n_ticks,
+            tick_width=tick_width,
+            label_y_axis=label_y_axis,
+            y_axis_label_height=y_axis_label_height,
+            max_value=max_value,
+            bar_colors=bar_colors,
+            bar_fill_opacity=bar_fill_opacity,
+            bar_stroke_width=bar_stroke_width,
+            bar_names=bar_names,
+            bar_label_scale_val=bar_label_scale_val,
+            **kwargs,
+        )
+
+    def add_axes(self):
+        x_axis = Line(self.tick_width * LEFT / 2, self.total_bar_width * RIGHT)
+        y_axis = Line(ORIGIN, self.total_bar_height * UP)
+        ticks = VGroup()
+        heights = np.linspace(0, self.total_bar_height, self.n_ticks + 1)
+        values = np.linspace(0, self.max_value, self.n_ticks + 1)
+        for y, _value in zip(heights, values):
+            tick = Line(LEFT, RIGHT)
+            tick.width = self.tick_width
+            tick.move_to(y * UP)
+            ticks.add(tick)
+        y_axis.add(ticks)
+
+        self.add(x_axis, y_axis)
+        self.x_axis, self.y_axis = x_axis, y_axis
+
+        if self.label_y_axis:
+            labels = VGroup()
+            for tick, value in zip(ticks, values):
+                label = Text(
+                    str(np.round(value, 2)), font=self.chart_font, weight=MEDIUM
+                )
+                label.height = self.y_axis_label_height
+                label.next_to(tick, LEFT, SMALL_BUFF)
+                labels.add(label)
+            self.y_axis_labels = labels
+            self.add(labels)
+
+    def add_bars(self, values):
+        buff = float(self.total_bar_width) / (2 * len(values) + 1)
+        bars = VGroup()
+        for i, value in enumerate(values):
+            bar = Rectangle(
+                height=(value / self.max_value) * self.total_bar_height,
+                width=buff,
+                stroke_width=self.bar_stroke_width,
+                fill_opacity=self.bar_fill_opacity,
+            )
+            bar.move_to((2 * i + 1) * buff * RIGHT, DOWN + LEFT)
+            bars.add(bar)
+        bars.set_color_by_gradient(*self.bar_colors)
+
+        bar_labels = VGroup()
+        for bar, name in zip(bars, self.bar_names):
+            label = Text(str(name), font="SF Mono", weight=MEDIUM)
+            label.scale(self.bar_label_scale_val)
+            label.next_to(bar, DOWN, SMALL_BUFF)
+            bar_labels.add(label)
+
+        self.add(bars, bar_labels)
+        self.bars = bars
+        self.bar_labels = bar_labels
