@@ -69,3 +69,14 @@ def align_text_vertically(*text, buff=DEFAULT_MOBJECT_TO_MOBJECT_BUFFER, aligned
 def get_matching_text(text, to_match, font='SF Mono', weight=MEDIUM, color=WHITE):
 	return Text(text, font=font, weight=MEDIUM).scale_to_fit_height(to_match.height).move_to(to_match.get_center()).set_color(color)
 
+def gray_scale_value_to_hex(value):
+    assert value >= 0 and value <= 255, f'Invalid value {value}'
+    integer_value = int(round(value))
+    hex_string = hex(integer_value).split("x")[-1]
+    if integer_value < 16:
+        hex_string = "0" + hex_string
+    return "#" + hex_string * 3
+
+def g2h(n):
+    """Abbreviation for grayscale to hex"""
+    return rgb_to_hex((n, n, n))
