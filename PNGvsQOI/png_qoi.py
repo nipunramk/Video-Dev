@@ -1,7 +1,14 @@
+from math import floor
 from manim import *
+from manim.mobject.geometry import ArrowTriangleFilledTip
+from numpy import ndarray, subtract
+from numpy.lib.arraypad import pad
 from functions import *
 from classes import *
 from reducible_colors import *
+from itertools import product
+
+np.random.seed(1)
 
 config["assets_dir"] = "assets"
 

@@ -1699,8 +1699,14 @@ class IntroChromaSubsampling(ImageUtils):
 
         # top left
         self.animate_chroma_subsampling()
-        # self.show_real_world_image_subsampled()
-        # self.show_file_size_calculation()
+
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
+
+        self.show_real_world_image_subsampled()
+
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
+
+        self.show_file_size_calculation()
 
     # average
     def animate_chroma_downsampling(self):
@@ -2327,6 +2333,7 @@ class IntroChromaSubsampling(ImageUtils):
                 FadeIn(text), FadeIn(text_420), FadeIn(text_422), lag_ratio=0.4
             ),
         )
+        self.wait(2)
 
     def show_file_size_calculation(self):
         gradient_image = ImageMobject("r.png")
@@ -2524,6 +2531,7 @@ class IntroChromaSubsampling(ImageUtils):
         self.wait()
 
         self.play(Transform(total_sum, total_sum_ratio))
+        self.wait(2)
 
 
 class TestGrayScaleImages(ImageUtils):
