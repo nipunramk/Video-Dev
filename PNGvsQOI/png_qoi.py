@@ -89,7 +89,7 @@ class IntroPNG(ZoomedScene):
         zoomed_display = self.zoomed_display
         frame = zoomed_camera.frame
         zoomed_display_frame = zoomed_display.display_frame
-        zoomed_display.shift(DOWN * 5.5)
+        zoomed_display.move_to(DOWN * 2.5)
 
         frame.move_to(LEFT * 3 + UP * 1.6)
         frame.set_stroke(color=REDUCIBLE_GREEN_LIGHTER, width=7)
