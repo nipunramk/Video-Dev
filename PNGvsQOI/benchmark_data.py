@@ -12,6 +12,15 @@ class BenchmarkResults(Scene):
             .scale(0.8)
             .to_edge(UP)
         )
+        annotation = (
+            Text(
+                "* Experiments run on MacMini M1 16GB compiled in C with gcc",
+                font="CMU Serif",
+            )
+            .scale(0.2)
+            .to_corner(DR, buff=0.3)
+        )
+
         self.play(Write(title))
 
         encode_ms = SVGMobject("encode_ms.svg").scale(3).shift(DOWN * 0.6)
@@ -98,16 +107,25 @@ class BenchmarkResults(Scene):
         self.play(
             comp_rate.animate.scale(0.8).to_edge(LEFT),
             legend.animate.scale(0.8).next_to(comp_rate, UP * 0.5 + RIGHT, buff=-4),
+            FadeIn(annotation),
         )
 
         for i in range(0, len(images), 2):
             images[i + 1].next_to(comp_rate, RIGHT, buff=1)
+
+            # small adjustments for particular cases
             if i == 0 or i == 2:
                 images[i + 1].shift(RIGHT)
+
+            if i == 8:
+                images[i + 1].shift(RIGHT * 0.6)
+
             images[i].move_to(images[i + 1]).shift(
                 DOWN * (images[i + 1].height / 3) + RIGHT * (images[i + 1].width / 4)
             )
+
             texts[i // 2].next_to(comp_rate, UR, buff=0).shift(RIGHT)
+
             self.play(FadeIn(images[i + 1]), FadeIn(images[i]), FadeIn(texts[i // 2]))
             self.wait()
             self.play(
@@ -134,4 +152,4 @@ class BenchmarkResults(Scene):
 
         self.wait()
 
-        self.play(FadeOut(decode_ms))
+        self.play(FadeOut(decode_ms), FadeOut(legend), FadeOut(annotation))
