@@ -1369,47 +1369,103 @@ class Filtering(MovingCameraScene):
 
     def low_bit_depth_images(self):
 
-        byte_code = Text(r"0x00100101", font="SF Mono").scale(2)
-        rect = (
-            SurroundingRectangle(byte_code, buff=0.1)
-            .set_color(REDUCIBLE_PURPLE)
-            .set_fill(REDUCIBLE_PURPLE, opacity=0.7)
-        )
-        byte_representation = VGroup(rect, byte_code).arrange(ORIGIN)
-
-        byte_t = (
-            Text("Byte length", font="SF Mono")
-            .scale(0.7)
-            .next_to(byte_representation, UP, buff=0.1)
+        title = (
+            Text("Low bit depth images", font="CMU Serif", weight=BOLD)
+            .scale(0.8)
+            .to_edge(UP)
         )
 
-        pix_1_t = MarkupText("pixel<sub>1</sub>", font="SF Mono").scale_to_fit_width(
-            byte_representation.width / 2 - 0.3
-        )
-        rect_px_1 = (
-            SurroundingRectangle(pix_1_t, buff=0.1)
-            .set_color(REDUCIBLE_GREEN)
-            .set_fill(REDUCIBLE_GREEN, opacity=0.7)
+        self.play(FadeIn(title))
+
+        random_row = np.random.randint(0, 255, (1, 4))
+
+        # raw data
+        row_mob = (
+            PixelArray(random_row, color_mode="GRAY", include_numbers=True)
+            .scale(2)
+            .shift(DOWN * 0.6)
         )
 
-        pix1_repr = VGroup(rect_px_1, pix_1_t).next_to(
-            byte_representation, DOWN, buff=0.1, aligned_edge=LEFT
+        sq_brace = self.square_braces(row_mob[0], direction=UP)
+
+        one_byte_t = (
+            Text("1 Byte", font="SF Mono", weight=BOLD)
+            .scale_to_fit_width(row_mob[0].width - row_mob[0].width / 4)
+            .next_to(sq_brace, UP, buff=0.06)
         )
 
-        pix_2_t = MarkupText("pixel<sub>2</sub>", font="SF Mono").scale_to_fit_width(
-            byte_representation.width / 2 - 0.3
+        one_bpp = (
+            Text("1 B/pixel", font="SF Mono", weight=BOLD)
+            .scale(0.4)
+            .next_to(row_mob, DOWN, aligned_edge=RIGHT)
         )
-        rect_px_2 = (
-            SurroundingRectangle(pix_2_t, buff=0.1)
-            .set_color(REDUCIBLE_GREEN)
-            .set_fill(REDUCIBLE_GREEN, opacity=0.7)
-        )
-        pix2_repr = VGroup(rect_px_2, pix_2_t).next_to(
-            byte_representation, DOWN, buff=0.1, aligned_edge=RIGHT
+        four_bpp = (
+            Text("4 b/pixel", font="SF Mono", weight=BOLD)
+            .scale(0.4)
+            .next_to(row_mob, DOWN, aligned_edge=RIGHT)
         )
 
-        self.play(FadeIn(byte_representation), Write(byte_t))
-        self.play(FadeIn(pix1_repr), FadeIn(pix2_repr))
+        self.play(Write(row_mob))
+
+        self.wait()
+
+        self.play(Write(sq_brace))
+
+        self.play(Write(one_byte_t), Write(one_bpp))
+
+        # show filtering action
+        filter_sq = (
+            Square(fill_color=REDUCIBLE_YELLOW, color=REDUCIBLE_YELLOW)
+            .set_opacity(0.3)
+            .set_stroke(width=5, opacity=1)
+            .scale_to_fit_width(row_mob[0].width)
+            .move_to(row_mob[0])
+        )
+        self.play(FadeIn(filter_sq))
+        for mob in row_mob[:-1]:
+            self.play(filter_sq.animate.shift(RIGHT * mob.width))
+
+        self.play(FadeOut(filter_sq))
+        self.wait()
+
+        random_row_lbd = np.random.randint(0, 16, (1, 4))
+
+        # raw data
+        row_mob_lbd = (
+            PixelArray(random_row_lbd, color_mode="GRAY", include_numbers=True)
+            .scale(2)
+            .shift(DOWN * 0.6)
+        )
+
+        [
+            p.set_color(GRAY).set_opacity(0.3).set_stroke(GRAY, width=5, opacity=1)
+            for p in row_mob_lbd
+        ]
+        row_mob_lbd.numbers.set_color(WHITE).set_opacity(1).set_stroke(width=0)
+
+        sq_brace_lbd = self.square_braces(row_mob_lbd[0:2], direction=UP)
+
+        self.wait()
+
+        self.play(
+            FadeTransform(row_mob, row_mob_lbd),
+            Transform(sq_brace, sq_brace_lbd),
+            one_byte_t.animate.next_to(sq_brace_lbd, UP, buff=0.06),
+            FadeTransform(one_bpp, four_bpp),
+        )
+
+        filter_sq = (
+            filter_sq.copy()
+            .stretch_to_fit_width(row_mob_lbd[0:2].width)
+            .move_to(row_mob_lbd[0:2])
+        )
+
+        self.play(FadeIn(filter_sq))
+        for mob in row_mob_lbd[:-1:2]:
+            self.play(filter_sq.animate.shift(RIGHT * mob.width))
+
+        self.play(FadeOut(filter_sq))
+        self.wait()
 
     def palette_images(self):
         title = (
@@ -2511,4 +2567,25 @@ class Filtering(MovingCameraScene):
     def focus_on(self, mobject, buff=2):
         return self.camera.frame.animate.set_width(mobject.width * buff).move_to(
             mobject
+        )
+
+    def square_braces(self, mob, color=REDUCIBLE_YELLOW, direction=UP, buff=SMALL_BUFF):
+
+        line = Line(ORIGIN, RIGHT * mob.width).set_color(color)
+        left_mark = (
+            Line(ORIGIN, UP * line.width / 10)
+            .next_to(line, LEFT, buff=0)
+            .set_color(color)
+        )
+
+        right_mark = (
+            Line(ORIGIN, UP * line.width / 10)
+            .next_to(line, RIGHT, buff=0)
+            .set_color(color)
+        )
+
+        return (
+            VGroup(line, left_mark, right_mark)
+            .set_stroke(width=2)
+            .next_to(mob, direction, buff)
         )
