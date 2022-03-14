@@ -1473,7 +1473,9 @@ class Filtering(MovingCameraScene):
             .scale(0.8)
             .to_edge(UP)
         )
+
         self.play(FadeIn(title))
+
         img = ImageMobject("r_3_palette.png")
         px_array = img.get_pixel_array()
         palette = np.array(
@@ -1488,30 +1490,33 @@ class Filtering(MovingCameraScene):
                     index_palette.add(
                         Text("0", font="SF Mono", weight=BOLD)
                         .set_color(BLACK)
-                        .scale(0.3)
+                        .scale(0.4)
                     )
                 elif (px_array[j, i][:3] == palette[0, 1]).all():
                     index_palette.add(
                         Text("1", font="SF Mono", weight=BOLD)
                         .set_color(BLACK)
-                        .scale(0.3)
+                        .scale(0.4)
                     )
                 elif (px_array[j, i][:3] == palette[0, 2]).all():
                     index_palette.add(
                         Text("2", font="SF Mono", weight=BOLD)
                         .set_color(WHITE)
-                        .scale(0.3)
+                        .scale(0.4)
                     )
 
-        palette_mob = PixelArray(
-            palette, color_mode="RGB", include_numbers=False
-        ).arrange(DOWN, buff=0)
+        palette_mob = (
+            PixelArray(palette, color_mode="RGB", include_numbers=False)
+            .arrange(DOWN, buff=0)
+            .scale(1.5)
+            .shift(DOWN * 0.6)
+        )
 
         img_mob = PixelArray(px_array[:, :, :3], color_mode="RGB")
 
-        zero_index = Text("0", font="SF Mono").scale(0.8)
-        one_index = Text("1", font="SF Mono").scale(0.8)
-        two_index = Text("2", font="SF Mono").scale(0.8)
+        zero_index = Text("0", font="SF Mono", weight=BOLD).scale(0.8)
+        one_index = Text("1", font="SF Mono", weight=BOLD).scale(0.8)
+        two_index = Text("2", font="SF Mono", weight=BOLD).scale(0.8)
 
         indices = VGroup(zero_index, one_index, two_index)
 
@@ -1523,7 +1528,7 @@ class Filtering(MovingCameraScene):
         self.play(FadeIn(palette_mob), FadeIn(indices))
         self.wait()
 
-        self.play(full_palette.animate.shift(LEFT * 2))
+        self.play(full_palette.animate.shift(LEFT * 2.6))
 
         img_mob.scale_to_fit_height(palette_mob.height).next_to(
             palette_mob, RIGHT, buff=1
