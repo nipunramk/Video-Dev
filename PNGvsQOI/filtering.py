@@ -6,8 +6,8 @@ Some considerations before rendering:
     — Everything else is adjusted accordingly so you don't have to worry about running it.
 """
 
-from math import floor
 from manim import *
+from math import floor
 from manim.mobject.geometry import ArrowTriangleFilledTip
 from numpy import ndarray, subtract
 from numpy.lib.arraypad import pad
@@ -15,6 +15,11 @@ from functions import *
 from classes import *
 from reducible_colors import *
 from itertools import product
+
+
+np.random.seed(1)
+
+config["assets_dir"] = "assets"
 
 
 class Filtering(MovingCameraScene):
@@ -1614,7 +1619,7 @@ class Filtering(MovingCameraScene):
         """
         title = Text(
             "Minimum sum of absolute differences", font="CMU Serif", weight=BOLD
-        ).scale(0.6)
+        ).scale(0.8)
 
         rows, cols = 8, 8
         random_data = np.random.randint(50, 120, (rows, cols))
@@ -1658,21 +1663,21 @@ class Filtering(MovingCameraScene):
         while leaving the 0 — 127 range intact
         """
 
-        line = Line(LEFT * 4, RIGHT * 4).set_color(REDUCIBLE_VIOLET)
+        line = Line(LEFT * 4, RIGHT * 4).set_color(REDUCIBLE_PURPLE)
         left_mark = (
             Line(UP * 0.2, DOWN * 0.2)
             .next_to(line, LEFT, buff=0)
-            .set_color(REDUCIBLE_VIOLET)
+            .set_color(REDUCIBLE_PURPLE)
         )
         middle_mark = (
             Line(UP * 0.2, DOWN * 0.2)
             .next_to(line, ORIGIN, buff=0)
-            .set_color(REDUCIBLE_VIOLET)
+            .set_color(REDUCIBLE_PURPLE)
         )
         right_mark = (
             Line(UP * 0.2, DOWN * 0.2)
             .next_to(line, RIGHT, buff=0)
-            .set_color(REDUCIBLE_VIOLET)
+            .set_color(REDUCIBLE_PURPLE)
         )
 
         original_range = VGroup(left_mark, line, middle_mark, right_mark).set_stroke(
@@ -1687,16 +1692,16 @@ class Filtering(MovingCameraScene):
             Text("255", font="SF Mono").scale(0.6).next_to(right_mark, DOWN, buff=0.2)
         )
 
-        line2 = Line(ORIGIN, RIGHT * 4).set_color(REDUCIBLE_YELLOW)
+        line2 = Line(ORIGIN, RIGHT * 4).set_color(REDUCIBLE_GREEN)
         left_mark2 = (
             Line(UP * 0.2, DOWN * 0.2)
             .next_to(line2, LEFT, buff=0)
-            .set_color(REDUCIBLE_YELLOW)
+            .set_color(REDUCIBLE_GREEN)
         )
         right_mark2 = (
             Line(UP * 0.2, DOWN * 0.2)
             .next_to(line2, RIGHT, buff=0)
-            .set_color(REDUCIBLE_YELLOW)
+            .set_color(REDUCIBLE_GREEN)
         )
 
         new_range = (
@@ -1733,10 +1738,6 @@ class Filtering(MovingCameraScene):
         self.wait()
 
         self.play(FadeIn(minus_one, shift=UP * 0.2), FadeIn(minus_128, shift=UP * 0.2))
-
-        self.wait()
-
-        self.play(*[FadeOut(mob) for mob in self.mobjects])
 
         self.wait()
 
@@ -1790,40 +1791,122 @@ class Filtering(MovingCameraScene):
         ]
         mapped_mob.numbers.set_color(WHITE).set_opacity(1).set_stroke(width=0)
 
-        all_steps = VGroup(row_mob, filtered_mob, byte_aligned_mob, mapped_mob).arrange(
-            DOWN, buff=0.4
+        all_steps = (
+            VGroup(row_mob, filtered_mob, byte_aligned_mob, mapped_mob)
+            .arrange(DOWN, buff=0.4)
+            .shift(RIGHT * 2)
         )
-
-        self.play(LaggedStartMap(FadeIn, all_steps, lag_ratio=0.5))
-
-        self.wait()
-
-        self.play(all_steps.animate.shift(RIGHT * 2))
 
         raw_data_t = (
             Text("Raw data", font="CMU Serif", weight=BOLD)
-            .scale(0.4)
+            .scale(0.6)
             .next_to(row_mob, LEFT, buff=0.2)
         )
         filtered_data_t = (
             Text("Filtered, signed data (sub filter)", font="CMU Serif", weight=BOLD)
-            .scale(0.4)
+            .scale(0.6)
             .next_to(filtered_mob, LEFT, buff=0.2)
         )
         byte_aligned_t = (
             Text(r"Byte aligned data (mod 256)", font="CMU Serif", weight=BOLD)
-            .scale(0.4)
+            .scale(0.6)
             .next_to(byte_aligned_mob, LEFT, buff=0.2)
         )
         mapped_t = (
             Text("Remapped data", font="CMU Serif", weight=BOLD)
-            .scale(0.4)
+            .scale(0.6)
             .next_to(mapped_mob, LEFT, buff=0.2)
         )
 
+        def create_new_mapping_line(length=7.5):
+
+            line = Line(LEFT * length, RIGHT * length).set_color(REDUCIBLE_PURPLE)
+            left_mark = (
+                Line(UP * 0.2, DOWN * 0.2)
+                .next_to(line, LEFT, buff=0)
+                .set_color(REDUCIBLE_PURPLE)
+            )
+            middle_mark = (
+                Line(UP * 0.2, DOWN * 0.2)
+                .next_to(line, ORIGIN, buff=0)
+                .set_color(REDUCIBLE_PURPLE)
+            )
+            right_mark = (
+                Line(UP * 0.2, DOWN * 0.2)
+                .next_to(line, RIGHT, buff=0)
+                .set_color(REDUCIBLE_PURPLE)
+            )
+
+            original_range = VGroup(
+                left_mark, line, middle_mark, right_mark
+            ).set_stroke(width=7)
+            zero = (
+                Text("0", font="SF Mono").scale(0.6).next_to(left_mark, DOWN, buff=0.2)
+            )
+
+            one_27 = (
+                Text("127", font="SF Mono")
+                .scale(0.6)
+                .next_to(middle_mark, DOWN, buff=0.2)
+            )
+            two_55 = (
+                Text("255", font="SF Mono")
+                .scale(0.6)
+                .next_to(right_mark, DOWN, buff=0.2)
+            )
+
+            line2 = Line(ORIGIN, RIGHT * length).set_color(REDUCIBLE_GREEN)
+            left_mark2 = (
+                Line(UP * 0.2, DOWN * 0.2)
+                .next_to(line2, LEFT, buff=0)
+                .set_color(REDUCIBLE_GREEN)
+            )
+            right_mark2 = (
+                Line(UP * 0.2, DOWN * 0.2)
+                .next_to(line2, RIGHT, buff=0)
+                .set_color(REDUCIBLE_GREEN)
+            )
+
+            new_range = (
+                VGroup(left_mark2, line2, right_mark2)
+                .set_stroke(width=4)
+                .next_to(original_range, UP, buff=0.3, aligned_edge=RIGHT)
+            )
+
+            minus_one = (
+                Text("-1", font="SF Mono")
+                .scale(0.6)
+                .next_to(
+                    right_mark2,
+                    UP,
+                    buff=0.2,
+                )
+            )
+            minus_128 = (
+                Text("-128", font="SF Mono")
+                .scale(0.6)
+                .next_to(left_mark2, UP, buff=0.2)
+            )
+
+            return VGroup(
+                original_range, new_range, zero, one_27, two_55, minus_one, minus_128
+            )
+
+        mapping_line = VGroup(
+            original_range, new_range, zero, one_27, two_55, minus_one, minus_128
+        )
+
+        long_mapping_line = create_new_mapping_line().scale(0.8).to_edge(UP, buff=0.5)
+
         all_text = VGroup(raw_data_t, filtered_data_t, byte_aligned_t, mapped_t)
 
-        self.play(FadeIn(all_text))
+        rows_and_text = VGroup(all_steps, all_text).scale(0.8).to_corner(DR, buff=0.8)
+
+        self.play(
+            Transform(mapping_line, long_mapping_line),
+            LaggedStartMap(FadeIn, all_steps, lag_ratio=0.5),
+            LaggedStartMap(FadeIn, all_text, lag_ratio=0.5),
+        )
 
         self.wait()
 
