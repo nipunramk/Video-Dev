@@ -6,6 +6,16 @@ Some considerations before rendering:
     — Everything else is adjusted accordingly so you don't have to worry about running it.
 """
 
+from math import floor
+from manim import *
+from manim.mobject.geometry import ArrowTriangleFilledTip
+from numpy import ndarray, subtract
+from numpy.lib.arraypad import pad
+from functions import *
+from classes import *
+from reducible_colors import *
+from itertools import product
+
 
 class Filtering(MovingCameraScene):
     def construct(self):
