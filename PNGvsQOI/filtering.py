@@ -637,6 +637,60 @@ class Filtering(MovingCameraScene):
 
         self.wait()
 
+        # annotation of how the subtraction works
+        self.camera.frame.save_state()
+
+        pixels_to_focus_on = VGroup(input_img[11:13], output_img[11:13])
+        self.play(
+            FadeOut(sub_definition),
+            self.focus_on(pixels_to_focus_on, buff=1.5).shift(UP * 0.5),
+        )
+
+        self.wait()
+
+        surr_rect_input_pixels = SurroundingRectangle(
+            input_img[10:12], color=REDUCIBLE_YELLOW, buff=0.02
+        ).set_fill(REDUCIBLE_YELLOW, opacity=0.1)
+
+        surr_rect_output = SurroundingRectangle(
+            output_img[11], color=REDUCIBLE_YELLOW, buff=0.02
+        ).set_fill(REDUCIBLE_YELLOW, opacity=0.1)
+
+        self.play(Write(surr_rect_input_pixels), Write(surr_rect_output))
+
+        self.wait()
+
+        subtraction_1 = (
+            Text("134 - 139 = -5", font="SF Mono")
+            .scale(0.4)
+            .next_to(VGroup(input_img, output_img), UP, buff=0.5)
+        )
+        subtraction_2 = (
+            Text("(134 - 139) % 256 = 251", font="SF Mono")
+            .scale(0.4)
+            .next_to(VGroup(input_img, output_img), UP, buff=0.5)
+        )
+
+        self.play(Write(subtraction_1))
+
+        self.wait()
+
+        self.play(
+            FadeOut(subtraction_1, shift=DOWN * 0.2),
+            FadeIn(subtraction_2, shift=DOWN * 0.2),
+        )
+
+        self.wait()
+
+        self.play(
+            Restore(self.camera.frame),
+            FadeOut(subtraction_2),
+            FadeOut(surr_rect_input_pixels),
+            FadeOut(surr_rect_output),
+        )
+
+        self.wait()
+
         self.play(
             input_img.animate.shift(row_height),
             output_img.animate.shift(row_height),
@@ -649,7 +703,6 @@ class Filtering(MovingCameraScene):
 
         self.play(
             FadeTransform(title_filter_sub, title_filter_up, stretch=False),
-            FadeOut(sub_definition),
         )
 
         u_t_up = Text("U", font="SF Mono", weight=BOLD).scale(0.4).set_opacity(0.6)
@@ -773,6 +826,18 @@ class Filtering(MovingCameraScene):
         )
 
         self.play(Transform(output_img, filtered_mob))
+
+        mod_256 = (
+            Text("% 256", font="SF Mono", weight=BOLD)
+            .scale(0.4)
+            .next_to(avg_definition, RIGHT, buff=0.2)
+            .set_opacity(0.4)
+        )
+        self.play(FadeIn(mod_256))
+
+        self.wait()
+
+        self.play(FadeOut(mod_256))
 
         self.wait()
 
