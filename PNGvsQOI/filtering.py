@@ -24,68 +24,71 @@ config["assets_dir"] = "assets"
 
 class Filtering(MovingCameraScene):
     def construct(self):
-        self.intro_filtering()
+        self.camera.frame.save_state()
+        initial_state = self.camera.frame.copy()
 
-        self.wait()
-        self.clear()
+        # self.intro_filtering()
 
-        self.present_problem()
+        # self.wait()
+        # self.clear()
 
-        self.wait()
-        self.clear()
+        # self.present_problem()
 
-        self.five_filters_explanation()
+        # self.wait()
+        # self.clear()
 
-        self.wait()
-        self.clear()
-        self.play(Restore(self.camera.frame))
+        # self.five_filters_explanation()
 
-        self.minor_considerations()
+        # self.wait()
+        # self.clear()
+        # self.play(Transform(self.camera.frame, initial_state))
 
-        self.wait()
-        self.clear()
-        self.play(Restore(self.camera.frame))
+        # self.minor_considerations()
 
-        self.what_filter_to_use()
+        # self.wait()
+        # self.clear()
+        # self.play(Transform(self.camera.frame, initial_state))
 
-        self.wait()
-        self.clear()
-        self.play(Restore(self.camera.frame))
+        # self.what_filter_to_use()
+
+        # self.wait()
+        # self.clear()
+        # self.play(Transform(self.camera.frame, initial_state))
 
         self.low_bit_depth_images()
 
-        self.wait()
-        self.clear()
+        # self.wait()
+        # self.clear()
+        # self.play(Transform(self.camera.frame, initial_state))
 
-        self.palette_images()
+        # self.palette_images()
 
-        self.wait()
-        self.clear()
+        # self.wait()
+        # self.clear()
 
-        self.repeating_filters_performance()
+        # self.repeating_filters_performance()
 
-        self.wait()
-        self.clear()
+        # self.wait()
+        # self.clear()
 
-        self.combination_explosion()
+        # self.combination_explosion()
 
-        self.wait()
-        self.clear()
+        # self.wait()
+        # self.clear()
 
-        self.msad_intro()
+        # self.msad_intro()
 
-        self.wait()
-        self.clear()
+        # self.wait()
+        # self.clear()
 
-        self.minimum_sum_of_absolute_differences()
+        # self.minimum_sum_of_absolute_differences()
 
-        self.wait()
-        self.clear()
+        # self.wait()
+        # self.clear()
 
-        self.png_decoding()
+        # self.png_decoding()
 
-        self.wait()
-        self.clear()
+        # self.wait()
 
     def intro_filtering(self):
         title = Text("Lossless Compression", font="CMU Serif", weight=BOLD).to_edge(UP)
@@ -638,7 +641,7 @@ class Filtering(MovingCameraScene):
         self.wait()
 
         # annotation of how the subtraction works
-        self.camera.frame.save_state()
+        saved_state = self.camera.frame.save_state()
 
         pixels_to_focus_on = VGroup(input_img[11:13], output_img[11:13])
         self.play(
@@ -683,7 +686,7 @@ class Filtering(MovingCameraScene):
         self.wait()
 
         self.play(
-            Restore(self.camera.frame),
+            Restore(saved_state),
             FadeOut(subtraction_2),
             FadeOut(surr_rect_input_pixels),
             FadeOut(surr_rect_output),
@@ -1465,7 +1468,7 @@ class Filtering(MovingCameraScene):
             .next_to(row_mob, DOWN, aligned_edge=RIGHT)
         )
         four_bpp = (
-            Text("4 b/pixel", font="SF Mono", weight=BOLD)
+            Text("6 b/pixel", font="SF Mono", weight=BOLD)
             .scale(0.4)
             .next_to(row_mob, DOWN, aligned_edge=RIGHT)
         )
@@ -1493,7 +1496,7 @@ class Filtering(MovingCameraScene):
         self.play(FadeOut(filter_sq))
         self.wait()
 
-        random_row_lbd = np.random.randint(0, 16, (1, 4))
+        random_row_lbd = np.random.randint(0, 2**6, (1, 4))
 
         # raw data
         row_mob_lbd = (
@@ -1508,7 +1511,13 @@ class Filtering(MovingCameraScene):
         ]
         row_mob_lbd.numbers.set_color(WHITE).set_opacity(1).set_stroke(width=0)
 
-        sq_brace_lbd = self.square_braces(row_mob_lbd[0:2], direction=UP)
+        six_b_pixel = (
+            row_mob_lbd[0]
+            .copy()
+            .stretch_to_fit_width(row_mob_lbd[0].width + row_mob_lbd[0].width / 3)
+            .next_to(row_mob_lbd[0], ORIGIN, aligned_edge=LEFT)
+        )
+        sq_brace_lbd = self.square_braces(six_b_pixel, direction=UP)
 
         self.wait()
 
@@ -1521,13 +1530,13 @@ class Filtering(MovingCameraScene):
 
         filter_sq = (
             filter_sq.copy()
-            .stretch_to_fit_width(row_mob_lbd[0:2].width)
-            .move_to(row_mob_lbd[0:2])
+            .stretch_to_fit_width(row_mob_lbd[0].width + row_mob_lbd[0].width / 3)
+            .move_to(row_mob_lbd[0], aligned_edge=LEFT)
         )
 
         self.play(FadeIn(filter_sq))
         for mob in row_mob_lbd[:-1:2]:
-            self.play(filter_sq.animate.shift(RIGHT * mob.width))
+            self.play(filter_sq.animate.shift(RIGHT * filter_sq.width))
 
         self.play(FadeOut(filter_sq))
         self.wait()
@@ -2639,7 +2648,14 @@ class Filtering(MovingCameraScene):
             mobject
         )
 
-    def square_braces(self, mob, color=REDUCIBLE_YELLOW, direction=UP, buff=SMALL_BUFF):
+    def square_braces(
+        self,
+        mob,
+        color=REDUCIBLE_YELLOW,
+        direction=UP,
+        aligned_edge=LEFT,
+        buff=SMALL_BUFF,
+    ):
 
         line = Line(ORIGIN, RIGHT * mob.width).set_color(color)
         left_mark = (
@@ -2657,5 +2673,5 @@ class Filtering(MovingCameraScene):
         return (
             VGroup(line, left_mark, right_mark)
             .set_stroke(width=2)
-            .next_to(mob, direction, buff)
+            .next_to(mob, direction=direction, buff=buff, aligned_edge=aligned_edge)
         )
