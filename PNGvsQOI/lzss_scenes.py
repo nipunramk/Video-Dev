@@ -108,7 +108,7 @@ class LZSSText(SceneUtils):
         )
         self.wait()
 
-        length_fact = Text("LZSS only encodes (offset, length) pairs when length > 3", font='SF Mono', weight=MEDIUM).scale(0.5)
+        length_fact = Text("LZSS only encodes (offset, length) pairs when length ≥ 3", font='SF Mono', weight=MEDIUM).scale(0.5)
 
         length_fact.next_to(encoded_text, DOWN)
 
@@ -580,7 +580,8 @@ class LZSSText(SceneUtils):
         out_of_range_group, 
         sequence,
         encoded_text_position,
-        sliding_window_rect):
+        sliding_window_rect,
+        wait_time=1):
         """
         TODO: 
         add indication and encoding animations
@@ -878,9 +879,23 @@ class LZSSText(SceneUtils):
         angle = -TAU/4
         if start[0] - end[0] > 5:
             angle = -TAU/6
-        curved_arrow = CurvedArrow(start, end, angle=angle).set_color(color)
-        curved_arrow[-1].scale(0.7)
-        return curved_arrow
+        return self.get_curved_arrow(start, end, angle)
+
+    def get_curved_arrow(self, start, end, angle):
+        arrow = (
+            CurvedArrow(
+                start,
+                end,
+                angle=angle,
+            )
+            .set_color(REDUCIBLE_YELLOW)
+            .set_stroke(width=4)
+        )
+        arrow.pop_tips()
+        arrow.add_tip(
+            tip_shape=ArrowTriangleFilledTip, tip_length=0.2, at_start=False
+        )
+        return arrow
     
     def get_marker(self, start, end, color=REDUCIBLE_YELLOW):
         line = Line(start, end).set_color(color)
@@ -966,6 +981,7 @@ class LZSSText(SceneUtils):
         text_index = 0
         string_index = 0
         num_spaces = 0
+        to_reset = None
         for pointer_index, encoding in enumerate(encoded_text):
             if pointer_index == 0:
                 pointer.next_to(encoding, DOWN)
@@ -973,10 +989,15 @@ class LZSSText(SceneUtils):
                     Write(pointer)
                 )
             else:
-                self.play(
-                    pointer.animate.next_to(encoding, DOWN)
-                )
-            self.wait()
+                if not to_reset:
+                    self.play(
+                        pointer.animate.next_to(encoding, DOWN)
+                    )
+                else:
+                    self.play(
+                        pointer.animate.next_to(encoding, DOWN),
+                        *to_reset
+                    )
 
             print('String index', string_index, 'Text index', text_index)
             if self.is_offset_length_pair(encoding):
@@ -988,20 +1009,15 @@ class LZSSText(SceneUtils):
                     self.play(
                         decoded_text[i].animate.set_color(REDUCIBLE_YELLOW)
                     )
-                    self.wait()
 
                     reset_animations.append(decoded_text[i].animate.set_color(WHITE))
 
                     self.play(
                         TransformFromCopy(decoded_text[i], decoded_text[temp_text_index])
                     )
-                    self.wait()
                     temp_text_index += 1
 
-                self.play(
-                    *reset_animations
-                )
-                self.wait()
+                to_reset = reset_animations
 
                 string_index += length
                 text_index += length

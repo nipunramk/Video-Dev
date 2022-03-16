@@ -20,6 +20,24 @@ class HuffmanCodeIntro(Scene):
         rgb_rep = self.show_rgb_split(pixel_array, pixel_array_mob)
         self.show_encoding_diagram(pixel_array_mob, rgb_rep)
 
+        lossless_comp = Text("Lossless Compression", font="CMU Serif", weight=BOLD)
+        down_arrow = MathTex(r"\Updownarrow").scale(1.2)
+        redundancy = Text("Exploit Redundancy", font="CMU Serif", weight=BOLD)
+
+        VGroup(lossless_comp, down_arrow, redundancy).arrange(DOWN)
+        self.play(
+            *[FadeOut(mob) for mob in self.mobjects],
+            Write(lossless_comp)
+        )
+        self.play(
+            Write(down_arrow)
+        )
+
+        self.play(
+            Write(redundancy)
+        )
+        self.wait()
+
     def show_image(self):
         image = ImageMobject("r.png")
         pixel_array = image.get_pixel_array().astype(int)
@@ -81,7 +99,7 @@ class HuffmanCodeIntro(Scene):
 
         encoder_m = Module("Encoder", text_weight=BOLD)
 
-        output_image = SVGMobject("jpg_file.svg").set_stroke(
+        output_image = SVGMobject("empty_file.svg").set_stroke(
             WHITE, width=5, background=True
         )
 
@@ -264,6 +282,21 @@ class HuffmanCodes(HuffmanCodeIntro):
 
         self.explain_savings()
 
+        self.clear()
+
+        screen_rect = ScreenRectangle(height=6).shift(UP * 0.5)
+        self.play(
+            Create(screen_rect)
+        )
+        self.wait()
+
+        mild_spoiler = Text("PNG uses Huffman Encoding in final stage of compression").scale(0.7).next_to(screen_rect, DOWN)
+
+        self.play(
+            Write(mild_spoiler)
+        )
+        self.wait()
+
     def highlight_pixel_values(self, channel_mob):
         pixel_array_mob, pixel_text = channel_mob
         transforms = []
@@ -285,7 +318,7 @@ class HuffmanCodes(HuffmanCodeIntro):
         )
         self.wait()
 
-        huffman_codes = Text("Huffman Codes", font='SF Mono', weight=BOLD).move_to(UP * 3.2)
+        huffman_codes = Text("Huffman Codes", font='CMU Serif', weight=BOLD).move_to(UP * 3.2)
 
         self.play(
             AddTextLetterByLetter(huffman_codes),
@@ -309,7 +342,7 @@ class HuffmanCodes(HuffmanCodeIntro):
     def explain_savings(self):
         observation = Title("Observations", match_underline_width_to_text=True)
 
-        observation.move_to(LEFT * 3.5 + UP * 0)
+        observation.move_to(ORIGIN).to_edge(LEFT * 2)
 
         bulleted_list = BulletedList(
             "Original image had 4 unique pixel values",
@@ -319,9 +352,7 @@ class HuffmanCodes(HuffmanCodeIntro):
             buff=MED_SMALL_BUFF
         ).scale(0.7)
 
-        bulleted_list.next_to(observation, DOWN).to_edge(LEFT * 2)
-
-        observation.move_to(RIGHT * bulleted_list.get_center()[0])
+        bulleted_list.next_to(observation, DOWN, aligned_edge=LEFT)
 
         self.play(
             Write(observation)
@@ -718,15 +749,16 @@ class HuffmanCodes(HuffmanCodeIntro):
         )
         self.wait()
 
-class IntroRLE(HuffmanCodes):
+class IntroRLEMiddle(HuffmanCodes):
     def construct(self):
         self.intro_rle()
 
     def intro_rle(self):
-        huffman_fact = Text("Huffman codes treat values independently", font='SF Mono').scale(0.7)
+        huffman_fact = Text("Huffman codes treat values independently", font='CMU Serif').scale(0.7)
         huffman_fact.move_to(UP * 3.5)
         self.play(
-            Write(huffman_fact)
+            Write(huffman_fact),
+            run_time=2
         )
         self.wait()
 
@@ -736,7 +768,7 @@ class IntroRLE(HuffmanCodes):
         self.play(FadeIn(image_mob))
         self.wait()
 
-        observation = Text("Images have spatial redundancy", font='SF Mono').scale(0.5)
+        observation = Text("Images have spatial redundancy", font='CMU Serif').scale(0.5)
         observation[-17:].set_color(REDUCIBLE_YELLOW)
 
         observation.move_to(RIGHT * 3 + DOWN * 1)
@@ -764,7 +796,7 @@ class IntroRLE(HuffmanCodes):
 
         self.clear()
 
-        rle_title = Text("Run Length Encoding", font="SF Mono", weight=BOLD)
+        rle_title = Text("Run Length Encoding", font="CMU Serif", weight=BOLD)
 
         rle_title.move_to(UP * 3.5)
 
@@ -872,12 +904,19 @@ class IntroRLE(HuffmanCodes):
         self.wait()
 
         better_tools = Tex("Better options exist \\\\ in text compression").scale(0.9)
-        better_tools.shift(RIGHT * 3.5 + UP * 1)
+        better_tools.shift(RIGHT * 3.5 + UP * 0)
 
         self.play(
             FadeIn(better_tools)
         )
         self.wait()
+
+        # zip_file = SVGMobject("zip_side.svg").next_to(better_tools, DOWN)
+
+        # self.play(
+        #     FadeIn(zip_file)
+        # )
+        # self.wait()
 
         self.clear()
 
@@ -890,7 +929,8 @@ class IntroRLE(HuffmanCodes):
         text_snippet[1].next_to(text_snippet[0], DOWN)
 
         self.play(
-            Write(text_snippet)
+            Write(text_snippet),
+            run_time=3
         )
         self.wait()
 

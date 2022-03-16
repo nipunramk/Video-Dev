@@ -1,7 +1,14 @@
+from math import floor
 from manim import *
+from manim.mobject.geometry import ArrowTriangleFilledTip
+from numpy import ndarray, subtract
+from numpy.lib.arraypad import pad
 from functions import *
 from classes import *
 from reducible_colors import *
+from itertools import product
+
+np.random.seed(1)
 
 config["assets_dir"] = "assets"
 
@@ -18,7 +25,7 @@ class IntroPNG(ZoomedScene):
             zoom_factor=0.2,
             zoomed_display_height=2,
             zoomed_display_width=2,
-            image_frame_stroke_width=20,
+            image_frame_stroke_width=10,
             zoomed_camera_config={
                 "default_frame_stroke_width": 3,
                 },
@@ -48,7 +55,7 @@ class IntroPNG(ZoomedScene):
 
         self.clear()
 
-        problems_with_JPEG = Text("Problems with JPEG", font="CMU Serif").scale(1)
+        problems_with_JPEG = Text("Problems with JPEG", font="CMU Serif", weight=BOLD).scale(1)
         problems_with_JPEG.move_to(UP * 3.5)
         self.play(
             Write(problems_with_JPEG)
@@ -84,15 +91,38 @@ class IntroPNG(ZoomedScene):
         )
         self.wait()
 
+        self.clear()
+
+        screen_rect = ScreenRectangle(height=6).shift(UP * 0.5)
+        self.play(
+            Create(screen_rect)
+        )
+        self.wait()
+
+        mild_spoiler = Text("Mild spoiler: PNG is rather complex and slow").scale(0.8).next_to(screen_rect, DOWN)
+
+        self.play(
+            Write(mild_spoiler)
+        )
+        self.wait()
+
+        simpler_alternative = Text("QOI: an alternative perspective").scale(0.8)
+        simpler_alternative.next_to(screen_rect, DOWN)
+
+        self.play(
+            ReplacementTransform(mild_spoiler, simpler_alternative)
+        )
+        self.wait()
+
     def zoom_in_on_images(self):
         zoomed_camera = self.zoomed_camera
         zoomed_display = self.zoomed_display
         frame = zoomed_camera.frame
         zoomed_display_frame = zoomed_display.display_frame
-        zoomed_display.move_to(DOWN * 2.5)
+        zoomed_display.move_to(DOWN * 3)
 
         frame.move_to(LEFT * 3 + UP * 1.6)
-        frame.set_stroke(color=REDUCIBLE_GREEN_LIGHTER, width=7)
+        frame.set_stroke(color=REDUCIBLE_GREEN_LIGHTER, width=5)
         zoomed_display_frame.set_stroke(color=REDUCIBLE_GREEN_LIGHTER)
         # zoomed_display.shift(DOWN)
 
@@ -143,6 +173,8 @@ class IntroPNG(ZoomedScene):
             frame.animate.shift(DOWN * 0.5 + RIGHT * SMALL_BUFF)
         )
         self.wait()
+
+        self.remove(frame, zd_rect, self.zoomed_display, zoomed_display_frame)
 
 class QOIDemo(Scene):
 
