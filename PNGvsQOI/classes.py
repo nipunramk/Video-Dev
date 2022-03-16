@@ -221,6 +221,7 @@ class RVariable(VMobject):
 
         super().__init__(**kwargs)
         self.add(self.label, self.value)
+        
 class Module(VGroup):
     def __init__(
         self,

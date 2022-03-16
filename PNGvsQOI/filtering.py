@@ -20,6 +20,21 @@ Some considerations before rendering:
     — Everything else is adjusted accordingly so you don't have to worry about running it.
 """
 
+from manim import *
+from math import floor
+from manim.mobject.geometry import ArrowTriangleFilledTip
+from numpy import ndarray, subtract
+from numpy.lib.arraypad import pad
+from functions import *
+from classes import *
+from reducible_colors import *
+from itertools import product
+
+
+np.random.seed(1)
+
+config["assets_dir"] = "assets"
+
 
 class Filtering(MovingCameraScene):
     def construct(self):
@@ -636,6 +651,60 @@ class Filtering(MovingCameraScene):
 
         self.wait()
 
+        # annotation of how the subtraction works
+        self.camera.frame.save_state()
+
+        pixels_to_focus_on = VGroup(input_img[11:13], output_img[11:13])
+        self.play(
+            FadeOut(sub_definition),
+            self.focus_on(pixels_to_focus_on, buff=1.5).shift(UP * 0.5),
+        )
+
+        self.wait()
+
+        surr_rect_input_pixels = SurroundingRectangle(
+            input_img[10:12], color=REDUCIBLE_YELLOW, buff=0.02
+        ).set_fill(REDUCIBLE_YELLOW, opacity=0.1)
+
+        surr_rect_output = SurroundingRectangle(
+            output_img[11], color=REDUCIBLE_YELLOW, buff=0.02
+        ).set_fill(REDUCIBLE_YELLOW, opacity=0.1)
+
+        self.play(Write(surr_rect_input_pixels), Write(surr_rect_output))
+
+        self.wait()
+
+        subtraction_1 = (
+            Text("134 - 139 = -5", font="SF Mono")
+            .scale(0.4)
+            .next_to(VGroup(input_img, output_img), UP, buff=0.5)
+        )
+        subtraction_2 = (
+            Text("(134 - 139) % 256 = 251", font="SF Mono")
+            .scale(0.4)
+            .next_to(VGroup(input_img, output_img), UP, buff=0.5)
+        )
+
+        self.play(Write(subtraction_1))
+
+        self.wait()
+
+        self.play(
+            FadeOut(subtraction_1, shift=DOWN * 0.2),
+            FadeIn(subtraction_2, shift=DOWN * 0.2),
+        )
+
+        self.wait()
+
+        self.play(
+            Restore(self.camera.frame),
+            FadeOut(subtraction_2),
+            FadeOut(surr_rect_input_pixels),
+            FadeOut(surr_rect_output),
+        )
+
+        self.wait()
+
         self.play(
             input_img.animate.shift(row_height),
             output_img.animate.shift(row_height),
@@ -648,7 +717,6 @@ class Filtering(MovingCameraScene):
 
         self.play(
             FadeTransform(title_filter_sub, title_filter_up, stretch=False),
-            FadeOut(sub_definition),
         )
 
         u_t_up = Text("U", font="SF Mono", weight=BOLD).scale(0.4).set_opacity(0.6)
@@ -772,6 +840,18 @@ class Filtering(MovingCameraScene):
         )
 
         self.play(Transform(output_img, filtered_mob))
+
+        mod_256 = (
+            Text("% 256", font="SF Mono", weight=BOLD)
+            .scale(0.4)
+            .next_to(avg_definition, RIGHT, buff=0.2)
+            .set_opacity(0.4)
+        )
+        self.play(FadeIn(mod_256))
+
+        self.wait()
+
+        self.play(FadeOut(mod_256))
 
         self.wait()
 
@@ -1368,47 +1448,103 @@ class Filtering(MovingCameraScene):
 
     def low_bit_depth_images(self):
 
-        byte_code = Text(r"0x00100101", font="SF Mono").scale(2)
-        rect = (
-            SurroundingRectangle(byte_code, buff=0.1)
-            .set_color(REDUCIBLE_PURPLE)
-            .set_fill(REDUCIBLE_PURPLE, opacity=0.7)
-        )
-        byte_representation = VGroup(rect, byte_code).arrange(ORIGIN)
-
-        byte_t = (
-            Text("Byte length", font="SF Mono")
-            .scale(0.7)
-            .next_to(byte_representation, UP, buff=0.1)
+        title = (
+            Text("Low bit depth images", font="CMU Serif", weight=BOLD)
+            .scale(0.8)
+            .to_edge(UP)
         )
 
-        pix_1_t = MarkupText("pixel<sub>1</sub>", font="SF Mono").scale_to_fit_width(
-            byte_representation.width / 2 - 0.3
-        )
-        rect_px_1 = (
-            SurroundingRectangle(pix_1_t, buff=0.1)
-            .set_color(REDUCIBLE_GREEN)
-            .set_fill(REDUCIBLE_GREEN, opacity=0.7)
+        self.play(FadeIn(title))
+
+        random_row = np.random.randint(0, 255, (1, 4))
+
+        # raw data
+        row_mob = (
+            PixelArray(random_row, color_mode="GRAY", include_numbers=True)
+            .scale(2)
+            .shift(DOWN * 0.6)
         )
 
-        pix1_repr = VGroup(rect_px_1, pix_1_t).next_to(
-            byte_representation, DOWN, buff=0.1, aligned_edge=LEFT
+        sq_brace = self.square_braces(row_mob[0], direction=UP)
+
+        one_byte_t = (
+            Text("1 Byte", font="SF Mono", weight=BOLD)
+            .scale_to_fit_width(row_mob[0].width - row_mob[0].width / 4)
+            .next_to(sq_brace, UP, buff=0.06)
         )
 
-        pix_2_t = MarkupText("pixel<sub>2</sub>", font="SF Mono").scale_to_fit_width(
-            byte_representation.width / 2 - 0.3
+        one_bpp = (
+            Text("1 B/pixel", font="SF Mono", weight=BOLD)
+            .scale(0.4)
+            .next_to(row_mob, DOWN, aligned_edge=RIGHT)
         )
-        rect_px_2 = (
-            SurroundingRectangle(pix_2_t, buff=0.1)
-            .set_color(REDUCIBLE_GREEN)
-            .set_fill(REDUCIBLE_GREEN, opacity=0.7)
-        )
-        pix2_repr = VGroup(rect_px_2, pix_2_t).next_to(
-            byte_representation, DOWN, buff=0.1, aligned_edge=RIGHT
+        four_bpp = (
+            Text("4 b/pixel", font="SF Mono", weight=BOLD)
+            .scale(0.4)
+            .next_to(row_mob, DOWN, aligned_edge=RIGHT)
         )
 
-        self.play(FadeIn(byte_representation), Write(byte_t))
-        self.play(FadeIn(pix1_repr), FadeIn(pix2_repr))
+        self.play(Write(row_mob))
+
+        self.wait()
+
+        self.play(Write(sq_brace))
+
+        self.play(Write(one_byte_t), Write(one_bpp))
+
+        # show filtering action
+        filter_sq = (
+            Square(fill_color=REDUCIBLE_YELLOW, color=REDUCIBLE_YELLOW)
+            .set_opacity(0.3)
+            .set_stroke(width=5, opacity=1)
+            .scale_to_fit_width(row_mob[0].width)
+            .move_to(row_mob[0])
+        )
+        self.play(FadeIn(filter_sq))
+        for mob in row_mob[:-1]:
+            self.play(filter_sq.animate.shift(RIGHT * mob.width))
+
+        self.play(FadeOut(filter_sq))
+        self.wait()
+
+        random_row_lbd = np.random.randint(0, 16, (1, 4))
+
+        # raw data
+        row_mob_lbd = (
+            PixelArray(random_row_lbd, color_mode="GRAY", include_numbers=True)
+            .scale(2)
+            .shift(DOWN * 0.6)
+        )
+
+        [
+            p.set_color(GRAY).set_opacity(0.3).set_stroke(GRAY, width=5, opacity=1)
+            for p in row_mob_lbd
+        ]
+        row_mob_lbd.numbers.set_color(WHITE).set_opacity(1).set_stroke(width=0)
+
+        sq_brace_lbd = self.square_braces(row_mob_lbd[0:2], direction=UP)
+
+        self.wait()
+
+        self.play(
+            FadeTransform(row_mob, row_mob_lbd),
+            Transform(sq_brace, sq_brace_lbd),
+            one_byte_t.animate.next_to(sq_brace_lbd, UP, buff=0.06),
+            FadeTransform(one_bpp, four_bpp),
+        )
+
+        filter_sq = (
+            filter_sq.copy()
+            .stretch_to_fit_width(row_mob_lbd[0:2].width)
+            .move_to(row_mob_lbd[0:2])
+        )
+
+        self.play(FadeIn(filter_sq))
+        for mob in row_mob_lbd[:-1:2]:
+            self.play(filter_sq.animate.shift(RIGHT * mob.width))
+
+        self.play(FadeOut(filter_sq))
+        self.wait()
 
     def palette_images(self):
         title = (
@@ -1416,7 +1552,9 @@ class Filtering(MovingCameraScene):
             .scale(0.8)
             .to_edge(UP)
         )
+
         self.play(FadeIn(title))
+
         img = ImageMobject("r_3_palette.png")
         px_array = img.get_pixel_array()
         palette = np.array(
@@ -1431,30 +1569,33 @@ class Filtering(MovingCameraScene):
                     index_palette.add(
                         Text("0", font="SF Mono", weight=BOLD)
                         .set_color(BLACK)
-                        .scale(0.3)
+                        .scale(0.4)
                     )
                 elif (px_array[j, i][:3] == palette[0, 1]).all():
                     index_palette.add(
                         Text("1", font="SF Mono", weight=BOLD)
                         .set_color(BLACK)
-                        .scale(0.3)
+                        .scale(0.4)
                     )
                 elif (px_array[j, i][:3] == palette[0, 2]).all():
                     index_palette.add(
                         Text("2", font="SF Mono", weight=BOLD)
                         .set_color(WHITE)
-                        .scale(0.3)
+                        .scale(0.4)
                     )
 
-        palette_mob = PixelArray(
-            palette, color_mode="RGB", include_numbers=False
-        ).arrange(DOWN, buff=0)
+        palette_mob = (
+            PixelArray(palette, color_mode="RGB", include_numbers=False)
+            .arrange(DOWN, buff=0)
+            .scale(1.5)
+            .shift(DOWN * 0.6)
+        )
 
         img_mob = PixelArray(px_array[:, :, :3], color_mode="RGB")
 
-        zero_index = Text("0", font="SF Mono").scale(0.8)
-        one_index = Text("1", font="SF Mono").scale(0.8)
-        two_index = Text("2", font="SF Mono").scale(0.8)
+        zero_index = Text("0", font="SF Mono", weight=BOLD).scale(0.8)
+        one_index = Text("1", font="SF Mono", weight=BOLD).scale(0.8)
+        two_index = Text("2", font="SF Mono", weight=BOLD).scale(0.8)
 
         indices = VGroup(zero_index, one_index, two_index)
 
@@ -1466,7 +1607,7 @@ class Filtering(MovingCameraScene):
         self.play(FadeIn(palette_mob), FadeIn(indices))
         self.wait()
 
-        self.play(full_palette.animate.shift(LEFT * 2))
+        self.play(full_palette.animate.shift(LEFT * 2.6))
 
         img_mob.scale_to_fit_height(palette_mob.height).next_to(
             palette_mob, RIGHT, buff=1
@@ -1618,7 +1759,7 @@ class Filtering(MovingCameraScene):
         """
         title = Text(
             "Minimum sum of absolute differences", font="CMU Serif", weight=BOLD
-        ).scale(0.6)
+        ).scale(0.8)
 
         rows, cols = 8, 8
         random_data = np.random.randint(50, 120, (rows, cols))
@@ -1662,21 +1803,21 @@ class Filtering(MovingCameraScene):
         while leaving the 0 — 127 range intact
         """
 
-        line = Line(LEFT * 4, RIGHT * 4).set_color(REDUCIBLE_VIOLET)
+        line = Line(LEFT * 4, RIGHT * 4).set_color(REDUCIBLE_PURPLE)
         left_mark = (
             Line(UP * 0.2, DOWN * 0.2)
             .next_to(line, LEFT, buff=0)
-            .set_color(REDUCIBLE_VIOLET)
+            .set_color(REDUCIBLE_PURPLE)
         )
         middle_mark = (
             Line(UP * 0.2, DOWN * 0.2)
             .next_to(line, ORIGIN, buff=0)
-            .set_color(REDUCIBLE_VIOLET)
+            .set_color(REDUCIBLE_PURPLE)
         )
         right_mark = (
             Line(UP * 0.2, DOWN * 0.2)
             .next_to(line, RIGHT, buff=0)
-            .set_color(REDUCIBLE_VIOLET)
+            .set_color(REDUCIBLE_PURPLE)
         )
 
         original_range = VGroup(left_mark, line, middle_mark, right_mark).set_stroke(
@@ -1691,16 +1832,16 @@ class Filtering(MovingCameraScene):
             Text("255", font="SF Mono").scale(0.6).next_to(right_mark, DOWN, buff=0.2)
         )
 
-        line2 = Line(ORIGIN, RIGHT * 4).set_color(REDUCIBLE_YELLOW)
+        line2 = Line(ORIGIN, RIGHT * 4).set_color(REDUCIBLE_GREEN)
         left_mark2 = (
             Line(UP * 0.2, DOWN * 0.2)
             .next_to(line2, LEFT, buff=0)
-            .set_color(REDUCIBLE_YELLOW)
+            .set_color(REDUCIBLE_GREEN)
         )
         right_mark2 = (
             Line(UP * 0.2, DOWN * 0.2)
             .next_to(line2, RIGHT, buff=0)
-            .set_color(REDUCIBLE_YELLOW)
+            .set_color(REDUCIBLE_GREEN)
         )
 
         new_range = (
@@ -1737,10 +1878,6 @@ class Filtering(MovingCameraScene):
         self.wait()
 
         self.play(FadeIn(minus_one, shift=UP * 0.2), FadeIn(minus_128, shift=UP * 0.2))
-
-        self.wait()
-
-        self.play(*[FadeOut(mob) for mob in self.mobjects])
 
         self.wait()
 
@@ -1794,40 +1931,122 @@ class Filtering(MovingCameraScene):
         ]
         mapped_mob.numbers.set_color(WHITE).set_opacity(1).set_stroke(width=0)
 
-        all_steps = VGroup(row_mob, filtered_mob, byte_aligned_mob, mapped_mob).arrange(
-            DOWN, buff=0.4
+        all_steps = (
+            VGroup(row_mob, filtered_mob, byte_aligned_mob, mapped_mob)
+            .arrange(DOWN, buff=0.4)
+            .shift(RIGHT * 2)
         )
-
-        self.play(LaggedStartMap(FadeIn, all_steps, lag_ratio=0.5))
-
-        self.wait()
-
-        self.play(all_steps.animate.shift(RIGHT * 2))
 
         raw_data_t = (
             Text("Raw data", font="CMU Serif", weight=BOLD)
-            .scale(0.4)
+            .scale(0.6)
             .next_to(row_mob, LEFT, buff=0.2)
         )
         filtered_data_t = (
             Text("Filtered, signed data (sub filter)", font="CMU Serif", weight=BOLD)
-            .scale(0.4)
+            .scale(0.6)
             .next_to(filtered_mob, LEFT, buff=0.2)
         )
         byte_aligned_t = (
             Text(r"Byte aligned data (mod 256)", font="CMU Serif", weight=BOLD)
-            .scale(0.4)
+            .scale(0.6)
             .next_to(byte_aligned_mob, LEFT, buff=0.2)
         )
         mapped_t = (
             Text("Remapped data", font="CMU Serif", weight=BOLD)
-            .scale(0.4)
+            .scale(0.6)
             .next_to(mapped_mob, LEFT, buff=0.2)
         )
 
+        def create_new_mapping_line(length=7.5):
+
+            line = Line(LEFT * length, RIGHT * length).set_color(REDUCIBLE_PURPLE)
+            left_mark = (
+                Line(UP * 0.2, DOWN * 0.2)
+                .next_to(line, LEFT, buff=0)
+                .set_color(REDUCIBLE_PURPLE)
+            )
+            middle_mark = (
+                Line(UP * 0.2, DOWN * 0.2)
+                .next_to(line, ORIGIN, buff=0)
+                .set_color(REDUCIBLE_PURPLE)
+            )
+            right_mark = (
+                Line(UP * 0.2, DOWN * 0.2)
+                .next_to(line, RIGHT, buff=0)
+                .set_color(REDUCIBLE_PURPLE)
+            )
+
+            original_range = VGroup(
+                left_mark, line, middle_mark, right_mark
+            ).set_stroke(width=7)
+            zero = (
+                Text("0", font="SF Mono").scale(0.6).next_to(left_mark, DOWN, buff=0.2)
+            )
+
+            one_27 = (
+                Text("127", font="SF Mono")
+                .scale(0.6)
+                .next_to(middle_mark, DOWN, buff=0.2)
+            )
+            two_55 = (
+                Text("255", font="SF Mono")
+                .scale(0.6)
+                .next_to(right_mark, DOWN, buff=0.2)
+            )
+
+            line2 = Line(ORIGIN, RIGHT * length).set_color(REDUCIBLE_GREEN)
+            left_mark2 = (
+                Line(UP * 0.2, DOWN * 0.2)
+                .next_to(line2, LEFT, buff=0)
+                .set_color(REDUCIBLE_GREEN)
+            )
+            right_mark2 = (
+                Line(UP * 0.2, DOWN * 0.2)
+                .next_to(line2, RIGHT, buff=0)
+                .set_color(REDUCIBLE_GREEN)
+            )
+
+            new_range = (
+                VGroup(left_mark2, line2, right_mark2)
+                .set_stroke(width=4)
+                .next_to(original_range, UP, buff=0.3, aligned_edge=RIGHT)
+            )
+
+            minus_one = (
+                Text("-1", font="SF Mono")
+                .scale(0.6)
+                .next_to(
+                    right_mark2,
+                    UP,
+                    buff=0.2,
+                )
+            )
+            minus_128 = (
+                Text("-128", font="SF Mono")
+                .scale(0.6)
+                .next_to(left_mark2, UP, buff=0.2)
+            )
+
+            return VGroup(
+                original_range, new_range, zero, one_27, two_55, minus_one, minus_128
+            )
+
+        mapping_line = VGroup(
+            original_range, new_range, zero, one_27, two_55, minus_one, minus_128
+        )
+
+        long_mapping_line = create_new_mapping_line().scale(0.8).to_edge(UP, buff=0.5)
+
         all_text = VGroup(raw_data_t, filtered_data_t, byte_aligned_t, mapped_t)
 
-        self.play(FadeIn(all_text))
+        rows_and_text = VGroup(all_steps, all_text).scale(0.8).to_corner(DR, buff=0.8)
+
+        self.play(
+            Transform(mapping_line, long_mapping_line),
+            LaggedStartMap(FadeIn, all_steps, lag_ratio=0.5),
+            LaggedStartMap(FadeIn, all_text, lag_ratio=0.5),
+        )
 
         self.wait()
 
@@ -2432,4 +2651,25 @@ class Filtering(MovingCameraScene):
     def focus_on(self, mobject, buff=2):
         return self.camera.frame.animate.set_width(mobject.width * buff).move_to(
             mobject
+        )
+
+    def square_braces(self, mob, color=REDUCIBLE_YELLOW, direction=UP, buff=SMALL_BUFF):
+
+        line = Line(ORIGIN, RIGHT * mob.width).set_color(color)
+        left_mark = (
+            Line(ORIGIN, UP * line.width / 10)
+            .next_to(line, LEFT, buff=0)
+            .set_color(color)
+        )
+
+        right_mark = (
+            Line(ORIGIN, UP * line.width / 10)
+            .next_to(line, RIGHT, buff=0)
+            .set_color(color)
+        )
+
+        return (
+            VGroup(line, left_mark, right_mark)
+            .set_stroke(width=2)
+            .next_to(mob, direction, buff)
         )
