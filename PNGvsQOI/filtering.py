@@ -24,6 +24,9 @@ config["assets_dir"] = "assets"
 
 class Filtering(MovingCameraScene):
     def construct(self):
+        self.camera.frame.save_state()
+        initial_state = self.camera.frame.copy()
+
         self.intro_filtering()
 
         self.wait()
@@ -38,24 +41,25 @@ class Filtering(MovingCameraScene):
 
         self.wait()
         self.clear()
-        self.play(Restore(self.camera.frame))
+        self.play(Transform(self.camera.frame, initial_state))
 
         self.minor_considerations()
 
         self.wait()
         self.clear()
-        self.play(Restore(self.camera.frame))
+        self.play(Transform(self.camera.frame, initial_state))
 
         self.what_filter_to_use()
 
         self.wait()
         self.clear()
-        self.play(Restore(self.camera.frame))
+        self.play(Transform(self.camera.frame, initial_state))
 
         self.low_bit_depth_images()
 
         self.wait()
         self.clear()
+        self.play(Transform(self.camera.frame, initial_state))
 
         self.palette_images()
 
@@ -85,7 +89,6 @@ class Filtering(MovingCameraScene):
         self.png_decoding()
 
         self.wait()
-        self.clear()
 
     def intro_filtering(self):
         title = Text("Lossless Compression", font="CMU Serif", weight=BOLD).to_edge(UP)
@@ -638,7 +641,7 @@ class Filtering(MovingCameraScene):
         self.wait()
 
         # annotation of how the subtraction works
-        self.camera.frame.save_state()
+        saved_state = self.camera.frame.save_state()
 
         pixels_to_focus_on = VGroup(input_img[11:13], output_img[11:13])
         self.play(
@@ -683,7 +686,7 @@ class Filtering(MovingCameraScene):
         self.wait()
 
         self.play(
-            Restore(self.camera.frame),
+            Restore(saved_state),
             FadeOut(subtraction_2),
             FadeOut(surr_rect_input_pixels),
             FadeOut(surr_rect_output),
