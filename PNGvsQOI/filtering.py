@@ -55,7 +55,7 @@ class Filtering(MovingCameraScene):
         # self.clear()
         # self.play(Transform(self.camera.frame, initial_state))
 
-        self.low_bit_depth_images()
+        # self.low_bit_depth_images()
 
         # self.wait()
         # self.clear()
@@ -76,7 +76,7 @@ class Filtering(MovingCameraScene):
         # self.wait()
         # self.clear()
 
-        # self.msad_intro()
+        self.msad_intro()
 
         # self.wait()
         # self.clear()
@@ -1858,24 +1858,6 @@ class Filtering(MovingCameraScene):
             Text("-128", font="SF Mono").scale(0.6).next_to(left_mark2, UP, buff=0.2)
         )
 
-        self.play(Write(original_range))
-        self.wait()
-        self.play(
-            FadeIn(zero, shift=DOWN * 0.2),
-            FadeIn(two_55, shift=DOWN * 0.2),
-            FadeIn(one_27, shift=DOWN * 0.2),
-        )
-
-        self.wait()
-
-        self.play(FadeIn(new_range, shift=UP * 0.2))
-
-        self.wait()
-
-        self.play(FadeIn(minus_one, shift=UP * 0.2), FadeIn(minus_128, shift=UP * 0.2))
-
-        self.wait()
-
         random_row = np.random.randint(0, 255, (1, 8))
 
         # raw data
@@ -2037,11 +2019,30 @@ class Filtering(MovingCameraScene):
 
         rows_and_text = VGroup(all_steps, all_text).scale(0.8).to_corner(DR, buff=0.8)
 
+        self.wait()
         self.play(
-            Transform(mapping_line, long_mapping_line),
-            LaggedStartMap(FadeIn, all_steps, lag_ratio=0.5),
-            LaggedStartMap(FadeIn, all_text, lag_ratio=0.5),
+            FadeIn(raw_data_t),
+            FadeIn(row_mob),
         )
+
+        self.wait()
+
+        self.play(
+            FadeIn(filtered_data_t),
+            FadeIn(filtered_mob),
+        )
+
+        self.wait()
+
+        self.play(
+            FadeIn(byte_aligned_t),
+            FadeIn(byte_aligned_mob),
+        )
+        self.wait()
+
+        self.play(FadeIn(mapped_mob), FadeIn(mapped_t))
+
+        self.play(Write(long_mapping_line))
 
         self.wait()
 
