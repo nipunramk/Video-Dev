@@ -27,68 +27,68 @@ class Filtering(MovingCameraScene):
         self.camera.frame.save_state()
         initial_state = self.camera.frame.copy()
 
-        # self.intro_filtering()
+        self.intro_filtering()
 
-        # self.wait()
-        # self.clear()
+        self.wait()
+        self.clear()
 
-        # self.present_problem()
+        self.present_problem()
 
-        # self.wait()
-        # self.clear()
+        self.wait()
+        self.clear()
 
-        # self.five_filters_explanation()
+        self.five_filters_explanation()
 
-        # self.wait()
-        # self.clear()
-        # self.play(Transform(self.camera.frame, initial_state))
+        self.wait()
+        self.clear()
+        self.play(Transform(self.camera.frame, initial_state))
 
-        # self.minor_considerations()
+        self.minor_considerations()
 
-        # self.wait()
-        # self.clear()
-        # self.play(Transform(self.camera.frame, initial_state))
+        self.wait()
+        self.clear()
+        self.play(Transform(self.camera.frame, initial_state))
 
-        # self.what_filter_to_use()
+        self.what_filter_to_use()
 
-        # self.wait()
-        # self.clear()
-        # self.play(Transform(self.camera.frame, initial_state))
+        self.wait()
+        self.clear()
+        self.play(Transform(self.camera.frame, initial_state))
 
-        # self.low_bit_depth_images()
+        self.low_bit_depth_images()
 
-        # self.wait()
-        # self.clear()
-        # self.play(Transform(self.camera.frame, initial_state))
+        self.wait()
+        self.clear()
+        self.play(Transform(self.camera.frame, initial_state))
 
-        # self.palette_images()
+        self.palette_images()
 
-        # self.wait()
-        # self.clear()
+        self.wait()
+        self.clear()
 
-        # self.repeating_filters_performance()
+        self.repeating_filters_performance()
 
-        # self.wait()
-        # self.clear()
+        self.wait()
+        self.clear()
 
-        # self.combination_explosion()
+        self.combination_explosion()
 
-        # self.wait()
-        # self.clear()
+        self.wait()
+        self.clear()
 
         self.msad_intro()
 
-        # self.wait()
-        # self.clear()
+        self.wait()
+        self.clear()
 
-        # self.minimum_sum_of_absolute_differences()
+        self.minimum_sum_of_absolute_differences()
 
-        # self.wait()
-        # self.clear()
+        self.wait()
+        self.clear()
 
-        # self.png_decoding()
+        self.png_decoding()
 
-        # self.wait()
+        self.wait()
 
     def intro_filtering(self):
         title = Text("Lossless Compression", font="CMU Serif", weight=BOLD).to_edge(UP)
@@ -2099,20 +2099,22 @@ class Filtering(MovingCameraScene):
         self.wait()
 
         filter_options = {
+            "none": self.none_filter_row,
             "sub": self.sub_filter_row,
             "up": self.up_filter_row,
             "avg": self.avg_filter_row,
             "paeth": self.paeth_filter_row,
         }
 
+        none_t = Text("NONE", font="SF Mono", weight=BOLD).scale(0.5)
         sub_t = Text("SUB", font="SF Mono", weight=BOLD).scale(0.5)
         up_t = Text("UP", font="SF Mono", weight=BOLD).scale(0.5)
         avg_t = Text("AVG", font="SF Mono", weight=BOLD).scale(0.5)
         paeth_t = Text("PAETH", font="SF Mono", weight=BOLD).scale(0.5)
 
         filter_score_table = (
-            VGroup(sub_t, up_t, avg_t, paeth_t)
-            .arrange(RIGHT, buff=1)
+            VGroup(none_t, sub_t, up_t, avg_t, paeth_t)
+            .arrange(RIGHT, buff=0.8)
             .next_to(img_mob, RIGHT, buff=0.5)
             .shift(UP * 2)
         )
@@ -2406,6 +2408,19 @@ class Filtering(MovingCameraScene):
 
         print(output)
         return output
+
+    def none_filter_row(self, img: ndarray, row=0, return_mob=False, return_row=False):
+        rows, cols = img.shape
+        output = img.copy()
+
+        # do nothing
+
+        if return_mob:
+            return PixelArray(output, include_numbers=True, color_mode="GRAY")
+        elif return_row:
+            return output[row, :]
+        else:
+            return output
 
     def sub_filter_row(self, img: ndarray, row=0, return_mob=False, return_row=False):
         rows, cols = img.shape
