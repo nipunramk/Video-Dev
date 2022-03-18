@@ -36,73 +36,73 @@ np.random.seed(1)
 config["assets_dir"] = "assets"
 
 
-class Filtering(MovingCameraScene):
+class FilteringP1Insert2(MovingCameraScene):
     def construct(self):
         self.camera.frame.save_state()
         initial_state = self.camera.frame.copy()
 
-        # self.intro_filtering()
+        self.intro_filtering()
 
-        # self.wait()
-        # self.clear()
+        self.wait()
+        self.clear()
 
-        # self.present_problem()
+        self.present_problem()
 
-        # self.wait()
-        # self.clear()
+        self.wait()
+        self.clear()
 
-        # self.five_filters_explanation()
+        self.five_filters_explanation()
 
-        # self.wait()
-        # self.clear()
-        # self.play(Transform(self.camera.frame, initial_state))
+        self.wait()
+        self.clear()
+        self.play(Transform(self.camera.frame, initial_state))
 
-        # self.minor_considerations()
+        self.minor_considerations()
 
-        # self.wait()
-        # self.clear()
-        # self.play(Transform(self.camera.frame, initial_state))
+        self.wait()
+        self.clear()
+        self.play(Transform(self.camera.frame, initial_state))
 
-        # self.what_filter_to_use()
+        self.what_filter_to_use()
 
-        # self.wait()
-        # self.clear()
-        # self.play(Transform(self.camera.frame, initial_state))
+        self.wait()
+        self.clear()
+        self.play(Transform(self.camera.frame, initial_state))
+
+        self.palette_images()
+
+        self.wait()
+        self.clear()
 
         self.low_bit_depth_images()
 
-        # self.wait()
-        # self.clear()
-        # self.play(Transform(self.camera.frame, initial_state))
+        self.wait()
+        self.clear()
+        self.play(Transform(self.camera.frame, initial_state))
 
-        # self.palette_images()
+        self.repeating_filters_performance()
 
-        # self.wait()
-        # self.clear()
+        self.wait()
+        self.clear()
 
-        # self.repeating_filters_performance()
+        self.combination_explosion()
 
-        # self.wait()
-        # self.clear()
+        self.wait()
+        self.clear()
 
-        # self.combination_explosion()
+        self.msad_intro()
 
-        # self.wait()
-        # self.clear()
+        self.wait()
+        self.clear()
 
-        # self.msad_intro()
+        self.minimum_sum_of_absolute_differences()
 
-        # self.wait()
-        # self.clear()
+        self.wait()
+        self.clear()
 
-        # self.minimum_sum_of_absolute_differences()
+        self.png_decoding()
 
-        # self.wait()
-        # self.clear()
-
-        # self.png_decoding()
-
-        # self.wait()
+        self.wait()
 
     def intro_filtering(self):
         title = Text("Lossless Compression", font="CMU Serif", weight=BOLD).to_edge(UP)
@@ -247,11 +247,14 @@ class Filtering(MovingCameraScene):
             )
 
             arrows.add(arrow)
-            self.play(Write(arrow))
+            
 
             diff_copy = diff_t.copy().next_to(arrow, UP, buff=0.1)
             diffs.add(diff_copy)
-            self.play(FadeIn(diff_copy, shift=UP * 0.2))
+            
+        self.play(
+            *[Write(arrow) for arrow in arrows] + [FadeIn(diff, shift=UP * 0.2) for diff in diffs]
+        )
 
         self.wait()
 
@@ -550,7 +553,7 @@ class Filtering(MovingCameraScene):
         x_t_in = Text("x", font="SF Mono", weight=BOLD).scale(0.4).move_to(x_sq_in)
         x_t_out = (
             MarkupText("x<sub>out</sub>", font="SF Mono", weight=BOLD)
-            .scale(0.3)
+            .scale(0.25)
             .move_to(x_sq_out)
         )
 
@@ -558,9 +561,8 @@ class Filtering(MovingCameraScene):
         output_pixel = VGroup(x_sq_out, x_t_out)
 
         right_arrow = Arrow(
-            input_pixel,
-            output_pixel,
-            buff=-1,
+            input_pixel.get_right(),
+            output_pixel.get_left(),
             max_tip_length_to_length_ratio=0.1,
             max_stroke_width_to_length_ratio=2,
         ).set_color(WHITE)
@@ -659,7 +661,6 @@ class Filtering(MovingCameraScene):
 
         pixels_to_focus_on = VGroup(input_img[11:13], output_img[11:13])
         self.play(
-            FadeOut(sub_definition),
             self.focus_on(pixels_to_focus_on, buff=1.5).shift(UP * 0.5),
         )
 
@@ -676,27 +677,55 @@ class Filtering(MovingCameraScene):
         self.play(Write(surr_rect_input_pixels), Write(surr_rect_output))
 
         self.wait()
+        subtraction_question = Text(
+            "134 - 139 = 251?", font="SF Mono",
+            ).scale(0.4).next_to(VGroup(input_img, output_img), UP, buff=0.9)
 
+        filtering_point = Text("PNG Filtering Operates on Bytes", font="CMU Serif", weight=BOLD)
+        filtering_point.scale(0.5).next_to(subtraction_question, UP)
+
+        
         subtraction_1 = (
             Text("134 - 139 = -5", font="SF Mono")
             .scale(0.4)
-            .next_to(VGroup(input_img, output_img), UP, buff=0.5)
+            .move_to(subtraction_question.get_center())
         )
         subtraction_2 = (
             Text("(134 - 139) % 256 = 251", font="SF Mono")
             .scale(0.4)
-            .next_to(VGroup(input_img, output_img), UP, buff=0.5)
+            .move_to(subtraction_question.get_center())
         )
 
-        self.play(Write(subtraction_1))
+        self.play(Write(subtraction_question))
 
         self.wait()
 
         self.play(
-            FadeOut(subtraction_1, shift=DOWN * 0.2),
-            FadeIn(subtraction_2, shift=DOWN * 0.2),
+            Write(filtering_point)
+        )
+        self.wait()
+
+        self.play(
+            FadeOut(filtering_point)
         )
 
+        correspondence = Tex(r"8 Bit Pixels $\Leftrightarrow$ Bytes").scale(0.6).move_to(filtering_point.get_center())
+        self.play(
+            Write(correspondence)
+        )
+        self.wait()
+
+
+        self.play(
+            FadeOut(correspondence),
+            ReplacementTransform(subtraction_question, subtraction_1)
+        )
+
+        self.wait()
+
+        self.play(
+            ReplacementTransform(subtraction_1, subtraction_2)
+        )
         self.wait()
 
         self.play(
@@ -704,6 +733,7 @@ class Filtering(MovingCameraScene):
             FadeOut(subtraction_2),
             FadeOut(surr_rect_input_pixels),
             FadeOut(surr_rect_output),
+            FadeOut(sub_definition),
         )
 
         self.wait()
@@ -1453,11 +1483,9 @@ class Filtering(MovingCameraScene):
 
         title = (
             Text("Low bit depth images", font="CMU Serif", weight=BOLD)
-            .scale(0.8)
+            .scale(1)
             .to_edge(UP)
         )
-
-        self.play(FadeIn(title))
 
         random_row = np.random.randint(0, 255, (1, 4))
 
@@ -1477,12 +1505,12 @@ class Filtering(MovingCameraScene):
         )
 
         one_bpp = (
-            Text("1 B/pixel", font="SF Mono", weight=BOLD)
+            Text("8 bits/pixel", font="SF Mono", weight=BOLD)
             .scale(0.4)
             .next_to(row_mob, DOWN, aligned_edge=RIGHT)
         )
         four_bpp = (
-            Text("6 b/pixel", font="SF Mono", weight=BOLD)
+            Text("6 bits/pixel", font="SF Mono", weight=BOLD)
             .scale(0.4)
             .next_to(row_mob, DOWN, aligned_edge=RIGHT)
         )
@@ -1503,12 +1531,16 @@ class Filtering(MovingCameraScene):
             .scale_to_fit_width(row_mob[0].width)
             .move_to(row_mob[0])
         )
-        self.play(FadeIn(filter_sq))
-        for mob in row_mob[:-1]:
-            self.play(filter_sq.animate.shift(RIGHT * mob.width))
+        best_filter = Text("Best Filter: NONE", font="CMU Serif").scale(0.8)
+        best_filter.next_to(title, DOWN)
+        additional_anim = [FadeIn(best_filter)]
+        # for i, mob in enumerate(row_mob[:-1]):
+        #     self.play(
+        #         filter_sq.animate.shift(RIGHT * mob.width)
+        #     )
 
-        self.play(FadeOut(filter_sq))
-        self.wait()
+        # self.play(FadeOut(filter_sq))
+        # self.wait()
 
         random_row_lbd = np.random.randint(0, 2**6, (1, 4))
 
@@ -1533,13 +1565,12 @@ class Filtering(MovingCameraScene):
         )
         sq_brace_lbd = self.square_braces(six_b_pixel, direction=UP)
 
-        self.wait()
-
         self.play(
             FadeTransform(row_mob, row_mob_lbd),
             Transform(sq_brace, sq_brace_lbd),
             one_byte_t.animate.next_to(sq_brace_lbd, UP, buff=0.06),
             FadeTransform(one_bpp, four_bpp),
+            Write(title)
         )
 
         filter_sq = (
@@ -1549,7 +1580,13 @@ class Filtering(MovingCameraScene):
         )
 
         self.play(FadeIn(filter_sq))
-        for mob in row_mob_lbd[:-1:2]:
+        for i, mob in enumerate(row_mob_lbd[:-1:2]):
+            if i == 0:
+                self.play(
+                    filter_sq.animate.shift(RIGHT * mob.width),
+                    *additional_anim
+                )
+                continue
             self.play(filter_sq.animate.shift(RIGHT * filter_sq.width))
 
         self.play(FadeOut(filter_sq))
@@ -1558,7 +1595,7 @@ class Filtering(MovingCameraScene):
     def palette_images(self):
         title = (
             Text("Palette Based Images", font="CMU Serif", weight=BOLD)
-            .scale(0.8)
+            .scale(1)
             .to_edge(UP)
         )
 
@@ -1630,6 +1667,12 @@ class Filtering(MovingCameraScene):
         self.wait()
 
         self.play(FadeIn(index_palette))
+
+        best_filter = Text("Best Filter: NONE", font="CMU Serif").scale(0.8).next_to(title, DOWN)
+
+        self.play(
+            FadeIn(best_filter)
+        )
 
     def repeating_filters_performance(self):
         rows, cols = 10, 8
@@ -1759,7 +1802,7 @@ class Filtering(MovingCameraScene):
 
         self.play(FadeIn(all_perms_vg))
         self.wait()
-        self.play(all_perms_vg.animate.scale(0.15).set_stroke(width=1), run_time=3)
+        self.play(all_perms_vg.animate.scale(0.15).set_stroke(width=1), run_time=8)
 
     def msad_intro(self):
         """

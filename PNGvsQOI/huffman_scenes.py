@@ -749,7 +749,7 @@ class HuffmanCodes(HuffmanCodeIntro):
         )
         self.wait()
 
-class IntroRLEMiddle(HuffmanCodes):
+class IntroRLE(HuffmanCodes):
     def construct(self):
         self.intro_rle()
 

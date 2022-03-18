@@ -483,7 +483,8 @@ class LZSSText(SceneUtils):
             out_of_range_group, 
             sequence,
             DOWN * 3 + LEFT * 2.6,
-            sliding_window_rect
+            sliding_window_rect,
+            wait=False
         )
 
         self.play(
@@ -581,7 +582,7 @@ class LZSSText(SceneUtils):
         sequence,
         encoded_text_position,
         sliding_window_rect,
-        wait_time=1):
+        wait=True):
         """
         TODO: 
         add indication and encoding animations
@@ -633,7 +634,8 @@ class LZSSText(SceneUtils):
         self.play(
             Write(encoded_text)
         )
-        self.wait()
+        if wait:
+            self.wait()
         # placeholder for later text
         current_text = Text("a").move_to(encoded_text_position)
         self.actual_encoding = []
@@ -654,7 +656,8 @@ class LZSSText(SceneUtils):
             self.play(
                 *animations
             )
-            self.wait()
+            if wait:
+                self.wait()
             # save this state for later animations
             if len(largest_match) == 4:
                 self.state.extend([
@@ -672,7 +675,8 @@ class LZSSText(SceneUtils):
                 self.play(
                     *reset_transforms
                 )
-                self.wait()
+                if wait:
+                    self.wait()
             search_sequence_group, look_ahead_sequence_group, out_of_range_group = self.update_lzss(
                 search_sequence_group, 
                 look_ahead_sequence_group, 
@@ -680,6 +684,7 @@ class LZSSText(SceneUtils):
                 sequence, 
                 largest_match,
                 encoded_text,
+                wait=wait
             )
 
             if len(largest_match) <= 1:
@@ -710,6 +715,7 @@ class LZSSText(SceneUtils):
         sequence, 
         largest_match,
         encoded_text,
+        wait=True
         ):
         if len(largest_match) <= 1:
             search_shift_amount = search_sequence_group[0].get_center() - search_sequence_group[1].get_center()
@@ -744,7 +750,8 @@ class LZSSText(SceneUtils):
             self.play(
                 *animations
             )
-            self.wait()
+            if wait:
+                self.wait()
             return self.get_new_buffers(search_sequence_group, look_ahead_sequence_group, out_of_range_group, num_elements_to_fade)
 
         out_to_look_shift = look_ahead_sequence_group[-num_elements_to_fade].get_center() - out_of_range_group[0].get_center()
@@ -763,7 +770,8 @@ class LZSSText(SceneUtils):
             *animations
         )
 
-        self.wait()
+        if wait:
+            self.wait()
 
         return self.get_new_buffers(search_sequence_group, look_ahead_sequence_group, out_of_range_group, num_elements_to_fade)
 
@@ -975,7 +983,6 @@ class LZSSText(SceneUtils):
         self.play(
             Write(dec_text_label)
         )
-        self.wait()
         pointer = Arrow(ORIGIN, UP * 1.1, buff=SMALL_BUFF).set_color(REDUCIBLE_VIOLET)
         print('Actual encoding', self.actual_encoding)
         text_index = 0
@@ -1179,7 +1186,7 @@ class LZSSImageExample(Scene):
 
         return largest_match
 
-    def get_lzss_encoding(self, pixel_array):
+    def get_lzss_encoding(self, pixel_array, shorten=False):
         string_conversion = self.get_string_conversion(pixel_array)
         indices = list(range(len(string_conversion)))
 
@@ -1200,7 +1207,11 @@ class LZSSImageExample(Scene):
             else:
                 offset = look_ahead[0] - largest_match[0]
                 length = len(largest_match)
-                actual_encoding.append((offset, length))
+                if shorten and length == 1:
+                    index = look_ahead[0]
+                    actual_encoding.append(ord(string_conversion[index]))
+                else:
+                    actual_encoding.append((offset, length))
 
             if len(largest_match) <= 1:
                 search_buffer.append(look_ahead.pop(0))
@@ -1260,3 +1271,398 @@ class LZSSImageExample(Scene):
 
     def reshape_channel(self, channel):
         return np.reshape(channel, (1, channel.shape[0] * channel.shape[1], channel.shape[2]))
+
+
+class ShowLZSSExampleOnImage(LZSSImageExample):
+    def construct(self):
+        self.sw_length = 64
+        self.look_ahead_len = 16
+        self.search_buffer_len = 48
+        self.show_example_image()
+
+    def show_example_image(self):
+        LOW, HIGH = 50, 200
+        example_img_arr = np.array([
+        [LOW, HIGH, LOW, HIGH, LOW, HIGH, LOW, HIGH],
+        [HIGH, LOW, HIGH, LOW, HIGH, LOW, HIGH, LOW],
+        [LOW, HIGH, LOW, HIGH, LOW, HIGH, LOW, HIGH],
+        [HIGH, LOW, HIGH, LOW, HIGH, LOW, HIGH, LOW],
+        [LOW, HIGH, LOW, HIGH, LOW, HIGH, LOW, HIGH],
+        [HIGH, LOW, HIGH, LOW, HIGH, LOW, HIGH, LOW],
+        [LOW, HIGH, LOW, HIGH, LOW, HIGH, LOW, HIGH],
+        [HIGH, LOW, HIGH, LOW, HIGH, LOW, HIGH, LOW],
+        ])
+
+        pixel_arr = PixelArray(example_img_arr, include_numbers=True, color_mode="GRAY")
+        pixel_arr.scale(0.7)
+        self.play(
+            FadeIn(pixel_arr)
+        )
+        self.wait()
+
+        encoding = self.get_lzss_encoding(example_img_arr, shorten=True)
+        print(len(encoding))
+
+        encoding_mob = self.get_encoding_mob(encoding)
+        encoding_mob.move_to(RIGHT * 3.5 + DOWN * 0)
+
+        encoded_image_title = Text("Encoded Image", font="SF Mono").scale(0.7)
+        encoded_image_title.next_to(encoding_mob, UP)
+
+        centered_group = VGroup(pixel_arr.copy(), encoding_mob).arrange(RIGHT, buff=2)
+
+        self.play(
+            Transform(pixel_arr, centered_group[0]),
+        )
+
+        self.play(
+            LaggedStartMap(FadeIn, encoding_mob),
+            run_time=4
+        )
+        self.wait()
+
+    def get_encoding_mob(self, encoding):
+        mobjects = []
+        height = 0.5
+        for element in encoding:
+            if isinstance(element, int):
+                mobjects.append(PixelArray(np.array([[element]]), color_mode="GRAY", include_numbers=True).scale_to_fit_height(height))
+            else:
+                mobjects.append(self.get_offset_length_mob(element[0], element[1], height))
+
+        return VGroup(*mobjects).arrange_in_grid(rows=8)
+
+    def get_offset_length_mob(self, offset, length, scale_height):
+        offset_mob = self.get_letter_mob(offset, color=REDUCIBLE_YELLOW)
+        offset_mob[0].set_stroke(color=BLACK)
+        offset_mob[1].set_color(BLACK)
+        length_mob = self.get_letter_mob(length, color=REDUCIBLE_YELLOW)
+        length_mob[0].set_stroke(color=BLACK)
+        length_mob[1].set_color(BLACK)
+        return VGroup(offset_mob, length_mob).arrange(RIGHT, buff=0).scale_to_fit_height(scale_height)
+
+    def get_letter_mob(self, letter, side_length=1, color=REDUCIBLE_PURPLE):
+        text = Text(str(letter), font='SF Mono', weight=MEDIUM).scale(0.6)
+        square = Square(side_length=side_length).set_color(color)
+        square.set_fill(color=color, opacity=1)
+        return VGroup(square, text)
+
+class GoBackToTextExample(Scene):
+    def construct(self):
+        self.introduce_lzss()
+
+    def introduce_lzss(self):
+        text_snippet = Tex(
+            "The most used word in the English language \\\\", 
+            "is ``the.'' The second most used word is ``be.''"
+        ).scale(1)
+
+        text_snippet[1].next_to(text_snippet[0], DOWN)
+
+        self.play(
+            Write(text_snippet),
+            run_time=3
+        )
+        self.wait()
+
+        self.color_code_text(text_snippet)
+
+        self.show_back_references(text_snippet)
+
+    def color_code_text(self, text_snippet):
+        self.play(
+            text_snippet[0][:3].animate.set_color(REDUCIBLE_GREEN_LIGHTER),
+            text_snippet[0][3:15].animate.set_color(REDUCIBLE_YELLOW),
+            text_snippet[0][17:20].animate.set_color(REDUCIBLE_VIOLET),
+            text_snippet[1][:2].animate.set_color(ORANGE),
+            text_snippet[1][4:7].animate.set_color(REDUCIBLE_VIOLET),
+            text_snippet[1][10:13].animate.set_color(REDUCIBLE_GREEN_LIGHTER),
+            text_snippet[1][19:31].animate.set_color(REDUCIBLE_YELLOW),
+            text_snippet[1][-9:-7].animate.set_color(ORANGE),
+        )
+        self.wait()
+
+    def show_back_references(self, text_snippet):
+        bottom_left_corner = text_snippet[1][0].get_bottom() + DL * SMALL_BUFF * 7
+        top_left_corner = bottom_left_corner + text_snippet.height * UP + UP * 0.5
+        bottom_right_corner = UP * bottom_left_corner[1] + RIGHT * (text_snippet[1][-1].get_right()[0] + 0.8)
+        top_right_corner = bottom_right_corner + UP * 2.5
+        green_ref_corners = [
+            text_snippet[1][10:13].get_bottom() + DOWN * SMALL_BUFF, 
+            text_snippet[1][10:13].get_bottom()[0] * RIGHT + bottom_left_corner[1] * UP ,
+            bottom_left_corner,
+            bottom_left_corner + UP * (text_snippet[0][0].get_left()[1] - bottom_left_corner[1])
+            ]
+        
+        green_ref = self.get_elbow_arrow(
+            green_ref_corners,
+            green_ref_corners[-1],
+            text_snippet[0][0].get_left() + LEFT * SMALL_BUFF,
+            ratio=MED_SMALL_BUFF
+        ).set_color(REDUCIBLE_GREEN_LIGHTER)
+
+        yellow_ref_corners = [
+            text_snippet[1][19:31].get_bottom() + DOWN *SMALL_BUFF,
+            text_snippet[1][19:31].get_bottom()[0] * RIGHT + bottom_right_corner[1] * UP,
+            bottom_right_corner,
+            top_right_corner,
+            text_snippet[0][3:15].get_top()[0] * RIGHT + UP * top_right_corner[1],
+        ]
+
+        yellow_ref = self.get_elbow_arrow(
+            yellow_ref_corners,
+            yellow_ref_corners[-1],
+            text_snippet[0][3:15].get_top() + UP * SMALL_BUFF,
+            ratio=MED_SMALL_BUFF
+        ).set_color(REDUCIBLE_YELLOW)
+
+        violet_ref_corners = [
+            text_snippet[1][4:7].get_bottom() + DOWN * SMALL_BUFF,
+            text_snippet[1][4:7].get_bottom()[0] * RIGHT + UP * (bottom_left_corner[1] + 0.2),
+            UP * (bottom_left_corner[1] + 0.2) + RIGHT  * (bottom_left_corner[0] - 0.7),
+            top_left_corner + UL * 0.7,
+            text_snippet[0][17:20].get_top()[0] * RIGHT + UP * (top_left_corner[1] + 0.7)
+        ]
+
+        violet_ref = self.get_elbow_arrow(
+            violet_ref_corners,
+            violet_ref_corners[-1],
+            text_snippet[0][17:20].get_top() + UP * SMALL_BUFF,
+            ratio=MED_SMALL_BUFF
+        ).set_color(REDUCIBLE_VIOLET)
+
+        violet_ref[-1].set_stroke(width=4)
+
+        orange_ref_corners = [
+            text_snippet[1][-9:-7].get_bottom() + DOWN * SMALL_BUFF,
+            text_snippet[1][-9:-7].get_bottom() + DOWN * SMALL_BUFF * 4,
+            text_snippet[1][:2].get_bottom() + DOWN * SMALL_BUFF * 4,
+        ]
+
+        orange_ref = self.get_elbow_arrow(
+            orange_ref_corners,
+            orange_ref_corners[-1],
+            text_snippet[1][:2].get_bottom() + DOWN * SMALL_BUFF,
+            ratio=MED_SMALL_BUFF
+        ).set_color(ORANGE)
+        orange_ref[-1].set_stroke(width=4)
+
+        self.play(
+            Write(green_ref),
+            Write(yellow_ref),
+            Write(violet_ref),
+            Write(orange_ref),
+            text_snippet[1][10:13].animate.set_fill(opacity=0.5),
+            text_snippet[1][19:31].animate.set_fill(opacity=0.5),
+            text_snippet[1][4:7].animate.set_fill(opacity=0.5),
+            text_snippet[1][-9:-7].animate.set_fill(opacity=0.5),
+            run_time=3
+        )
+        self.wait()
+
+    def get_elbow_arrow(self, corner_points, arrow_start, arrow_end, ratio=SMALL_BUFF):
+        path = VGroup()
+        path.set_points_as_corners(*[corner_points])
+        arrow = Arrow(arrow_start, arrow_end, buff=0, max_tip_length_to_length_ratio=ratio)
+        path.add(arrow)
+        return path
+
+class GradientImageIntro(Scene):
+    def construct(self):
+        gradient_image, _  = self.get_gradient_image()
+
+        scale = 0.7
+        LZSS_mod = Module(
+            "LZSS", 
+            fill_color=REDUCIBLE_GREEN_DARKER,
+            stroke_color=REDUCIBLE_GREEN_LIGHTER,
+            text_weight=BOLD
+        ).scale(scale)
+
+        huffman_mod = Module(
+            ["Huffman","Coding"],
+            text_weight=BOLD
+        ).scale(scale)
+
+        gradient_image.move_to(LEFT * 3.5)
+
+
+        group_of_modules = VGroup(LZSS_mod, huffman_mod).arrange(DOWN, buff=2)
+
+        group_of_modules.move_to(RIGHT * 2.5)
+
+        trash = self.get_trash()
+        trash.next_to(LZSS_mod, RIGHT).shift(RIGHT)
+
+        trash_down = trash.copy().next_to(huffman_mod, RIGHT).shift(RIGHT)
+
+        group_of_trash = VGroup(trash, trash_down)
+
+        VGroup(gradient_image, group_of_modules, group_of_trash).arrange(RIGHT, buff=2)
+
+        self.play(
+            FadeIn(gradient_image)
+        )
+        self.wait()
+
+        start_x = gradient_image.get_right()[0]
+        start_y = LZSS_mod.get_left()[1]
+        arrow_top = Arrow(
+            RIGHT * start_x + UP * start_y, 
+            LZSS_mod.get_left()
+        ).set_color(REDUCIBLE_YELLOW)
+
+        self.play(
+            Write(arrow_top)
+        )
+        self.wait()
+
+        self.play(
+            FadeIn(group_of_modules[0])
+        )
+        self.wait()
+
+        second_arrow_top = Arrow(
+            LZSS_mod.get_right(),
+            trash.get_left()
+        ).set_color(REDUCIBLE_YELLOW)
+        self.play(
+            Write(second_arrow_top)
+        )
+        self.play(
+            FadeIn(trash)
+        )
+        self.wait()
+
+        arrow_bottom = Arrow(
+            RIGHT * start_x + DOWN * start_y, 
+            huffman_mod.get_left()
+        ).set_color(REDUCIBLE_YELLOW)
+
+        self.play(
+            Write(arrow_bottom)
+        )
+
+        self.play(
+            FadeIn(huffman_mod)
+        )
+        self.wait()
+        
+        second_arrow_bottom = Arrow(
+            huffman_mod.get_right(),
+            trash_down.get_left()
+        ).set_color(REDUCIBLE_YELLOW)
+
+        self.play(
+            Write(second_arrow_bottom)
+        )
+        self.play(
+            FadeIn(trash_down)
+        )
+        self.wait()
+
+        self.play(
+            FadeOut(group_of_modules),
+            FadeOut(group_of_trash),
+            FadeOut(arrow_top),
+            FadeOut(arrow_bottom),
+            FadeOut(second_arrow_top),
+            FadeOut(second_arrow_bottom),
+            gradient_image.animate.move_to(ORIGIN),
+        )
+        self.wait()
+
+        question = Text("We should be able to compress this image, right?", font="CMU Serif").scale(0.8)
+        question.next_to(gradient_image, DOWN * 2)
+        self.play(
+            Write(question)
+        )
+        self.wait()
+
+        filtering_title = Text("Filtering", font="CMU Serif", weight=BOLD)
+        filtering_title.move_to(UP * 3)
+
+        self.play(
+            Write(filtering_title)
+        )
+        self.wait()
+
+        self.clear()
+
+        scale = 0.8
+
+        hard_problem_mod = Module(
+            ["Hard","Problem"],
+            text_weight=BOLD,
+            fill_color=REDUCIBLE_GREEN_DARKER,
+            stroke_color=REDUCIBLE_GREEN_LIGHTER,
+        ).scale(scale)
+
+        new_approach_mod = Module(
+            ["New","Solution"],
+            text_weight=BOLD,
+            fill_color=REDUCIBLE_YELLOW_DARKER,
+            stroke_color=REDUCIBLE_YELLOW,
+        ).scale(scale)
+
+        transform_prob_mod = Module(
+            ["Transform", "Problem"],
+            text_weight=BOLD,
+        ).scale(scale)
+
+        hard_problem_mod.move_to(UP * 2.2)
+
+        new_approach_mod.move_to(LEFT * 3 + DOWN * 2.2)
+        transform_prob_mod.move_to(RIGHT * 3 + DOWN * 2.2)
+
+        arrow_left = Arrow(
+            hard_problem_mod.get_bottom(),
+            new_approach_mod.get_top()
+        ).set_color(GRAY)
+
+        arrow_right = Arrow(
+            hard_problem_mod.get_bottom(),
+            transform_prob_mod.get_top()
+        ).set_color(GRAY)
+
+        self.play(
+            FadeIn(hard_problem_mod)
+        )
+        self.wait()
+
+        self.play(
+            Write(arrow_left)
+        )
+
+        self.play(
+            FadeIn(new_approach_mod)
+        )
+        self.wait()
+
+        self.play(
+            Write(arrow_right)
+        )
+        self.play(
+            FadeIn(transform_prob_mod)
+        )
+        self.wait()
+
+        self.play(
+            new_approach_mod.animate.fade(0.5),
+            arrow_left.animate.fade(0.5)
+        )
+        self.wait()
+
+
+    def get_trash(self):
+        trash = SVGMobject("trash")
+        trash[0].set_color(WHITE)
+        return trash.scale(0.8)
+
+    def get_gradient_image(self):
+        diff = 4
+        gradient_data = np.arange(0, 256, diff, dtype=np.uint8).reshape((8, 8))
+        gradient_image = PixelArray(
+            gradient_data, include_numbers=True, color_mode="GRAY"
+        ).scale(0.6)
+        return gradient_image, gradient_data
