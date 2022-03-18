@@ -1566,6 +1566,8 @@ class FilteringP1Insert2(MovingCameraScene):
         )
         sq_brace_lbd = self.square_braces(six_b_pixel, direction=UP)
 
+        self.wait()
+
         self.play(
             FadeTransform(row_mob, row_mob_lbd),
             Transform(sq_brace, sq_brace_lbd),
