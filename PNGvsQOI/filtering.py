@@ -69,16 +69,16 @@ class FilteringP1Insert2(MovingCameraScene):
         self.clear()
         self.play(Transform(self.camera.frame, initial_state))
 
-        self.palette_images()
-
-        self.wait()
-        self.clear()
-
         self.low_bit_depth_images()
 
         self.wait()
         self.clear()
         self.play(Transform(self.camera.frame, initial_state))
+
+        self.palette_images()
+
+        self.wait()
+        self.clear()
 
         self.repeating_filters_performance()
 
@@ -247,13 +247,13 @@ class FilteringP1Insert2(MovingCameraScene):
             )
 
             arrows.add(arrow)
-            
 
             diff_copy = diff_t.copy().next_to(arrow, UP, buff=0.1)
             diffs.add(diff_copy)
-            
+
         self.play(
-            *[Write(arrow) for arrow in arrows] + [FadeIn(diff, shift=UP * 0.2) for diff in diffs]
+            *[Write(arrow) for arrow in arrows]
+            + [FadeIn(diff, shift=UP * 0.2) for diff in diffs]
         )
 
         self.wait()
@@ -677,14 +677,20 @@ class FilteringP1Insert2(MovingCameraScene):
         self.play(Write(surr_rect_input_pixels), Write(surr_rect_output))
 
         self.wait()
-        subtraction_question = Text(
-            "134 - 139 = 251?", font="SF Mono",
-            ).scale(0.4).next_to(VGroup(input_img, output_img), UP, buff=0.9)
+        subtraction_question = (
+            Text(
+                "134 - 139 = 251?",
+                font="SF Mono",
+            )
+            .scale(0.4)
+            .next_to(VGroup(input_img, output_img), UP, buff=0.9)
+        )
 
-        filtering_point = Text("PNG Filtering Operates on Bytes", font="CMU Serif", weight=BOLD)
+        filtering_point = Text(
+            "PNG Filtering Operates on Bytes", font="CMU Serif", weight=BOLD
+        )
         filtering_point.scale(0.5).next_to(subtraction_question, UP)
 
-        
         subtraction_1 = (
             Text("134 - 139 = -5", font="SF Mono")
             .scale(0.4)
@@ -700,32 +706,27 @@ class FilteringP1Insert2(MovingCameraScene):
 
         self.wait()
 
-        self.play(
-            Write(filtering_point)
-        )
+        self.play(Write(filtering_point))
         self.wait()
 
-        self.play(
-            FadeOut(filtering_point)
-        )
+        self.play(FadeOut(filtering_point))
 
-        correspondence = Tex(r"8 Bit Pixels $\Leftrightarrow$ Bytes").scale(0.6).move_to(filtering_point.get_center())
-        self.play(
-            Write(correspondence)
+        correspondence = (
+            Tex(r"8 Bit Pixels $\Leftrightarrow$ Bytes")
+            .scale(0.6)
+            .move_to(filtering_point.get_center())
         )
+        self.play(Write(correspondence))
         self.wait()
-
 
         self.play(
             FadeOut(correspondence),
-            ReplacementTransform(subtraction_question, subtraction_1)
+            ReplacementTransform(subtraction_question, subtraction_1),
         )
 
         self.wait()
 
-        self.play(
-            ReplacementTransform(subtraction_1, subtraction_2)
-        )
+        self.play(ReplacementTransform(subtraction_1, subtraction_2))
         self.wait()
 
         self.play(
@@ -1565,12 +1566,14 @@ class FilteringP1Insert2(MovingCameraScene):
         )
         sq_brace_lbd = self.square_braces(six_b_pixel, direction=UP)
 
+        self.wait()
+
         self.play(
             FadeTransform(row_mob, row_mob_lbd),
             Transform(sq_brace, sq_brace_lbd),
             one_byte_t.animate.next_to(sq_brace_lbd, UP, buff=0.06),
             FadeTransform(one_bpp, four_bpp),
-            Write(title)
+            Write(title),
         )
 
         filter_sq = (
@@ -1582,10 +1585,7 @@ class FilteringP1Insert2(MovingCameraScene):
         self.play(FadeIn(filter_sq))
         for i, mob in enumerate(row_mob_lbd[:-1:2]):
             if i == 0:
-                self.play(
-                    filter_sq.animate.shift(RIGHT * mob.width),
-                    *additional_anim
-                )
+                self.play(filter_sq.animate.shift(RIGHT * mob.width), *additional_anim)
                 continue
             self.play(filter_sq.animate.shift(RIGHT * filter_sq.width))
 
@@ -1668,11 +1668,11 @@ class FilteringP1Insert2(MovingCameraScene):
 
         self.play(FadeIn(index_palette))
 
-        best_filter = Text("Best Filter: NONE", font="CMU Serif").scale(0.8).next_to(title, DOWN)
-
-        self.play(
-            FadeIn(best_filter)
+        best_filter = (
+            Text("Best Filter: NONE", font="CMU Serif").scale(0.8).next_to(title, DOWN)
         )
+
+        self.play(FadeIn(best_filter))
 
     def repeating_filters_performance(self):
         rows, cols = 10, 8
@@ -1915,24 +1915,6 @@ class FilteringP1Insert2(MovingCameraScene):
             Text("-128", font="SF Mono").scale(0.6).next_to(left_mark2, UP, buff=0.2)
         )
 
-        self.play(Write(original_range))
-        self.wait()
-        self.play(
-            FadeIn(zero, shift=DOWN * 0.2),
-            FadeIn(two_55, shift=DOWN * 0.2),
-            FadeIn(one_27, shift=DOWN * 0.2),
-        )
-
-        self.wait()
-
-        self.play(FadeIn(new_range, shift=UP * 0.2))
-
-        self.wait()
-
-        self.play(FadeIn(minus_one, shift=UP * 0.2), FadeIn(minus_128, shift=UP * 0.2))
-
-        self.wait()
-
         random_row = np.random.randint(0, 255, (1, 8))
 
         # raw data
@@ -2094,11 +2076,30 @@ class FilteringP1Insert2(MovingCameraScene):
 
         rows_and_text = VGroup(all_steps, all_text).scale(0.8).to_corner(DR, buff=0.8)
 
+        self.wait()
         self.play(
-            Transform(mapping_line, long_mapping_line),
-            LaggedStartMap(FadeIn, all_steps, lag_ratio=0.5),
-            LaggedStartMap(FadeIn, all_text, lag_ratio=0.5),
+            FadeIn(raw_data_t),
+            FadeIn(row_mob),
         )
+
+        self.wait()
+
+        self.play(
+            FadeIn(filtered_data_t),
+            FadeIn(filtered_mob),
+        )
+
+        self.wait()
+
+        self.play(
+            FadeIn(byte_aligned_t),
+            FadeIn(byte_aligned_mob),
+        )
+        self.wait()
+
+        self.play(FadeIn(mapped_mob), FadeIn(mapped_t))
+
+        self.play(Write(long_mapping_line))
 
         self.wait()
 
@@ -2155,20 +2156,22 @@ class FilteringP1Insert2(MovingCameraScene):
         self.wait()
 
         filter_options = {
+            "none": self.none_filter_row,
             "sub": self.sub_filter_row,
             "up": self.up_filter_row,
             "avg": self.avg_filter_row,
             "paeth": self.paeth_filter_row,
         }
 
+        none_t = Text("NONE", font="SF Mono", weight=BOLD).scale(0.5)
         sub_t = Text("SUB", font="SF Mono", weight=BOLD).scale(0.5)
         up_t = Text("UP", font="SF Mono", weight=BOLD).scale(0.5)
         avg_t = Text("AVG", font="SF Mono", weight=BOLD).scale(0.5)
         paeth_t = Text("PAETH", font="SF Mono", weight=BOLD).scale(0.5)
 
         filter_score_table = (
-            VGroup(sub_t, up_t, avg_t, paeth_t)
-            .arrange(RIGHT, buff=1)
+            VGroup(none_t, sub_t, up_t, avg_t, paeth_t)
+            .arrange(RIGHT, buff=0.8)
             .next_to(img_mob, RIGHT, buff=0.5)
             .shift(UP * 2)
         )
@@ -2462,6 +2465,19 @@ class FilteringP1Insert2(MovingCameraScene):
 
         print(output)
         return output
+
+    def none_filter_row(self, img: ndarray, row=0, return_mob=False, return_row=False):
+        rows, cols = img.shape
+        output = img.copy()
+
+        # do nothing
+
+        if return_mob:
+            return PixelArray(output, include_numbers=True, color_mode="GRAY")
+        elif return_row:
+            return output[row, :]
+        else:
+            return output
 
     def sub_filter_row(self, img: ndarray, row=0, return_mob=False, return_row=False):
         rows, cols = img.shape
