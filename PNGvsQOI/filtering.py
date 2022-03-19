@@ -1,17 +1,3 @@
-from math import floor
-from manim import *
-from manim.mobject.geometry import ArrowTriangleFilledTip
-from numpy import ndarray, subtract
-from numpy.lib.arraypad import pad
-from functions import *
-from classes import *
-from reducible_colors import *
-from itertools import product
-
-np.random.seed(1)
-
-config["assets_dir"] = "assets"
-
 ###
 """
 Some considerations before rendering:
@@ -22,7 +8,7 @@ Some considerations before rendering:
 
 from manim import *
 from math import floor
-from manim.mobject.geometry import ArrowTriangleFilledTip
+from manim.mobject.geometry.tips import ArrowTriangleFilledTip
 from numpy import ndarray, subtract
 from numpy.lib.arraypad import pad
 from functions import *
@@ -1802,7 +1788,7 @@ class FilteringP1Insert2(MovingCameraScene):
 
         self.play(FadeIn(all_perms_vg))
         self.wait()
-        self.play(all_perms_vg.animate.scale(0.15).set_stroke(width=1), run_time=8)
+        self.play(all_perms_vg.animate.scale(0.15).set_stroke(width=1), run_time=16)
 
     def msad_intro(self):
         """
