@@ -33,11 +33,11 @@ class BenchmarkResults(Scene):
         plant_1 = ImageMobject("BenchmarkResults/plant_1.png").scale(0.2)
         plant_2 = ImageMobject("BenchmarkResults/plant_2.png").scale(0.2)
 
-        kodak_1 = ImageMobject("BenchmarkResults/kodak_1.png").scale(0.6)
-        kodak_2 = ImageMobject("BenchmarkResults/kodak_2.png").scale(0.6)
+        kodak_1 = ImageMobject("BenchmarkResults/kodak_1.png").scale(0.7)
+        kodak_2 = ImageMobject("BenchmarkResults/kodak_2.png").scale(0.7)
 
-        game_1 = ImageMobject("BenchmarkResults/game_1.png").scale(0.37)
-        game_2 = ImageMobject("BenchmarkResults/game_2.png").scale(0.37)
+        game_1 = ImageMobject("BenchmarkResults/game_1.png").scale(0.45)
+        game_2 = ImageMobject("BenchmarkResults/game_2.png").scale(0.45)
 
         texture_1 = ImageMobject("BenchmarkResults/texture_1.png").scale(0.7)
         texture_2 = ImageMobject("BenchmarkResults/texture_2.png").scale(0.7)
@@ -97,13 +97,13 @@ class BenchmarkResults(Scene):
         self.wait()
 
         self.play(
-            comp_rate.animate.scale(0.8).to_edge(LEFT),
+            comp_rate.animate.scale(0.8).to_edge(LEFT, buff=1),
             legend.animate.scale(0.8).next_to(comp_rate, UP * 0.5 + RIGHT, buff=-4),
             FadeIn(annotation),
         )
 
         for i in range(0, len(images), 2):
-            images[i + 1].next_to(comp_rate, RIGHT, buff=1)
+            images[i + 1].next_to(comp_rate, RIGHT, buff=2.5)
 
             # small adjustments for particular cases
             if i == 0 or i == 2:
@@ -116,7 +116,7 @@ class BenchmarkResults(Scene):
                 DOWN * (images[i + 1].height / 3) + RIGHT * (images[i + 1].width / 4)
             )
 
-            texts[i // 2].next_to(comp_rate, UR, buff=0).shift(RIGHT)
+            texts[i // 2].next_to(comp_rate, UP, buff=0).shift(RIGHT * 5)
 
             self.play(FadeIn(images[i + 1]), FadeIn(images[i]), FadeIn(texts[i // 2]))
             self.wait()
@@ -126,7 +126,7 @@ class BenchmarkResults(Scene):
                 run_time=1,
             )
 
-        self.play(FadeOut(comp_rate), FadeOut(legend))
+        self.play(FadeOut(comp_rate), FadeOut(legend), FadeOut(annotation))
         self.wait()
 
         self.play(
@@ -144,4 +144,4 @@ class BenchmarkResults(Scene):
 
         self.wait()
 
-        self.play(FadeOut(decode_ms), FadeOut(legend), FadeOut(annotation))
+        self.play(FadeOut(decode_ms), FadeOut(legend))
