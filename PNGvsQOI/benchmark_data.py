@@ -17,7 +17,7 @@ class BenchmarkResults(Scene):
                 "* Experiments run on MacMini M1 16GB compiled in C with gcc",
                 font="CMU Serif",
             )
-            .scale(0.2)
+            .scale(0.3)
             .to_corner(DR, buff=0.3)
         )
 
@@ -33,22 +33,14 @@ class BenchmarkResults(Scene):
         plant_1 = ImageMobject("BenchmarkResults/plant_1.png").scale(0.2)
         plant_2 = ImageMobject("BenchmarkResults/plant_2.png").scale(0.2)
 
-        kodak_1 = ImageMobject("BenchmarkResults/kodak_1.png").scale(0.6)
-        kodak_2 = ImageMobject("BenchmarkResults/kodak_2.png").scale(0.6)
+        kodak_1 = ImageMobject("BenchmarkResults/kodak_1.png").scale(0.7)
+        kodak_2 = ImageMobject("BenchmarkResults/kodak_2.png").scale(0.7)
 
-        game_1 = ImageMobject("BenchmarkResults/game_1.png").scale(0.37)
-        game_2 = ImageMobject("BenchmarkResults/game_2.png").scale(0.37)
+        game_1 = ImageMobject("BenchmarkResults/game_1.png").scale(0.45)
+        game_2 = ImageMobject("BenchmarkResults/game_2.png").scale(0.45)
 
         texture_1 = ImageMobject("BenchmarkResults/texture_1.png").scale(0.7)
         texture_2 = ImageMobject("BenchmarkResults/texture_2.png").scale(0.7)
-
-        green_sq = (
-            Square(fill_color=REDUCIBLE_GREEN, color=REDUCIBLE_GREEN)
-            .set_opacity(1)
-            .scale(0.2)
-        )
-        stid_text = Text("stib", font="SF Mono").scale(0.5)
-        g_l = VGroup(green_sq, stid_text).arrange(RIGHT, buff=0.2)
 
         purple_sq = (
             Square(color=REDUCIBLE_PURPLE, fill_color=REDUCIBLE_PURPLE)
@@ -67,7 +59,7 @@ class BenchmarkResults(Scene):
         y_l = VGroup(yellow_sq, qoi_text).arrange(RIGHT, buff=0.2)
 
         legend = (
-            VGroup(g_l, p_l, y_l)
+            VGroup(p_l, y_l)
             .arrange(DOWN, buff=0.3, aligned_edge=LEFT)
             .scale(0.7)
             .next_to(comp_rate, UP + RIGHT * 0.5, buff=-1)
@@ -91,13 +83,24 @@ class BenchmarkResults(Scene):
         ]
 
         texts = [
-            Text("Icons", font="CMU Serif", weight=BOLD).scale(0.3),
+            Text("Icons", font="CMU Serif", weight=BOLD, should_center=False).scale(
+                0.3
+            ),
             Text(
-                "Plants \n(transparent background)", font="CMU Serif", weight=BOLD
+                "Plants \n(transparent background)",
+                font="CMU Serif",
+                weight=BOLD,
+                should_center=False,
             ).scale(0.3),
-            Text("Analog Images", font="CMU Serif", weight=BOLD).scale(0.3),
-            Text("Game Stills", font="CMU Serif", weight=BOLD).scale(0.3),
-            Text("Textures", font="CMU Serif", weight=BOLD).scale(0.3),
+            Text(
+                "Analog Images", font="CMU Serif", weight=BOLD, should_center=False
+            ).scale(0.3),
+            Text(
+                "Game Stills", font="CMU Serif", weight=BOLD, should_center=False
+            ).scale(0.3),
+            Text("Textures", font="CMU Serif", weight=BOLD, should_center=False).scale(
+                0.3
+            ),
         ]
 
         self.play(Write(comp_rate), Write(legend))
@@ -105,13 +108,13 @@ class BenchmarkResults(Scene):
         self.wait()
 
         self.play(
-            comp_rate.animate.scale(0.8).to_edge(LEFT),
+            comp_rate.animate.scale(0.8).to_edge(LEFT, buff=1),
             legend.animate.scale(0.8).next_to(comp_rate, UP * 0.5 + RIGHT, buff=-4),
             FadeIn(annotation),
         )
 
         for i in range(0, len(images), 2):
-            images[i + 1].next_to(comp_rate, RIGHT, buff=1)
+            images[i + 1].next_to(comp_rate, RIGHT, buff=2.5)
 
             # small adjustments for particular cases
             if i == 0 or i == 2:
@@ -124,17 +127,22 @@ class BenchmarkResults(Scene):
                 DOWN * (images[i + 1].height / 3) + RIGHT * (images[i + 1].width / 4)
             )
 
-            texts[i // 2].next_to(comp_rate, UR, buff=0).shift(RIGHT)
+            texts[i // 2].next_to(comp_rate, UP, buff=0).shift(RIGHT * 5)
 
-            self.play(FadeIn(images[i + 1]), FadeIn(images[i]), FadeIn(texts[i // 2]))
-            self.wait()
+            self.play(
+                FadeIn(images[i + 1]),
+                FadeIn(images[i]),
+                FadeIn(texts[i // 2]),
+                run_time=0.7,
+            )
+            self.wait(0.2)
             self.play(
                 FadeOut(texts[i // 2]),
                 LaggedStart(FadeOut(images[i + 1]), FadeOut(images[i]), lag_ratio=0.5),
-                run_time=1,
+                run_time=0.7,
             )
 
-        self.play(FadeOut(comp_rate), FadeOut(legend))
+        self.play(FadeOut(comp_rate), FadeOut(legend), FadeOut(annotation))
         self.wait()
 
         self.play(
@@ -152,4 +160,4 @@ class BenchmarkResults(Scene):
 
         self.wait()
 
-        self.play(FadeOut(decode_ms), FadeOut(legend), FadeOut(annotation))
+        self.play(FadeOut(decode_ms), FadeOut(legend))
