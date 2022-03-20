@@ -22,7 +22,7 @@ np.random.seed(1)
 config["assets_dir"] = "assets"
 
 
-class FilteringP1Insert2(MovingCameraScene):
+class FilteringP2(MovingCameraScene):
     def construct(self):
         self.camera.frame.save_state()
         initial_state = self.camera.frame.copy()
@@ -2082,11 +2082,12 @@ class FilteringP1Insert2(MovingCameraScene):
             FadeIn(byte_aligned_mob),
         )
         self.wait()
+        self.play(Write(long_mapping_line))
+        self.wait()
 
         self.play(FadeIn(mapped_mob), FadeIn(mapped_t))
 
-        self.play(Write(long_mapping_line))
-
+        
         self.wait()
 
     def minimum_sum_of_absolute_differences(self):
@@ -2168,7 +2169,7 @@ class FilteringP1Insert2(MovingCameraScene):
         )
 
         self.play(FadeIn(filter_score_table), FadeIn(final_score_t))
-
+        count = 0
         for row in range(4):
 
             row_vg = img_mob[self.select_row_indices(row, (rows, cols))]
@@ -2176,6 +2177,7 @@ class FilteringP1Insert2(MovingCameraScene):
             mobs_to_remove = VGroup()
 
             scores = []
+
             for name, filter_type in filter_options.items():
 
                 filtered_mob, mapped_mob, filter_score = self.calculate_filtered_rows(
@@ -2208,12 +2210,18 @@ class FilteringP1Insert2(MovingCameraScene):
                 )
                 filter_index += 1
 
+                score_math = Tex("Score ", r"$= \sum_{i=1}^{n} |x_i|$").next_to(mapped_mob, DOWN, aligned_edge=LEFT)
+                score_math[1][-3:-1].set_color(REDUCIBLE_GREEN_LIGHTER)
                 self.play(
                     FadeIn(filtered_mob, shift=UP * 0.2),
                     FadeIn(mapped_mob, shift=UP * 0.2),
                     FadeIn(name_t, shift=UP * 0.2),
                     FadeIn(score_t),
                 )
+                if count == 0:
+                    self.play(
+                        FadeIn(score_math)
+                    )
 
                 self.wait()
 
@@ -2223,6 +2231,7 @@ class FilteringP1Insert2(MovingCameraScene):
                     FadeOut(mapped_mob, shift=UP * 0.2),
                     FadeOut(name_t, shift=UP * 0.2),
                 )
+                count += 1
 
                 # end for loop
 

@@ -176,7 +176,7 @@ class IntroPNG(ZoomedScene):
 
         self.remove(frame, zd_rect, self.zoomed_display, zoomed_display_frame)
 
-class QOIDemo(Scene):
+class QOIDemoEnd(Scene):
 
     def construct(self):
         """
@@ -235,6 +235,29 @@ class QOIDemo(Scene):
         )
         self.wait()
 
+        self.play(
+            arranged_bytes.animate.shift(UP),
+            FadeOut(flattened_pixels)
+        )
+
+        self.wait()
+
+        original_image = Text("Original Image: 192 B", font="CMU Serif").scale(0.6)
+        qoi_image = Text("After QOI: 50 B (26%)", font="CMU Serif").scale(0.6)
+
+        original_image.next_to(arranged_bytes, DOWN, aligned_edge=RIGHT).shift(UP * 0.9)
+        qoi_image.next_to(original_image, DOWN, aligned_edge=RIGHT)
+
+        self.play(
+            Write(original_image)
+        )
+        self.wait()
+
+        self.play(
+            Write(qoi_image)
+        )
+        self.wait()
+
         print('Total number of bytes in QOI bitstream:', self.get_total_number_of_bytes(qoi_data))
         print('Total number of bytes in RGB image', 64 * 3)
         print('Compression ratio:', self.get_total_number_of_bytes(qoi_data) / (64 * 3))
@@ -286,6 +309,12 @@ class QOIDemo(Scene):
             else:
                 # QOI_INDEX
                 byte_mobs.append(self.get_index_bytes_with_data(data[1]))
+        
+        for mob in byte_mobs:
+            byte = mob[1]
+            for value in byte:
+                if isinstance(value, Byte):
+                    value.rect.set_stroke(width=1)
         return VGroup(*byte_mobs).arrange(RIGHT, buff=0).scale(0.4)
 
     def show_image(self):
@@ -404,7 +433,6 @@ class QOIDemo(Scene):
         self.play(
             *transforms
         )
-        self.wait()
 
         fadeout = self.show_encode_rgb_simple(0, rgb_pixels)
 
@@ -413,13 +441,13 @@ class QOIDemo(Scene):
         self.play(
             *update_animations + fadeout
         )
-        self.wait()
+
 
         prev_transforms = self.get_indication_transforms([0], rgb_pixels, shift=SMALL_BUFF, direction=np.array([-2.5, 1, 0]), color=REDUCIBLE_VIOLET)
         self.play(
             *prev_transforms
         )
-        self.wait()
+
         prev_index = 0
         current_index = 1
         counter = 0
@@ -447,7 +475,7 @@ class QOIDemo(Scene):
                 self.bring_to_back(rgb_pixels[prev_index].r)
                 self.bring_to_back(rgb_pixels[prev_index].g)
                 self.bring_to_back(rgb_pixels[prev_index].b)
-                self.wait()
+                # self.wait()
 
                 current_index += run_length
                 prev_index = current_index - 1
@@ -460,7 +488,7 @@ class QOIDemo(Scene):
                 self.bring_to_back(rgb_pixels[prev_index].r)
                 self.bring_to_back(rgb_pixels[prev_index].g)
                 self.bring_to_back(rgb_pixels[prev_index].b)
-                self.wait()
+                # self.wait()
                 current_index += 1
                 prev_index += 1
             elif data[0] == QOI_DIFF_SMALL:
@@ -472,7 +500,7 @@ class QOIDemo(Scene):
                 self.bring_to_back(rgb_pixels[prev_index].r)
                 self.bring_to_back(rgb_pixels[prev_index].g)
                 self.bring_to_back(rgb_pixels[prev_index].b)
-                self.wait()
+                # self.wait()
                 current_index += 1
                 prev_index += 1
             elif data[0] == QOI_DIFF_MED:
@@ -484,7 +512,7 @@ class QOIDemo(Scene):
                 self.bring_to_back(rgb_pixels[prev_index].r)
                 self.bring_to_back(rgb_pixels[prev_index].g)
                 self.bring_to_back(rgb_pixels[prev_index].b)
-                self.wait()
+                # self.wait()
                 current_index += 1
                 prev_index += 1
             else:
@@ -501,8 +529,8 @@ class QOIDemo(Scene):
                 self.bring_to_back(rgb_pixels[prev_index].r)
                 self.bring_to_back(rgb_pixels[prev_index].g)
                 self.bring_to_back(rgb_pixels[prev_index].b)
-                if current_index != 63:
-                    self.wait()
+                # if current_index != 63:
+                #     self.wait()
                 current_index += 1
                 prev_index += 1
 
@@ -739,9 +767,17 @@ class QOIDemo(Scene):
 
         text.next_to(qoi_diff_bytes, RIGHT, buff=0.5)
 
+        dr_constraint = Text("-2 ≤ dr ≤ 1", font='SF Mono', weight=MEDIUM).scale(0.4)
+        dg_constraint = Text("-2 ≤ dg ≤ 1", font='SF Mono', weight=MEDIUM).scale(0.4)
+        db_constraint = Text("-2 ≤ db ≤ 1", font='SF Mono', weight=MEDIUM).scale(0.4)
+
+        constraint_text = align_text_vertically(dr_constraint, dg_constraint, db_constraint)
+        constraint_text.next_to(qoi_diff_bytes, LEFT, buff=0.5)
+
         if detail:
             self.play(
-                FadeIn(text)
+                FadeIn(text),
+                FadeIn(constraint_text)
             )
             self.wait()
 
@@ -759,6 +795,7 @@ class QOIDemo(Scene):
         fadeouts = []
         if detail:
             fadeouts.append(FadeOut(text))
+            fadeouts.append(FadeOut(constraint_text))
 
         fadeouts.append(FadeOut(qoi_diff_bytes))
         return fadeouts
@@ -796,7 +833,19 @@ class QOIDemo(Scene):
 
         text.next_to(qoi_diff_med_bytes, RIGHT, buff=0.5)
 
+        dr_constraint = Text("-32 ≤ dg ≤ 31", font='SF Mono', weight=MEDIUM).scale(0.4)
+        dg_constraint = Text("-8 ≤ dr - dg ≤ 7", font='SF Mono', weight=MEDIUM).scale(0.4)
+        db_constraint = Text("-8 ≤ db - dg ≤ 7", font='SF Mono', weight=MEDIUM).scale(0.4)
+
+        constraint_text = align_text_vertically(dr_constraint, dg_constraint, db_constraint)
+        constraint_text.move_to(UP * 3)
+
         if detail:
+            self.play(
+                FadeIn(constraint_text)
+            )
+            self.wait()
+
             shift_left = LEFT * 3
             text.shift(shift_left)
             self.play(
@@ -821,6 +870,7 @@ class QOIDemo(Scene):
         fadeouts = []
         if detail:
             fadeouts.append(FadeOut(text))
+            fadeouts.append(FadeOut(constraint_text))
 
         fadeouts.append(FadeOut(qoi_diff_med_bytes))
         return fadeouts
@@ -860,7 +910,6 @@ class QOIDemo(Scene):
                     self.play(
                         Write(curr_arrow)
                     )
-                    self.wait()
                 else:
                     self.play(
                         Transform(
@@ -868,7 +917,6 @@ class QOIDemo(Scene):
                             Arrow(arrow_end + DOWN * 1.2, arrow_end, buff=MED_SMALL_BUFF, max_tip_length_to_length_ratio=0.25).set_color(REDUCIBLE_YELLOW)
                         )
                     )
-                    self.wait()
 
                 compact_pixels = self.get_compact_rgb_with_text(rgb_pixels[i])
                 r, g, b = self.get_rgb_pixel_values(rgb_pixels[i])
@@ -882,7 +930,6 @@ class QOIDemo(Scene):
                         TransformFromCopy(rgb_pixels[i].g, compact_pixels[1]),
                         TransformFromCopy(rgb_pixels[i].b, compact_pixels[2])
                     )
-                    self.wait()
                     actual_index[index_pos] = compact_pixels
 
             index_text = Text("index = (r * 3 + g * 5 + b * 7) % size", font='SF Mono', weight=MEDIUM)
@@ -1426,14 +1473,16 @@ class QOIDemo(Scene):
     def get_rbg_bytes(self):
         rgb_tag_byte = Byte(
             ["Byte[0]",
-            "7,6,5,4,3,2,1,0"]
+            "7,6,5,4,3,2,1,0"],
+            stroke_color=REDUCIBLE_PURPLE
         ).scale(0.5).move_to(DOWN * 2)
 
         red_first_byte = Byte(
             ["Byte[1]",
             "7,...,0"],
             width=2,
-            height=rgb_tag_byte.height
+            height=rgb_tag_byte.height,
+            stroke_color=REDUCIBLE_PURPLE
         )
 
         red_first_byte.text.scale_to_fit_height(rgb_tag_byte.text.height)
@@ -1444,7 +1493,8 @@ class QOIDemo(Scene):
             ["Byte[2]",
             "7,...,0"],
             width=red_first_byte.width,
-            height=rgb_tag_byte.height
+            height=rgb_tag_byte.height,
+            stroke_color=REDUCIBLE_PURPLE
         )
 
         green_second_byte.text.scale_to_fit_height(red_first_byte.text.height)
@@ -1455,7 +1505,8 @@ class QOIDemo(Scene):
             ["Byte[3]",
             "7,...,0"],
             width=red_first_byte.width,
-            height=rgb_tag_byte.height
+            height=rgb_tag_byte.height,
+            stroke_color=REDUCIBLE_PURPLE
         )
 
         blue_third_byte.text.scale_to_fit_height(red_first_byte.text.height)
@@ -1466,7 +1517,8 @@ class QOIDemo(Scene):
             "8 bit RGB_TAG",
             width=rgb_tag_byte.width,
             height=rgb_tag_byte.height,
-            text_scale=0.25
+            text_scale=0.25,
+            stroke_color=REDUCIBLE_PURPLE
         )
         
         tag_value.next_to(rgb_tag_byte, DOWN, buff=0)
@@ -1475,7 +1527,8 @@ class QOIDemo(Scene):
             "Red",
             width=red_first_byte.width,
             height=red_first_byte.height,
-            text_scale=0.25
+            text_scale=0.25,
+            stroke_color=REDUCIBLE_PURPLE
         ).next_to(red_first_byte, DOWN, buff=0)
         red_value.text.scale_to_fit_height(tag_value.text.height)
 
@@ -1483,7 +1536,8 @@ class QOIDemo(Scene):
             "Green",
             width=green_second_byte.width,
             height=green_second_byte.height,
-            text_scale=0.25
+            text_scale=0.25,
+            stroke_color=REDUCIBLE_PURPLE
         ).next_to(green_second_byte, DOWN, buff=0)
         green_value.text.scale_to_fit_height(tag_value.text.height)
 
@@ -1491,7 +1545,8 @@ class QOIDemo(Scene):
             "Blue",
             width=blue_third_byte.width,
             height=blue_third_byte.height,
-            text_scale=0.25
+            text_scale=0.25,
+            stroke_color=REDUCIBLE_PURPLE
         ).next_to(blue_third_byte, DOWN, buff=0)
         blue_value.text.scale_to_fit_height(tag_value.text.height)
 
@@ -1516,7 +1571,8 @@ class QOIDemo(Scene):
     def get_index_bytes(self):
         index_tag_byte = Byte(
             ["Byte[0]",
-            "7,6,5,4,3,2,1,0"]
+            "7,6,5,4,3,2,1,0"],
+            stroke_color=REDUCIBLE_YELLOW
         ).scale(0.5).move_to(DOWN * 2)
 
         target_text = VGroup(
@@ -1526,7 +1582,8 @@ class QOIDemo(Scene):
         tag_value = Byte(
             "0,0",
             width=target_text.get_center()[0] + SMALL_BUFF - index_tag_byte.get_left()[0],
-            height=index_tag_byte.height
+            height=index_tag_byte.height,
+            stroke_color=REDUCIBLE_YELLOW
         )
         tag_value.text.scale_to_fit_height(index_tag_byte.text[1][1].height)
 
@@ -1535,7 +1592,8 @@ class QOIDemo(Scene):
         index_value = Byte(
             "index",
             width=index_tag_byte.get_right()[0] - tag_value.get_right()[0],
-            height=tag_value.height
+            height=tag_value.height,
+            stroke_color=REDUCIBLE_YELLOW
         )
 
         index_value.text.scale_to_fit_height(tag_value.text.height).scale(1.3)
@@ -1611,7 +1669,8 @@ class QOIDemo(Scene):
     def get_large_diff_bytes(self):
         diff_tag_byte = Byte(
             ["Byte[0]",
-            "7,6,5,4,3,2,1,0"]
+            "7,6,5,4,3,2,1,0"],
+            stroke_color=REDUCIBLE_GREEN_DARKER
         ).scale(0.5).move_to(DOWN * 2)
 
         target_text = VGroup(
@@ -1621,7 +1680,8 @@ class QOIDemo(Scene):
         tag_value = Byte(
             "1,0",
             width=target_text.get_center()[0] + SMALL_BUFF - diff_tag_byte.get_left()[0],
-            height=diff_tag_byte.height
+            height=diff_tag_byte.height,
+            stroke_color=REDUCIBLE_GREEN_DARKER
         )
         tag_value.text.scale_to_fit_height(diff_tag_byte.text[1][1].height)
         tag_value.text.rotate(PI)
@@ -1631,7 +1691,8 @@ class QOIDemo(Scene):
         dg_value = Byte(
             "diff green (dg)",
             width=diff_tag_byte.get_right()[0] - tag_value.get_right()[0],
-            height=tag_value.height
+            height=tag_value.height,
+            stroke_color=REDUCIBLE_GREEN_DARKER
         )
 
         dg_value.text.scale_to_fit_height(tag_value.text.height).scale(1.1)
@@ -1641,7 +1702,8 @@ class QOIDemo(Scene):
 
         second_byte = Byte(
             ["Byte[1]",
-            "7,6,5,4,3,2,1,0"]
+            "7,6,5,4,3,2,1,0"],
+            stroke_color=REDUCIBLE_GREEN_DARKER
         ).scale(0.5).next_to(diff_tag_byte, RIGHT, buff=0)
 
         second_target_text = VGroup(
@@ -1652,14 +1714,16 @@ class QOIDemo(Scene):
         dr_dg_value = Byte(
             "dr - dg",
             width=second_target_text.get_center()[0] - dg_value.get_right()[0],
-            height=dg_value.height
+            height=dg_value.height,
+            stroke_color=REDUCIBLE_GREEN_DARKER
         ).next_to(second_byte, DOWN, aligned_edge=LEFT, buff=0)
         dr_dg_value.text.scale_to_fit_height(dg_value.text.height)
 
         db_dg_value = Byte(
             "db - dg",
             width=dr_dg_value.width,
-            height=dg_value.height
+            height=dg_value.height,
+            stroke_color=REDUCIBLE_GREEN_DARKER
         ).next_to(second_byte, DOWN, aligned_edge=RIGHT, buff=0)
         db_dg_value.text.scale_to_fit_height(dr_dg_value.text.height)
 
@@ -1684,7 +1748,8 @@ class QOIDemo(Scene):
     def get_small_diff_bytes(self):
         diff_tag_byte = Byte(
             ["Byte[0]",
-            "7,6,5,4,3,2,1,0"]
+            "7,6,5,4,3,2,1,0"],
+            stroke_color=REDUCIBLE_GREEN_LIGHTER
         ).scale(0.5).move_to(DOWN * 2)
 
         target_text = VGroup(
@@ -1694,7 +1759,8 @@ class QOIDemo(Scene):
         tag_value = Byte(
             "1,0",
             width=target_text.get_center()[0] + SMALL_BUFF * 0.3 - diff_tag_byte.get_left()[0],
-            height=diff_tag_byte.height
+            height=diff_tag_byte.height,
+            stroke_color=REDUCIBLE_GREEN_LIGHTER
         )
         tag_value.text.scale_to_fit_height(diff_tag_byte.text[1][1].height)
         tag_value.text.rotate(PI)
@@ -1710,7 +1776,8 @@ class QOIDemo(Scene):
         dr_value = Byte(
             "dr",
             width=second_target_text.get_center()[0] - tag_value.get_right()[0],
-            height=tag_value.height
+            height=tag_value.height,
+            stroke_color=REDUCIBLE_GREEN_LIGHTER
         ).next_to(tag_value, RIGHT, buff=0)
         dr_value.text.scale_to_fit_height(tag_value.text.height)
         dr_value.text.rotate(PI)
@@ -1723,7 +1790,8 @@ class QOIDemo(Scene):
         dg_value = Byte(
             "dg",
             width=third_target_text.get_center()[0] - dr_value.get_right()[0],
-            height=tag_value.height
+            height=tag_value.height,
+            stroke_color=REDUCIBLE_GREEN_LIGHTER
         ).next_to(dr_value, RIGHT, buff=0)
         dg_value.text.scale_to_fit_height(dr_value.text.height).scale(1.2)
         dg_value.text.rotate(PI)
@@ -1731,7 +1799,8 @@ class QOIDemo(Scene):
         db_value = Byte(
             "db",
             width=diff_tag_byte.get_right()[0] - third_target_text.get_center()[0],
-            height=tag_value.height
+            height=tag_value.height,
+            stroke_color=REDUCIBLE_GREEN_LIGHTER
         ).next_to(dg_value, RIGHT, buff=0)
         db_value.text.scale_to_fit_height(dr_value.text.height)
         db_value.text.rotate(PI)
@@ -1791,6 +1860,535 @@ class QOIDemo(Scene):
 
         return transforms
 
+class SumUpOfPNGEnd(Scene):
+    def construct(self):
+        pixel_array, pixel_array_mob = self.get_image()
+        rgb_rep = self.show_rgb_split(pixel_array, pixel_array_mob, animate=False)
+        self.show_diagram(rgb_rep)
 
+    def show_diagram(self, rgb_rep):
+        rgb_rep.scale(0.6)
+        scale = 0.55
+        filtering_mod = Module(
+            "Filtering",
+            fill_color=REDUCIBLE_YELLOW_DARKER,
+            stroke_color=REDUCIBLE_YELLOW,
+            text_weight=BOLD
+        ).scale(scale)
+
+        LZSS_mod = Module(
+            "LZSS", 
+            fill_color=REDUCIBLE_GREEN_DARKER,
+            stroke_color=REDUCIBLE_GREEN_LIGHTER,
+            text_weight=BOLD
+        ).scale(scale)
+
+        huffman_mod = Module(
+            ["Huffman","Coding"],
+            text_weight=BOLD
+        ).scale(scale)
+
+        output_file = SVGMobject("png_file").scale_to_fit_height(huffman_mod.height + SMALL_BUFF * 2)
+
+        diagram = VGroup(rgb_rep, filtering_mod, LZSS_mod, huffman_mod, output_file).arrange(RIGHT, buff=1)
+        diagram.move_to(UP * 3)
+        arrows = VGroup()
+
+        for i in range(len(diagram) - 1):
+            arrow = Arrow(
+                diagram[i].get_right(), diagram[i + 1].get_left(), 
+                buff=SMALL_BUFF,
+                max_tip_length_to_length_ratio=0.15
+            ).set_color(GRAY)
+            arrows.add(arrow)
 
         
+
+        self.play(
+            FadeIn(diagram[0])
+        )
+
+        screen_rect = ScreenRectangle(height=4.5)
+        screen_rect.move_to(DOWN * 1)
+
+        self.play(
+            Write(arrows[0]),
+            FadeIn(diagram[1]),
+            FadeIn(screen_rect)
+        )
+        self.wait()
+
+        self.play(
+            Write(arrows[1]),
+            FadeIn(diagram[2])
+        )
+
+        self.wait()
+
+        self.play(
+            Write(arrows[2]),
+            FadeIn(diagram[3])
+        )
+        self.wait()
+
+        self.play(
+            Write(arrows[3]),
+            FadeIn(diagram[4])
+        )
+        self.wait()
+
+        surround_rect = SurroundingRectangle(VGroup(LZSS_mod, huffman_mod), buff=SMALL_BUFF, color=REDUCIBLE_YELLOW)
+        self.play(
+            Create(surround_rect)
+        )
+        deflate = Text("DEFLATE compression", font="CMU Serif", weight=BOLD).scale(0.7)
+        deflate.next_to(surround_rect, DOWN)
+
+        self.play(
+            Write(deflate)
+        )
+        self.wait()
+
+        self.play(
+            FadeOut(deflate),
+            FadeOut(surround_rect),
+            FadeOut(screen_rect)
+        )
+
+        png_encoding_label = Text("PNG Encoding", font="CMU Serif", weight=BOLD).scale(0.8).next_to(diagram, DOWN)
+
+        self.play(
+            Write(png_encoding_label)
+        )
+        self.wait()
+
+        huffman_mod_dec = Module(
+            ["Huffman","Decoder"],
+            text_weight=BOLD
+        ).scale(scale)
+
+        LZSS_mod_dec = Module(
+            ["LZSS", "Decoder"], 
+            fill_color=REDUCIBLE_GREEN_DARKER,
+            stroke_color=REDUCIBLE_GREEN_LIGHTER,
+            text_weight=BOLD
+        ).scale(scale)
+
+        reverse_filtering = Module(
+            ["Reverse", "Filtering"],
+            fill_color=REDUCIBLE_YELLOW_DARKER,
+            stroke_color=REDUCIBLE_YELLOW,
+            text_weight=BOLD
+        ).scale(scale)
+
+        decoding_diagram = VGroup(
+            output_file.copy(),
+            huffman_mod_dec,
+            LZSS_mod_dec,
+            reverse_filtering,
+            rgb_rep.copy()
+        ).arrange(RIGHT, buff=1)
+
+        arrows_dec = VGroup()
+
+        for i in range(len(decoding_diagram) - 1):
+            arrow = Arrow(
+                decoding_diagram[i].get_right(), decoding_diagram[i + 1].get_left(), 
+                buff=SMALL_BUFF,
+                max_tip_length_to_length_ratio=0.15
+            ).set_color(GRAY)
+            arrows_dec.add(arrow)
+
+        self.play(
+            TransformFromCopy(output_file, decoding_diagram[0])
+        )
+        self.play(
+            Write(arrows_dec[0])
+        )
+        self.play(
+            FadeIn(decoding_diagram[1])
+        )
+
+        self.play(
+            Write(arrows_dec[1])
+        )
+
+        self.play(
+            FadeIn(decoding_diagram[2])
+        )
+
+        self.play(
+            Write(arrows_dec[2])
+        )
+
+        self.play(
+            FadeIn(decoding_diagram[3])
+        )
+
+        self.play(
+            Write(arrows_dec[3])
+        )
+
+        self.play(
+            TransformFromCopy(rgb_rep, decoding_diagram[-1])
+        )
+
+        png_decoding_label =  png_encoding_label = Text("PNG Decoding", font="CMU Serif", weight=BOLD).scale(0.8).next_to(decoding_diagram, DOWN)
+
+        self.play(
+            Write(png_decoding_label)
+        )
+
+        self.wait()
+
+        png_good = Text("PNG is the best lossless image format based on compression ratio", font="CMU Serif").scale(0.7)
+
+        observation = Text("PNG is computationally expensive and complex", font="CMU Serif").scale(0.7)
+        observation.move_to(DOWN * 3)
+
+        filtering = Text("5 filter operations/row", font="CMU Serif").scale(0.7).move_to(observation.get_center())
+
+        lzss = Text("LZSS can be expensive", font="CMU Serif").scale(0.7).move_to(observation.get_center())
+
+        huffman_codes = Text("PNG specific Huffman Coding is wildly complex").scale(0.7).move_to(observation.get_center())
+
+        self.play(
+            FadeIn(observation)
+        )
+        self.wait()
+
+        self.play(
+            ReplacementTransform(observation, filtering)
+        )
+        self.wait()
+
+        self.play(
+            ReplacementTransform(filtering, lzss)
+        )
+        self.wait()
+
+        self.play(
+            ReplacementTransform(lzss, huffman_codes)
+        )
+        self.wait()
+
+    def get_image(self):
+        image = ImageMobject("r.png")
+        pixel_array = image.get_pixel_array().astype(int)
+        pixel_array_mob = PixelArray(pixel_array).scale(0.4).shift(UP * 2)
+
+        return pixel_array, pixel_array_mob
+
+    def show_rgb_split(self, pixel_array, pixel_array_mob, animate=True):
+        r_channel = pixel_array[:, :, 0]
+        g_channel = pixel_array[:, :, 1]
+        b_channel = pixel_array[:, :, 2]
+
+        r_channel_padded = self.get_channel_image(r_channel)
+        g_channel_padded = self.get_channel_image(g_channel, mode='G')
+        b_channel_padded = self.get_channel_image(b_channel, mode='B')
+
+        pixel_array_mob_r = PixelArray(r_channel_padded).scale(0.4).shift(LEFT * 4 + DOWN * 1.5)
+        pixel_array_mob_g = PixelArray(g_channel_padded).scale(0.4).shift(DOWN * 1.5)
+        pixel_array_mob_b = PixelArray(b_channel_padded).scale(0.4).shift(RIGHT * 4 + DOWN * 1.5)
+        if animate:
+            self.play(
+                TransformFromCopy(pixel_array_mob, pixel_array_mob_r),
+                TransformFromCopy(pixel_array_mob, pixel_array_mob_b),
+                TransformFromCopy(pixel_array_mob, pixel_array_mob_g)
+            )
+            self.wait()
+
+        r_channel_pixel_text = self.get_pixel_values(r_channel, pixel_array_mob_r)
+        g_channel_pixel_text = self.get_pixel_values(g_channel, pixel_array_mob_g, mode='G')
+        b_channel_pixel_text = self.get_pixel_values(b_channel, pixel_array_mob_b, mode='B')
+        if animate:
+            self.play(
+                FadeIn(r_channel_pixel_text),
+                FadeIn(g_channel_pixel_text),
+                FadeIn(b_channel_pixel_text)
+            )
+            self.wait()
+
+        rgb_rep = VGroup(
+            VGroup(pixel_array_mob_b, b_channel_pixel_text),
+            VGroup(pixel_array_mob_g, g_channel_pixel_text),
+            VGroup(pixel_array_mob_r, r_channel_pixel_text)
+        )
+
+        pixel_width, pixel_height = pixel_array_mob[0, 0].width, pixel_array_mob[0, 0].height
+        scale = 0.6
+        rgb_rep.scale(scale)
+        rgb_rep[2].move_to(ORIGIN)
+        offset_v = (pixel_height * UP + pixel_width * RIGHT) * scale
+        rgb_rep[1].move_to(offset_v)
+        rgb_rep[0].move_to(offset_v * 2)
+        return rgb_rep
+
+    def get_pixel_values(self, channel, channel_mob, mode='R'):
+        pixel_values_text = VGroup()
+        for p_val, mob in zip(channel.flatten(), channel_mob):
+            text = Text(str(int(p_val)), font="SF Mono", weight=MEDIUM).scale(0.25).move_to(mob.get_center())
+            if mode == 'G' and p_val > 200:
+                text.set_color(BLACK)
+            pixel_values_text.add(text)
+
+        return pixel_values_text
+
+    def get_channel_image(self, channel, mode='R'):
+        new_channel = np.zeros((channel.shape[0], channel.shape[1], 3))
+        for i in range(channel.shape[0]):
+            for j in range(channel.shape[1]):
+                if mode == 'R': 
+                    new_channel[i][j] = np.array([channel[i][j], 0, 0])
+                elif mode == 'G':
+                    new_channel[i][j] = np.array([0, channel[i][j], 0])
+                else:
+                    new_channel[i][j] = np.array([0, 0, channel[i][j]])
+
+        return new_channel
+        
+class PNGPerformance(Scene):
+    def construct(self):
+        self.show_png_perf()
+
+    def show_png_perf(self):
+        """
+        Compressing sample_5184×3456 to png
+        Time elapsed: 6.790195941 s
+
+        Compressing sample_5184×3456 to jpg
+        Time elapsed: 0.5938231489999994 s
+
+        --------------------------------------------------
+        Compressing sample_1280×853 to png
+        Time elapsed: 0.427553133 s
+
+        Compressing sample_1280×853 to jpg
+        Time elapsed: 0.030787092000000627 s
+
+        --------------------------------------------------
+        Compressing sample_1920×1280 to png
+        Time elapsed: 0.9290773519999993 s
+
+        Compressing sample_1920×1280 to jpg
+        Time elapsed: 0.07258648999999906 s
+
+        --------------------------------------------------
+        Compressing sample_640×426 to png
+        Time elapsed: 0.10736526900000065 s
+
+        Compressing sample_640×426 to jpg
+        Time elapsed: 0.007995269000000249 s
+
+        -------------------------------------------------
+        """
+        test_img = ImageMobject("sample_1920×1280").move_to(LEFT * 4)
+        test_img.scale(0.5)
+
+        test_img_label = Text("Test Image", font="CMU Serif", weight=BOLD).scale(0.5).next_to(test_img, UP)
+        bar_chart = ReducibleBarChart(
+            [6.79, 0.59],
+            max_value=8,
+            bar_colors=[REDUCIBLE_YELLOW, REDUCIBLE_PURPLE],
+            bar_names=["PNG", "JPEG"],
+            bar_label_scale_val=0.5,
+            height=5,
+            width=6,
+        ).move_to(RIGHT * 3)
+
+        title_line1 = Text("PNG vs JPEG Encoding Speed", font='CMU Serif', weight=BOLD).scale(0.5)
+        title_line2 = Text("(5184x3456 Image)", font='CMU Serif', weight=BOLD).scale(0.5).next_to(title_line1, DOWN, buff=SMALL_BUFF * 2)
+        title = VGroup(title_line1, title_line2).next_to(bar_chart, UP)
+
+        y_label = Text("Time (s)", font="SF Mono").scale(0.5).rotate(PI/2)
+        y_label.next_to(bar_chart, LEFT)
+
+        self.play(
+            Write(bar_chart),
+            Write(title),
+            Write(y_label),
+            FadeIn(test_img),
+            Write(test_img_label),
+            run_time=2
+        )
+        self.wait()
+        note = Text("*Tests run on Intel i7 quad core, 16 GB RAM", font="CMU Serif").scale(0.3)
+        note.next_to(bar_chart, DOWN)
+
+        self.add(note)
+        self.wait()
+
+        question = Tex("Is there a simpler, faster, and somewhat comparable compression scheme?").scale(0.7)
+        question.move_to(DOWN * 3.4)
+
+        self.play(
+            FadeOut(note),
+            Write(question),
+            run_time=2
+        )
+        self.wait()
+
+
+class QOIByteAligined(QOIDemoEnd):
+    def construct(self):
+        qoi_bitstream = [
+            self.get_small_diff_bytes_with_data(1, 0, -1),
+            self.get_run_bytes_with_data(3),
+            self.get_large_diff_bytes_with_data(20, -3, 5)
+        ]
+
+        qoi_bitstream = VGroup(*qoi_bitstream).arrange(RIGHT, buff=SMALL_BUFF)
+        qoi_bitstream.shift(UP * 0.5)
+
+        observation = Text("Decoder can process bytes without worrying about overlap", font="CMU Serif").scale(0.7)
+        observation.next_to(qoi_bitstream, DOWN * 2)
+        self.play(
+            FadeIn(qoi_bitstream)
+        )
+        self.wait()
+
+        self.play(
+            Write(observation)
+        )
+        self.wait()
+
+class QOISummary(Scene):
+    def construct(self):
+        screen_rect = ScreenRectangle(height=5).move_to(UP * 0.5)
+        core_qoi = Text("That's mostly the core QOI encoding algorithm (*)", font="CMU Serif").scale(0.8).next_to(screen_rect, DOWN)
+        note = Text("*QOI can also handle alpha/transparancy channels (like PNG)", font="CMU Serif").scale(0.5).move_to(DOWN * 3.5)
+        self.add(screen_rect)
+        note.next_to(core_qoi, DOWN * 2)
+        self.play(
+            Write(core_qoi)
+        )
+        self.wait()
+
+        self.add(note)
+        self.wait()
+
+class Conclusion(Scene):
+    """
+    GIF - 1987
+    JPEG - 1992
+    PNG - 1995
+    QOI - 2021
+    """
+    def construct(self):
+        number_line = NumberLine(
+            x_range=(1980, 2022, 5),
+            include_numbers=True,
+            numbers_to_include=[1980, 1990, 2000, 2010, 2020],
+            numbers_with_elongated_ticks=[1980, 1990, 2000, 2010, 2020],
+            length=12,
+            color=REDUCIBLE_PURPLE,
+            decimal_number_config={
+                "group_with_commas": False,
+                "num_decimal_places": 0,
+            }
+        )
+
+        gif = Text("GIF", font="CMU Serif", weight=BOLD).scale(0.7)
+        gif_dot = Dot().set_color(REDUCIBLE_GREEN_LIGHTER).move_to(number_line.n2p(1987))
+        gif.next_to(gif_dot, DOWN * 3)
+
+
+        gif_line = DashedLine(
+            gif_dot.get_center(),
+            gif.get_top()
+        ).set_color(REDUCIBLE_GREEN_LIGHTER)
+
+        jpeg = Text("JPEG", font="CMU Serif", weight=BOLD).scale(0.7)
+        jpeg_dot = Dot().set_color(ORANGE).move_to(number_line.n2p(1992))
+        jpeg.next_to(jpeg_dot, UP * 3)
+
+        jpeg_line = DashedLine(
+            jpeg_dot.get_center(),
+            jpeg.get_bottom()
+        ).set_color(ORANGE)
+
+        png = Text("PNG", font="CMU Serif", weight=BOLD).scale(0.7)
+        png_dot = Dot().set_color(REDUCIBLE_VIOLET).move_to(number_line.n2p(1995))
+        png.next_to(png_dot, DOWN * 3)
+
+        png_line = DashedLine(
+            png_dot.get_center(),
+            png.get_top()
+        ).set_color(REDUCIBLE_VIOLET)
+
+        qoi = Text("QOI", font="CMU Serif", weight=BOLD).scale(0.7)
+        qoi_dot = Dot().set_color(REDUCIBLE_YELLOW).move_to(number_line.n2p(2021))
+        qoi.next_to(qoi_dot, UP * 3)
+
+        qoi_line = DashedLine(
+            qoi_dot.get_center(),
+            qoi.get_bottom()
+        ).set_color(YELLOW)
+
+
+        self.play(
+            Write(number_line),
+        )
+        self.wait()
+
+        self.play(
+            Write(gif_line)
+        )
+        self.play(
+            Write(gif.shift(DOWN * SMALL_BUFF))
+        )
+        self.wait()
+
+        self.play(
+            Write(jpeg_line),
+            Write(jpeg.shift(UP * SMALL_BUFF))
+        )
+        self.wait()
+
+        self.play(
+            Write(png_line)
+        )
+        self.play(
+            Write(png.shift(DOWN * SMALL_BUFF))
+        )
+        self.wait()
+
+        self.play(
+            Write(qoi_line)
+        )
+        self.play(
+            Write(qoi.shift(UP * SMALL_BUFF))
+        )
+        self.wait()
+
+        quote = Tex("``I have no idea what I'm doing. I'm not a compression guy''").scale(0.8).move_to(DOWN * 2.5)
+
+        dominic = Tex("- Dominic Szablewski (creator of QOI)").scale(0.7).next_to(quote, DOWN)
+
+        self.play(
+            Write(quote)
+        )
+
+        self.play(
+            FadeIn(dominic)
+        )
+        self.wait()
+
+
+        self.clear()
+
+        screen_rect = ScreenRectangle(height=5)
+
+        self.play(
+            Create(screen_rect)
+        )
+        self.wait()
+
+        real_beauty = Text("Real beauty of QOI is its simplicity", font="CMU Serif").scale(0.8)
+        real_beauty.next_to(screen_rect, DOWN)
+
+        self.play(
+            Write(real_beauty)
+        )
+        self.wait()
