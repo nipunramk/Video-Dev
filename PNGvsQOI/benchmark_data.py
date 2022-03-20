@@ -83,13 +83,24 @@ class BenchmarkResults(Scene):
         ]
 
         texts = [
-            Text("Icons", font="CMU Serif", weight=BOLD).scale(0.3),
+            Text("Icons", font="CMU Serif", weight=BOLD, should_center=False).scale(
+                0.3
+            ),
             Text(
-                "Plants \n(transparent background)", font="CMU Serif", weight=BOLD
+                "Plants \n(transparent background)",
+                font="CMU Serif",
+                weight=BOLD,
+                should_center=False,
             ).scale(0.3),
-            Text("Analog Images", font="CMU Serif", weight=BOLD).scale(0.3),
-            Text("Game Stills", font="CMU Serif", weight=BOLD).scale(0.3),
-            Text("Textures", font="CMU Serif", weight=BOLD).scale(0.3),
+            Text(
+                "Analog Images", font="CMU Serif", weight=BOLD, should_center=False
+            ).scale(0.3),
+            Text(
+                "Game Stills", font="CMU Serif", weight=BOLD, should_center=False
+            ).scale(0.3),
+            Text("Textures", font="CMU Serif", weight=BOLD, should_center=False).scale(
+                0.3
+            ),
         ]
 
         self.play(Write(comp_rate), Write(legend))
@@ -118,12 +129,17 @@ class BenchmarkResults(Scene):
 
             texts[i // 2].next_to(comp_rate, UP, buff=0).shift(RIGHT * 5)
 
-            self.play(FadeIn(images[i + 1]), FadeIn(images[i]), FadeIn(texts[i // 2]))
-            self.wait()
+            self.play(
+                FadeIn(images[i + 1]),
+                FadeIn(images[i]),
+                FadeIn(texts[i // 2]),
+                run_time=0.7,
+            )
+            self.wait(0.2)
             self.play(
                 FadeOut(texts[i // 2]),
                 LaggedStart(FadeOut(images[i + 1]), FadeOut(images[i]), lag_ratio=0.5),
-                run_time=1,
+                run_time=0.7,
             )
 
         self.play(FadeOut(comp_rate), FadeOut(legend), FadeOut(annotation))
