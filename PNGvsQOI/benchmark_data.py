@@ -42,14 +42,6 @@ class BenchmarkResults(Scene):
         texture_1 = ImageMobject("BenchmarkResults/texture_1.png").scale(0.7)
         texture_2 = ImageMobject("BenchmarkResults/texture_2.png").scale(0.7)
 
-        green_sq = (
-            Square(fill_color=REDUCIBLE_GREEN, color=REDUCIBLE_GREEN)
-            .set_opacity(1)
-            .scale(0.2)
-        )
-        stid_text = Text("stib", font="SF Mono").scale(0.5)
-        g_l = VGroup(green_sq, stid_text).arrange(RIGHT, buff=0.2)
-
         purple_sq = (
             Square(color=REDUCIBLE_PURPLE, fill_color=REDUCIBLE_PURPLE)
             .set_opacity(1)
@@ -67,7 +59,7 @@ class BenchmarkResults(Scene):
         y_l = VGroup(yellow_sq, qoi_text).arrange(RIGHT, buff=0.2)
 
         legend = (
-            VGroup(g_l, p_l, y_l)
+            VGroup(p_l, y_l)
             .arrange(DOWN, buff=0.3, aligned_edge=LEFT)
             .scale(0.7)
             .next_to(comp_rate, UP + RIGHT * 0.5, buff=-1)
