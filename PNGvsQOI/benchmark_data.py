@@ -17,7 +17,7 @@ class BenchmarkResults(Scene):
                 "* Experiments run on MacMini M1 16GB compiled in C with gcc",
                 font="CMU Serif",
             )
-            .scale(0.2)
+            .scale(0.3)
             .to_corner(DR, buff=0.3)
         )
 
