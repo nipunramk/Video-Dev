@@ -8,7 +8,7 @@ Some considerations before rendering:
 
 from manim import *
 from math import floor
-from manim.mobject.geometry.tips import ArrowTriangleFilledTip
+from manim.mobject.geometry import ArrowTriangleFilledTip
 from numpy import ndarray, subtract
 from numpy.lib.arraypad import pad
 from functions import *
@@ -22,73 +22,73 @@ np.random.seed(1)
 config["assets_dir"] = "assets"
 
 
-class FilteringP2(MovingCameraScene):
+class FilteringInsertMSAD(MovingCameraScene):
     def construct(self):
         self.camera.frame.save_state()
         initial_state = self.camera.frame.copy()
 
-        self.intro_filtering()
+        # self.intro_filtering()
 
-        self.wait()
-        self.clear()
+        # self.wait()
+        # self.clear()
 
-        self.present_problem()
+        # self.present_problem()
 
-        self.wait()
-        self.clear()
+        # self.wait()
+        # self.clear()
 
-        self.five_filters_explanation()
+        # self.five_filters_explanation()
 
-        self.wait()
-        self.clear()
-        self.play(Transform(self.camera.frame, initial_state))
+        # self.wait()
+        # self.clear()
+        # self.play(Transform(self.camera.frame, initial_state))
 
-        self.minor_considerations()
+        # self.minor_considerations()
 
-        self.wait()
-        self.clear()
-        self.play(Transform(self.camera.frame, initial_state))
+        # self.wait()
+        # self.clear()
+        # self.play(Transform(self.camera.frame, initial_state))
 
-        self.what_filter_to_use()
+        # self.what_filter_to_use()
 
-        self.wait()
-        self.clear()
-        self.play(Transform(self.camera.frame, initial_state))
+        # self.wait()
+        # self.clear()
+        # self.play(Transform(self.camera.frame, initial_state))
 
-        self.low_bit_depth_images()
+        # self.low_bit_depth_images()
 
-        self.wait()
-        self.clear()
-        self.play(Transform(self.camera.frame, initial_state))
+        # self.wait()
+        # self.clear()
+        # self.play(Transform(self.camera.frame, initial_state))
 
-        self.palette_images()
+        # self.palette_images()
 
-        self.wait()
-        self.clear()
+        # self.wait()
+        # self.clear()
 
-        self.repeating_filters_performance()
+        # self.repeating_filters_performance()
 
-        self.wait()
-        self.clear()
+        # self.wait()
+        # self.clear()
 
-        self.combination_explosion()
+        # self.combination_explosion()
 
-        self.wait()
-        self.clear()
+        # self.wait()
+        # self.clear()
 
         self.msad_intro()
 
         self.wait()
         self.clear()
 
-        self.minimum_sum_of_absolute_differences()
+        # self.minimum_sum_of_absolute_differences()
 
-        self.wait()
-        self.clear()
+        # self.wait()
+        # self.clear()
 
-        self.png_decoding()
+        # self.png_decoding()
 
-        self.wait()
+        # self.wait()
 
     def intro_filtering(self):
         title = Text("Lossless Compression", font="CMU Serif", weight=BOLD).to_edge(UP)
@@ -1864,7 +1864,7 @@ class FilteringP2(MovingCameraScene):
         zero = Text("0", font="SF Mono").scale(0.6).next_to(left_mark, DOWN, buff=0.2)
 
         one_27 = (
-            Text("127", font="SF Mono").scale(0.6).next_to(middle_mark, DOWN, buff=0.2)
+            Text("128", font="SF Mono").scale(0.6).next_to(middle_mark, DOWN, buff=0.2)
         )
         two_55 = (
             Text("255", font="SF Mono").scale(0.6).next_to(right_mark, DOWN, buff=0.2)
@@ -1901,7 +1901,7 @@ class FilteringP2(MovingCameraScene):
             Text("-128", font="SF Mono").scale(0.6).next_to(left_mark2, UP, buff=0.2)
         )
 
-        random_row = np.random.randint(0, 255, (1, 8))
+        random_row = np.array([[22, 19, 95, 145, 45, 72, 37, 9]])
 
         # raw data
         row_mob = PixelArray(random_row, color_mode="GRAY", include_numbers=True)
@@ -2005,7 +2005,7 @@ class FilteringP2(MovingCameraScene):
             )
 
             one_27 = (
-                Text("127", font="SF Mono")
+                Text("128", font="SF Mono")
                 .scale(0.6)
                 .next_to(middle_mark, DOWN, buff=0.2)
             )

@@ -14,7 +14,7 @@ class BenchmarkResults(Scene):
         )
         annotation = (
             Text(
-                "* Experiments run on MacMini M1 16GB compiled in C with gcc",
+                "* Experiments run on MacMini M1 16GB using libpng/qoi source code",
                 font="CMU Serif",
             )
             .scale(0.3)

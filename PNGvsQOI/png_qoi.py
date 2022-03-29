@@ -176,7 +176,7 @@ class IntroPNG(ZoomedScene):
 
         self.remove(frame, zd_rect, self.zoomed_display, zoomed_display_frame)
 
-class QOIDemoEnd(Scene):
+class QOIDemo(Scene):
 
     def construct(self):
         """
@@ -827,7 +827,7 @@ class QOIDemoEnd(Scene):
         dr_dg, db_dg = dr - dg, db - dg
         dg_text = Text(f"dg = {curr_g} - {prev_g}", font='SF Mono', weight=MEDIUM).scale(0.4)
         dr_dg_text = Text(f"dr - dg = ({curr_r} - {prev_r}) - ({curr_g} - {prev_g})", font='SF Mono', weight=MEDIUM).scale(0.4)
-        db_dg_text = Text(f"db = ({curr_b} - {prev_b}) - ({curr_g} - {prev_g})", font='SF Mono', weight=MEDIUM).scale(0.4)
+        db_dg_text = Text(f"db - dg = ({curr_b} - {prev_b}) - ({curr_g} - {prev_g})", font='SF Mono', weight=MEDIUM).scale(0.4)
 
         text = align_text_vertically(dg_text, dr_dg_text, db_dg_text, aligned_edge=LEFT)
 
@@ -940,7 +940,7 @@ class QOIDemoEnd(Scene):
             )
             self.wait()
 
-            index_detail = Text("index = (140 * 77 + 77 * 5 + 251 * 7) % 16", font='SF Mono', weight=MEDIUM).scale(0.5)
+            index_detail = Text("index = (140 * 3 + 77 * 5 + 251 * 7) % 16", font='SF Mono', weight=MEDIUM).scale(0.5)
             index_detail.next_to(index_text, DOWN, aligned_edge=LEFT)
 
             self.play(
@@ -1860,7 +1860,7 @@ class QOIDemoEnd(Scene):
 
         return transforms
 
-class SumUpOfPNGEnd(Scene):
+class SumUpOfPNG(Scene):
     def construct(self):
         pixel_array, pixel_array_mob = self.get_image()
         rgb_rep = self.show_rgb_split(pixel_array, pixel_array_mob, animate=False)
@@ -2147,6 +2147,294 @@ class SumUpOfPNGEnd(Scene):
                     new_channel[i][j] = np.array([0, 0, channel[i][j]])
 
         return new_channel
+
+class SumUpOfPNGPIP(Scene):
+    def construct(self):
+        pixel_array, pixel_array_mob = self.get_image()
+        rgb_rep = self.show_rgb_split(pixel_array, pixel_array_mob, animate=False)
+        self.show_diagram(rgb_rep)
+
+    def show_diagram(self, rgb_rep):
+        rgb_rep.scale(0.6)
+        scale = 0.55
+        filtering_mod = Module(
+            "Filtering",
+            fill_color=REDUCIBLE_YELLOW_DARKER,
+            stroke_color=REDUCIBLE_YELLOW,
+            text_weight=BOLD
+        ).scale(scale)
+
+        LZSS_mod = Module(
+            "LZSS", 
+            fill_color=REDUCIBLE_GREEN_DARKER,
+            stroke_color=REDUCIBLE_GREEN_LIGHTER,
+            text_weight=BOLD
+        ).scale(scale)
+
+        huffman_mod = Module(
+            ["Huffman","Coding"],
+            text_weight=BOLD
+        ).scale(scale)
+
+        output_file = SVGMobject("png_file").scale_to_fit_height(huffman_mod.height + SMALL_BUFF * 2)
+
+        diagram = VGroup(rgb_rep, filtering_mod, LZSS_mod, huffman_mod, output_file).arrange(RIGHT, buff=1)
+        diagram.move_to(UP * 1.5)
+        arrows = VGroup()
+
+        for i in range(len(diagram) - 1):
+            arrow = Arrow(
+                diagram[i].get_right(), diagram[i + 1].get_left(), 
+                buff=SMALL_BUFF,
+                max_tip_length_to_length_ratio=0.15
+            ).set_color(GRAY)
+            arrows.add(arrow)
+
+        
+
+        self.play(
+            FadeIn(diagram[0])
+        )
+
+        # screen_rect = ScreenRectangle(height=4.5)
+        # screen_rect.move_to(DOWN * 1)
+
+        self.play(
+            Write(arrows[0]),
+            FadeIn(diagram[1]),
+            # FadeIn(screen_rect)
+        )
+        self.wait()
+
+        self.play(
+            Write(arrows[1]),
+            FadeIn(diagram[2])
+        )
+
+        self.wait()
+
+        self.play(
+            Write(arrows[2]),
+            FadeIn(diagram[3])
+        )
+        self.wait()
+
+        self.play(
+            Write(arrows[3]),
+            FadeIn(diagram[4])
+        )
+        self.wait()
+
+        # surround_rect = SurroundingRectangle(VGroup(LZSS_mod, huffman_mod), buff=SMALL_BUFF, color=REDUCIBLE_YELLOW)
+        # self.play(
+        #     Create(surround_rect)
+        # )
+        # deflate = Text("DEFLATE compression", font="CMU Serif", weight=BOLD).scale(0.7)
+        # deflate.next_to(surround_rect, DOWN)
+
+        # self.play(
+        #     Write(deflate)
+        # )
+        # self.wait()
+
+        # self.play(
+        #     FadeOut(deflate),
+        #     FadeOut(surround_rect),
+        #     FadeOut(screen_rect)
+        # )
+
+        png_encoding_label = Text("PNG Encoding", font="CMU Serif", weight=BOLD).scale(0.8).next_to(diagram, DOWN)
+
+        self.play(
+            Write(png_encoding_label)
+        )
+        self.wait()
+
+        huffman_mod_dec = Module(
+            ["Huffman","Decoder"],
+            text_weight=BOLD
+        ).scale(scale)
+
+        LZSS_mod_dec = Module(
+            ["LZSS", "Decoder"], 
+            fill_color=REDUCIBLE_GREEN_DARKER,
+            stroke_color=REDUCIBLE_GREEN_LIGHTER,
+            text_weight=BOLD
+        ).scale(scale)
+
+        reverse_filtering = Module(
+            ["Reverse", "Filtering"],
+            fill_color=REDUCIBLE_YELLOW_DARKER,
+            stroke_color=REDUCIBLE_YELLOW,
+            text_weight=BOLD
+        ).scale(scale)
+
+        decoding_diagram = VGroup(
+            output_file.copy(),
+            huffman_mod_dec,
+            LZSS_mod_dec,
+            reverse_filtering,
+            rgb_rep.copy()
+        ).arrange(RIGHT, buff=1).move_to(DOWN * 1.5)
+
+        arrows_dec = VGroup()
+
+        for i in range(len(decoding_diagram) - 1):
+            arrow = Arrow(
+                decoding_diagram[i].get_right(), decoding_diagram[i + 1].get_left(), 
+                buff=SMALL_BUFF,
+                max_tip_length_to_length_ratio=0.15
+            ).set_color(GRAY)
+            arrows_dec.add(arrow)
+
+        self.play(
+            TransformFromCopy(output_file, decoding_diagram[0])
+        )
+        self.play(
+            Write(arrows_dec[0])
+        )
+        self.play(
+            FadeIn(decoding_diagram[1])
+        )
+
+        self.play(
+            Write(arrows_dec[1])
+        )
+
+        self.play(
+            FadeIn(decoding_diagram[2])
+        )
+
+        self.play(
+            Write(arrows_dec[2])
+        )
+
+        self.play(
+            FadeIn(decoding_diagram[3])
+        )
+
+        self.play(
+            Write(arrows_dec[3])
+        )
+
+        self.play(
+            TransformFromCopy(rgb_rep, decoding_diagram[-1])
+        )
+
+        png_decoding_label =  png_encoding_label = Text("PNG Decoding", font="CMU Serif", weight=BOLD).scale(0.8).next_to(decoding_diagram, DOWN)
+
+        self.play(
+            Write(png_decoding_label)
+        )
+
+        self.wait()
+
+        png_good = Text("PNG is the best lossless image format based on compression ratio", font="CMU Serif").scale(0.7)
+
+        observation = Text("PNG is computationally expensive and complex", font="CMU Serif").scale(0.7)
+        observation.move_to(DOWN * 3)
+
+        filtering = Text("5 filter operations/row", font="CMU Serif").scale(0.7).move_to(observation.get_center())
+
+        lzss = Text("LZSS can be expensive", font="CMU Serif").scale(0.7).move_to(observation.get_center())
+
+        huffman_codes = Text("PNG specific Huffman Coding is wildly complex").scale(0.7).move_to(observation.get_center())
+
+        self.play(
+            FadeIn(observation)
+        )
+        self.wait()
+
+        self.play(
+            ReplacementTransform(observation, filtering)
+        )
+        self.wait()
+
+        self.play(
+            ReplacementTransform(filtering, lzss)
+        )
+        self.wait()
+
+        self.play(
+            ReplacementTransform(lzss, huffman_codes)
+        )
+        self.wait()
+
+    def get_image(self):
+        image = ImageMobject("r.png")
+        pixel_array = image.get_pixel_array().astype(int)
+        pixel_array_mob = PixelArray(pixel_array).scale(0.4).shift(UP * 2)
+
+        return pixel_array, pixel_array_mob
+
+    def show_rgb_split(self, pixel_array, pixel_array_mob, animate=True):
+        r_channel = pixel_array[:, :, 0]
+        g_channel = pixel_array[:, :, 1]
+        b_channel = pixel_array[:, :, 2]
+
+        r_channel_padded = self.get_channel_image(r_channel)
+        g_channel_padded = self.get_channel_image(g_channel, mode='G')
+        b_channel_padded = self.get_channel_image(b_channel, mode='B')
+
+        pixel_array_mob_r = PixelArray(r_channel_padded).scale(0.4).shift(LEFT * 4 + DOWN * 1.5)
+        pixel_array_mob_g = PixelArray(g_channel_padded).scale(0.4).shift(DOWN * 1.5)
+        pixel_array_mob_b = PixelArray(b_channel_padded).scale(0.4).shift(RIGHT * 4 + DOWN * 1.5)
+        if animate:
+            self.play(
+                TransformFromCopy(pixel_array_mob, pixel_array_mob_r),
+                TransformFromCopy(pixel_array_mob, pixel_array_mob_b),
+                TransformFromCopy(pixel_array_mob, pixel_array_mob_g)
+            )
+            self.wait()
+
+        r_channel_pixel_text = self.get_pixel_values(r_channel, pixel_array_mob_r)
+        g_channel_pixel_text = self.get_pixel_values(g_channel, pixel_array_mob_g, mode='G')
+        b_channel_pixel_text = self.get_pixel_values(b_channel, pixel_array_mob_b, mode='B')
+        if animate:
+            self.play(
+                FadeIn(r_channel_pixel_text),
+                FadeIn(g_channel_pixel_text),
+                FadeIn(b_channel_pixel_text)
+            )
+            self.wait()
+
+        rgb_rep = VGroup(
+            VGroup(pixel_array_mob_b, b_channel_pixel_text),
+            VGroup(pixel_array_mob_g, g_channel_pixel_text),
+            VGroup(pixel_array_mob_r, r_channel_pixel_text)
+        )
+
+        pixel_width, pixel_height = pixel_array_mob[0, 0].width, pixel_array_mob[0, 0].height
+        scale = 0.6
+        rgb_rep.scale(scale)
+        rgb_rep[2].move_to(ORIGIN)
+        offset_v = (pixel_height * UP + pixel_width * RIGHT) * scale
+        rgb_rep[1].move_to(offset_v)
+        rgb_rep[0].move_to(offset_v * 2)
+        return rgb_rep
+
+    def get_pixel_values(self, channel, channel_mob, mode='R'):
+        pixel_values_text = VGroup()
+        for p_val, mob in zip(channel.flatten(), channel_mob):
+            text = Text(str(int(p_val)), font="SF Mono", weight=MEDIUM).scale(0.25).move_to(mob.get_center())
+            if mode == 'G' and p_val > 200:
+                text.set_color(BLACK)
+            pixel_values_text.add(text)
+
+        return pixel_values_text
+
+    def get_channel_image(self, channel, mode='R'):
+        new_channel = np.zeros((channel.shape[0], channel.shape[1], 3))
+        for i in range(channel.shape[0]):
+            for j in range(channel.shape[1]):
+                if mode == 'R': 
+                    new_channel[i][j] = np.array([channel[i][j], 0, 0])
+                elif mode == 'G':
+                    new_channel[i][j] = np.array([0, channel[i][j], 0])
+                else:
+                    new_channel[i][j] = np.array([0, 0, channel[i][j]])
+
+        return new_channel
         
 class PNGPerformance(Scene):
     def construct(self):
@@ -2230,7 +2518,7 @@ class PNGPerformance(Scene):
         self.wait()
 
 
-class QOIByteAligined(QOIDemoEnd):
+class QOIByteAligined(QOIDemo):
     def construct(self):
         qoi_bitstream = [
             self.get_small_diff_bytes_with_data(1, 0, -1),
@@ -2390,5 +2678,26 @@ class Conclusion(Scene):
 
         self.play(
             Write(real_beauty)
+        )
+        self.wait()
+
+        self.play(
+            FadeOut(real_beauty)
+        )
+        self.wait()
+
+class Patreons(Scene):
+    def construct(self):
+        thanks = Tex("Special Thanks to These Patreons").scale(1.2)
+        patreons = ["Burt Humburg", "Winston Durand", r"Adam D\v{r}ínek", "Andreas", "Matt Q"]
+        patreon_text = VGroup(*[thanks] + [Tex(name).scale(0.9) for name in patreons])
+        patreon_text.arrange(DOWN)
+        patreon_text.to_edge(DOWN)
+
+        self.play(
+            Write(patreon_text[0])
+        )
+        self.play(
+            *[Write(text) for text in patreon_text[1:]]
         )
         self.wait()

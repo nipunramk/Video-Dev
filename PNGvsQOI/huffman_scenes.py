@@ -275,27 +275,27 @@ class HuffmanCodes(HuffmanCodeIntro):
         )
         self.wait()
 
-        nodes_pq = self.sort_nodes(nodes)
-        tree_nodes, tree_edges = self.make_huffman_tree(nodes_pq)
+        # nodes_pq = self.sort_nodes(nodes)
+        # tree_nodes, tree_edges = self.make_huffman_tree(nodes_pq)
 
-        self.show_encodings(tree_nodes, tree_edges)
+        # self.show_encodings(tree_nodes, tree_edges)
 
-        self.explain_savings()
+        # self.explain_savings()
 
-        self.clear()
+        # self.clear()
 
-        screen_rect = ScreenRectangle(height=6).shift(UP * 0.5)
-        self.play(
-            Create(screen_rect)
-        )
-        self.wait()
+        # screen_rect = ScreenRectangle(height=6).shift(UP * 0.5)
+        # self.play(
+        #     Create(screen_rect)
+        # )
+        # self.wait()
 
-        mild_spoiler = Text("PNG uses Huffman Encoding in final stage of compression").scale(0.7).next_to(screen_rect, DOWN)
+        # mild_spoiler = Text("PNG uses Huffman Encoding in final stage of compression").scale(0.7).next_to(screen_rect, DOWN)
 
-        self.play(
-            Write(mild_spoiler)
-        )
-        self.wait()
+        # self.play(
+        #     Write(mild_spoiler)
+        # )
+        # self.wait()
 
     def highlight_pixel_values(self, channel_mob):
         pixel_array_mob, pixel_text = channel_mob
@@ -446,7 +446,7 @@ class HuffmanCodes(HuffmanCodeIntro):
     def get_example_image(self):
         pixel_array, pixel_array_mob = self.show_image(animate=False)
         r_channel, g_channel, b_channel = self.show_rgb_split(pixel_array, pixel_array_mob, animate=False)
-        return b_channel, pixel_array[:, :, 2]
+        return g_channel, pixel_array[:, :, 1]
 
 
     def show_image(self, animate=True):
@@ -980,6 +980,17 @@ class IntroRLE(HuffmanCodes):
 
         self.play(
             FadeIn(lzss)
+        )
+        self.wait()
+
+        final_group = VGroup(lzss, text_snippet)
+        self.play(
+            final_group.animate.move_to(ORIGIN),
+            FadeOut(lempel_img),
+            FadeOut(ziv_img),
+            FadeOut(abraham),
+            FadeOut(jacob),
+            FadeOut(lempel_ziv)
         )
         self.wait()
 
