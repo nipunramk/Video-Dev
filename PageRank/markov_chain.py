@@ -204,12 +204,16 @@ class MarkovChainSimulator:
         radius = self.markov_chain_g.vertices[0].width / 2
 
         xxRand = np.random.normal(0, 1, size=(1, 2))
+
         # generate two sets of normal variables
         normRand = np.linalg.norm(xxRand, 2, 1)
+
         # Euclidean norms
         xxRandBall = xxRand / normRand[:, None]
+
         # rescale by Euclidean norms
         xxRandBall = radius * xxRandBall
+
         # rescale for non-unit sphere
         # retrieve x and y coordinates
         xx = xxRandBall[:, 0]
