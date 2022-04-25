@@ -1,17 +1,26 @@
 import sys
+
 ### THIS IS A WORKAROUND FOR NOW
 ### IT REQUIRES RUNNING MANIM FROM INSIDE DIRECTORY VIDEO-DEV
-sys.path.insert(1, 'common/')
+sys.path.insert(1, "common/")
 
 from manim import *
 import networkx as nx
 import typing
 from reducible_colors import *
 import numpy as np
+
 np.random.seed(23)
 
+
 class MarkovChain:
-    def __init__(self, states: int, edges: list[tuple[int, int]], transition_matrix=None, dist=None):
+    def __init__(
+        self,
+        states: int,
+        edges: list[tuple[int, int]],
+        transition_matrix=None,
+        dist=None,
+    ):
         """
         @param: states -- number of states in Markov Chain
         @param: edges -- list of tuples (u, v) for a directed edge u to v, u in range(0, states), v in range(0, states)
@@ -40,7 +49,9 @@ class MarkovChain:
         if dist is not None:
             self.dist = dist
         else:
-            self.dist = np.array([1 / len(self.states) for _ in range(len(self.states))])
+            self.dist = np.array(
+                [1 / len(self.states) for _ in range(len(self.states))]
+            )
 
     def get_states(self):
         return list(self.states)
@@ -64,22 +75,44 @@ class MarkovChain:
         self.dist = np.dot(self.dist, self.transition_matrix)
 
 
+class CustomLabel(Text):
+    def __init__(self, label, font="SF Mono", scale=1, weight=BOLD):
+        super().__init__(label, font=font, weight=weight)
+        self.scale(scale)
+
+
 class MarkovChainGraph(Graph):
-    def __init__(self, 
+    def __init__(
+        self,
         markov_chain: MarkovChain,
-        vertex_config={"stroke_color": REDUCIBLE_VIOLET, "stroke_width": 2, "fill_color": REDUCIBLE_PURPLE, "fill_opacity": 1},
-        edge_config={'color': REDUCIBLE_VIOLET , 'max_tip_length_to_length_ratio': 0.1},
-        **kwargs):
+        vertex_config={
+            "stroke_color": REDUCIBLE_PURPLE,
+            "stroke_width": 3,
+            "fill_color": REDUCIBLE_PURPLE,
+            "fill_opacity": 0.5,
+        },
+        edge_config={
+            "color": REDUCIBLE_VIOLET,
+            "max_tip_length_to_length_ratio": 0.06,
+            "stroke_width": 3,
+        },
+        **kwargs
+    ):
+        self.markov_chain = markov_chain
         super().__init__(
-            markov_chain.get_states(), 
-            markov_chain.get_edges(), 
+            markov_chain.get_states(),
+            markov_chain.get_edges(),
             vertex_config=vertex_config,
             edge_config=edge_config,
-            edge_type=Arrow, **kwargs
+            edge_type=Arrow,
+            labels={
+                k: CustomLabel(str(k), scale=0.6) for k in markov_chain.get_states()
+            },
+            **kwargs
         )
         for edge in self.edges:
             self.scale_edge_arrow(edge)
-    
+
     def scale_edge_arrow(self, edge: tuple[int, int]):
         u, v = edge
         arrow = self.edges[edge]
@@ -91,16 +124,65 @@ class MarkovChainGraph(Graph):
         arrow_end = v_c - unit_vec * self.vertices[v].radius
         self.edges[edge] = Arrow(arrow_start, arrow_end)
 
+    def get_transition_labels(self):
+        """
+        This function returns a VGroup with the probability that each
+        each state has to transition to another state, based on the
+        Chain's transition matrix.
+
+        It essentially takes each edge's probability and creates a label to put
+        on top of it, for easier indication and explanation.
+
+        This function returns the labels already set up in a VGroup, ready to just
+        be created.
+        """
+        tm = self.markov_chain.get_transition_matrix()
+        labels = VGroup()
+        for s in range(len(tm)):
+            for e in range(len(tm[0])):
+                if s != e and tm[s, e] != 0:
+                    edge_tuple = (s, e)
+                    matrix_prob = tm[s, e]
+                    print(edge_tuple, matrix_prob)
+
+                    labels.add(
+                        Text(str(matrix_prob), font=REDUCIBLE_MONO)
+                        .set_stroke(BLACK, width=8, background=True, opacity=0.8)
+                        .scale(0.3)
+                        .move_to(self.edges[edge_tuple])
+                        .move_to(
+                            self.vertices[edge_tuple[0]],
+                            coor_mask=[0.6, 0.6, 0.6],
+                        )
+                    )
+
+        return labels
+
+
 class MarkovChainSimulator:
-    def __init__(self, markov_chain: MarkovChain, markov_chain_g: MarkovChainGraph, num_users=50):
+    def __init__(
+        self, markov_chain: MarkovChain, markov_chain_g: MarkovChainGraph, num_users=50
+    ):
         self.markov_chain = markov_chain
         self.markov_chain_g = markov_chain_g
         self.num_users = num_users
         self.init_users()
-    
+
     def init_users(self):
-        self.user_to_state = {i: np.random.choice(self.markov_chain.get_states(), p=self.markov_chain.get_current_dist()) for i in range(self.num_users)}
-        self.users = [Dot().set_color(REDUCIBLE_YELLOW) for _ in range(self.num_users)]
+        self.user_to_state = {
+            i: np.random.choice(
+                self.markov_chain.get_states(), p=self.markov_chain.get_current_dist()
+            )
+            for i in range(self.num_users)
+        }
+        self.users = [
+            Dot(radius=0.05)
+            .set_color(REDUCIBLE_YELLOW)
+            .set_opacity(0.6)
+            .set_stroke(REDUCIBLE_YELLOW, width=2, opacity=0.8)
+            for _ in range(self.num_users)
+        ]
+
         for user_id, user in enumerate(self.users):
             user_location = self.get_user_location(user_id)
             user.move_to(user_location)
@@ -108,8 +190,11 @@ class MarkovChainSimulator:
     def get_user_location(self, user: int):
         user_state = self.user_to_state[user]
         user_location = self.markov_chain_g.vertices[user_state].get_center()
-        noise_v = RIGHT * np.random.normal(-0.1, 0.1) + UP * np.random.normal(-0.15, 0.15)
-        return user_location + noise_v
+        distributed_point = self.poisson_distribution(user_location)
+
+        user_location = [distributed_point[0], distributed_point[1], 0.0]
+
+        return user_location
 
     def get_users(self):
         return self.users
@@ -121,7 +206,9 @@ class MarkovChainSimulator:
     def update_state(self, user_id: int):
         current_state = self.user_to_state[user_id]
         transition_matrix = self.markov_chain.get_transition_matrix()
-        new_state = np.random.choice(self.markov_chain.get_states(), p=transition_matrix[current_state])
+        new_state = np.random.choice(
+            self.markov_chain.get_states(), p=transition_matrix[current_state]
+        )
         return new_state
 
     def get_instant_transition_animations(self):
@@ -129,9 +216,7 @@ class MarkovChainSimulator:
         self.transition()
         for user_id, user in enumerate(self.users):
             new_location = self.get_user_location(user_id)
-            transition_animations.append(
-                user.animate.move_to(new_location)
-            )
+            transition_animations.append(user.animate.move_to(new_location))
         return transition_animations
 
     def get_lagged_smooth_transition_animations(self):
@@ -144,8 +229,43 @@ class MarkovChainSimulator:
             )
         return transition_map
 
+    def poisson_distribution(self, center):
+        """
+        This function creates a poisson distribution that places
+        users around the center of the given state,
+        particularly across the state's stroke.
+
+        Implementation taken from: https://github.com/hpaulkeeler/posts/blob/master/PoissonCircle/PoissonCircle.py
+        """
+
+        radius = self.markov_chain_g.vertices[0].width / 2
+
+        xxRand = np.random.normal(0, 1, size=(1, 2))
+
+        # generate two sets of normal variables
+        normRand = np.linalg.norm(xxRand, 2, 1)
+
+        # Euclidean norms
+        xxRandBall = xxRand / normRand[:, None]
+
+        # rescale by Euclidean norms
+        xxRandBall = radius * xxRandBall
+
+        # rescale for non-unit sphere
+        # retrieve x and y coordinates
+        xx = xxRandBall[:, 0]
+        yy = xxRandBall[:, 1]
+
+        # Shift centre of circle to (xx0,yy0)
+        xx = xx + center[0]
+        yy = yy + center[1]
+
+        return (xx[0], yy[0])
+
+
 class MarkovChainTester(Scene):
     def construct(self):
+
         markov_chain = MarkovChain(
             4,
             [(0, 1), (1, 0), (0, 2), (1, 2), (1, 3), (2, 3), (3, 1)],
@@ -156,27 +276,23 @@ class MarkovChainTester(Scene):
         print(markov_chain.get_adjacency_list())
         print(markov_chain.get_transition_matrix())
 
-        markov_chain_g = MarkovChainGraph(markov_chain, labels=True)
-        self.play(
-            FadeIn(markov_chain_g)
-        )
+        markov_chain_g = MarkovChainGraph(markov_chain)
+        self.play(FadeIn(markov_chain_g))
         self.wait()
 
-        markov_chain_sim = MarkovChainSimulator(markov_chain, markov_chain_g, num_users=100)
+        markov_chain_sim = MarkovChainSimulator(
+            markov_chain, markov_chain_g, num_users=50
+        )
         users = markov_chain_sim.get_users()
 
-        self.play(
-            *[FadeIn(user) for user in users]
-        )
+        self.play(*[FadeIn(user) for user in users])
         self.wait()
 
         num_steps = 10
         for _ in range(num_steps):
             transition_animations = markov_chain_sim.get_instant_transition_animations()
-            self.play(
-                *transition_animations
-            )
-            self.wait()
+            self.play(*transition_animations)
+        self.wait()
 
         for _ in range(num_steps):
             transition_map = markov_chain_sim.get_lagged_smooth_transition_animations()
@@ -184,7 +300,7 @@ class MarkovChainTester(Scene):
                 *[LaggedStart(*transition_map[i]) for i in markov_chain.get_states()]
             )
             self.wait()
-
+            
 class MarkovChainIntro(Scene):
     def construct(self):
         pass
@@ -196,5 +312,3 @@ class IntroImportanceProblem(Scene):
 class IntroStationaryDistribution(Scene):
     def construct(self):
         pass
-
-
