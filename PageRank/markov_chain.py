@@ -91,7 +91,11 @@ class MarkovChainGraph(Graph):
             "fill_color": REDUCIBLE_PURPLE,
             "fill_opacity": 0.5,
         },
-        edge_config={"color": REDUCIBLE_VIOLET, "max_tip_length_to_length_ratio": 0.08},
+        edge_config={
+            "color": REDUCIBLE_VIOLET,
+            "max_tip_length_to_length_ratio": 0.06,
+            "stroke_width": 3,
+        },
         **kwargs
     ):
 
