@@ -98,7 +98,7 @@ class MarkovChainGraph(Graph):
         },
         **kwargs
     ):
-
+        self.markov_chain = markov_chain
         super().__init__(
             markov_chain.get_states(),
             markov_chain.get_edges(),
@@ -124,6 +124,40 @@ class MarkovChainGraph(Graph):
         arrow_start = u_c + unit_vec * self.vertices[u].radius
         arrow_end = v_c - unit_vec * self.vertices[v].radius
         self.edges[edge] = Arrow(arrow_start, arrow_end)
+
+    def get_transition_labels(self):
+        """
+        This function returns a VGroup with the probability that each
+        each state has to transition to another state, based on the
+        Chain's transition matrix.
+
+        It essentially takes each edge's probability and creates a label to put
+        on top of it, for easier indication and explanation.
+
+        This function returns the labels already set up in a VGroup, ready to just
+        be created.
+        """
+        tm = self.markov_chain.get_transition_matrix()
+        labels = VGroup()
+        for s in range(len(tm)):
+            for e in range(len(tm[0])):
+                if s != e and tm[s, e] != 0:
+                    edge_tuple = (s, e)
+                    matrix_prob = tm[s, e]
+                    print(edge_tuple, matrix_prob)
+
+                    labels.add(
+                        Text(str(matrix_prob), font=REDUCIBLE_MONO)
+                        .set_stroke(BLACK, width=8, background=True, opacity=0.8)
+                        .scale(0.3)
+                        .move_to(self.edges[edge_tuple])
+                        .move_to(
+                            self.vertices[edge_tuple[0]],
+                            coor_mask=[0.6, 0.6, 0.6],
+                        )
+                    )
+
+        return labels
 
 
 class MarkovChainSimulator:
