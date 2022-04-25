@@ -85,7 +85,6 @@ class MarkovChainGraph(Graph):
         arrow = self.edges[edge]
         v_c = self.vertices[v].get_center()
         u_c = self.vertices[u].get_center()
-        # print('Before', u_c, v_c)
         vec = v_c - u_c
         unit_vec = vec / np.linalg.norm(vec)
         arrow_start = u_c + unit_vec * self.vertices[u].radius
@@ -186,6 +185,16 @@ class MarkovChainTester(Scene):
             )
             self.wait()
 
+class MarkovChainIntro(Scene):
+    def construct(self):
+        pass
 
+class IntroImportanceProblem(Scene):
+    def construct(self):
+        pass
+
+class IntroStationaryDistribution(Scene):
+    def construct(self):
+        pass
 
 
