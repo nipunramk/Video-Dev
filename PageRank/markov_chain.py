@@ -143,7 +143,8 @@ class MarkovChainGraph(Graph):
                 if s != e and tm[s, e] != 0:
                     edge_tuple = (s, e)
                     matrix_prob = tm[s, e]
-                    print(edge_tuple, matrix_prob)
+                    if round(matrix_prob, 2) != matrix_prob:
+                        matrix_prob = round(matrix_prob, 2)
 
                     labels.add(
                         Text(str(matrix_prob), font=REDUCIBLE_MONO)
@@ -277,7 +278,11 @@ class MarkovChainTester(Scene):
         print(markov_chain.get_transition_matrix())
 
         markov_chain_g = MarkovChainGraph(markov_chain)
-        self.play(FadeIn(markov_chain_g))
+        markov_chain_t_labels = markov_chain_g.get_transition_labels()
+        self.play(
+            FadeIn(markov_chain_g),
+            FadeIn(markov_chain_t_labels)
+        )
         self.wait()
 
         markov_chain_sim = MarkovChainSimulator(
@@ -300,7 +305,9 @@ class MarkovChainTester(Scene):
                 *[LaggedStart(*transition_map[i]) for i in markov_chain.get_states()]
             )
             self.wait()
-            
+
+
+
 class MarkovChainIntro(Scene):
     def construct(self):
         pass
@@ -311,4 +318,24 @@ class IntroImportanceProblem(Scene):
 
 class IntroStationaryDistribution(Scene):
     def construct(self):
-        pass
+        markov_chain = MarkovChain(
+            5,
+            [(0, 1), (1, 0), (0, 2), (1, 2), (1, 3), (2, 3), (3, 1), (2, 4), (1, 4), (4, 2), (3, 4), (4, 0)],
+        )
+        markov_chain_g = MarkovChainGraph(markov_chain, layout="circular")
+        markov_chain_t_labels = markov_chain_g.get_transition_labels()
+
+        self.play(
+            FadeIn(markov_chain_g),
+            # FadeIn(markov_chain_t_labels)
+        )
+        self.wait()
+        markov_chain_sim = MarkovChainSimulator(
+            markov_chain, markov_chain_g, num_users=1
+        )
+        users = markov_chain_sim.get_users()
+
+        self.play(*[FadeIn(user) for user in users])
+        self.wait()
+        import scipy.linalg as la
+        print(la.eig(np.transpose(markov_chain.get_transition_matrix()))[1][:,0])
