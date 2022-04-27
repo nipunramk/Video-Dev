@@ -1,3 +1,4 @@
+from logging import Filterer
 import sys
 
 ### THIS IS A WORKAROUND FOR NOW
@@ -106,9 +107,26 @@ class MarkovChainGraph(Graph):
             "fill_color": REDUCIBLE_PURPLE,
             "fill_opacity": 0.5,
         },
+        curved_edge_config: dict = None,
+        straight_edge_config: dict = None,
+        enable_curved_double_arrows=True,
         **kwargs,
     ):
         self.markov_chain = markov_chain
+        self.enable_curved_double_arrows = enable_curved_double_arrows
+
+        self.default_curved_edge_config = {
+            "color": REDUCIBLE_VIOLET,
+            "stroke_width": 3,
+            "radius": 4,
+        }
+
+        self.default_straight_edge_config = {
+            "color": REDUCIBLE_VIOLET,
+            "max_tip_length_to_length_ratio": 0.06,
+            "stroke_width": 3,
+        }
+
         super().__init__(
             markov_chain.get_states(),
             markov_chain.get_edges(),
@@ -122,7 +140,11 @@ class MarkovChainGraph(Graph):
         self._graph = self._graph.to_directed()
         self.remove_edges(*self.edges)
 
-        self.add_markov_chain_edges(*markov_chain.get_edges())
+        self.add_markov_chain_edges(
+            *markov_chain.get_edges(),
+            straight_edge_config=straight_edge_config,
+            curved_edge_config=curved_edge_config,
+        )
 
         self.clear_updaters()
 
@@ -183,7 +205,8 @@ class MarkovChainGraph(Graph):
     def add_markov_chain_edges(
         self,
         *edges: tuple[Hashable, Hashable],
-        edge_config: dict = None,
+        curved_edge_config: dict = None,
+        straight_edge_config: dict = None,
         **kwargs,
     ):
         """
@@ -193,16 +216,21 @@ class MarkovChainGraph(Graph):
 
         """
 
-        if edge_config is None:
-            edge_config = {}
-        non_edge_settings = {k: v for (k, v) in edge_config.items() if k not in edges}
-        base_edge_config = self.default_edge_config.copy()
-        base_edge_config.update(non_edge_settings)
+        if curved_edge_config is not None:
+            curved_config_copy = self.default_curved_edge_config.copy()
+            curved_config_copy.update(curved_edge_config)
+            curved_edge_config = curved_config_copy
+        else:
+            curved_edge_config = self.default_curved_edge_config.copy()
 
-        base_edge_config = {e: base_edge_config.copy() for e in edges}
-        for e in edges:
-            base_edge_config[e].update(edge_config.get(e, {}))
-        edge_config = base_edge_config
+        if straight_edge_config is not None:
+            straight_config_copy = self.default_straight_edge_config.copy()
+            straight_config_copy.update(straight_edge_config)
+            straight_edge_config = straight_config_copy
+        else:
+            straight_edge_config = self.default_straight_edge_config.copy()
+
+        print(straight_edge_config)
 
         edge_vertices = set(it.chain(*edges))
         new_vertices = [v for v in edge_vertices if v not in self.vertices]
@@ -210,32 +238,11 @@ class MarkovChainGraph(Graph):
 
         edge_types_dict = {}
         for e in edges:
-            if (e[1], e[0]) in edges:
-                edge_types_dict.update(
-                    {
-                        e: (
-                            CustomCurvedArrow,
-                            {
-                                "color": REDUCIBLE_VIOLET,
-                                "stroke_width": 3,
-                                "radius": 4,
-                            },
-                        )
-                    }
-                )
+            if self.enable_curved_double_arrows and (e[1], e[0]) in edges:
+                edge_types_dict.update({e: (CustomCurvedArrow, curved_edge_config)})
+
             else:
-                edge_types_dict.update(
-                    {
-                        e: (
-                            Arrow,
-                            {
-                                "color": REDUCIBLE_VIOLET,
-                                "max_tip_length_to_length_ratio": 0.06,
-                                "stroke_width": 3,
-                            },
-                        )
-                    }
-                )
+                edge_types_dict.update({e: (Arrow, straight_edge_config)})
 
         added_mobjects = sum(
             (
