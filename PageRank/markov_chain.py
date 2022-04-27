@@ -1,4 +1,3 @@
-from logging import Filterer
 import sys
 
 ### THIS IS A WORKAROUND FOR NOW
