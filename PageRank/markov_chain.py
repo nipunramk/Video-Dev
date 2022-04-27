@@ -127,6 +127,8 @@ class MarkovChainGraph(Graph):
             "stroke_width": 3,
         }
 
+        self.labels = []
+
         super().__init__(
             markov_chain.get_states(),
             markov_chain.get_edges(),
@@ -148,6 +150,8 @@ class MarkovChainGraph(Graph):
 
         self.clear_updaters()
 
+        # this updater makes sure the edges remain connected
+        # even when states move around
         def update_edges(graph):
             for (u, v), edge in graph.edges.items():
                 v_c = self.vertices[v].get_center()
@@ -168,7 +172,8 @@ class MarkovChainGraph(Graph):
         edge_config: dict = None,
     ):
         """
-        Custom function to add edges to our Markov Chain
+        Custom function to add edges to our Markov Chain,
+        making sure the arrowheads land properly on the states.
         """
         if edge_config is None:
             edge_config = self.default_edge_config.copy()
@@ -214,6 +219,14 @@ class MarkovChainGraph(Graph):
         This function aims to make double arrows curved when two nodes
         point to each other, leaving the other ones straight.
 
+        Parameters
+        ----------
+
+        - edges: a list of tuples connecting states of the Markov Chain
+        - curved_edge_config: a dictionary specifying the configuration
+        for CurvedArrows, if any
+        - straight_edge_config: a dictionary specifying the configuration
+        for Arrows
         """
 
         if curved_edge_config is not None:
@@ -274,13 +287,14 @@ class MarkovChainGraph(Graph):
 
         labels = VGroup()
         for s in range(len(tm)):
+
             for e in range(len(tm[0])):
                 if s != e and tm[s, e] != 0:
 
                     edge_tuple = (s, e)
                     matrix_prob = tm[s, e]
 
-                    labels.add(
+                    label = (
                         Text(str(matrix_prob), font=REDUCIBLE_MONO)
                         .set_stroke(BLACK, width=8, background=True, opacity=0.8)
                         .scale(0.3)
@@ -290,6 +304,24 @@ class MarkovChainGraph(Graph):
                             coor_mask=[0.6, 0.6, 0.6],
                         )
                     )
+
+                    def label_updater(label):
+                        label.move_to(self.edges[edge_tuple]).move_to(
+                            self.vertices[edge_tuple[0]],
+                            coor_mask=[0.6, 0.6, 0.6],
+                        )
+
+                    labels.add(label)
+                    self.labels.append((label, edge_tuple))
+
+        def update_labels(graph):
+            for l, e in graph.labels:
+                l.move_to(graph.edges[e]).move_to(
+                    graph.vertices[e[0]],
+                    coor_mask=[0.6, 0.6, 0.6],
+                )
+
+        self.add_updater(update_labels)
 
         return labels
 
