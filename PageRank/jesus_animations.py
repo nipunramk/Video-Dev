@@ -1,7 +1,4 @@
-from os import P_ALL
 import sys
-
-from manim.mobject.mobject import T
 
 
 sys.path.insert(1, "common/")
