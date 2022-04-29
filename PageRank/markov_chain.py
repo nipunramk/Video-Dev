@@ -344,12 +344,14 @@ class MarkovChainGraph(Graph):
 
 class MarkovChainSimulator:
     def __init__(
-        self, markov_chain: MarkovChain, markov_chain_g: MarkovChainGraph, num_users=50
+        self, markov_chain: MarkovChain, markov_chain_g: MarkovChainGraph, num_users=50, user_radius=0.035, user_color=REDUCIBLE_YELLOW
     ):
         self.markov_chain = markov_chain
         self.markov_chain_g = markov_chain_g
         self.num_users = num_users
         self.state_counts = {i: 0 for i in markov_chain.get_states()}
+        self.user_radius = user_radius
+        self.user_color = user_color
         self.init_users()
 
     def init_users(self):
@@ -363,10 +365,10 @@ class MarkovChainSimulator:
             self.state_counts[self.user_to_state[user_id]] += 1
 
         self.users = [
-            Dot(radius=0.035)
-            .set_color(REDUCIBLE_YELLOW)
+            Dot(radius=self.user_radius)
+            .set_color(self.user_color)
             .set_opacity(0.6)
-            .set_stroke(REDUCIBLE_YELLOW, width=2, opacity=0.8)
+            .set_stroke(self.user_color, width=2, opacity=0.8)
             for _ in range(self.num_users)
         ]
 
@@ -507,24 +509,13 @@ class MarkovChainTester(Scene):
 
 
 
-class MarkovChainIntro(Scene):
+class MarkovChainIntro2(Scene):
     def construct(self):
         web_markov_chain, web_graph = self.get_web_graph()
-        self.add(web_graph)
-        self.wait()
-        # edge = web_graph.edges[(300, 301)]
-        # print(edge.get_start(), edge.get_end())
-        # print(web_graph.vertices[300].get_center(), web_graph.vertices[301].get_center())
-        # self.play(
-        #     Indicate(web_graph.vertices[300]),
-        #     Indicate(web_graph.vertices[301]),
-        # )
+        # self.add(web_graph)
         # self.wait()
-        # self.play(
-        #     self.camera.frame.animate.set_width(24),
-        #     run_time=3
-        # )
-        # self.wait()
+
+        self.start_simulation(web_markov_chain, web_graph)
 
     def get_web_graph(self):
         graph_layout = self.get_web_graph_layout()
@@ -563,6 +554,26 @@ class MarkovChainIntro(Scene):
                         edges.append((u, v))
         return edges
 
+    def start_simulation(self, markov_chain, markov_chain_g):
+        markov_chain_sim = MarkovChainSimulator(
+            markov_chain, markov_chain_g, num_users=5000, user_radius=0.01,
+        )
+        users = markov_chain_sim.get_users()
+
+        self.add(*users)
+        self.wait()
+
+        num_steps = 10
+        # for _ in range(num_steps):
+        #     transition_animations = markov_chain_sim.get_instant_transition_animations()
+        #     self.play(*transition_animations)
+        # self.wait()
+
+        for _ in range(num_steps):
+            transition_map = markov_chain_sim.get_lagged_smooth_transition_animations()
+            self.play(
+                *[LaggedStart(*transition_map[i]) for i in markov_chain.get_states()]
+            )
 
 
 
@@ -580,9 +591,9 @@ class IntroStationaryDistribution(Scene):
             5,
             [(0, 1), (1, 0), (0, 2), (1, 2), (1, 3), (2, 0), (2, 3), (3, 1), (2, 4), (1, 4), (4, 2), (3, 4), (4, 0)],
         )
-        markov_chain_g = MarkovChainGraph(markov_chain, layout="circular")
+        markov_chain_g = MarkovChainGraph(markov_chain, enable_curved_double_arrows=False, layout="circular")
         markov_chain_t_labels = markov_chain_g.get_transition_labels()
-        # markov_chain_g.scale(1.5)
+        markov_chain_g.scale(1.5)
         self.play(
             FadeIn(markov_chain_g),
             # FadeIn(markov_chain_t_labels)
@@ -598,7 +609,7 @@ class IntroStationaryDistribution(Scene):
         self.play(*[FadeIn(user) for user in users])
         self.wait()
 
-        num_steps = 100
+        num_steps = 10
         print('Count', markov_chain_sim.get_state_counts())
         print('Dist', markov_chain_sim.get_user_dist())
         count_labels = self.get_current_count_mobs(markov_chain_g, markov_chain_sim)
