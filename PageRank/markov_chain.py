@@ -5,10 +5,13 @@ import sys
 sys.path.insert(1, "common/")
 
 from manim import *
-import networkx as nx
-import typing
+from manim.mobject.geometry.tips import ArrowTriangleFilledTip
 from reducible_colors import *
+
+from typing import Hashable
+
 import numpy as np
+import itertools as it
 
 np.random.seed(23)
 
@@ -81,6 +84,18 @@ class CustomLabel(Text):
         self.scale(scale)
 
 
+class CustomCurvedArrow(CurvedArrow):
+    def __init__(self, start, end, tip_length=0.15, **kwargs):
+        super().__init__(start, end, **kwargs)
+        self.pop_tips()
+        self.add_tip(
+            tip_shape=ArrowTriangleFilledTip,
+            tip_length=tip_length,
+            at_start=False,
+        )
+        self.tip.z_index = -100
+
+
 class MarkovChainGraph(Graph):
     def __init__(
         self,
@@ -91,38 +106,169 @@ class MarkovChainGraph(Graph):
             "fill_color": REDUCIBLE_PURPLE,
             "fill_opacity": 0.5,
         },
-        edge_config={
+        curved_edge_config: dict = None,
+        straight_edge_config: dict = None,
+        enable_curved_double_arrows=True,
+        **kwargs,
+    ):
+        self.markov_chain = markov_chain
+        self.enable_curved_double_arrows = enable_curved_double_arrows
+
+        self.default_curved_edge_config = {
+            "color": REDUCIBLE_VIOLET,
+            "stroke_width": 3,
+            "radius": 4,
+        }
+
+        self.default_straight_edge_config = {
             "color": REDUCIBLE_VIOLET,
             "max_tip_length_to_length_ratio": 0.06,
             "stroke_width": 3,
-        },
-        **kwargs
-    ):
-        self.markov_chain = markov_chain
+        }
+
+        self.labels = []
+
         super().__init__(
             markov_chain.get_states(),
             markov_chain.get_edges(),
             vertex_config=vertex_config,
-            edge_config=edge_config,
-            edge_type=Arrow,
             labels={
                 k: CustomLabel(str(k), scale=0.6) for k in markov_chain.get_states()
             },
-            **kwargs
+            **kwargs,
         )
-        for edge in self.edges:
-            self.scale_edge_arrow(edge)
 
-    def scale_edge_arrow(self, edge: tuple[int, int]):
+        self._graph = self._graph.to_directed()
+        self.remove_edges(*self.edges)
+
+        self.add_markov_chain_edges(
+            *markov_chain.get_edges(),
+            straight_edge_config=straight_edge_config,
+            curved_edge_config=curved_edge_config,
+        )
+
+        self.clear_updaters()
+
+        # this updater makes sure the edges remain connected
+        # even when states move around
+        def update_edges(graph):
+            for (u, v), edge in graph.edges.items():
+                v_c = self.vertices[v].get_center()
+                u_c = self.vertices[u].get_center()
+                vec = v_c - u_c
+                unit_vec = vec / np.linalg.norm(vec)
+
+                arrow_start = u_c + unit_vec * self.vertices[u].radius
+                arrow_end = v_c - unit_vec * self.vertices[v].radius
+                edge.put_start_and_end_on(arrow_start, arrow_end)
+
+        self.add_updater(update_edges)
+
+    def add_edge_buff(
+        self,
+        edge: tuple[Hashable, Hashable],
+        edge_type: type[Mobject] = None,
+        edge_config: dict = None,
+    ):
+        """
+        Custom function to add edges to our Markov Chain,
+        making sure the arrowheads land properly on the states.
+        """
+        if edge_config is None:
+            edge_config = self.default_edge_config.copy()
+        added_mobjects = []
+        for v in edge:
+            if v not in self.vertices:
+                added_mobjects.append(self._add_vertex(v))
         u, v = edge
-        arrow = self.edges[edge]
+
+        self._graph.add_edge(u, v)
+
+        base_edge_config = self.default_edge_config.copy()
+        base_edge_config.update(edge_config)
+        edge_config = base_edge_config
+        self._edge_config[(u, v)] = edge_config
+
         v_c = self.vertices[v].get_center()
         u_c = self.vertices[u].get_center()
         vec = v_c - u_c
         unit_vec = vec / np.linalg.norm(vec)
+
         arrow_start = u_c + unit_vec * self.vertices[u].radius
         arrow_end = v_c - unit_vec * self.vertices[v].radius
-        self.edges[edge] = Arrow(arrow_start, arrow_end)
+
+        edge_mobject = edge_type(
+            start=arrow_start, end=arrow_end, z_index=-100, **edge_config
+        )
+        self.edges[(u, v)] = edge_mobject
+
+        self.add(edge_mobject)
+        added_mobjects.append(edge_mobject)
+        return self.get_group_class()(*added_mobjects)
+
+    def add_markov_chain_edges(
+        self,
+        *edges: tuple[Hashable, Hashable],
+        curved_edge_config: dict = None,
+        straight_edge_config: dict = None,
+        **kwargs,
+    ):
+        """
+        Custom function for our specific case of Markov Chains.
+        This function aims to make double arrows curved when two nodes
+        point to each other, leaving the other ones straight.
+
+        Parameters
+        ----------
+
+        - edges: a list of tuples connecting states of the Markov Chain
+        - curved_edge_config: a dictionary specifying the configuration
+        for CurvedArrows, if any
+        - straight_edge_config: a dictionary specifying the configuration
+        for Arrows
+        """
+
+        if curved_edge_config is not None:
+            curved_config_copy = self.default_curved_edge_config.copy()
+            curved_config_copy.update(curved_edge_config)
+            curved_edge_config = curved_config_copy
+        else:
+            curved_edge_config = self.default_curved_edge_config.copy()
+
+        if straight_edge_config is not None:
+            straight_config_copy = self.default_straight_edge_config.copy()
+            straight_config_copy.update(straight_edge_config)
+            straight_edge_config = straight_config_copy
+        else:
+            straight_edge_config = self.default_straight_edge_config.copy()
+
+        print(straight_edge_config)
+
+        edge_vertices = set(it.chain(*edges))
+        new_vertices = [v for v in edge_vertices if v not in self.vertices]
+        added_vertices = self.add_vertices(*new_vertices, **kwargs)
+
+        edge_types_dict = {}
+        for e in edges:
+            if self.enable_curved_double_arrows and (e[1], e[0]) in edges:
+                edge_types_dict.update({e: (CustomCurvedArrow, curved_edge_config)})
+
+            else:
+                edge_types_dict.update({e: (Arrow, straight_edge_config)})
+
+        added_mobjects = sum(
+            (
+                self.add_edge_buff(
+                    edge,
+                    edge_type=e_type_and_config[0],
+                    edge_config=e_type_and_config[1],
+                ).submobjects
+                for edge, e_type_and_config in edge_types_dict.items()
+            ),
+            added_vertices,
+        )
+
+        return self.get_group_class()(*added_mobjects)
 
     def get_transition_labels(self):
         """
@@ -137,15 +283,17 @@ class MarkovChainGraph(Graph):
         be created.
         """
         tm = self.markov_chain.get_transition_matrix()
+
         labels = VGroup()
         for s in range(len(tm)):
+
             for e in range(len(tm[0])):
                 if s != e and tm[s, e] != 0:
+
                     edge_tuple = (s, e)
                     matrix_prob = tm[s, e]
-                    print(edge_tuple, matrix_prob)
 
-                    labels.add(
+                    label = (
                         Text(str(matrix_prob), font=REDUCIBLE_MONO)
                         .set_stroke(BLACK, width=8, background=True, opacity=0.8)
                         .scale(0.3)
@@ -155,6 +303,24 @@ class MarkovChainGraph(Graph):
                             coor_mask=[0.6, 0.6, 0.6],
                         )
                     )
+
+                    def label_updater(label):
+                        label.move_to(self.edges[edge_tuple]).move_to(
+                            self.vertices[edge_tuple[0]],
+                            coor_mask=[0.6, 0.6, 0.6],
+                        )
+
+                    labels.add(label)
+                    self.labels.append((label, edge_tuple))
+
+        def update_labels(graph):
+            for l, e in graph.labels:
+                l.move_to(graph.edges[e]).move_to(
+                    graph.vertices[e[0]],
+                    coor_mask=[0.6, 0.6, 0.6],
+                )
+
+        self.add_updater(update_labels)
 
         return labels
 
@@ -176,7 +342,7 @@ class MarkovChainSimulator:
             for i in range(self.num_users)
         }
         self.users = [
-            Dot(radius=0.05)
+            Dot(radius=0.035)
             .set_color(REDUCIBLE_YELLOW)
             .set_opacity(0.6)
             .set_stroke(REDUCIBLE_YELLOW, width=2, opacity=0.8)
@@ -300,14 +466,17 @@ class MarkovChainTester(Scene):
                 *[LaggedStart(*transition_map[i]) for i in markov_chain.get_states()]
             )
             self.wait()
-            
+
+
 class MarkovChainIntro(Scene):
     def construct(self):
         pass
 
+
 class IntroImportanceProblem(Scene):
     def construct(self):
         pass
+
 
 class IntroStationaryDistribution(Scene):
     def construct(self):
