@@ -77,6 +77,9 @@ class MarkovChain:
         """
         self.dist = np.dot(self.dist, self.transition_matrix)
 
+    def get_true_stationary_dist(self):
+        dist = np.linalg.eig(np.transpose(self.transition_matrix))[1][:,0]
+        return dist / sum(dist)
 
 class CustomLabel(Text):
     def __init__(self, label, font="SF Mono", scale=1, weight=BOLD):
@@ -109,6 +112,7 @@ class MarkovChainGraph(Graph):
         curved_edge_config: dict = None,
         straight_edge_config: dict = None,
         enable_curved_double_arrows=True,
+        labels=True,
         **kwargs,
     ):
         self.markov_chain = markov_chain
@@ -126,17 +130,22 @@ class MarkovChainGraph(Graph):
             "stroke_width": 3,
         }
 
+        if labels:
+            labels={
+                k: CustomLabel(str(k), scale=0.6) for k in markov_chain.get_states()
+            }
+        
+
         self.labels = []
 
         super().__init__(
             markov_chain.get_states(),
             markov_chain.get_edges(),
             vertex_config=vertex_config,
-            labels={
-                k: CustomLabel(str(k), scale=0.6) for k in markov_chain.get_states()
-            },
-            **kwargs,
+            labels=labels,
+            **kwargs
         )
+        
 
         self._graph = self._graph.to_directed()
         self.remove_edges(*self.edges)
@@ -194,8 +203,13 @@ class MarkovChainGraph(Graph):
         vec = v_c - u_c
         unit_vec = vec / np.linalg.norm(vec)
 
-        arrow_start = u_c + unit_vec * self.vertices[u].radius
-        arrow_end = v_c - unit_vec * self.vertices[v].radius
+        if self.enable_curved_double_arrows:
+            arrow_start = u_c + unit_vec * self.vertices[u].radius
+            arrow_end = v_c - unit_vec * self.vertices[v].radius
+        else:
+            arrow_start = u_c
+            arrow_end = v_c
+            edge_config["buff"] = self.vertices[u].radius
 
         edge_mobject = edge_type(
             start=arrow_start, end=arrow_end, z_index=-100, **edge_config
@@ -293,6 +307,9 @@ class MarkovChainGraph(Graph):
                     edge_tuple = (s, e)
                     matrix_prob = tm[s, e]
 
+                    if round(matrix_prob, 2) != matrix_prob:
+                        matrix_prob = round(matrix_prob, 2)
+
                     label = (
                         Text(str(matrix_prob), font=REDUCIBLE_MONO)
                         .set_stroke(BLACK, width=8, background=True, opacity=0.8)
@@ -332,6 +349,7 @@ class MarkovChainSimulator:
         self.markov_chain = markov_chain
         self.markov_chain_g = markov_chain_g
         self.num_users = num_users
+        self.state_counts = {i: 0 for i in markov_chain.get_states()}
         self.init_users()
 
     def init_users(self):
@@ -341,6 +359,9 @@ class MarkovChainSimulator:
             )
             for i in range(self.num_users)
         }
+        for user_id in self.user_to_state:
+            self.state_counts[self.user_to_state[user_id]] += 1
+
         self.users = [
             Dot(radius=0.035)
             .set_color(REDUCIBLE_YELLOW)
@@ -375,7 +396,20 @@ class MarkovChainSimulator:
         new_state = np.random.choice(
             self.markov_chain.get_states(), p=transition_matrix[current_state]
         )
+        self.state_counts[new_state] += 1
         return new_state
+
+    def get_state_counts(self):
+        return self.state_counts
+
+    def get_user_dist(self, round_val=False):
+        dist = {}
+        total_counts = sum(self.state_counts.values())
+        for user_id, count in self.state_counts.items():
+            dist[user_id] = self.state_counts[user_id] / total_counts
+            if round_val:
+                dist[user_id] = round(dist[user_id], 2)
+        return dist
 
     def get_instant_transition_animations(self):
         transition_animations = []
@@ -442,8 +476,12 @@ class MarkovChainTester(Scene):
         print(markov_chain.get_adjacency_list())
         print(markov_chain.get_transition_matrix())
 
-        markov_chain_g = MarkovChainGraph(markov_chain)
-        self.play(FadeIn(markov_chain_g))
+        markov_chain_g = MarkovChainGraph(markov_chain, enable_curved_double_arrows=False)
+        markov_chain_t_labels = markov_chain_g.get_transition_labels()
+        self.play(
+            FadeIn(markov_chain_g),
+            FadeIn(markov_chain_t_labels)
+        )
         self.wait()
 
         markov_chain_sim = MarkovChainSimulator(
@@ -468,9 +506,64 @@ class MarkovChainTester(Scene):
             self.wait()
 
 
+
 class MarkovChainIntro(Scene):
     def construct(self):
-        pass
+        web_markov_chain, web_graph = self.get_web_graph()
+        self.add(web_graph)
+        self.wait()
+        # edge = web_graph.edges[(300, 301)]
+        # print(edge.get_start(), edge.get_end())
+        # print(web_graph.vertices[300].get_center(), web_graph.vertices[301].get_center())
+        # self.play(
+        #     Indicate(web_graph.vertices[300]),
+        #     Indicate(web_graph.vertices[301]),
+        # )
+        # self.wait()
+        # self.play(
+        #     self.camera.frame.animate.set_width(24),
+        #     run_time=3
+        # )
+        # self.wait()
+
+    def get_web_graph(self):
+        graph_layout = self.get_web_graph_layout()
+        graph_edges = self.get_web_graph_edges(graph_layout)
+        
+        print(len(graph_layout))
+        markov_chain = MarkovChain(
+            len(graph_layout),
+            graph_edges
+        )
+        markov_chain_g = MarkovChainGraph(markov_chain, enable_curved_double_arrows=False, labels=False, layout=graph_layout)
+ 
+        return markov_chain, markov_chain_g
+
+    def get_web_graph_layout(self):
+        grid_height = 8
+        grid_width = 12
+
+        layout = {}
+        node_id = 0
+        STEP = 0.5
+        for i in np.arange(-grid_height // 2, grid_height // 2, STEP):
+            for j in np.arange(-grid_width // 2, grid_width // 2, STEP):
+                noise = (RIGHT * np.random.uniform(-1, 1) + UP * np.random.uniform(-1, 1))
+                layout[node_id] = UP * i + RIGHT * j + noise * STEP / 3.1
+                node_id += 1
+
+        return layout
+
+    def get_web_graph_edges(self, graph_layout):
+        edges = []
+        for u in graph_layout:
+            for v in graph_layout:
+                if u != v and np.linalg.norm(graph_layout[v] - graph_layout[u]) < 0.9:
+                    if np.random.uniform() < 0.7:
+                        edges.append((u, v))
+        return edges
+
+
 
 
 class IntroImportanceProblem(Scene):
@@ -480,4 +573,113 @@ class IntroImportanceProblem(Scene):
 
 class IntroStationaryDistribution(Scene):
     def construct(self):
-        pass
+        self.show_counts()
+
+    def show_counts(self):
+        markov_chain = MarkovChain(
+            5,
+            [(0, 1), (1, 0), (0, 2), (1, 2), (1, 3), (2, 0), (2, 3), (3, 1), (2, 4), (1, 4), (4, 2), (3, 4), (4, 0)],
+        )
+        markov_chain_g = MarkovChainGraph(markov_chain, layout="circular")
+        markov_chain_t_labels = markov_chain_g.get_transition_labels()
+        # markov_chain_g.scale(1.5)
+        self.play(
+            FadeIn(markov_chain_g),
+            # FadeIn(markov_chain_t_labels)
+        )
+        self.wait()
+        markov_chain_sim = MarkovChainSimulator(
+            markov_chain, markov_chain_g, num_users=1
+        )
+        users = markov_chain_sim.get_users()
+        # scale user a bit here
+        users[0].scale(1.5)
+
+        self.play(*[FadeIn(user) for user in users])
+        self.wait()
+
+        num_steps = 100
+        print('Count', markov_chain_sim.get_state_counts())
+        print('Dist', markov_chain_sim.get_user_dist())
+        count_labels = self.get_current_count_mobs(markov_chain_g, markov_chain_sim)
+        self.play(
+            *[FadeIn(label) for label in count_labels.values()]
+        )
+        self.wait()
+        use_dist = False
+        for i in range(num_steps):
+            transition_animations = markov_chain_sim.get_instant_transition_animations()
+            count_labels, count_transforms = self.update_count_labels(count_labels, markov_chain_g, markov_chain_sim, use_dist=use_dist)
+            self.play(
+                *transition_animations + count_transforms
+            )
+            if i < 5: 
+                self.wait()
+            if i > 20:
+                use_dist = True
+            print('Iteration', i)
+            print('Count', markov_chain_sim.get_state_counts())
+            print('Dist', markov_chain_sim.get_user_dist())
+
+        true_stationary_dist = markov_chain.get_true_stationary_dist()
+        print('True stationary dist', true_stationary_dist)
+        print('Norm:', np.linalg.norm(true_stationary_dist))
+
+    def get_current_count_mobs(self, markov_chain_g, markov_chain_sim, use_dist=False):
+        vertex_mobs_map = markov_chain_g.vertices
+        count_labels = {}
+        for v in vertex_mobs_map:
+            if not use_dist:
+                state_counts = markov_chain_sim.get_state_counts()
+                label = Text(str(state_counts[v]), font="SF Mono").scale(0.6)
+            else:
+                state_counts = markov_chain_sim.get_user_dist(round_val=True)
+                label = Text("{0:.2f}".format(state_counts[v]), font="SF Mono").scale(0.6)
+            label_direction = normalize(vertex_mobs_map[v].get_center() - markov_chain_g.get_center())
+            label.next_to(vertex_mobs_map[v], label_direction)
+            count_labels[v] = label
+
+        return count_labels
+
+    def update_count_labels(self, count_labels, markov_chain_g, markov_chain_sim, use_dist=False):
+        if count_labels is None:
+            count_labels = self.get_current_count_mobs(markov_chain_g, markov_chain_sim, use_dist=use_dist)
+            transforms = [Write(label) for label in count_labels.values()]
+
+        else:
+            new_count_labels = self.get_current_count_mobs(markov_chain_g, markov_chain_sim, use_dist=use_dist)
+            transforms = [Transform(count_labels[v], new_count_labels[v]) for v in count_labels]
+
+        return count_labels, transforms
+
+class StationaryDistPreview(Scene):
+    def construct(self):
+        stationary_dist = Text("Stationary Distribution", font="CMU Serif", weight=BOLD).scale(0.8)
+        point_1 = Text("1. How to find stationary distributions?", font="CMU Serif").scale(0.5)
+        point_2 = Text("2. When do they exist?", font="CMU Serif").scale(0.5)
+        point_3 = Text("3. How do we efficiently compute them?").scale(0.5)
+        points = VGroup(point_1, point_2, point_3).arrange(DOWN, aligned_edge=LEFT)
+
+        text = VGroup(stationary_dist, points).arrange(DOWN)
+
+        text.move_to(LEFT * 3.5)
+
+        self.play(
+            Write(text[0])
+        )
+        self.wait()
+
+        self.play(
+            FadeIn(point_1)
+        )
+        self.wait()
+
+        self.play(
+            FadeIn(point_2)
+        )
+        self.wait()
+
+        self.play(
+            FadeIn(point_3)
+        )
+        self.wait()
