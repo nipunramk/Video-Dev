@@ -99,6 +99,19 @@ class CustomCurvedArrow(CurvedArrow):
         )
         self.tip.z_index = -100
 
+    def set_opacity(self, opacity, family=True):
+        return super().set_opacity(opacity, family)
+
+    @override_animate(set_opacity)
+    def _set_opacity_animation(self, opacity=1, anim_args=None):
+        if anim_args is None:
+            anim_args = {}
+
+        animate_stroke = self.animate.set_stroke(opacity=opacity)
+        animate_tip = self.tip.animate.set_opacity(opacity)
+
+        return AnimationGroup(*[animate_stroke, animate_tip])
+
 
 class CustomArrow(Arrow):
     def __init__(self, start, end, tip_length=0.15, **kwargs):
@@ -298,7 +311,7 @@ class MarkovChainGraph(Graph):
 
         return self.get_group_class()(*added_mobjects)
 
-    def get_transition_labels(self):
+    def get_transition_labels(self, scale=0.3):
         """
         This function returns a VGroup with the probability that each
         each state has to transition to another state, based on the
@@ -326,8 +339,8 @@ class MarkovChainGraph(Graph):
 
                     label = (
                         Text(str(matrix_prob), font=REDUCIBLE_MONO)
-                        .set_stroke(BLACK, width=8, background=True, opacity=0.8)
-                        .scale(0.3)
+                        .scale(scale)
+                        .set_stroke(BLACK, width=4, background=True, opacity=0.8)
                         .move_to(self.edges[edge_tuple])
                         .move_to(
                             self.vertices[edge_tuple[0]],
