@@ -90,6 +90,9 @@ class CustomLabel(Text):
 
 class CustomCurvedArrow(CurvedArrow):
     def __init__(self, start, end, tip_length=0.15, **kwargs):
+        self.start = start
+        self.end = end
+
         super().__init__(start, end, **kwargs)
         self.pop_tips()
         self.add_tip(
@@ -191,11 +194,12 @@ class MarkovChainGraph(Graph):
                 vec = v_c - u_c
                 unit_vec = vec / np.linalg.norm(vec)
 
-                arrow_start = u_c + unit_vec * self.vertices[u].radius
-                arrow_end = v_c - unit_vec * self.vertices[v].radius
+                arrow_start = u_c + unit_vec * (self.vertices[u].width / 2)
+                arrow_end = v_c - unit_vec * (self.vertices[v].width / 2)
+
                 edge.put_start_and_end_on(arrow_start, arrow_end)
 
-        self.add_updater(update_edges)
+        self.add_updater(update_edges, 0)
 
     def add_edge_buff(
         self,
@@ -227,16 +231,8 @@ class MarkovChainGraph(Graph):
         vec = v_c - u_c
         unit_vec = vec / np.linalg.norm(vec)
 
-        arrow_start = u_c + unit_vec * self.vertices[u].radius
-        arrow_end = v_c - unit_vec * self.vertices[v].radius
-
-        # if self.enable_curved_double_arrows:
-        #     arrow_start = u_c + unit_vec * self.vertices[u].radius
-        #     arrow_end = v_c - unit_vec * self.vertices[v].radius
-        # else:
-        #     arrow_start = u_c
-        #     arrow_end = v_c
-        #     edge_config["buff"] = self.vertices[u].radius
+        arrow_start = u_c + unit_vec * (self.vertices[u].width / 2)
+        arrow_end = v_c - unit_vec * (self.vertices[v].width / 2)
 
         edge_mobject = edge_type(
             start=arrow_start, end=arrow_end, z_index=-100, **edge_config
@@ -282,8 +278,6 @@ class MarkovChainGraph(Graph):
             straight_edge_config = straight_config_copy
         else:
             straight_edge_config = self.default_straight_edge_config.copy()
-
-        print(straight_edge_config)
 
         edge_vertices = set(it.chain(*edges))
         new_vertices = [v for v in edge_vertices if v not in self.vertices]
@@ -337,14 +331,23 @@ class MarkovChainGraph(Graph):
                     if round(matrix_prob, 2) != matrix_prob:
                         matrix_prob = round(matrix_prob, 2)
 
+                    v_c = self.vertices[edge_tuple[0]].get_center()
+                    u_c = self.vertices[edge_tuple[1]].get_center()
+                    vec = v_c - u_c
+                    unit_vec = vec / np.linalg.norm(vec)
+
+                    arrow_start = v_c - unit_vec * (
+                        self.vertices[edge_tuple[0]].width / 2
+                    )
+
                     label = (
                         Text(str(matrix_prob), font=REDUCIBLE_MONO)
                         .scale(scale)
                         .set_stroke(BLACK, width=4, background=True, opacity=0.8)
                         .move_to(self.edges[edge_tuple])
                         .move_to(
-                            self.vertices[edge_tuple[0]],
-                            coor_mask=[0.6, 0.6, 0.6],
+                            arrow_start,
+                            coor_mask=[0.8, 0.8, 0.8],
                         )
                     )
 
@@ -353,9 +356,15 @@ class MarkovChainGraph(Graph):
 
         def update_labels(graph):
             for l, e in graph.labels:
+                v_c = self.vertices[e[0]].get_center()
+                u_c = self.vertices[e[1]].get_center()
+                vec = v_c - u_c
+                unit_vec = vec / np.linalg.norm(vec)
+
+                arrow_start = v_c - unit_vec * (self.vertices[e[0]].width / 2)
                 l.move_to(graph.edges[e]).move_to(
-                    graph.vertices[e[0]],
-                    coor_mask=[0.6, 0.6, 0.6],
+                    arrow_start,
+                    coor_mask=[0.8, 0.8, 0.8],
                 )
 
         self.add_updater(update_labels)
@@ -363,10 +372,12 @@ class MarkovChainGraph(Graph):
         return labels
 
 
-class MarkovChainSimulator:
+class MarkovChainSimulator(Mobject):
     def __init__(
         self, markov_chain: MarkovChain, markov_chain_g: MarkovChainGraph, num_users=50
     ):
+        super().__init__()
+        self.set_opacity(0)
         self.markov_chain = markov_chain
         self.markov_chain_g = markov_chain_g
         self.num_users = num_users
@@ -395,10 +406,19 @@ class MarkovChainSimulator:
             user_location = self.get_user_location(user_id)
             user.move_to(user_location)
 
+        def user_updater(simulator: MarkovChainSimulator):
+            for uid, u in enumerate(simulator.users):
+                user_location = self.get_user_location(uid)
+                u.move_to(user_location)
+
+        self.add_updater(user_updater)
+
     def get_user_location(self, user: int):
         user_state = self.user_to_state[user]
         user_location = self.markov_chain_g.vertices[user_state].get_center()
-        distributed_point = self.poisson_distribution(user_location)
+        distributed_point = self.poisson_distribution(
+            user, self.markov_chain_g.vertices[user_state]
+        )
 
         user_location = [distributed_point[0], distributed_point[1], 0.0]
 
@@ -450,7 +470,7 @@ class MarkovChainSimulator:
             )
         return transition_map
 
-    def poisson_distribution(self, center):
+    def poisson_distribution(self, uid, state: VMobject):
         """
         This function creates a poisson distribution that places
         users around the center of the given state,
@@ -459,7 +479,9 @@ class MarkovChainSimulator:
         Implementation taken from: https://github.com/hpaulkeeler/posts/blob/master/PoissonCircle/PoissonCircle.py
         """
 
-        radius = self.markov_chain_g.vertices[0].width / 2
+        np.random.seed(uid)
+
+        radius = state.width / 2
 
         xxRand = np.random.normal(0, 1, size=(1, 2))
 
@@ -478,6 +500,7 @@ class MarkovChainSimulator:
         yy = xxRandBall[:, 1]
 
         # Shift centre of circle to (xx0,yy0)
+        center = state.get_center()
         xx = xx + center[0]
         yy = yy + center[1]
 

@@ -62,3 +62,41 @@ class TransitionMatrix(MovingCameraScene):
 class DefineStationaryDist(Scene):
     def construct(self):
         pass
+
+
+class MarkovChainTester(Scene):
+    def construct(self):
+        markov_chain = MarkovChain(
+            4,
+            [(0, 1), (1, 0), (0, 2), (1, 2), (1, 3), (2, 3), (3, 1)],
+        )
+        print(markov_chain.get_states())
+        print(markov_chain.get_edges())
+        print(markov_chain.get_current_dist())
+        print(markov_chain.get_adjacency_list())
+        print(markov_chain.get_transition_matrix())
+
+        markov_chain_g = MarkovChainGraph(
+            markov_chain, enable_curved_double_arrows=True
+        )
+        markov_chain_t_labels = markov_chain_g.get_transition_labels()
+        self.play(FadeIn(markov_chain_g), FadeIn(markov_chain_t_labels))
+        self.wait()
+
+        markov_chain_sim = MarkovChainSimulator(
+            markov_chain, markov_chain_g, num_users=50
+        )
+        self.add(markov_chain_sim)
+        users = markov_chain_sim.get_users()
+
+        self.play(*[FadeIn(user) for user in users])
+        self.wait()
+
+        print(markov_chain_g.vertices[0].width)
+        self.play(markov_chain_g.vertices[0].animate.scale(3))
+        self.play(markov_chain_g.vertices[0].animate.scale(1 / 3))
+        self.play(markov_chain_g.vertices[0].animate.shift(LEFT))
+        self.play(markov_chain_g.vertices[0].animate.shift(LEFT))
+        self.play(markov_chain_g.vertices[0].animate.shift(LEFT))
+
+        print(markov_chain_g.vertices[0].width)
