@@ -206,8 +206,6 @@ class MarkovChainGraph(Graph):
         vec = v_c - u_c
         unit_vec = vec / np.linalg.norm(vec)
 
-        arrow_start = u_c + unit_vec * (self.vertices[u].width / 2)
-        arrow_end = v_c - unit_vec * (self.vertices[v].width / 2)
         if self.enable_curved_double_arrows:
             arrow_start = u_c + unit_vec * (self.vertices[u].width / 2)
             arrow_end = v_c - unit_vec * (self.vertices[v].width / 2)
