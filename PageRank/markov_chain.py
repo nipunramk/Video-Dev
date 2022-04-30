@@ -234,6 +234,7 @@ class MarkovChainGraph(Graph):
         Custom function for our specific case of Markov Chains.
         This function aims to make double arrows curved when two nodes
         point to each other, leaving the other ones straight.
+
         Parameters
         ----------
         - edges: a list of tuples connecting states of the Markov Chain
@@ -326,12 +327,6 @@ class MarkovChainGraph(Graph):
                             coor_mask=[0.8, 0.8, 0.8],
                         )
                     )
-
-                    def label_updater(label):
-                        label.move_to(self.edges[edge_tuple]).move_to(
-                            self.vertices[edge_tuple[0]],
-                            coor_mask=[0.6, 0.6, 0.6],
-                        )
 
                     labels.add(label)
                     self.labels.append((label, edge_tuple))
@@ -452,12 +447,21 @@ class MarkovChainSimulator(Mobject):
             )
         return transition_map
 
-    def poisson_distribution(self, uid, state: VMobject):
+    def poisson_distribution(self, uid: int, state: VMobject):
         """
         This function creates a poisson distribution that places
         users around the center of the given state,
         particularly across the state's stroke.
         Implementation taken from: https://github.com/hpaulkeeler/posts/blob/master/PoissonCircle/PoissonCircle.py
+
+        Parameters
+        ----------
+
+        - uid: int -- seed for the random generator. Each user needs to have one
+        and one only, so passing in the user id (uid) is a great idea.
+
+        - state: VMobject -- the LabeledDot object from the graph that
+        this user will stick to.
         """
 
         np.random.seed(uid)
