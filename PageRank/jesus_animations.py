@@ -1,3 +1,5 @@
+from logging import PlaceHolder
+from os import stat, wait
 import sys
 
 
@@ -169,6 +171,42 @@ class TransitionMatrix(MovingCameraScene):
                 )
                 self.wait()
 
+        ######### DEFINE STATIONARY DISTRIBUTON #########
+
+        self.play(
+            self.camera.frame.animate.scale(1.4).shift(LEFT * 1.7),
+            FadeOut(matrix),
+            *[FadeOut(user) for user in users],
+            FadeOut(prob_labels),
+        )
+        self.wait()
+
+        stationary_dist_annotation = (
+            Text("A distribution is stationary if:", font=REDUCIBLE_FONT, weight=BOLD)
+            .scale(0.65)
+            .next_to(markov_ch_mob, LEFT, buff=4.5, aligned_edge=RIGHT)
+        )
+        stationary_dist_tex = (
+            MathTex("\pi_{n+1} = \pi_{n} P")
+            .scale_to_fit_width(stationary_dist_annotation.width)
+            .next_to(stationary_dist_annotation, DOWN)
+        )
+        self.play(Write(stationary_dist_annotation))
+        self.play(FadeIn(stationary_dist_tex))
+
+        count_labels = self.get_current_count_mobs(
+            markov_chain_g=markov_ch_mob, markov_chain_sim=markov_ch_sim, use_dist=True
+        )
+
+        self.play(*[FadeIn(l.scale(0.6)) for l in count_labels.values()])
+
+        for i in range(30):
+            transition_animations = markov_ch_sim.get_instant_transition_animations()
+            count_labels, count_transforms = self.update_count_labels(
+                count_labels, markov_ch_mob, markov_ch_sim, use_dist=True
+            )
+            self.play(*transition_animations + count_transforms, run_time=0.5)
+
     def focus_on(self, mobject, buff=2):
         return self.camera.frame.animate.set_width(mobject.width * buff).move_to(
             mobject
@@ -186,7 +224,41 @@ class TransitionMatrix(MovingCameraScene):
             v_buff=1.3,
         ).scale(0.2)
 
+    def get_current_count_mobs(self, markov_chain_g, markov_chain_sim, use_dist=False):
+        vertex_mobs_map = markov_chain_g.vertices
+        count_labels = {}
+        for v in vertex_mobs_map:
+            if not use_dist:
+                state_counts = markov_chain_sim.get_state_counts()
+                label = Text(str(state_counts[v]), font="SF Mono").scale(0.6)
+            else:
+                state_counts = markov_chain_sim.get_user_dist(round_val=True)
+                label = Text("{0:.2f}".format(state_counts[v]), font="SF Mono").scale(
+                    0.6
+                )
+            label_direction = normalize(
+                vertex_mobs_map[v].get_center() - markov_chain_g.get_center()
+            )
+            label.next_to(vertex_mobs_map[v], label_direction)
+            count_labels[v] = label
 
-class DefineStationaryDist(Scene):
-    def construct(self):
-        pass
+        return count_labels
+
+    def update_count_labels(
+        self, count_labels, markov_chain_g, markov_chain_sim, use_dist=False
+    ):
+        if count_labels is None:
+            count_labels = self.get_current_count_mobs(
+                markov_chain_g, markov_chain_sim, use_dist=use_dist
+            )
+            transforms = [Write(label) for label in count_labels.values()]
+
+        else:
+            new_count_labels = self.get_current_count_mobs(
+                markov_chain_g, markov_chain_sim, use_dist=use_dist
+            )
+            transforms = [
+                Transform(count_labels[v], new_count_labels[v]) for v in count_labels
+            ]
+
+        return count_labels, transforms
