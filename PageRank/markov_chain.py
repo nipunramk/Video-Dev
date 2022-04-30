@@ -102,31 +102,6 @@ class CustomCurvedArrow(CurvedArrow):
         )
         self.tip.z_index = -100
 
-    def set_opacity(self, opacity, family=True):
-        return super().set_opacity(opacity, family)
-
-    @override_animate(set_opacity)
-    def _set_opacity_animation(self, opacity=1, anim_args=None):
-        if anim_args is None:
-            anim_args = {}
-
-        animate_stroke = self.animate.set_stroke(opacity=opacity)
-        animate_tip = self.tip.animate.set_opacity(opacity)
-
-        return AnimationGroup(*[animate_stroke, animate_tip])
-
-
-class CustomArrow(Arrow):
-    def __init__(self, start, end, tip_length=0.15, **kwargs):
-        super().__init__(start, end, **kwargs)
-        self.pop_tips()
-        self.add_tip(
-            tip_shape=ArrowTriangleFilledTip,
-            tip_length=tip_length,
-            at_start=False,
-        )
-        self.tip.z_index = -100
-
 
 class MarkovChainGraph(Graph):
     def __init__(
@@ -155,7 +130,7 @@ class MarkovChainGraph(Graph):
 
         self.default_straight_edge_config = {
             "color": REDUCIBLE_VIOLET,
-            "tip_length": 0.16,
+            "max_tip_length_to_length_ratio": 0.06,
             "stroke_width": 3,
         }
 
@@ -233,6 +208,13 @@ class MarkovChainGraph(Graph):
 
         arrow_start = u_c + unit_vec * (self.vertices[u].width / 2)
         arrow_end = v_c - unit_vec * (self.vertices[v].width / 2)
+        if self.enable_curved_double_arrows:
+            arrow_start = u_c + unit_vec * (self.vertices[u].width / 2)
+            arrow_end = v_c - unit_vec * (self.vertices[v].width / 2)
+        else:
+            arrow_start = u_c
+            arrow_end = v_c
+            edge_config["buff"] = self.vertices[u].radius
 
         edge_mobject = edge_type(
             start=arrow_start, end=arrow_end, z_index=-100, **edge_config
@@ -254,10 +236,8 @@ class MarkovChainGraph(Graph):
         Custom function for our specific case of Markov Chains.
         This function aims to make double arrows curved when two nodes
         point to each other, leaving the other ones straight.
-
         Parameters
         ----------
-
         - edges: a list of tuples connecting states of the Markov Chain
         - curved_edge_config: a dictionary specifying the configuration
         for CurvedArrows, if any
@@ -289,7 +269,7 @@ class MarkovChainGraph(Graph):
                 edge_types_dict.update({e: (CustomCurvedArrow, curved_edge_config)})
 
             else:
-                edge_types_dict.update({e: (CustomArrow, straight_edge_config)})
+                edge_types_dict.update({e: (Arrow, straight_edge_config)})
 
         added_mobjects = sum(
             (
@@ -305,15 +285,13 @@ class MarkovChainGraph(Graph):
 
         return self.get_group_class()(*added_mobjects)
 
-    def get_transition_labels(self, scale=0.3):
+    def get_transition_labels(self):
         """
         This function returns a VGroup with the probability that each
         each state has to transition to another state, based on the
         Chain's transition matrix.
-
         It essentially takes each edge's probability and creates a label to put
         on top of it, for easier indication and explanation.
-
         This function returns the labels already set up in a VGroup, ready to just
         be created.
         """
@@ -342,14 +320,20 @@ class MarkovChainGraph(Graph):
 
                     label = (
                         Text(str(matrix_prob), font=REDUCIBLE_MONO)
-                        .scale(scale)
-                        .set_stroke(BLACK, width=4, background=True, opacity=0.8)
+                        .set_stroke(BLACK, width=8, background=True, opacity=0.8)
+                        .scale(0.3)
                         .move_to(self.edges[edge_tuple])
                         .move_to(
                             arrow_start,
                             coor_mask=[0.8, 0.8, 0.8],
                         )
                     )
+
+                    def label_updater(label):
+                        label.move_to(self.edges[edge_tuple]).move_to(
+                            self.vertices[edge_tuple[0]],
+                            coor_mask=[0.6, 0.6, 0.6],
+                        )
 
                     labels.add(label)
                     self.labels.append((label, edge_tuple))
@@ -475,7 +459,6 @@ class MarkovChainSimulator(Mobject):
         This function creates a poisson distribution that places
         users around the center of the given state,
         particularly across the state's stroke.
-
         Implementation taken from: https://github.com/hpaulkeeler/posts/blob/master/PoissonCircle/PoissonCircle.py
         """
 
@@ -554,19 +537,8 @@ class MarkovChainIntro(Scene):
         web_markov_chain, web_graph = self.get_web_graph()
         self.add(web_graph)
         self.wait()
-        # edge = web_graph.edges[(300, 301)]
-        # print(edge.get_start(), edge.get_end())
-        # print(web_graph.vertices[300].get_center(), web_graph.vertices[301].get_center())
-        # self.play(
-        #     Indicate(web_graph.vertices[300]),
-        #     Indicate(web_graph.vertices[301]),
-        # )
-        # self.wait()
-        # self.play(
-        #     self.camera.frame.animate.set_width(24),
-        #     run_time=3
-        # )
-        # self.wait()
+
+        # self.start_simulation(web_markov_chain, web_graph)
 
     def get_web_graph(self):
         graph_layout = self.get_web_graph_layout()
@@ -607,6 +579,30 @@ class MarkovChainIntro(Scene):
                         edges.append((u, v))
         return edges
 
+    def start_simulation(self, markov_chain, markov_chain_g):
+        markov_chain_sim = MarkovChainSimulator(
+            markov_chain,
+            markov_chain_g,
+            num_users=5000,
+            user_radius=0.01,
+        )
+        users = markov_chain_sim.get_users()
+
+        self.add(*users)
+        self.wait()
+
+        num_steps = 10
+        # for _ in range(num_steps):
+        #     transition_animations = markov_chain_sim.get_instant_transition_animations()
+        #     self.play(*transition_animations)
+        # self.wait()
+
+        for _ in range(num_steps):
+            transition_map = markov_chain_sim.get_lagged_smooth_transition_animations()
+            self.play(
+                *[LaggedStart(*transition_map[i]) for i in markov_chain.get_states()]
+            )
+
 
 class IntroImportanceProblem(Scene):
     def construct(self):
@@ -636,7 +632,9 @@ class IntroStationaryDistribution(Scene):
                 (4, 0),
             ],
         )
-        markov_chain_g = MarkovChainGraph(markov_chain, layout="circular")
+        markov_chain_g = MarkovChainGraph(
+            markov_chain, enable_curved_double_arrows=False, layout="circular"
+        )
         markov_chain_t_labels = markov_chain_g.get_transition_labels()
         # markov_chain_g.scale(1.5)
         self.play(
@@ -654,7 +652,7 @@ class IntroStationaryDistribution(Scene):
         self.play(*[FadeIn(user) for user in users])
         self.wait()
 
-        num_steps = 100
+        num_steps = 10
         print("Count", markov_chain_sim.get_state_counts())
         print("Dist", markov_chain_sim.get_user_dist())
         count_labels = self.get_current_count_mobs(markov_chain_g, markov_chain_sim)
