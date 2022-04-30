@@ -1,3 +1,5 @@
+
+   
 import sys
 
 ### THIS IS A WORKAROUND FOR NOW
@@ -231,10 +233,8 @@ class MarkovChainGraph(Graph):
         Custom function for our specific case of Markov Chains.
         This function aims to make double arrows curved when two nodes
         point to each other, leaving the other ones straight.
-
         Parameters
         ----------
-
         - edges: a list of tuples connecting states of the Markov Chain
         - curved_edge_config: a dictionary specifying the configuration
         for CurvedArrows, if any
@@ -289,10 +289,8 @@ class MarkovChainGraph(Graph):
         This function returns a VGroup with the probability that each
         each state has to transition to another state, based on the
         Chain's transition matrix.
-
         It essentially takes each edge's probability and creates a label to put
         on top of it, for easier indication and explanation.
-
         This function returns the labels already set up in a VGroup, ready to just
         be created.
         """
@@ -344,14 +342,12 @@ class MarkovChainGraph(Graph):
 
 class MarkovChainSimulator:
     def __init__(
-        self, markov_chain: MarkovChain, markov_chain_g: MarkovChainGraph, num_users=50, user_radius=0.035, user_color=REDUCIBLE_YELLOW
+        self, markov_chain: MarkovChain, markov_chain_g: MarkovChainGraph, num_users=50
     ):
         self.markov_chain = markov_chain
         self.markov_chain_g = markov_chain_g
         self.num_users = num_users
         self.state_counts = {i: 0 for i in markov_chain.get_states()}
-        self.user_radius = user_radius
-        self.user_color = user_color
         self.init_users()
 
     def init_users(self):
@@ -365,10 +361,10 @@ class MarkovChainSimulator:
             self.state_counts[self.user_to_state[user_id]] += 1
 
         self.users = [
-            Dot(radius=self.user_radius)
-            .set_color(self.user_color)
+            Dot(radius=0.035)
+            .set_color(REDUCIBLE_YELLOW)
             .set_opacity(0.6)
-            .set_stroke(self.user_color, width=2, opacity=0.8)
+            .set_stroke(REDUCIBLE_YELLOW, width=2, opacity=0.8)
             for _ in range(self.num_users)
         ]
 
@@ -436,7 +432,6 @@ class MarkovChainSimulator:
         This function creates a poisson distribution that places
         users around the center of the given state,
         particularly across the state's stroke.
-
         Implementation taken from: https://github.com/hpaulkeeler/posts/blob/master/PoissonCircle/PoissonCircle.py
         """
 
@@ -507,27 +502,27 @@ class MarkovChainTester(Scene):
             )
             self.wait()
 
-
-
-class MarkovChainIntro2(Scene):
+class MarkovChainIntro(Scene):
     def construct(self):
         web_markov_chain, web_graph = self.get_web_graph()
-        # self.add(web_graph)
-        # self.wait()
+        self.add(web_graph)
+        self.wait()
 
-        self.start_simulation(web_markov_chain, web_graph)
+        # self.start_simulation(web_markov_chain, web_graph)
 
     def get_web_graph(self):
         graph_layout = self.get_web_graph_layout()
         graph_edges = self.get_web_graph_edges(graph_layout)
-        
+
         print(len(graph_layout))
-        markov_chain = MarkovChain(
-            len(graph_layout),
-            graph_edges
+        markov_chain = MarkovChain(len(graph_layout), graph_edges)
+        markov_chain_g = MarkovChainGraph(
+            markov_chain,
+            enable_curved_double_arrows=False,
+            labels=False,
+            layout=graph_layout,
         )
-        markov_chain_g = MarkovChainGraph(markov_chain, enable_curved_double_arrows=False, labels=False, layout=graph_layout)
- 
+
         return markov_chain, markov_chain_g
 
     def get_web_graph_layout(self):
@@ -539,7 +534,7 @@ class MarkovChainIntro2(Scene):
         STEP = 0.5
         for i in np.arange(-grid_height // 2, grid_height // 2, STEP):
             for j in np.arange(-grid_width // 2, grid_width // 2, STEP):
-                noise = (RIGHT * np.random.uniform(-1, 1) + UP * np.random.uniform(-1, 1))
+                noise = RIGHT * np.random.uniform(-1, 1) + UP * np.random.uniform(-1, 1)
                 layout[node_id] = UP * i + RIGHT * j + noise * STEP / 3.1
                 node_id += 1
 
@@ -575,8 +570,6 @@ class MarkovChainIntro2(Scene):
                 *[LaggedStart(*transition_map[i]) for i in markov_chain.get_states()]
             )
 
-
-
 class IntroImportanceProblem(Scene):
     def construct(self):
         pass
@@ -589,11 +582,25 @@ class IntroStationaryDistribution(Scene):
     def show_counts(self):
         markov_chain = MarkovChain(
             5,
-            [(0, 1), (1, 0), (0, 2), (1, 2), (1, 3), (2, 0), (2, 3), (3, 1), (2, 4), (1, 4), (4, 2), (3, 4), (4, 0)],
+            [
+                (0, 1),
+                (1, 0),
+                (0, 2),
+                (1, 2),
+                (1, 3),
+                (2, 0),
+                (2, 3),
+                (3, 1),
+                (2, 4),
+                (1, 4),
+                (4, 2),
+                (3, 4),
+                (4, 0),
+            ],
         )
         markov_chain_g = MarkovChainGraph(markov_chain, enable_curved_double_arrows=False, layout="circular")
         markov_chain_t_labels = markov_chain_g.get_transition_labels()
-        markov_chain_g.scale(1.5)
+        # markov_chain_g.scale(1.5)
         self.play(
             FadeIn(markov_chain_g),
             # FadeIn(markov_chain_t_labels)
@@ -613,28 +620,26 @@ class IntroStationaryDistribution(Scene):
         print('Count', markov_chain_sim.get_state_counts())
         print('Dist', markov_chain_sim.get_user_dist())
         count_labels = self.get_current_count_mobs(markov_chain_g, markov_chain_sim)
-        self.play(
-            *[FadeIn(label) for label in count_labels.values()]
-        )
+        self.play(*[FadeIn(label) for label in count_labels.values()])
         self.wait()
         use_dist = False
         for i in range(num_steps):
             transition_animations = markov_chain_sim.get_instant_transition_animations()
-            count_labels, count_transforms = self.update_count_labels(count_labels, markov_chain_g, markov_chain_sim, use_dist=use_dist)
-            self.play(
-                *transition_animations + count_transforms
+            count_labels, count_transforms = self.update_count_labels(
+                count_labels, markov_chain_g, markov_chain_sim, use_dist=use_dist
             )
-            if i < 5: 
+            self.play(*transition_animations + count_transforms)
+            if i < 5:
                 self.wait()
             if i > 20:
                 use_dist = True
-            print('Iteration', i)
-            print('Count', markov_chain_sim.get_state_counts())
-            print('Dist', markov_chain_sim.get_user_dist())
+            print("Iteration", i)
+            print("Count", markov_chain_sim.get_state_counts())
+            print("Dist", markov_chain_sim.get_user_dist())
 
         true_stationary_dist = markov_chain.get_true_stationary_dist()
-        print('True stationary dist', true_stationary_dist)
-        print('Norm:', np.linalg.norm(true_stationary_dist))
+        print("True stationary dist", true_stationary_dist)
+        print("Norm:", np.linalg.norm(true_stationary_dist))
 
     def get_current_count_mobs(self, markov_chain_g, markov_chain_sim, use_dist=False):
         vertex_mobs_map = markov_chain_g.vertices
@@ -645,28 +650,45 @@ class IntroStationaryDistribution(Scene):
                 label = Text(str(state_counts[v]), font="SF Mono").scale(0.6)
             else:
                 state_counts = markov_chain_sim.get_user_dist(round_val=True)
-                label = Text("{0:.2f}".format(state_counts[v]), font="SF Mono").scale(0.6)
-            label_direction = normalize(vertex_mobs_map[v].get_center() - markov_chain_g.get_center())
+                label = Text("{0:.2f}".format(state_counts[v]), font="SF Mono").scale(
+                    0.6
+                )
+            label_direction = normalize(
+                vertex_mobs_map[v].get_center() - markov_chain_g.get_center()
+            )
             label.next_to(vertex_mobs_map[v], label_direction)
             count_labels[v] = label
 
         return count_labels
 
-    def update_count_labels(self, count_labels, markov_chain_g, markov_chain_sim, use_dist=False):
+    def update_count_labels(
+        self, count_labels, markov_chain_g, markov_chain_sim, use_dist=False
+    ):
         if count_labels is None:
-            count_labels = self.get_current_count_mobs(markov_chain_g, markov_chain_sim, use_dist=use_dist)
+            count_labels = self.get_current_count_mobs(
+                markov_chain_g, markov_chain_sim, use_dist=use_dist
+            )
             transforms = [Write(label) for label in count_labels.values()]
 
         else:
-            new_count_labels = self.get_current_count_mobs(markov_chain_g, markov_chain_sim, use_dist=use_dist)
-            transforms = [Transform(count_labels[v], new_count_labels[v]) for v in count_labels]
+            new_count_labels = self.get_current_count_mobs(
+                markov_chain_g, markov_chain_sim, use_dist=use_dist
+            )
+            transforms = [
+                Transform(count_labels[v], new_count_labels[v]) for v in count_labels
+            ]
 
         return count_labels, transforms
 
+
 class StationaryDistPreview(Scene):
     def construct(self):
-        stationary_dist = Text("Stationary Distribution", font="CMU Serif", weight=BOLD).scale(0.8)
-        point_1 = Text("1. How to find stationary distributions?", font="CMU Serif").scale(0.5)
+        stationary_dist = Text(
+            "Stationary Distribution", font="CMU Serif", weight=BOLD
+        ).scale(0.8)
+        point_1 = Text(
+            "1. How to find stationary distributions?", font="CMU Serif"
+        ).scale(0.5)
         point_2 = Text("2. When do they exist?", font="CMU Serif").scale(0.5)
         point_3 = Text("3. How do we efficiently compute them?").scale(0.5)
         points = VGroup(point_1, point_2, point_3).arrange(DOWN, aligned_edge=LEFT)
@@ -675,22 +697,14 @@ class StationaryDistPreview(Scene):
 
         text.move_to(LEFT * 3.5)
 
-        self.play(
-            Write(text[0])
-        )
+        self.play(Write(text[0]))
         self.wait()
 
-        self.play(
-            FadeIn(point_1)
-        )
+        self.play(FadeIn(point_1))
         self.wait()
 
-        self.play(
-            FadeIn(point_2)
-        )
+        self.play(FadeIn(point_2))
         self.wait()
 
-        self.play(
-            FadeIn(point_3)
-        )
+        self.play(FadeIn(point_3))
         self.wait()
