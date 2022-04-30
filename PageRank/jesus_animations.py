@@ -1,6 +1,7 @@
 import sys
 
 from networkx.drawing import layout
+from networkx.generators.expanders import margulis_gabber_galil_graph
 
 sys.path.insert(1, "common/")
 
@@ -86,34 +87,26 @@ class MarkovChainTester(Scene):
         markov_chain_sim = MarkovChainSimulator(
             markov_chain, markov_chain_g, num_users=50
         )
-        self.add(markov_chain_sim)
+
         users = markov_chain_sim.get_users()
 
         self.play(*[FadeIn(user) for user in users])
         self.wait()
 
-        print("SCALE 1")
-        print()
-        self.play(markov_chain_g.vertices[0].animate.scale(3))
-        print("SCALE 2")
-        print()
-        self.play(markov_chain_g.vertices[0].animate.scale(1 / 3))
-        print("SHIFT 1")
-        print()
-        self.play(markov_chain_g.vertices[0].animate.shift(LEFT))
-        print("shift 2")
-        print()
-        self.play(markov_chain_g.vertices[0].animate.shift(LEFT))
-        print("shift 3")
-        print()
-        self.play(markov_chain_g.vertices[0].animate.shift(LEFT))
+        num_steps = 5
 
-        print("\n" * 50)
+        markov_chain_g.toggle_ranking_scale_mapping(enabled=True)
 
-        print("big scale")
-        print()
-        self.play(ScaleInPlace(markov_chain_g, 3))
+        for _ in range(num_steps):
+            (
+                transition_map,
+                scaling_animations,
+            ) = markov_chain_sim.get_lagged_smooth_transition_animations()
 
-        self.wait()
-
-        print(markov_chain_g.vertices[0].width)
+            self.remove(markov_chain_sim)
+            self.play(
+                *[LaggedStart(*transition_map[i]) for i in markov_chain.get_states()]
+            )
+            self.add(markov_chain_sim)
+            self.play(*scaling_animations)
+            self.wait()

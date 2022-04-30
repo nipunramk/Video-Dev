@@ -1,5 +1,7 @@
 import sys
 
+from networkx.algorithms.matching import min_weight_matching
+
 ### THIS IS A WORKAROUND FOR NOW
 ### IT REQUIRES RUNNING MANIM FROM INSIDE DIRECTORY VIDEO-DEV
 sys.path.insert(1, "common/")
@@ -121,6 +123,7 @@ class MarkovChainGraph(Graph):
     ):
         self.markov_chain = markov_chain
         self.enable_curved_double_arrows = enable_curved_double_arrows
+        self.enable_ranking_scale_mapping = False
 
         self.default_curved_edge_config = {
             "color": REDUCIBLE_VIOLET,
@@ -348,6 +351,20 @@ class MarkovChainGraph(Graph):
 
         return labels
 
+    def toggle_ranking_scale_mapping(self, enabled: bool = True):
+        self.enable_ranking_scale_mapping = enabled
+        # def mapped_scaling_updater(graph):
+        # print(self.markov_chain.dist)
+        # for state_id in range(len(graph.markov_chain.dist)):
+        #     state_rank = graph.markov_chain.dist[state_id]
+        #     mapped_width = min_width + ((max_width - min_width) / (0 - 1)) * (
+        #         state_rank - 0
+        #     )
+        #     graph.vertices[state_id].scale_to_fit_width(mapped_width)
+
+        # print("added updater")
+        # self.add_updater(mapped_scaling_updater)
+
 
 class MarkovChainSimulator(Mobject):
     def __init__(
@@ -407,6 +424,7 @@ class MarkovChainSimulator(Mobject):
     def transition(self):
         for user_id in self.user_to_state:
             self.user_to_state[user_id] = self.update_state(user_id)
+        self.markov_chain.update_dist()
 
     def update_state(self, user_id: int):
         current_state = self.user_to_state[user_id]
@@ -445,7 +463,26 @@ class MarkovChainSimulator(Mobject):
             transition_map[self.user_to_state[user_id]].append(
                 user.animate.move_to(new_location)
             )
-        return transition_map
+
+        if self.markov_chain_g.enable_ranking_scale_mapping:
+            min_width = 0.5
+            max_width = 3
+            scaling_animations = []
+            for state_id in range(len(self.markov_chain.dist)):
+                state_rank = self.markov_chain.dist[state_id]
+                mapped_width = min_width + ((max_width - min_width) / (1 - 0)) * (
+                    state_rank - 0
+                )
+                print(state_id, mapped_width)
+                scaling_animations.append(
+                    self.markov_chain_g.vertices[state_id].animate.scale_to_fit_width(
+                        mapped_width
+                    )
+                )
+
+            return transition_map, scaling_animations
+        else:
+            return transition_map
 
     def poisson_distribution(self, uid: int, state: VMobject):
         """
