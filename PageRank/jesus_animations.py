@@ -9,21 +9,6 @@ from markov_chain import *
 from reducible_colors import *
 
 
-class CustomMatrix(VGroup):
-    def __init__(self, matrix: np.ndarray, color=REDUCIBLE_VIOLET) -> None:
-
-        self.shape = matrix.shape
-        self.matrix = matrix
-        numbers_to_text = [
-            Text(f"{num:.1f}", font=REDUCIBLE_MONO, color=color)
-            for num in matrix.ravel()
-        ]
-        dist_matrix = VGroup(*numbers_to_text)
-        dist_matrix.arrange_in_grid(n_rows=self.shape[0], buff=0.4)
-
-        super().__init__(dist_matrix)
-
-
 class TransitionMatrix(MovingCameraScene):
     def construct(self):
         markov_ch = MarkovChain(
