@@ -68,7 +68,7 @@ class MarkovChainTester(Scene):
     def construct(self):
         markov_chain = MarkovChain(
             4,
-            [(0, 1), (1, 0), (0, 2), (1, 2), (1, 3), (2, 3), (3, 1)],
+            [(0, 1), (1, 0), (1, 2), (1, 3), (2, 3), (3, 1)],
         )
         print(markov_chain.get_states())
         print(markov_chain.get_edges())
@@ -92,11 +92,28 @@ class MarkovChainTester(Scene):
         self.play(*[FadeIn(user) for user in users])
         self.wait()
 
-        print(markov_chain_g.vertices[0].width)
+        print("SCALE 1")
+        print()
         self.play(markov_chain_g.vertices[0].animate.scale(3))
+        print("SCALE 2")
+        print()
         self.play(markov_chain_g.vertices[0].animate.scale(1 / 3))
+        print("SHIFT 1")
+        print()
         self.play(markov_chain_g.vertices[0].animate.shift(LEFT))
+        print("shift 2")
+        print()
         self.play(markov_chain_g.vertices[0].animate.shift(LEFT))
+        print("shift 3")
+        print()
         self.play(markov_chain_g.vertices[0].animate.shift(LEFT))
+
+        print("\n" * 50)
+
+        print("big scale")
+        print()
+        self.play(ScaleInPlace(markov_chain_g, 3))
+
+        self.wait()
 
         print(markov_chain_g.vertices[0].width)

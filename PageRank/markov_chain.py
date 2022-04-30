@@ -212,7 +212,7 @@ class MarkovChainGraph(Graph):
         else:
             arrow_start = u_c
             arrow_end = v_c
-            edge_config["buff"] = self.vertices[u].radius
+            edge_config["buff"] = self.vertices[u].width / 2
 
         edge_mobject = edge_type(
             start=arrow_start, end=arrow_end, z_index=-100, **edge_config
