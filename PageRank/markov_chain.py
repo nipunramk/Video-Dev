@@ -371,12 +371,13 @@ class MarkovChainGraph(Graph):
 
 class MarkovChainSimulator:
     def __init__(
-        self, markov_chain: MarkovChain, markov_chain_g: MarkovChainGraph, num_users=50
+        self, markov_chain: MarkovChain, markov_chain_g: MarkovChainGraph, num_users=50, user_radius=0.035,
     ):
         self.markov_chain = markov_chain
         self.markov_chain_g = markov_chain_g
         self.num_users = num_users
         self.state_counts = {i: 0 for i in markov_chain.get_states()}
+        self.user_radius = user_radius
         self.init_users()
 
     def init_users(self):
@@ -390,7 +391,7 @@ class MarkovChainSimulator:
             self.state_counts[self.user_to_state[user_id]] += 1
 
         self.users = [
-            Dot(radius=0.035)
+            Dot(radius=self.user_radius)
             .set_color(REDUCIBLE_YELLOW)
             .set_opacity(0.6)
             .set_stroke(REDUCIBLE_YELLOW, width=2, opacity=0.8)
@@ -531,13 +532,13 @@ class MarkovChainTester(Scene):
             )
             self.wait()
 
-class MarkovChainIntro(Scene):
+### BEGIN INTRODUCTION.mp4 ###
+class IntroWebGraph(Scene):
     def construct(self):
         web_markov_chain, web_graph = self.get_web_graph()
         self.add(web_graph)
         self.wait()
 
-        # self.start_simulation(web_markov_chain, web_graph)
 
     def get_web_graph(self):
         graph_layout = self.get_web_graph_layout()
@@ -578,9 +579,14 @@ class MarkovChainIntro(Scene):
                         edges.append((u, v))
         return edges
 
+class UserSimulationWebGraph(IntroWebGraph):
+    def construct(self):
+        web_markov_chain, web_graph = self.get_web_graph()
+        self.start_simulation(web_markov_chain, web_graph)
+
     def start_simulation(self, markov_chain, markov_chain_g):
         markov_chain_sim = MarkovChainSimulator(
-            markov_chain, markov_chain_g, num_users=5000, user_radius=0.01,
+            markov_chain, markov_chain_g, num_users=2000, user_radius=0.01,
         )
         users = markov_chain_sim.get_users()
 
@@ -588,16 +594,39 @@ class MarkovChainIntro(Scene):
         self.wait()
 
         num_steps = 10
-        # for _ in range(num_steps):
-        #     transition_animations = markov_chain_sim.get_instant_transition_animations()
-        #     self.play(*transition_animations)
-        # self.wait()
 
         for _ in range(num_steps):
-            transition_map = markov_chain_sim.get_lagged_smooth_transition_animations()
+            transforms = markov_chain_sim.get_instant_transition_animations()
             self.play(
-                *[LaggedStart(*transition_map[i]) for i in markov_chain.get_states()]
+                *transforms, rate_func=linear,
             )
+
+        # for _ in range(num_steps):
+        #     transition_map = markov_chain_sim.get_lagged_smooth_transition_animations()
+        #     self.play(
+        #         *[LaggedStart(*transition_map[i]) for i in markov_chain.get_states()]
+        #     )
+
+class MarkovChainPageRankTitleCard(Scene):
+    def construct(self):
+        title = Text("Markov Chains", font="CMU Serif", weight=BOLD).move_to(UP * 3.5)
+        self.play(
+            Write(title)
+        )
+        self.wait()
+
+        pagerank_title = Text("PageRank", font="CMU Serif", weight=BOLD).move_to(UP * 3.5)
+
+        self.play(
+            ReplacementTransform(title, pagerank_title)
+        )
+        self.wait()
+
+### END INTRODUCTION.mp4 ###
+
+class MarkovChainIntro(Scene):
+    def construct(self):
+        pass
 
 class IntroImportanceProblem(Scene):
     def construct(self):
