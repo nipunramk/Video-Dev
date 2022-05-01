@@ -1,4 +1,5 @@
 import sys
+from typing import Iterable
 
 from numpy import sqrt
 
@@ -313,3 +314,80 @@ class TransitionMatrix(MovingCameraScene):
             ]
 
         return count_labels, transforms
+
+
+class BruteForceMethod(TransitionMatrix):
+    def construct(self):
+
+        frame = self.camera.frame
+        markov_ch = MarkovChain(
+            4,
+            edges=[
+                (2, 0),
+                (2, 3),
+                (0, 3),
+                (2, 1),
+                (1, 2),
+            ],
+            dist=[0.2, 0.5, 0.2, 0.1],
+        )
+
+        markov_ch_mob = MarkovChainGraph(
+            markov_ch,
+            curved_edge_config={"radius": 2, "tip_length": 0.1},
+            straight_edge_config={"max_tip_length_to_length_ratio": 0.08},
+            layout="circular",
+        )
+
+        markov_ch_sim = MarkovChainSimulator(markov_ch, markov_ch_mob, num_users=50)
+        users = markov_ch_sim.get_users()
+
+        count_labels = self.get_current_count_mobs(
+            markov_chain_g=markov_ch_mob, markov_chain_sim=markov_ch_sim, use_dist=True
+        )
+
+        stationary_dist_tex = (
+            MathTex("\pi_{n+1} = \pi_{n} P")
+            .scale(1.3)
+            .next_to(markov_ch_mob, RIGHT, buff=6, aligned_edge=LEFT)
+            .shift(UP * 3)
+        )
+        ############### ANIMATIONS
+
+        self.play(Write(markov_ch_mob))
+        self.play(
+            LaggedStart(*[FadeIn(u) for u in users]),
+            LaggedStart(
+                *[FadeIn(l) for l in count_labels.values()],
+            ),
+            run_time=0.5,
+        )
+
+        self.play(frame.animate.shift(RIGHT * 4).scale(1.2))
+
+        self.play(Write(stationary_dist_tex[0][-1]))
+        self.play(Write(stationary_dist_tex[0][5:7]))
+        self.play(Write(stationary_dist_tex[0][:5]))
+
+        current_dist = (
+            self.vector_to_mob(markov_ch_sim.get_user_dist().values())
+            .scale_to_fit_width(stationary_dist_tex[0][5:7].width)
+            .next_to(stationary_dist_tex[0][5:7], DOWN, buff=0.4)
+        )
+        self.add(current_dist)
+
+        # first iteration
+
+        ### start the loop
+
+    def vector_to_mob(self, vector: Iterable):
+        str_repr = np.array([f"{a:.2f}" for a in vector]).reshape(-1, 1)
+        return Matrix(
+            str_repr,
+            left_bracket="[",
+            right_bracket="]",
+            element_to_mobject=Text,
+            element_to_mobject_config={"font": REDUCIBLE_MONO},
+            h_buff=2.3,
+            v_buff=1.3,
+        )
