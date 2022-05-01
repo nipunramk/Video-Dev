@@ -2,6 +2,8 @@ from logging import PlaceHolder
 from os import stat, wait
 import sys
 
+from numpy import sqrt
+
 
 sys.path.insert(1, "common/")
 
@@ -191,21 +193,72 @@ class TransitionMatrix(MovingCameraScene):
             .scale_to_fit_width(stationary_dist_annotation.width)
             .next_to(stationary_dist_annotation, DOWN)
         )
-        self.play(Write(stationary_dist_annotation))
+        self.play(Write(stationary_dist_annotation), run_time=0.8)
         self.play(FadeIn(stationary_dist_tex))
+
+        self.wait()
 
         count_labels = self.get_current_count_mobs(
             markov_chain_g=markov_ch_mob, markov_chain_sim=markov_ch_sim, use_dist=True
         )
 
-        self.play(*[FadeIn(l.scale(0.6)) for l in count_labels.values()])
+        self.play(
+            *[FadeIn(l) for l in count_labels.values()],
+            *[FadeIn(u) for u in users],
+        )
 
-        for i in range(30):
+        for i in range(2):
             transition_animations = markov_ch_sim.get_instant_transition_animations()
             count_labels, count_transforms = self.update_count_labels(
                 count_labels, markov_ch_mob, markov_ch_sim, use_dist=True
             )
-            self.play(*transition_animations + count_transforms, run_time=0.5)
+            run_time = 1 / sqrt(i + 1)
+            self.play(*transition_animations + count_transforms, run_time=run_time)
+
+        self.wait()
+
+        self.play(
+            FadeOut(stationary_dist_annotation),
+            FadeOut(stationary_dist_tex),
+            *[FadeOut(u) for u in users],
+            *[FadeOut(l) for l in count_labels.values()],
+        )
+
+        ############ IMPORTANT QUESTIONS ############
+
+        """
+        it’s important to address the question of whether a unique distribution even exists for a Markov chain. 
+        And, a critical point in our model is if any initial distribution eventually converges to the stationary
+        distribution
+        """
+
+        question_1 = (
+            Text(
+                "→ Is there a stationary distribution?",
+                font=REDUCIBLE_FONT,
+                weight=BOLD,
+            )
+            .scale(0.6)
+            .next_to(markov_ch_mob, LEFT, buff=2)
+            .shift(UP * 2)
+        )
+
+        question_2 = (
+            MarkupText(
+                """
+                → Does every initial distribution
+                converge to the stationary one?
+                """,
+                font=REDUCIBLE_FONT,
+                weight=BOLD,
+            )
+            .scale(0.6)
+            .next_to(question_1, DOWN, buff=1, aligned_edge=LEFT)
+        )
+
+        self.play(Write(question_1))
+        self.wait()
+        self.play(Write(question_2))
 
     def focus_on(self, mobject, buff=2):
         return self.camera.frame.animate.set_width(mobject.width * buff).move_to(
