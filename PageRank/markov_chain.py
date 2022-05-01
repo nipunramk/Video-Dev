@@ -100,6 +100,21 @@ class CustomCurvedArrow(CurvedArrow):
         )
         self.tip.z_index = -100
 
+# this updater makes sure the edges remain connected
+# even when states move around
+def update_edges(graph):
+    for (u, v), edge in graph.edges.items():
+        v_c = self.vertices[v].get_center()
+        u_c = self.vertices[u].get_center()
+        vec = v_c - u_c
+        unit_vec = vec / np.linalg.norm(vec)
+        
+        u_radius = self.vertices[u].width / 2
+        v_radius = self.vertices[v].width / 2
+
+        arrow_start = u_c + unit_vec * u_radius
+        arrow_end = v_c - unit_vec * v_radius
+        edge.put_start_and_end_on(arrow_start, arrow_end)
 
 class MarkovChainGraph(Graph):
     def __init__(
@@ -159,7 +174,6 @@ class MarkovChainGraph(Graph):
         )
 
         self.clear_updaters()
-
         # this updater makes sure the edges remain connected
         # even when states move around
         def update_edges(graph):
@@ -168,12 +182,22 @@ class MarkovChainGraph(Graph):
                 u_c = self.vertices[u].get_center()
                 vec = v_c - u_c
                 unit_vec = vec / np.linalg.norm(vec)
+                
+                u_radius = self.vertices[u].width / 2
+                v_radius = self.vertices[v].width / 2
 
-                arrow_start = u_c + unit_vec * self.vertices[u].radius
-                arrow_end = v_c - unit_vec * self.vertices[v].radius
+                arrow_start = u_c + unit_vec * u_radius
+                arrow_end = v_c - unit_vec * v_radius
                 edge.put_start_and_end_on(arrow_start, arrow_end)
 
         self.add_updater(update_edges)
+        # self.updater = update_edges
+
+    # def scale(self, scale_factor):
+    #     self.clear_updaters()
+    #     scaled_object = super().scale(scale_factor)
+    #     # self.add_updater(self.updater)
+    #     return scaled_object
 
     def add_edge_buff(
         self,
@@ -387,6 +411,7 @@ class MarkovChainSimulator:
     def transition(self):
         for user_id in self.user_to_state:
             self.user_to_state[user_id] = self.update_state(user_id)
+        self.markov_chain.update_dist()
 
     def update_state(self, user_id: int):
         current_state = self.user_to_state[user_id]
@@ -600,12 +625,12 @@ class IntroStationaryDistribution(Scene):
         )
         markov_chain_g = MarkovChainGraph(markov_chain, enable_curved_double_arrows=False, layout="circular")
         markov_chain_t_labels = markov_chain_g.get_transition_labels()
-        # markov_chain_g.scale(1.5)
+        markov_chain_g.scale(1.5)
         self.play(
             FadeIn(markov_chain_g),
-            # FadeIn(markov_chain_t_labels)
         )
         self.wait()
+
         markov_chain_sim = MarkovChainSimulator(
             markov_chain, markov_chain_g, num_users=1
         )
