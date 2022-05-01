@@ -539,7 +539,6 @@ class IntroWebGraph(Scene):
         self.add(web_graph)
         self.wait()
 
-
     def get_web_graph(self):
         graph_layout = self.get_web_graph_layout()
         graph_edges = self.get_web_graph_edges(graph_layout)
@@ -632,7 +631,6 @@ class IntroImportanceProblem(Scene):
     def construct(self):
         pass
 
-
 class IntroStationaryDistribution(Scene):
     def construct(self):
         self.show_counts()
@@ -656,7 +654,7 @@ class IntroStationaryDistribution(Scene):
                 (4, 0),
             ],
         )
-        markov_chain_g = MarkovChainGraph(markov_chain, enable_curved_double_arrows=False, layout="circular")
+        markov_chain_g = MarkovChainGraph(markov_chain, enable_curved_double_arrows=True, layout="circular")
         markov_chain_t_labels = markov_chain_g.get_transition_labels()
         markov_chain_g.scale(1.5)
         self.play(
@@ -674,7 +672,8 @@ class IntroStationaryDistribution(Scene):
         self.play(*[FadeIn(user) for user in users])
         self.wait()
 
-        num_steps = 10
+        num_steps = 300
+        stabilize_threshold = num_steps - 20
         print('Count', markov_chain_sim.get_state_counts())
         print('Dist', markov_chain_sim.get_user_dist())
         count_labels = self.get_current_count_mobs(markov_chain_g, markov_chain_sim)
@@ -686,6 +685,11 @@ class IntroStationaryDistribution(Scene):
             count_labels, count_transforms = self.update_count_labels(
                 count_labels, markov_chain_g, markov_chain_sim, use_dist=use_dist
             )
+            if i > stabilize_threshold:
+                self.play(
+                    *transition_animations
+                )
+                continue
             self.play(*transition_animations + count_transforms)
             if i < 5:
                 self.wait()
