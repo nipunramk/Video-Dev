@@ -2,7 +2,7 @@ import sys
 from typing import Iterable
 
 from numpy import sqrt
-
+from math import dist
 
 sys.path.insert(1, "common/")
 
@@ -326,6 +326,7 @@ class BruteForceMethod(TransitionMatrix):
                 (2, 0),
                 (2, 3),
                 (0, 3),
+                (3, 1),
                 (2, 1),
                 (1, 2),
             ],
@@ -369,16 +370,77 @@ class BruteForceMethod(TransitionMatrix):
         self.play(Write(stationary_dist_tex[0][5:7]))
         self.play(Write(stationary_dist_tex[0][:5]))
 
-        current_dist = (
-            self.vector_to_mob(markov_ch_sim.get_user_dist().values())
+        last_dist = markov_ch_sim.get_user_dist().values()
+        last_dist_mob = (
+            self.vector_to_mob(last_dist)
             .scale_to_fit_width(stationary_dist_tex[0][5:7].width)
             .next_to(stationary_dist_tex[0][5:7], DOWN, buff=0.4)
         )
-        self.add(current_dist)
+        self.play(FadeIn(last_dist_mob))
 
         # first iteration
+        transition_map = markov_ch_sim.get_lagged_smooth_transition_animations()
+        count_labels, count_transforms = self.update_count_labels(
+            count_labels, markov_ch_mob, markov_ch_sim, use_dist=True
+        )
 
-        ### start the loop
+        current_dist = markov_ch_sim.get_user_dist().values()
+        current_dist_mob = (
+            self.vector_to_mob(current_dist)
+            .scale_to_fit_width(last_dist_mob.width)
+            .next_to(stationary_dist_tex[0][:4], DOWN, buff=0.4)
+        )
+        self.play(
+            *[LaggedStart(*transition_map[i]) for i in markov_ch.get_states()],
+            *count_transforms,
+            FadeIn(current_dist_mob),
+        )
+
+        distance = dist(current_dist, last_dist)
+        distance_mob = (
+            MathTex(r"D(\pi_{n+1}, \pi_{n}) = " + f"{distance:.2f}")
+            .scale(0.7)
+            .next_to(stationary_dist_tex, DOWN, buff=2.5, aligned_edge=LEFT)
+        )
+
+        self.play(FadeIn(distance_mob))
+
+        ## start the loop
+        for i in range(1, 50):
+            transition_animations = markov_ch_sim.get_instant_transition_animations()
+
+            count_labels, count_transforms = self.update_count_labels(
+                count_labels, markov_ch_mob, markov_ch_sim, use_dist=True
+            )
+
+            last_dist = current_dist
+            current_dist = markov_ch_sim.get_user_dist().values()
+
+            current_to_last_shift = current_dist_mob.animate.move_to(last_dist_mob)
+            fade_last_dist = FadeOut(last_dist_mob)
+            last_dist_mob = current_dist_mob
+
+            current_dist_mob = (
+                self.vector_to_mob(current_dist)
+                .scale_to_fit_width(last_dist_mob.width)
+                .next_to(stationary_dist_tex[0][:4], DOWN, buff=0.4)
+            )
+
+            distance = dist(current_dist, last_dist)
+            new_distance_mob = (
+                MathTex(f"D(\pi_{i}, \pi_{i-1}) = " + f"{distance:.2f}")
+                .scale(0.7)
+                .next_to(stationary_dist_tex, DOWN, buff=2.5, aligned_edge=LEFT)
+            )
+
+            self.play(
+                *transition_animations + count_transforms,
+                current_to_last_shift,
+                fade_last_dist,
+                FadeIn(current_dist_mob),
+                Transform(distance_mob, new_distance_mob),
+                run_time=1,
+            )
 
     def vector_to_mob(self, vector: Iterable):
         str_repr = np.array([f"{a:.2f}" for a in vector]).reshape(-1, 1)
