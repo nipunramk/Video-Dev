@@ -201,6 +201,8 @@ class TransitionMatrix(MovingCameraScene):
             markov_chain_g=markov_ch_mob, markov_chain_sim=markov_ch_sim, use_dist=True
         )
 
+        self.wait()
+
         self.play(
             *[FadeIn(l) for l in count_labels.values()],
             *[FadeIn(u) for u in users],
@@ -417,7 +419,7 @@ class BruteForceMethod(TransitionMatrix):
 
         self.wait()
         ## start the loop
-        for i in range(1, 50):
+        for i in range(1, 100):
             transition_animations = markov_ch_sim.get_instant_transition_animations()
 
             count_labels, count_transforms = self.update_count_labels(
@@ -426,16 +428,6 @@ class BruteForceMethod(TransitionMatrix):
 
             last_dist = current_dist
             current_dist = markov_ch_sim.get_user_dist().values()
-
-            current_to_last_shift = current_dist_mob.animate.move_to(last_dist_mob)
-            fade_last_dist = FadeOut(last_dist_mob)
-            last_dist_mob = current_dist_mob
-
-            current_dist_mob = (
-                self.vector_to_mob(current_dist)
-                .scale_to_fit_width(last_dist_mob.width)
-                .next_to(stationary_dist_tex[0][:4], DOWN, buff=0.4)
-            )
 
             distance = dist(current_dist, last_dist)
 
@@ -454,16 +446,50 @@ class BruteForceMethod(TransitionMatrix):
                 .next_to(stationary_dist_tex, DOWN, buff=2.5, aligned_edge=LEFT)
             )
 
-            run_time = 0.8 if i < 10 else 1 / i
+            run_time = 0.8 if i < 6 else 1 / i
 
-            self.play(
-                *transition_animations + count_transforms,
-                current_to_last_shift,
-                fade_last_dist,
-                FadeIn(current_dist_mob),
-                Transform(distance_mob, new_distance_mob),
-                run_time=run_time,
-            )
+            if i < 6:
+                current_to_last_shift = current_dist_mob.animate.move_to(last_dist_mob)
+                fade_last_dist = FadeOut(last_dist_mob)
+                last_dist_mob = current_dist_mob
+
+                current_dist_mob = (
+                    self.vector_to_mob(current_dist)
+                    .scale_to_fit_width(last_dist_mob.width)
+                    .next_to(stationary_dist_tex[0][:4], DOWN, buff=0.4)
+                )
+
+                self.play(
+                    *transition_animations + count_transforms,
+                    current_to_last_shift,
+                    fade_last_dist,
+                    FadeIn(current_dist_mob),
+                    FadeTransform(distance_mob, new_distance_mob),
+                    run_time=run_time,
+                )
+
+                distance_mob = new_distance_mob
+            else:
+
+                self.remove(last_dist_mob)
+                last_dist_mob = current_dist_mob.move_to(last_dist_mob)
+
+                current_dist_mob = (
+                    self.vector_to_mob(current_dist)
+                    .scale_to_fit_width(last_dist_mob.width)
+                    .next_to(stationary_dist_tex[0][:4], DOWN, buff=0.4)
+                )
+
+                self.add(current_dist_mob)
+
+                self.play(
+                    *transition_animations + count_transforms,
+                    FadeTransform(distance_mob, new_distance_mob),
+                    run_time=run_time,
+                )
+                distance_mob = new_distance_mob
+
+        self.wait()
 
     def vector_to_mob(self, vector: Iterable):
         str_repr = np.array([f"{a:.2f}" for a in vector]).reshape(-1, 1)
