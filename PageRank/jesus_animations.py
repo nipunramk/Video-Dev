@@ -351,7 +351,7 @@ class BruteForceMethod(TransitionMatrix):
             MathTex("\pi_{n+1} = \pi_{n} P")
             .scale(1.3)
             .next_to(markov_ch_mob, RIGHT, buff=6, aligned_edge=LEFT)
-            .shift(UP * 3)
+            .shift(UP * 2)
         )
         ############### ANIMATIONS
 
@@ -364,7 +364,16 @@ class BruteForceMethod(TransitionMatrix):
             run_time=0.5,
         )
 
-        self.play(frame.animate.shift(RIGHT * 4).scale(1.2))
+        self.play(frame.animate.shift(RIGHT * 4 + UP * 0.5).scale(1.2))
+
+        title = (
+            Text("Brute Force Method", font=REDUCIBLE_FONT, weight=BOLD)
+            .scale(1)
+            .move_to(frame.get_top())
+            .shift(DOWN * 0.9)
+        )
+        self.play(FadeIn(title))
+        self.wait()
 
         self.play(Write(stationary_dist_tex[0][-1]))
         self.play(Write(stationary_dist_tex[0][5:7]))
@@ -377,6 +386,7 @@ class BruteForceMethod(TransitionMatrix):
             .next_to(stationary_dist_tex[0][5:7], DOWN, buff=0.4)
         )
         self.play(FadeIn(last_dist_mob))
+        self.wait()
 
         # first iteration
         transition_map = markov_ch_sim.get_lagged_smooth_transition_animations()
@@ -405,6 +415,7 @@ class BruteForceMethod(TransitionMatrix):
 
         self.play(FadeIn(distance_mob))
 
+        self.wait()
         ## start the loop
         for i in range(1, 50):
             transition_animations = markov_ch_sim.get_instant_transition_animations()
@@ -427,11 +438,23 @@ class BruteForceMethod(TransitionMatrix):
             )
 
             distance = dist(current_dist, last_dist)
+
+            i_str = str(i)
+            i_minus_one_str = str(i - 1)
             new_distance_mob = (
-                MathTex(f"D(\pi_{i}, \pi_{i-1}) = " + f"{distance:.2f}")
+                MathTex(
+                    "D(\pi_{"
+                    + i_str
+                    + "}, \pi_{"
+                    + i_minus_one_str
+                    + "}) = "
+                    + f"{distance:.2f}"
+                )
                 .scale(0.7)
                 .next_to(stationary_dist_tex, DOWN, buff=2.5, aligned_edge=LEFT)
             )
+
+            run_time = 0.8 if i < 10 else 1 / i
 
             self.play(
                 *transition_animations + count_transforms,
@@ -439,7 +462,7 @@ class BruteForceMethod(TransitionMatrix):
                 fade_last_dist,
                 FadeIn(current_dist_mob),
                 Transform(distance_mob, new_distance_mob),
-                run_time=1,
+                run_time=run_time,
             )
 
     def vector_to_mob(self, vector: Iterable):
