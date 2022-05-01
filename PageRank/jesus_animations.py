@@ -205,7 +205,7 @@ class TransitionMatrix(MovingCameraScene):
             *[FadeIn(u) for u in users],
         )
 
-        for i in range(2):
+        for i in range(50):
             transition_animations = markov_ch_sim.get_instant_transition_animations()
             count_labels, count_transforms = self.update_count_labels(
                 count_labels, markov_ch_mob, markov_ch_sim, use_dist=True
