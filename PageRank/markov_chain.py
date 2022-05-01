@@ -51,6 +51,11 @@ class MarkovChain:
                 for neighbor in neighbors:
                     self.transition_matrix[state][neighbor] = 1 / len(neighbors)
 
+        # handle sink nodes to point to itself
+        for i, row in enumerate(self.transition_matrix):
+            if np.sum(row) == 0:
+                self.transition_matrix[i][i] = 1
+
         if dist is not None:
             self.dist = dist
         else:
@@ -487,7 +492,6 @@ class MarkovChainSimulator:
 
 class MarkovChainTester(Scene):
     def construct(self):
-
         markov_chain = MarkovChain(
             4,
             [(0, 1), (1, 0), (0, 2), (1, 2), (1, 3), (2, 3), (3, 1)],
