@@ -537,7 +537,7 @@ class SystemOfEquationsMethod(BruteForceMethod):
         equations_mob = (
             self.get_balance_equations(markov_chain=markov_ch)
             .scale(1)
-            .next_to(markov_ch_mob, RIGHT, buff=4)
+            .next_to(markov_ch_mob, RIGHT, buff=2)
         )
 
         self.add(equations_mob)
@@ -578,4 +578,5 @@ class SystemOfEquationsMethod(BruteForceMethod):
             tex_strings.append(full_equation_tex)
 
         tex_strings = "\\\\".join(tex_strings)
+        print(tex_strings)
         return MathTex(tex_strings)
