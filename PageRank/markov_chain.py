@@ -105,22 +105,6 @@ class CustomCurvedArrow(CurvedArrow):
         )
         self.tip.z_index = -100
 
-# this updater makes sure the edges remain connected
-# even when states move around
-def update_edges(graph):
-    for (u, v), edge in graph.edges.items():
-        v_c = self.vertices[v].get_center()
-        u_c = self.vertices[u].get_center()
-        vec = v_c - u_c
-        unit_vec = vec / np.linalg.norm(vec)
-        
-        u_radius = self.vertices[u].width / 2
-        v_radius = self.vertices[v].width / 2
-
-        arrow_start = u_c + unit_vec * u_radius
-        arrow_end = v_c - unit_vec * v_radius
-        edge.put_start_and_end_on(arrow_start, arrow_end)
-
 class MarkovChainGraph(Graph):
     def __init__(
         self,
@@ -158,7 +142,7 @@ class MarkovChainGraph(Graph):
             }
         
 
-        self.labels = []
+        self.labels = {}
 
         super().__init__(
             markov_chain.get_states(),
@@ -196,13 +180,7 @@ class MarkovChainGraph(Graph):
                 edge.put_start_and_end_on(arrow_start, arrow_end)
 
         self.add_updater(update_edges)
-        # self.updater = update_edges
-
-    # def scale(self, scale_factor):
-    #     self.clear_updaters()
-    #     scaled_object = super().scale(scale_factor)
-    #     # self.add_updater(self.updater)
-    #     return scaled_object
+        update_edges(self)
 
     def add_edge_buff(
         self,
@@ -341,28 +319,15 @@ class MarkovChainGraph(Graph):
                         Text(str(matrix_prob), font=REDUCIBLE_MONO)
                         .set_stroke(BLACK, width=8, background=True, opacity=0.8)
                         .scale(0.3)
-                        .move_to(self.edges[edge_tuple])
-                        .move_to(
-                            self.vertices[edge_tuple[0]],
-                            coor_mask=[0.6, 0.6, 0.6],
-                        )
-                    )
-
-                    def label_updater(label):
-                        label.move_to(self.edges[edge_tuple]).move_to(
-                            self.vertices[edge_tuple[0]],
-                            coor_mask=[0.6, 0.6, 0.6],
+                        .move_to(self.edges[edge_tuple].point_from_proportion(0.2))
                         )
 
                     labels.add(label)
-                    self.labels.append((label, edge_tuple))
+                    self.labels[edge_tuple] = label
 
         def update_labels(graph):
-            for l, e in graph.labels:
-                l.move_to(graph.edges[e]).move_to(
-                    graph.vertices[e[0]],
-                    coor_mask=[0.6, 0.6, 0.6],
-                )
+            for e, l in graph.labels.items():
+                l.move_to(graph.edges[e].point_from_proportion(0.2))
 
         self.add_updater(update_labels)
 
@@ -503,7 +468,7 @@ class MarkovChainTester(Scene):
         print(markov_chain.get_adjacency_list())
         print(markov_chain.get_transition_matrix())
 
-        markov_chain_g = MarkovChainGraph(markov_chain, enable_curved_double_arrows=False)
+        markov_chain_g = MarkovChainGraph(markov_chain, enable_curved_double_arrows=True)
         markov_chain_t_labels = markov_chain_g.get_transition_labels()
         self.play(
             FadeIn(markov_chain_g),
@@ -625,6 +590,28 @@ class MarkovChainPageRankTitleCard(Scene):
 
 class MarkovChainIntro(Scene):
     def construct(self):
+        markov_chain = MarkovChain(
+            4,
+            [(0, 1), (1, 0), (0, 2), (1, 2), (1, 3), (2, 3), (3, 1), (3, 2)],
+        )
+
+        markov_chain_g = MarkovChainGraph(markov_chain, enable_curved_double_arrows=True)
+        # markov_chain_g.scale(1.2)
+        markov_chain_t_labels = markov_chain_g.get_transition_labels()
+
+        self.play(
+            FadeIn(markov_chain_g),
+            FadeIn(markov_chain_t_labels)
+        )
+        self.wait()
+
+        markov_chain_g.labels[(0, 2)].move_to(markov_chain_g.edges[(0, 2)].point_from_proportion(0.2))
+        self.play(
+            markov_chain_g.vertices[0].animate.shift(LEFT * 1)
+        )
+        self.wait()
+
+    def highlight_state(self, markov_chain_g):
         pass
 
 class IntroImportanceProblem(Scene):
@@ -672,7 +659,7 @@ class IntroStationaryDistribution(Scene):
         self.play(*[FadeIn(user) for user in users])
         self.wait()
 
-        num_steps = 300
+        num_steps = 50
         stabilize_threshold = num_steps - 20
         print('Count', markov_chain_sim.get_state_counts())
         print('Dist', markov_chain_sim.get_user_dist())
