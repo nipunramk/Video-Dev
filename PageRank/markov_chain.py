@@ -1102,3 +1102,175 @@ class StationaryDistPreview(Scene):
 
         self.play(FadeIn(point_3))
         self.wait()
+
+class ModelingMarkovChains(Scene):
+    def construct(self):
+        markov_chain = MarkovChain(
+            5,
+            edges=[
+                (2, 0),
+                (3, 0),
+                (4, 0),
+                (2, 3),
+                (0, 3),
+                (3, 4),
+                (4, 1),
+                (2, 1),
+                (0, 2),
+                (1, 2),
+            ],
+        )
+
+        markov_chain_g = MarkovChainGraph(
+            markov_chain,
+            curved_edge_config={"radius": 2},
+            layout_scale=2.6,
+        ).scale(1)
+
+        self.play(
+            FadeIn(markov_chain_g)
+        )
+        self.wait()
+
+        markov_chain_sim = MarkovChainSimulator(
+            markov_chain, markov_chain_g, num_users=1
+        )
+        users = markov_chain_sim.get_users()
+        # scale user a bit here
+        users[0].scale(1.8)
+
+        step_label, users = self.simulate_steps(markov_chain, markov_chain_g, markov_chain_sim, users)
+
+        definitions, prob_dist_labels = self.explain_prob_dist(markov_chain_g)
+
+        self.play(
+            FadeOut(definitions),
+            FadeOut(step_label),
+            markov_chain_g.animate.shift(LEFT * 3.5),
+            prob_dist_labels.animate.shift(LEFT * 3.5),
+            users[0].animate.shift(LEFT * 3.5),
+        )
+
+        new_prob_dist_labels = self.get_prob_dist_labels(markov_chain_g, 0)
+        self.play(
+            Transform(prob_dist_labels, new_prob_dist_labels)
+        )
+        self.wait()
+
+        for step in range(5):
+            transition_animations = markov_chain_sim.get_instant_transition_animations()
+            new_prob_dist_labels = self.get_prob_dist_labels(markov_chain_g, step + 1)
+            self.play(
+                *transition_animations,
+                Transform(prob_dist_labels, new_prob_dist_labels)
+            )
+            self.wait()
+
+
+    def simulate_steps(self, markov_chain, markov_chain_g, markov_chain_sim, users):
+        num_steps = 10
+        step_annotation = Tex("Step:")
+        step_num = Integer(0)
+        step_label = VGroup(step_annotation, step_num).arrange(RIGHT)
+        step_num.shift(UP * SMALL_BUFF * 0.2)
+        step_label.move_to(UP * 3.3)
+
+        self.play(
+            *[FadeIn(user) for user in users],
+            Write(step_label)
+        )
+        self.wait()
+
+        for _ in range(num_steps):
+            transition_animations = markov_chain_sim.get_instant_transition_animations()
+            self.play(
+                *transition_animations,
+                step_label[1].animate.increment_value()
+            )
+            step_label[1].increment_value()
+
+        self.wait()
+
+        step_n = MathTex("n").move_to(step_num.get_center()).shift(LEFT * SMALL_BUFF * 0.5 + DOWN * SMALL_BUFF * 0.2)
+        transition_animations = markov_chain_sim.get_instant_transition_animations()
+        self.play(
+            *transition_animations,
+            Transform(step_label[1], step_n)
+        )
+        self.wait()
+
+        markov_chain_g.clear_updaters()
+
+        RIGHT_SHIFT = RIGHT * 3.5
+        self.play(
+            markov_chain_g.animate.shift(RIGHT_SHIFT),
+            users[0].animate.shift(RIGHT_SHIFT),
+            step_label.animate.shift(RIGHT_SHIFT + RIGHT * 1.5)
+        )
+        self.wait()
+
+        return step_label, users
+
+    def explain_prob_dist(self, markov_chain_g):
+        prob_dist_labels = self.get_prob_dist_labels(markov_chain_g, "n")
+
+        self.play(
+            *[Write(label) for label in prob_dist_labels]
+        )
+        self.wait()
+
+        definition = Tex(
+            r"$\pi_n(v)$: ",
+            "probability of ",
+            "being in state $v$ at step $n$"
+        ).scale(0.8).to_edge(LEFT * 2).shift(UP * 3)
+
+        self.play(
+            FadeIn(definition)
+        )
+        self.wait()
+
+        pi_vector = MathTex(r"\pi_n = ")
+        pi_row_vector = Matrix([[r"\pi_n(0)", r"\pi_n(1)", r"\pi_n(2)", r"\pi_n(3)", r"\pi_n(4)"]], h_buff=1.7).scale(0.7)
+
+        pi_vector_definition = VGroup(pi_vector, pi_row_vector).arrange(RIGHT)
+        pi_vector_definition.next_to(definition, DOWN, aligned_edge=LEFT)
+        pi_vector_definition.shift(DOWN * pi_vector_definition.get_center()[1])
+
+        self.play(
+            Write(pi_vector)
+        )
+        self.wait()
+        self.play(
+            FadeIn(pi_row_vector)
+        )
+        self.wait()
+
+        initial_def = MathTex(r"\pi_0 \sim \text{Uniform}").scale(0.8)
+        initial_def.to_edge(LEFT * 2).shift(DOWN * 3)
+
+        self.play(
+            Write(initial_def)
+        )
+        self.wait()
+
+        precise_initial = MathTex(r"\pi_0 = ")
+        precise_initial_vector = Matrix([[0.2] * 5]).scale(0.7)
+        precise_initial_def = VGroup(precise_initial, precise_initial_vector).arrange(RIGHT).to_edge(LEFT * 2).shift(DOWN * 3)
+
+        self.play(
+            ReplacementTransform(initial_def, precise_initial_def)
+        )
+        self.wait()
+
+        return VGroup(definition, pi_vector_definition, precise_initial_def), prob_dist_labels
+
+    def get_prob_dist_labels(self, markov_chain_g, step):
+        prob_dist_labels = [MathTex(r"\pi_{0}({1})".format(step, v)).scale(0.7) for v in markov_chain_g.markov_chain.get_states()]
+        prob_dist_labels[0].next_to(markov_chain_g.vertices[0], UP)
+        prob_dist_labels[1].next_to(markov_chain_g.vertices[1], DOWN)
+        prob_dist_labels[2].next_to(markov_chain_g.vertices[2], LEFT)
+        prob_dist_labels[3].next_to(markov_chain_g.vertices[3], LEFT)
+        prob_dist_labels[4].next_to(markov_chain_g.vertices[4], RIGHT)
+
+        return VGroup(*prob_dist_labels)
