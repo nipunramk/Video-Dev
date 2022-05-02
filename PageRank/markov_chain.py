@@ -848,7 +848,120 @@ class MarkovChainIntro(Scene):
 
 class IntroImportanceProblem(Scene):
     def construct(self):
-        pass
+        title = Text("Ranking States", font="CMU Serif", weight=BOLD)
+        title.move_to(UP * 3.5)
+
+        self.play(
+            Write(title)
+        )
+        self.wait()
+
+        markov_chain = MarkovChain(
+            4,
+            [(0, 1), (1, 0), (0, 2), (1, 2), (1, 3), (2, 3), (3, 1), (3, 2)],
+        )
+
+        markov_chain_g = MarkovChainGraph(markov_chain, enable_curved_double_arrows=True, layout="circular")
+        markov_chain_g.scale(1.1)
+        markov_chain_t_labels = markov_chain_g.get_transition_labels()
+
+        self.play(
+            FadeIn(markov_chain_g)   
+        )
+        self.wait()
+
+        base_ranking_values = [0.95, 0.75, 0.5, 0.25]
+        original_width = markov_chain_g.vertices[0].width
+        final_ranking = self.show_randomized_ranking(markov_chain_g, base_ranking_values)
+
+        
+
+        how_to_measure_importance = Text("How to Measure Relative Importance?", font="CMU Serif", weight=BOLD).scale(0.8)
+        how_to_measure_importance.move_to(title.get_center())
+        self.play(
+            *[
+            markov_chain_g.vertices[v].animate.scale_to_fit_width(original_width) for v in markov_chain.get_states()
+            ],
+            FadeOut(final_ranking),
+            ReplacementTransform(title, how_to_measure_importance),
+        )
+        self.wait()
+
+        markov_chain_sim = MarkovChainSimulator(
+            markov_chain, markov_chain_g, num_users=100
+        )
+        users = markov_chain_sim.get_users()
+
+        self.play(*[FadeIn(user) for user in users])
+        self.wait()
+
+        num_steps = 5
+        for _ in range(num_steps):
+            transition_map = markov_chain_sim.get_lagged_smooth_transition_animations()
+            self.play(
+                *[LaggedStart(*transition_map[i]) for i in markov_chain.get_states()]
+            )
+            self.wait()
+        self.wait()
+
+    def show_randomized_ranking(self, markov_chain_g, base_ranking_values):
+        original_markov_chain_nodes = [markov_chain_g.vertices[i].copy() for i in range(len(base_ranking_values))]
+        positions = [LEFT * 2.4, LEFT * 0.8, RIGHT * 0.8, RIGHT * 2.4]
+        gt_signs = [MathTex(">"), MathTex(">"), MathTex(">")]
+        for i, sign in enumerate(gt_signs):
+            gt_signs[i].move_to((positions[i] + positions[i + 1]) / 2)
+        num_iterations = 5
+        SHIFT_DOWN = DOWN * 3.2
+        for step in range(num_iterations):
+            print('Iteration', step)
+            current_ranking_values = self.generate_new_ranking(base_ranking_values)
+            current_ranking_map = self.get_ranking_map(current_ranking_values)
+            scaling_animations = []
+            for v, scaling in current_ranking_map.items():
+                scaling_animations.append(
+                    markov_chain_g.vertices[v].animate.scale_to_fit_width(scaling)
+                )
+            current_ranking = self.get_ranking(current_ranking_map)
+            ranking_animations = []
+            for i, v in enumerate(current_ranking):
+                if step != 0:
+                    ranking_animations.append(
+                        original_markov_chain_nodes[v].animate.move_to(positions[i] + SHIFT_DOWN)
+                    )
+                else:
+                    ranking_animations.append(
+                        FadeIn(original_markov_chain_nodes[v].move_to(positions[i] + SHIFT_DOWN))
+                    )
+            
+            if step == 0:
+                ranking_animations.extend(
+                    [FadeIn(sign.shift(SHIFT_DOWN)) for sign in gt_signs]
+                )
+
+            self.play(
+                *scaling_animations + ranking_animations
+            )
+            self.wait()
+            
+        return VGroup(*original_markov_chain_nodes + gt_signs)
+
+
+
+    def get_ranking(self, ranking_map):
+        sorted_map = {k: v for k, v in sorted(ranking_map.items(), key=lambda item: item[1])}
+        return [key for key in sorted_map][::-1]
+
+
+    def generate_new_ranking(self, ranking_values):
+        np.random.shuffle(ranking_values)
+        new_ranking = []
+        for elem in ranking_values:
+            new_ranking.append(elem + np.random.uniform(-0.08, 0.08))
+        return new_ranking
+
+    def get_ranking_map(self, ranking_values):
+        return {i: ranking_values[i] for i in range(len(ranking_values))}
+
 
 class IntroStationaryDistribution(Scene):
     def construct(self):
