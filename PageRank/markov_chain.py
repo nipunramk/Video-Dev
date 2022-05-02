@@ -9,6 +9,7 @@ sys.path.insert(1, "common/")
 from manim import *
 from manim.mobject.geometry.tips import ArrowTriangleFilledTip
 from reducible_colors import *
+from functions import *
 
 from typing import Hashable
 
@@ -596,7 +597,7 @@ class MarkovChainIntro(Scene):
         )
 
         markov_chain_g = MarkovChainGraph(markov_chain, enable_curved_double_arrows=True)
-        # markov_chain_g.scale(1.2)
+        markov_chain_g.scale(1.2)
         markov_chain_t_labels = markov_chain_g.get_transition_labels()
 
         self.play(
@@ -605,14 +606,245 @@ class MarkovChainIntro(Scene):
         )
         self.wait()
 
-        markov_chain_g.labels[(0, 2)].move_to(markov_chain_g.edges[(0, 2)].point_from_proportion(0.2))
+        self.highlight_states(markov_chain_g)
+
+        transition_probs = self.highlight_transitions(markov_chain_g)
+
+        self.highlight_edge(markov_chain_g, (3, 1))
+        p_3_1 = Tex(r"$P(3, 1)$ = 0.5").scale(0.8)
+        p_2_3 = Tex(r"$P(2, 3)$ = 1.0").scale(0.8)
+        VGroup(p_3_1, p_2_3).arrange(DOWN).move_to(LEFT * 4)
+
         self.play(
-            markov_chain_g.vertices[0].animate.shift(LEFT * 1)
+            FadeIn(p_3_1)
         )
         self.wait()
 
-    def highlight_state(self, markov_chain_g):
-        pass
+        self.highlight_edge(markov_chain_g, (2, 3))
+
+        self.play(
+            FadeIn(p_2_3)
+        )
+        self.wait()
+
+        reset_animations = self.reset_edges(markov_chain_g)
+        self.play(
+            *reset_animations,
+            FadeOut(p_3_1),
+            FadeOut(p_2_3),
+            FadeOut(transition_probs)
+        )
+        self.wait()
+
+        self.discuss_markov_prop(markov_chain_g)
+
+    def highlight_states(self, markov_chain_g):
+        highlight_animations = []
+        for edge in markov_chain_g.edges.values():
+            highlight_animations.append(
+                edge.animate.set_stroke(opacity=0.5)
+            )
+            highlight_animations.append(
+                edge.tip.animate.set_fill(opacity=0.5).set_stroke(opacity=0.5)
+            )
+        for label in markov_chain_g.labels.values():
+            highlight_animations.append(
+                label.animate.set_fill(opacity=0.5)
+            )
+        glowing_circles = []
+        for vertex in markov_chain_g.vertices.values():
+            glowing_circle = get_glowing_surround_circle(vertex)
+            highlight_animations.append(
+                FadeIn(glowing_circle)
+            )
+            glowing_circles.append(glowing_circle)
+
+        states = Text("States", font="CMU Serif").move_to(UP * 3.5).set_color(REDUCIBLE_YELLOW)
+        arrow_1 = Arrow(states.get_bottom(), markov_chain_g.vertices[2])
+        arrow_2 = Arrow(states.get_bottom(), markov_chain_g.vertices[0])
+        arrow_1.set_color(GRAY)
+        arrow_2.set_color(GRAY)
+
+        self.play(
+            *highlight_animations,
+        )
+        self.wait()
+
+        self.play(
+            Write(states),
+            Write(arrow_1),
+            Write(arrow_2)
+        )
+        self.wait()
+
+        un_highlight_animations = []
+        for edge in markov_chain_g.edges.values():
+            un_highlight_animations.append(
+                edge.animate.set_stroke(opacity=1)
+            )
+            un_highlight_animations.append(
+                edge.tip.animate.set_fill(opacity=1).set_stroke(opacity=1)
+            )
+        for label in markov_chain_g.labels.values():
+            un_highlight_animations.append(
+                label.animate.set_fill(opacity=1)
+            )
+
+        for v in markov_chain_g.vertices:
+            un_highlight_animations.append(
+                FadeOut(glowing_circles[v])
+            )
+
+        self.play(
+            *un_highlight_animations,
+            FadeOut(states),
+            FadeOut(arrow_1),
+            FadeOut(arrow_2)
+        )
+        self.wait()
+
+    def highlight_transitions(self, markov_chain_g):
+        self.play(
+            *[label.animate.set_color(REDUCIBLE_YELLOW) for label in markov_chain_g.labels.values()]
+        )
+        self.wait()
+
+        transition_probs = Tex("Transition Probabilities $P(i, j)$").set_color(REDUCIBLE_YELLOW)
+        transition_probs.move_to(UP * 3.5)
+        self.play(
+            FadeIn(transition_probs)
+        )
+        self.wait()
+
+        return transition_probs
+
+    def highlight_edge(self, markov_chain_g, edge_tuple):
+        highlight_animations = []
+        for edge in markov_chain_g.edges:
+            if edge == edge_tuple:
+                highlight_animations.extend(
+                    [
+                    markov_chain_g.edges[edge].animate.set_stroke(opacity=1),
+                    markov_chain_g.edges[edge].tip.animate.set_stroke(opacity=1).set_fill(opacity=1),
+                    markov_chain_g.labels[edge].animate.set_fill(color=REDUCIBLE_YELLOW, opacity=1),
+                    ]
+                )
+            else:
+                highlight_animations.extend(
+                    [
+                    markov_chain_g.edges[edge].animate.set_stroke(opacity=0.3),
+                    markov_chain_g.edges[edge].tip.animate.set_stroke(opacity=0.3).set_fill(opacity=0.3),
+                    markov_chain_g.labels[edge].animate.set_fill(color=WHITE, opacity=0.3)
+                    ]
+                )
+        self.play(
+            *highlight_animations
+        )
+
+    def reset_edges(self, markov_chain_g):
+        un_highlight_animations = []
+        for edge in markov_chain_g.edges.values():
+            un_highlight_animations.append(
+                edge.animate.set_stroke(opacity=1)
+            )
+            un_highlight_animations.append(
+                edge.tip.animate.set_fill(opacity=1).set_stroke(opacity=1)
+            )
+        for label in markov_chain_g.labels.values():
+            un_highlight_animations.append(
+                label.animate.set_fill(color=WHITE, opacity=1)
+            )
+        return un_highlight_animations
+
+    def discuss_markov_prop(self, markov_chain_g):
+        markov_prop_explained = Tex("Transition probability only depends \\\\ on current state and future state").scale(0.8)
+        markov_prop_explained.move_to(UP * 3.5)
+
+        self.play(
+            FadeIn(markov_prop_explained)
+        )
+        self.wait()
+
+        user_1 = Dot().set_color(REDUCIBLE_GREEN_DARKER).set_stroke(color=REDUCIBLE_GREEN_LIGHTER, width=2)
+        user_2 = Dot().set_color(REDUCIBLE_YELLOW_DARKER).set_stroke(color=REDUCIBLE_YELLOW, width=2)
+
+        user_1_label = user_1.copy()
+        user_1_transition = MathTex(r"2 \rightarrow 3").scale(0.7)
+        user_1_label_trans = VGroup(user_1_label, user_1_transition).arrange(RIGHT)
+        user_2_label = user_2.copy()
+        user_2_transition = MathTex(r"1 \rightarrow 3").scale(0.7)
+        user_2_label_trans = VGroup(user_2_label, user_2_transition).arrange(RIGHT)
+
+        result = Tex("For both users").scale(0.7)
+        result_with_dots = VGroup(result, user_1_label.copy(), user_2_label.copy()).arrange(RIGHT)
+        p_3_1 = Tex(r"$P(3, 1)$ = 0.5").scale(0.7)
+        p_3_2 = Tex(r"$P(3, 2)$ = 0.5").scale(0.7)
+
+        left_text = VGroup(user_1_label_trans, user_2_label_trans, result_with_dots, p_3_1, p_3_2).arrange(DOWN).to_edge(LEFT * 2)
+        user_1.next_to(markov_chain_g.vertices[2], LEFT, buff=SMALL_BUFF)
+        user_2.next_to(markov_chain_g.vertices[1], DOWN, buff=SMALL_BUFF)
+
+        self.play(
+            FadeIn(user_1),
+        )
+        self.wait()
+        self.play(
+            FadeIn(user_1_label_trans)
+        )
+        self.wait()
+
+        self.play(
+            user_1.animate.next_to(markov_chain_g.vertices[3], LEFT, buff=SMALL_BUFF)
+        )
+        self.wait()
+
+        self.play(
+            FadeIn(user_2),
+            FadeIn(user_2_label_trans)
+        )
+        self.wait()
+
+        self.play(
+            user_2.animate.next_to(markov_chain_g.vertices[3], DOWN, buff=SMALL_BUFF)
+        )
+        self.wait()
+
+        self.play(
+            FadeIn(result_with_dots)
+        )
+        self.wait()
+        highlight_animations = []
+
+        for edge in markov_chain_g.edges:
+            if edge == (3, 2) or edge == (3, 1):
+                highlight_animations.extend(
+                    [
+                    markov_chain_g.labels[edge].animate.set_color(REDUCIBLE_YELLOW)
+                    ]
+                )
+            else:
+                highlight_animations.extend(
+                    [
+                    markov_chain_g.labels[edge].animate.set_fill(opacity=0.3),
+                    markov_chain_g.edges[edge].animate.set_stroke(opacity=0.3),
+                    markov_chain_g.edges[edge].tip.animate.set_fill(opacity=0.3).set_stroke(opacity=0.3)
+                    ]
+                )
+
+        self.play(
+            FadeIn(p_3_1),
+            FadeIn(p_3_2),
+            *highlight_animations
+        )
+        self.wait()
+
+        markov_property = Text("Markov Property", font="CMU Serif", weight=BOLD).scale(0.8).move_to(DOWN * 3.5)
+
+        self.play(
+            Write(markov_property)
+        )
+        self.wait()
+
 
 class IntroImportanceProblem(Scene):
     def construct(self):
