@@ -180,6 +180,7 @@ class MarkovChainGraph(Graph):
                 edge.put_start_and_end_on(arrow_start, arrow_end)
 
         self.add_updater(update_edges)
+        update_edges(self)
 
     def add_edge_buff(
         self,
@@ -319,10 +320,7 @@ class MarkovChainGraph(Graph):
                         .set_stroke(BLACK, width=8, background=True, opacity=0.8)
                         .scale(0.3)
                         .move_to(self.edges[edge_tuple].point_from_proportion(0.2))
-                    )
-
-                    def label_updater(label):
-                        label.move_to(self.edges[edge_tuple].point_from_proportion(0.2))
+                        )
 
                     labels.add(label)
                     self.labels[edge_tuple] = label
@@ -600,12 +598,14 @@ class MarkovChainIntro(Scene):
         markov_chain_g = MarkovChainGraph(markov_chain, enable_curved_double_arrows=True)
         # markov_chain_g.scale(1.2)
         markov_chain_t_labels = markov_chain_g.get_transition_labels()
+
         self.play(
             FadeIn(markov_chain_g),
             FadeIn(markov_chain_t_labels)
         )
         self.wait()
 
+        markov_chain_g.labels[(0, 2)].move_to(markov_chain_g.edges[(0, 2)].point_from_proportion(0.2))
         self.play(
             markov_chain_g.vertices[0].animate.shift(LEFT * 1)
         )
