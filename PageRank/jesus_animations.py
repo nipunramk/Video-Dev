@@ -1,10 +1,12 @@
 import sys
+
 from typing import Iterable
 
 from numpy import sqrt
 from math import dist
 
 sys.path.insert(1, "common/")
+from fractions import Fraction
 
 from manim import *
 
@@ -502,3 +504,78 @@ class BruteForceMethod(TransitionMatrix):
             h_buff=2.3,
             v_buff=1.3,
         )
+
+
+class SystemOfEquationsMethod(BruteForceMethod):
+    def construct(self):
+        frame = self.camera.frame
+        markov_ch = MarkovChain(
+            4,
+            edges=[
+                (2, 0),
+                (2, 3),
+                (0, 3),
+                (3, 1),
+                (2, 1),
+                (1, 2),
+            ],
+            dist=[0.2, 0.5, 0.2, 0.1],
+        )
+
+        markov_ch_mob = MarkovChainGraph(
+            markov_ch,
+            curved_edge_config={"radius": 2, "tip_length": 0.1},
+            straight_edge_config={"max_tip_length_to_length_ratio": 0.08},
+            layout="circular",
+        )
+
+        markov_ch_sim = MarkovChainSimulator(markov_ch, markov_ch_mob, num_users=50)
+
+        self.play(Write(markov_ch_mob))
+        self.play(frame.animate.shift(RIGHT * 4))
+
+        equations_mob = (
+            self.get_balance_equations(markov_chain=markov_ch)
+            .scale(1)
+            .next_to(markov_ch_mob, RIGHT, buff=4)
+        )
+
+        self.add(equations_mob)
+
+    def get_balance_equations(self, markov_chain: MarkovChain):
+        trans_matrix_T = markov_chain.get_transition_matrix().T
+        state_names = markov_chain.get_states()
+
+        balance_equations = []
+        for equation in trans_matrix_T:
+            balance_equations.append(
+                [
+                    (
+                        Fraction(term).limit_denominator().numerator,
+                        Fraction(term).limit_denominator().denominator,
+                    )
+                    for term in equation
+                ]
+            )
+
+        tex_strings = []
+        for state, fractions in zip(state_names, balance_equations):
+            pi_sub_state = f"\pi({state})"
+
+            terms = []
+            for i, term in enumerate(fractions):
+                state_term = f"\pi({state_names[i]})"
+                if term[0] == 1 and term[1] == 1:
+                    terms.append(state_term)
+                else:
+                    if term[0] != 0:
+                        fraction = r"\frac{" + str(term[0]) + "}{" + str(term[1]) + "}"
+                        terms.append(fraction + state_term)
+
+            terms = "+".join(terms)
+
+            full_equation_tex = pi_sub_state + "&=" + terms
+            tex_strings.append(full_equation_tex)
+
+        tex_strings = "\\\\".join(tex_strings)
+        return MathTex(tex_strings)
