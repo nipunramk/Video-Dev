@@ -594,6 +594,7 @@ class SystemOfEquationsMethod(BruteForceMethod):
 
         line = (
             Line()
+            .set_stroke(width=2)
             .stretch_to_fit_width(stationary_dist_mob.width * 1.3)
             .next_to(stationary_dist_mob, DOWN, buff=-0.1)
         )
