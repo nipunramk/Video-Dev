@@ -560,17 +560,18 @@ class UserSimulationWebGraph(IntroWebGraph):
 
         num_steps = 10
 
-        for _ in range(num_steps):
-            transforms = markov_chain_sim.get_instant_transition_animations()
-            self.play(
-                *transforms, rate_func=linear,
-            )
-
         # for _ in range(num_steps):
-        #     transition_map = markov_chain_sim.get_lagged_smooth_transition_animations()
+        #     transforms = markov_chain_sim.get_instant_transition_animations()
         #     self.play(
-        #         *[LaggedStart(*transition_map[i]) for i in markov_chain.get_states()]
+        #         *transforms, rate_func=linear,
         #     )
+
+        for _ in range(num_steps):
+            transition_map = markov_chain_sim.get_lagged_smooth_transition_animations()
+            self.play(
+                *[LaggedStart(*transition_map[i], rate_func=linear) for i in markov_chain.get_states()],
+                rate_func=linear
+            )
 
 class MarkovChainPageRankTitleCard(Scene):
     def construct(self):
@@ -1223,19 +1224,18 @@ class ModelingMarkovChains(Scene):
             r"$\pi_n(v)$: ",
             "probability of ",
             "being in state $v$ at step $n$"
-        ).scale(0.8).to_edge(LEFT * 2).shift(UP * 3)
+        ).scale(0.7).to_edge(LEFT * 2).shift(UP * 3)
 
         self.play(
             FadeIn(definition)
         )
         self.wait()
 
-        pi_vector = MathTex(r"\pi_n = ")
+        pi_vector = MathTex(r"\pi_n = ").scale(0.7)
         pi_row_vector = Matrix([[r"\pi_n(0)", r"\pi_n(1)", r"\pi_n(2)", r"\pi_n(3)", r"\pi_n(4)"]], h_buff=1.7).scale(0.7)
 
         pi_vector_definition = VGroup(pi_vector, pi_row_vector).arrange(RIGHT)
         pi_vector_definition.next_to(definition, DOWN, aligned_edge=LEFT)
-        pi_vector_definition.shift(DOWN * pi_vector_definition.get_center()[1])
 
         self.play(
             Write(pi_vector)
@@ -1246,17 +1246,16 @@ class ModelingMarkovChains(Scene):
         )
         self.wait()
 
-        initial_def = MathTex(r"\pi_0 \sim \text{Uniform}").scale(0.8)
-        initial_def.to_edge(LEFT * 2).shift(DOWN * 3)
-
+        initial_def = MathTex(r"\pi_0 \sim \text{Uniform}").scale(0.7)
+        initial_def.next_to(pi_vector_definition, DOWN, aligned_edge=LEFT)
         self.play(
             Write(initial_def)
         )
         self.wait()
 
-        precise_initial = MathTex(r"\pi_0 = ")
+        precise_initial = MathTex(r"\pi_0 = ").scale(0.7)
         precise_initial_vector = Matrix([[0.2] * 5]).scale(0.7)
-        precise_initial_def = VGroup(precise_initial, precise_initial_vector).arrange(RIGHT).to_edge(LEFT * 2).shift(DOWN * 3)
+        precise_initial_def = VGroup(precise_initial, precise_initial_vector).arrange(RIGHT).next_to(pi_vector_definition, DOWN, aligned_edge=LEFT)
 
         self.play(
             ReplacementTransform(initial_def, precise_initial_def)
