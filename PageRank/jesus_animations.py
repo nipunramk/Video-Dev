@@ -1,6 +1,7 @@
 import sys
 
 from typing import Iterable
+from networkx.algorithms.components import weakly_connected
 
 from numpy import sqrt
 from math import dist
@@ -531,16 +532,105 @@ class SystemOfEquationsMethod(BruteForceMethod):
 
         markov_ch_sim = MarkovChainSimulator(markov_ch, markov_ch_mob, num_users=50)
 
-        self.play(Write(markov_ch_mob))
-        self.play(frame.animate.shift(RIGHT * 4))
-
         equations_mob = (
             self.get_balance_equations(markov_chain=markov_ch)
             .scale(1)
-            .next_to(markov_ch_mob, RIGHT, buff=2)
+            .next_to(markov_ch_mob, RIGHT, buff=2.5)
+        )
+        last_equation = equations_mob[0][38:]
+
+        pi_dists = []
+        for s in markov_ch.get_states():
+            state = markov_ch_mob.vertices[s]
+            label_direction = normalize(state.get_center() - markov_ch_mob.get_center())
+            pi_dists.append(
+                MathTex(f"\pi({s})")
+                .scale(0.8)
+                .next_to(state, label_direction, buff=0.1)
+            )
+
+        pi_dists_vg = VGroup(*pi_dists)
+
+        self.play(Write(markov_ch_mob))
+        self.play(Write(pi_dists_vg))
+        self.play(frame.animate.shift(RIGHT * 3.3 + UP * 0.8).scale(1.2))
+
+        title = (
+            Text("System of Equations Method", font=REDUCIBLE_FONT, weight=BOLD)
+            .scale(1)
+            .move_to(frame.get_top())
+            .shift(DOWN * 0.9)
+        )
+        self.play(Write(title))
+
+        add_to_one = (
+            MathTex("1 = " + "+".join([f"\pi({s})" for s in markov_ch.get_states()]))
+            .scale(0.9)
+            .move_to(last_equation, aligned_edge=LEFT)
         )
 
-        self.add(equations_mob)
+        self.play(Write(equations_mob))
+        self.wait()
+
+        self.play(
+            FadeOut(last_equation, shift=UP * 0.3), FadeIn(add_to_one, shift=UP * 0.3)
+        )
+        self.wait()
+
+        stationary_distribution = self.solve_system(markov_ch)
+
+        tex_strings = []
+        for i, s in enumerate(stationary_distribution):
+            tex_str = f"\pi({i}) &= {s:.3f}"
+            tex_strings.append(tex_str)
+
+        stationary_dist_mob = MathTex("\\\\".join(tex_strings)).move_to(equations_mob)
+
+        self.play(
+            FadeOut(equations_mob[0][:38], shift=UP * 0.3),
+            FadeOut(add_to_one, shift=UP * 0.3),
+            FadeIn(stationary_dist_mob, shift=UP * 0.3),
+        )
+
+        line = (
+            Line()
+            .stretch_to_fit_width(stationary_dist_mob.width * 1.3)
+            .next_to(stationary_dist_mob, DOWN, buff=-0.1)
+        )
+        total = (
+            Text("Total = 1.000", font=REDUCIBLE_FONT, weight=BOLD)
+            .scale_to_fit_width(stationary_dist_mob.width)
+            .next_to(line, DOWN, buff=0.3)
+        )
+        self.wait()
+        self.play(stationary_dist_mob.animate.shift(UP * 0.4))
+
+        self.play(Write(line), Write(total))
+
+    def solve_system(self, markov_chain: MarkovChain):
+        P = markov_chain.get_transition_matrix()
+
+        # P.T gives us the balance equations
+        dependent_system = P.T
+
+        # in this step, we are essentially moving every term
+        # to the left, so we end up with 0s on the other side
+        # of the equation
+        for i, eq in enumerate(dependent_system):
+            eq[i] -= 1
+
+        # this removes the last equation and substitutes it
+        # for our probability constraint
+        dependent_system[-1] = [1.0 for s in range(dependent_system.shape[1])]
+
+        # now we create the other side of the equations, which
+        # will be a vector of size len(states) with all zeros but
+        # a single 1 for the last element
+        right_side = [0.0 for s in range(dependent_system.shape[1])]
+        right_side[-1] = 1
+
+        # we finally solve the system!
+        return np.linalg.solve(dependent_system, right_side)
 
     def get_balance_equations(self, markov_chain: MarkovChain):
         trans_matrix_T = markov_chain.get_transition_matrix().T
