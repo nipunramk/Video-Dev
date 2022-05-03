@@ -1285,7 +1285,7 @@ class ModelingMarkovChains(Scene):
 
 class Uniqueness(Scene):
     def construct(self):
-        challenge = Tex("Can you define a Markov chain with \\\\ multiple stationary distribtions?")
+        challenge = Tex("Can you define a Markov chain with \\\\ multiple stationary distributions?")
         challenge.scale(1).move_to(UP * 3)
         self.play(
             Write(challenge)
