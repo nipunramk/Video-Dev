@@ -572,8 +572,33 @@ class SystemOfEquationsMethod(BruteForceMethod):
         self.play(Write(equations_mob))
         self.wait()
 
+        infinite_solutions = (
+            Text("Infinite solutions!", font=REDUCIBLE_FONT, weight=BOLD)
+            .scale(0.4)
+            .move_to(equations_mob, UP + LEFT)
+            .rotate(15 * DEGREES)
+            .shift(LEFT + UP * 0.3)
+        )
+
+        self.play(FadeIn(infinite_solutions, shift=UP * 0.3))
+
+        for i in range(4):
+            self.play(
+                infinite_solutions.animate.set_opacity(0),
+                run_time=3 / config.frame_rate,
+            )
+            # self.wait(1 / config.frame_rate)
+            self.play(
+                infinite_solutions.animate.set_opacity(1),
+                run_time=3 / config.frame_rate,
+            )
+            self.wait(3 / config.frame_rate)
+
+        self.wait()
         self.play(
-            FadeOut(last_equation, shift=UP * 0.3), FadeIn(add_to_one, shift=UP * 0.3)
+            FadeOut(last_equation, shift=UP * 0.3),
+            FadeIn(add_to_one, shift=UP * 0.3),
+            FadeOut(infinite_solutions, shift=UP * 0.3),
         )
         self.wait()
 
