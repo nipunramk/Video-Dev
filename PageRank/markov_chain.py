@@ -337,13 +337,15 @@ class MarkovChainGraph(Graph):
 
 class MarkovChainSimulator:
     def __init__(
-        self, markov_chain: MarkovChain, markov_chain_g: MarkovChainGraph, num_users=50, user_radius=0.035,
+        self, markov_chain: MarkovChain, markov_chain_g: MarkovChainGraph, num_users=50, user_radius=0.035, state_color_map=None,
     ):
         self.markov_chain = markov_chain
         self.markov_chain_g = markov_chain_g
         self.num_users = num_users
         self.state_counts = {i: 0 for i in markov_chain.get_states()}
         self.user_radius = user_radius
+        self.state_color_map = state_color_map
+        self.distribution_sequence = []
         self.init_users()
 
     def init_users(self):
@@ -368,6 +370,17 @@ class MarkovChainSimulator:
             user_location = self.get_user_location(user_id)
             user.move_to(user_location)
 
+        self.distribution_sequence.append(self.markov_chain.get_current_dist())
+
+        if self.state_color_map is None:
+            return
+
+        state_to_users = self.get_state_to_user()
+        for state, user_ids in state_to_users.items():
+            for user_id in user_ids:
+                color = self.state_color_map[state]
+                self.users[user_id].set_color(color).set_opacity(0.6).set_stroke(color=color, width=2, opacity=0.8)
+
     def get_user_location(self, user: int):
         user_state = self.user_to_state[user]
         user_location = self.markov_chain_g.vertices[user_state].get_center()
@@ -384,6 +397,7 @@ class MarkovChainSimulator:
         for user_id in self.user_to_state:
             self.user_to_state[user_id] = self.update_state(user_id)
         self.markov_chain.update_dist()
+        self.distribution_sequence.append(self.markov_chain.get_current_dist())
 
     def update_state(self, user_id: int):
         current_state = self.user_to_state[user_id]
@@ -411,7 +425,14 @@ class MarkovChainSimulator:
         self.transition()
         for user_id, user in enumerate(self.users):
             new_location = self.get_user_location(user_id)
-            transition_animations.append(user.animate.move_to(new_location))
+            if self.state_color_map is not None:
+                new_state = self.user_to_state[user_id]
+                new_color = self.state_color_map[new_state]
+                transition_animations.append(
+                    user.animate.set_color(new_color).set_stroke(opacity=0.6).set_stroke(color=new_color, opacity=0.8).move_to(new_location)
+                )
+            else:
+                transition_animations.append(user.animate.move_to(new_location))
         return transition_animations
 
     def get_lagged_smooth_transition_animations(self):
@@ -419,9 +440,16 @@ class MarkovChainSimulator:
         self.transition()
         for user_id, user in enumerate(self.users):
             new_location = self.get_user_location(user_id)
-            transition_map[self.user_to_state[user_id]].append(
-                user.animate.move_to(new_location)
-            )
+            if self.state_color_map is not None:
+                new_state = self.user_to_state[user_id]
+                new_color = self.state_color_map[new_state]
+                transition_map[self.user_to_state[user_id]].append(
+                    user.animate.set_color(new_color).set_stroke(opacity=0.6).set_stroke(color=new_color, opacity=0.8).move_to(new_location)
+                )
+            else:
+                transition_map[self.user_to_state[user_id]].append(
+                    user.animate.move_to(new_location)
+                )
         return transition_map
 
     def poisson_distribution(self, center):
@@ -464,6 +492,9 @@ class MarkovChainSimulator:
             else:
                 state_to_users[state].append(user_id)
         return state_to_users
+
+    def get_distribution_sequence(self):
+        return self.distribution_sequence
 
 class MarkovChainTester(Scene):
     def construct(self):
@@ -1456,3 +1487,149 @@ class Uniqueness(Scene):
             Write(conclusion[2])
         )
         self.wait()
+
+class Periodicity(Scene):
+    def construct(self):
+        markov_chain = MarkovChain(
+            4,
+            [
+                (0, 1),
+                (1, 0),
+                (0, 2),
+                (1, 2),
+                (1, 3),
+                (2, 0),
+                (2, 3),
+                (3, 1),
+            ],
+            transition_matrix=np.array(
+                [
+                [0, 0.7, 0.3, 0],
+                [0.2, 0, 0.6, 0.2],
+                [0.6, 0, 0, 0.4],
+                [0, 1, 0, 0],
+                ]
+            )
+        )
+        markov_chain_g = MarkovChainGraph(markov_chain, enable_curved_double_arrows=True, layout="circular")
+
+        markov_chain_g.scale(1.5)
+        markov_chain_t_labels = markov_chain_g.get_transition_labels()
+        self.play(
+            FadeIn(markov_chain_g),
+            FadeIn(markov_chain_t_labels)
+        )
+        self.wait()
+
+        markov_chain_g.clear_updaters()
+        markov_chain_group = VGroup(markov_chain_g, markov_chain_t_labels)
+
+        self.play(
+            markov_chain_group.animate.scale(1.1 / 1.5).shift(LEFT * 3.5)
+        )
+        self.wait()
+
+        self.state_color_map = {
+        0: REDUCIBLE_YELLOW,
+        1: REDUCIBLE_GREEN,
+        2: ORANGE,
+        3: PURE_GREEN
+        }
+
+        markov_chain_sim = MarkovChainSimulator(
+            markov_chain, markov_chain_g, num_users=100,
+            state_color_map=self.state_color_map
+        )
+
+        users = markov_chain_sim.get_users()
+        self.play(
+            *[FadeIn(u) for u in users]
+        )
+        self.wait()
+
+        stationary_dist = markov_chain.get_true_stationary_dist()
+        num_steps = 20
+
+        axes, state_to_line_segments = self.get_distribution_plot(markov_chain, num_steps)
+        self.play(
+            Write(axes)
+        )
+        self.wait()
+
+        for step in range(num_steps):
+            if step < 5:
+                rate_func = smooth
+            else:
+                rate_func = linear
+            transition_animations = markov_chain_sim.get_instant_transition_animations()
+            dist_graph_aniamtions = self.get_dist_graph_step_animations(state_to_line_segments, step)
+            self.play(
+                *transition_animations + dist_graph_aniamtions, rate_func=rate_func
+            )
+            if step < 5:
+                self.wait()
+            else:
+                self.wait(5/15)
+
+        # for step in range(num_steps):
+        #     transition_map = markov_chain_sim.get_lagged_smooth_transition_animations()
+        #     dist_graph_aniamtions = self.get_dist_graph_step_animations(state_to_line_segments, step)
+        #     self.play(
+        #         *[LaggedStart(*transition_map[i]) for i in markov_chain.get_states()] + dist_graph_aniamtions
+        #     )
+        #     self.wait()
+
+    def get_dist_graph_step_animations(self, state_to_line_segments, step):
+        animations = []
+        for state, line_segments in state_to_line_segments.items():
+            animations.append(
+                Create(line_segments[step])
+            )
+        return animations
+
+    def get_distribution_plot(self, markov_chain, num_steps, dist=None):
+        markov_chain_copy = MarkovChain(
+            len(markov_chain.get_states()),
+            markov_chain.get_edges(),
+            transition_matrix=markov_chain.get_transition_matrix(),
+            dist=dist,
+        )
+        distribution_sequence = [markov_chain_copy.get_current_dist()]
+        for _ in range(num_steps):
+            markov_chain_copy.update_dist()
+            distribution_sequence.append(markov_chain_copy.get_current_dist())
+
+        distribution_sequence = np.array(distribution_sequence)
+        print(distribution_sequence)
+
+        axes = Axes(
+            x_range=(0, num_steps, 1),
+            y_range=(0, 0.5, 0.1),
+            x_length=5,
+            y_length=4,
+            tips=False,
+            axis_config={"include_numbers": True, "include_ticks": False},
+            x_axis_config={"numbers_to_exclude": range(num_steps + 1)},
+            y_axis_config={"numbers_to_exclude": np.arange(0.1, 0.45, 0.1)}
+        ).move_to(RIGHT * 3)
+
+        state_to_line_segments = {}
+        for state in markov_chain.get_states():
+            x_values=list(range(num_steps+1))
+            y_values=distribution_sequence[:, state]
+            line_color=self.state_color_map[state]
+            line_segments = self.get_line_segments(axes, x_values, y_values, line_color)
+            state_to_line_segments[state] = line_segments
+
+        return axes, state_to_line_segments
+
+    def get_line_segments(self, axes, x_values, y_values, line_color):
+        line_segments = []
+        for i in range(len(x_values) - 1):
+            start = axes.coords_to_point(x_values[i], y_values[i])
+            end = axes.coords_to_point(x_values[i + 1], y_values[i + 1])
+            line_seg = Line(start, end).set_stroke(color=line_color)
+            line_segments.append(line_seg)
+
+        return VGroup(*line_segments)
+
