@@ -13,6 +13,7 @@ from reducible_colors import *
 
 class TransitionMatrix(MovingCameraScene):
     def construct(self):
+        frame = self.camera.frame
         markov_ch = MarkovChain(
             5,
             edges=[
@@ -40,20 +41,20 @@ class TransitionMatrix(MovingCameraScene):
 
         dot_product = (
             MathTex(
-                r"\pi_{n+1}(0) &= \pi_{n}(3) * P(3, 0)\\ &+ \pi_{n}(2) * P(2, 0)\\ &+ \pi_{n}(4) * P(4, 0)"
+                r"\pi_{n+1}(0) &= \pi_{n}(3) \cdot P(3, 0)\\ &+ \pi_{n}(2) \cdot P(2, 0)\\ &+ \pi_{n}(4) \cdot P(4, 0)"
             )
             .scale(0.7)
             .shift(LEFT * 5.5 + DOWN * 1.5)
         )
-        annotation = (
-            Text(
-                "Probability of ending in state 0 in the next step:",
-                font=REDUCIBLE_FONT,
-                weight=BOLD,
-            )
-            .scale_to_fit_width(dot_product.width)
-            .next_to(dot_product, UP, buff=0.15)
-        )
+        # annotation = (
+        #     Text(
+        #         "Probability of ending in state 0 in the next step:",
+        #         font=REDUCIBLE_FONT,
+        #         weight=BOLD,
+        #     )
+        #     .scale_to_fit_width(dot_product.width)
+        #     .next_to(dot_product, UP, buff=0.15)
+        # )
 
         trans_matrix_mob = self.matrix_to_mob(markov_ch.get_transition_matrix())
 
@@ -88,13 +89,36 @@ class TransitionMatrix(MovingCameraScene):
 
         self.play(self.focus_on(markov_ch_mob, buff=2.8).shift(LEFT * 2.5))
 
-        self.play(
-            Indicate(markov_ch_mob.vertices[0]),
+        # isolate node 0
+        mask_0 = (
+            Difference(
+                Rectangle(height=10, width=20),
+                markov_ch_mob.vertices[0].copy().scale(1.05),
+            )
+            .set_color(BLACK)
+            .set_stroke(width=0)
+            .set_opacity(0.7)
         )
+        self.play(FadeIn(mask_0))
+        self.wait()
+        self.play(FadeOut(mask_0))
+
+        mask_but_0 = Rectangle(width=20, height=20)
+        # only way to create a mask of several mobjects is to
+        # keep poking the holes on the mask one by one
+        for v in list(markov_ch_mob.vertices.values())[1:]:
+            mask_but_0 = Difference(mask_but_0, v.copy().scale(1.05))
+
+        mask_but_0.set_color(BLACK).set_stroke(width=0).set_opacity(0.7)
+
+        self.play(FadeIn(mask_but_0))
+        self.wait()
+        self.play(FadeOut(mask_but_0))
 
         self.play(
             markov_ch_mob.vertices[1].animate.set_opacity(0.3),
             markov_ch_mob.edges[(2, 1)].animate.set_opacity(0.3),
+            markov_ch_mob.edges[(1, 2)].animate.set_opacity(0.3),
             markov_ch_mob.edges[(4, 1)].animate.set_opacity(0.3),
             markov_ch_mob.edges[(3, 4)].animate.set_opacity(0.3),
             markov_ch_mob.edges[(2, 3)].animate.set_opacity(0.3),
@@ -104,20 +128,67 @@ class TransitionMatrix(MovingCameraScene):
 
         self.wait()
 
-        self.play(FadeIn(annotation), run_time=0.6)
-        self.play(FadeIn(dot_product))
+        pi_dists = []
+        for s in markov_ch.get_states():
+            state = markov_ch_mob.vertices[s]
+            label_direction = normalize(state.get_center() - markov_ch_mob.get_center())
+            pi_dists.append(
+                MathTex(f"\pi({s})")
+                .scale(0.6)
+                .next_to(state, label_direction, buff=0.1)
+            )
 
+        pi_dists_vg = VGroup(*pi_dists)
+
+        self.play(FadeIn(pi_dists_vg))
+
+        labels = markov_ch_mob.get_transition_labels(scale=0.2)
+        self.play(FadeIn(VGroup(*labels)))
+
+        pi_next_0 = MathTex("\pi_{n+1}(0)").scale(0.8)
+
+        math_str = [
+            "\pi_{n}" + f"({i})" + f"&\cdot P({i},0)"
+            for i in range(len(markov_ch.get_states()))
+        ]
+
+        dot_prod_mob = MathTex("\\\\".join(math_str)).scale(0.6)
+
+        brace = Brace(dot_prod_mob, LEFT)
+        equation_explanation = (
+            VGroup(pi_next_0, brace, dot_prod_mob)
+            .arrange(RIGHT, buff=0.1)
+            .move_to(frame.get_left(), aligned_edge=LEFT)
+            .shift(RIGHT * 0.5)
+        )
+
+        self.play(FadeIn(pi_next_0))
+        self.wait()
+        # self.add(index_labels(dot_prod_mob[0]).set_opacity(0.8))
+        self.play(
+            FadeIn(brace),
+            FadeIn(dot_prod_mob[0][0:5]),
+            FadeIn(dot_prod_mob[0][12:17]),
+            FadeIn(dot_prod_mob[0][24:29]),
+            FadeIn(dot_prod_mob[0][36:41]),
+            FadeIn(dot_prod_mob[0][48:53]),
+        )
+        self.wait()
+        self.play(
+            FadeIn(dot_prod_mob[0][5:12]),
+            FadeIn(dot_prod_mob[0][17:24]),
+            FadeIn(dot_prod_mob[0][29:36]),
+            FadeIn(dot_prod_mob[0][41:48]),
+            FadeIn(dot_prod_mob[0][53:]),
+        )
         self.wait()
 
-        self.play(
-            FadeOut(annotation),
-            FadeOut(dot_product),
-        )
         self.play(
             markov_ch_mob.vertices[1].animate.set_stroke(opacity=1),
             markov_ch_mob.vertices[1].animate.set_opacity(0.5),
             markov_ch_mob._labels[1].animate.set_opacity(1),
             markov_ch_mob.edges[(2, 1)].animate.set_opacity(1),
+            markov_ch_mob.edges[(1, 2)].animate.set_opacity(1),
             markov_ch_mob.edges[(4, 1)].animate.set_opacity(1),
             markov_ch_mob.edges[(3, 4)].animate.set_opacity(1),
             markov_ch_mob.edges[(2, 3)].animate.set_opacity(1),
@@ -204,14 +275,6 @@ class TransitionMatrix(MovingCameraScene):
             *[FadeIn(l) for l in count_labels.values()],
             *[FadeIn(u) for u in users],
         )
-
-        for i in range(50):
-            transition_animations = markov_ch_sim.get_instant_transition_animations()
-            count_labels, count_transforms = self.update_count_labels(
-                count_labels, markov_ch_mob, markov_ch_sim, use_dist=True
-            )
-            run_time = 1 / sqrt(i + 1)
-            self.play(*transition_animations + count_transforms, run_time=run_time)
 
         self.wait()
 
