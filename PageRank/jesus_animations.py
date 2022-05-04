@@ -240,6 +240,9 @@ class TransitionMatrix(MovingCameraScene):
             *[FadeIn(u) for u in users],
         )
 
+        # accelerate the simulation so
+        # we only show the stationary distribution
+        [markov_ch_sim.transition() for _ in range(20)]
         for i in range(6):
             transition_map = markov_ch_sim.get_lagged_smooth_transition_animations()
             count_labels, count_transforms = self.update_count_labels(
