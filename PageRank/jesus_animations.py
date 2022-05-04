@@ -418,7 +418,12 @@ class BruteForceMethod(TransitionMatrix):
             .next_to(stationary_dist_tex, DOWN, buff=2.5, aligned_edge=LEFT)
         )
         distance_mob = (
-            MathTex(r"D(\pi_{1}, \pi_{0}) = " + f"{distance:.5f}")
+            VGroup(
+                MathTex("D(\pi_{" + str(1) + "}, \pi_{" + str(0) + "})"),
+                MathTex("="),
+                Text(f"{distance:.5f}", font=REDUCIBLE_MONO).scale(0.6),
+            )
+            .arrange(RIGHT, buff=0.2)
             .scale(0.7)
             .next_to(stationary_dist_tex, DOWN, buff=2.5, aligned_edge=LEFT)
         )
