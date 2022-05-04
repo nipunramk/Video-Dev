@@ -1,6 +1,8 @@
+from ctypes import alignment
+from itertools import count
 import sys
 
-from numpy import sqrt
+from numpy import left_shift, sqrt
 
 
 sys.path.insert(1, "common/")
@@ -39,27 +41,10 @@ class TransitionMatrix(MovingCameraScene):
         markov_ch_sim = MarkovChainSimulator(markov_ch, markov_ch_mob, num_users=50)
         users = markov_ch_sim.get_users()
 
-        dot_product = (
-            MathTex(
-                r"\pi_{n+1}(0) &= \pi_{n}(3) \cdot P(3, 0)\\ &+ \pi_{n}(2) \cdot P(2, 0)\\ &+ \pi_{n}(4) \cdot P(4, 0)"
-            )
-            .scale(0.7)
-            .shift(LEFT * 5.5 + DOWN * 1.5)
-        )
-        # annotation = (
-        #     Text(
-        #         "Probability of ending in state 0 in the next step:",
-        #         font=REDUCIBLE_FONT,
-        #         weight=BOLD,
-        #     )
-        #     .scale_to_fit_width(dot_product.width)
-        #     .next_to(dot_product, UP, buff=0.15)
-        # )
-
         trans_matrix_mob = self.matrix_to_mob(markov_ch.get_transition_matrix())
 
         p_equals = (
-            MarkupText("P<sub>0</sub> = ", font=REDUCIBLE_FONT, weight=BOLD)
+            Text("P = ", font=REDUCIBLE_FONT, weight=BOLD)
             .scale(0.3)
             .next_to(trans_matrix_mob, LEFT)
         )
@@ -67,13 +52,19 @@ class TransitionMatrix(MovingCameraScene):
         vertices_down = VGroup(
             *[dot.copy().scale(0.4) for dot in markov_ch_mob.vertices.values()]
         ).arrange(DOWN, buff=0.05)
-        vertices_right = VGroup(
-            *[dot.copy() for dot in markov_ch_mob.vertices.values()]
-        ).arrange(RIGHT)
 
-        matrix = (
-            VGroup(p_equals, vertices_down, trans_matrix_mob)
-            .arrange(RIGHT, buff=0.1)
+        matrix = VGroup(p_equals, vertices_down, trans_matrix_mob).arrange(
+            RIGHT, buff=0.1
+        )
+
+        vertices_right = (
+            VGroup(*[dot.copy().scale(0.4) for dot in markov_ch_mob.vertices.values()])
+            .arrange(RIGHT, buff=0.27)
+            .next_to(trans_matrix_mob, UP, buff=0.1)
+        )
+
+        matrix_complete = (
+            VGroup(vertices_right, matrix)
             .scale(1.5)
             .to_edge(LEFT, buff=-0.5)
             .shift(DOWN * 0.6)
@@ -142,9 +133,6 @@ class TransitionMatrix(MovingCameraScene):
 
         self.play(FadeIn(pi_dists_vg))
 
-        labels = markov_ch_mob.get_transition_labels(scale=0.2)
-        self.play(FadeIn(VGroup(*labels)))
-
         pi_next_0 = MathTex("\pi_{n+1}(0)").scale(0.8)
 
         math_str = [
@@ -161,10 +149,17 @@ class TransitionMatrix(MovingCameraScene):
             .move_to(frame.get_left(), aligned_edge=LEFT)
             .shift(RIGHT * 0.5)
         )
+        plus_signs = (
+            VGroup(*[Tex("+").scale(0.7) for _ in range(4)])
+            .arrange(DOWN, buff=0.22)
+            .next_to(dot_prod_mob, RIGHT, buff=0.1, aligned_edge=UP)
+            .shift(DOWN * 0.02)
+        )
 
         self.play(FadeIn(pi_next_0))
+
         self.wait()
-        # self.add(index_labels(dot_prod_mob[0]).set_opacity(0.8))
+
         self.play(
             FadeIn(brace),
             FadeIn(dot_prod_mob[0][0:5]),
@@ -173,7 +168,9 @@ class TransitionMatrix(MovingCameraScene):
             FadeIn(dot_prod_mob[0][36:41]),
             FadeIn(dot_prod_mob[0][48:53]),
         )
+
         self.wait()
+
         self.play(
             FadeIn(dot_prod_mob[0][5:12]),
             FadeIn(dot_prod_mob[0][17:24]),
@@ -181,7 +178,10 @@ class TransitionMatrix(MovingCameraScene):
             FadeIn(dot_prod_mob[0][41:48]),
             FadeIn(dot_prod_mob[0][53:]),
         )
+
         self.wait()
+
+        self.play(FadeIn(plus_signs))
 
         self.play(
             markov_ch_mob.vertices[1].animate.set_stroke(opacity=1),
@@ -196,59 +196,23 @@ class TransitionMatrix(MovingCameraScene):
             markov_ch_mob.edges[(0, 2)].animate.set_opacity(1),
         )
 
-        # now lets simulate the chain and show the transition matrix
-        self.play(*[FadeIn(user) for user in users])
         self.wait()
 
-        steps = 6
-        trans_matrix = markov_ch.get_transition_matrix()
-        new_matrix = trans_matrix.copy()
+        self.play(FadeOut(equation_explanation), FadeOut(plus_signs))
 
-        print(markov_ch_mob.vertices)
+        self.wait()
 
-        for n in range(steps):
-            if n == 0:
-                self.play(FadeIn(matrix), FadeIn(prob_labels))
-                self.wait()
-            else:
-                new_matrix = new_matrix @ trans_matrix
-                new_transition_matrix = (
-                    self.matrix_to_mob(new_matrix)
-                    .scale_to_fit_width(trans_matrix_mob.width)
-                    .move_to(trans_matrix_mob)
-                )
-
-                transition_map = markov_ch_sim.get_lagged_smooth_transition_animations()
-
-                new_iteration_text = (
-                    MarkupText(f"P<sub>{n}</sub> = ", font=REDUCIBLE_FONT, weight=BOLD)
-                    .scale_to_fit_width(p_equals.width)
-                    .move_to(p_equals, LEFT)
-                )
-
-                # new_matrix_vg = (
-                #     VGroup(new_iteration_text, vertices_down, new_transition_matrix)
-                #     .arrange(RIGHT, buff=0.1)
-                #     .to_edge(LEFT, buff=-0.5)
-                #     .shift(DOWN * 0.3)
-                # )
-
-                self.play(
-                    *[LaggedStart(*transition_map[i]) for i in markov_ch.get_states()],
-                    # Transform(matrix, new_matrix_vg),
-                    Transform(p_equals, new_iteration_text),
-                    Transform(trans_matrix_mob, new_transition_matrix),
-                    run_time=1,
-                )
-                self.wait()
+        self.play(FadeIn(matrix_complete), FadeIn(prob_labels))
+        self.wait()
 
         ######### DEFINE STATIONARY DISTRIBUTON #########
 
         self.play(
             self.camera.frame.animate.scale(1.4).shift(LEFT * 1.7),
             FadeOut(matrix),
-            *[FadeOut(user) for user in users],
+            FadeOut(vertices_right),
             FadeOut(prob_labels),
+            FadeOut(pi_dists_vg),
         )
         self.wait()
 
@@ -258,7 +222,7 @@ class TransitionMatrix(MovingCameraScene):
             .next_to(markov_ch_mob, LEFT, buff=4.5, aligned_edge=RIGHT)
         )
         stationary_dist_tex = (
-            MathTex("\pi_{n+1} = \pi_{n} P")
+            MathTex("\pi = \pi P")
             .scale_to_fit_width(stationary_dist_annotation.width)
             .next_to(stationary_dist_annotation, DOWN)
         )
@@ -275,6 +239,16 @@ class TransitionMatrix(MovingCameraScene):
             *[FadeIn(l) for l in count_labels.values()],
             *[FadeIn(u) for u in users],
         )
+
+        for i in range(6):
+            transition_map = markov_ch_sim.get_lagged_smooth_transition_animations()
+            count_labels, count_transforms = self.update_count_labels(
+                count_labels, markov_ch_mob, markov_ch_sim, use_dist=True
+            )
+            self.play(
+                *[LaggedStart(*transition_map[i]) for i in markov_ch.get_states()]
+                + count_transforms
+            )
 
         self.wait()
 
@@ -330,8 +304,8 @@ class TransitionMatrix(MovingCameraScene):
         str_repr = [[f"{a:.2f}" for a in row] for row in matrix]
         return Matrix(
             str_repr,
-            left_bracket="(",
-            right_bracket=")",
+            left_bracket="[",
+            right_bracket="]",
             element_to_mobject=Text,
             element_to_mobject_config={"font": REDUCIBLE_MONO},
             h_buff=2.3,
