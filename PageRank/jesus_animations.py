@@ -1,5 +1,6 @@
 from ctypes import alignment
 from itertools import count
+from os import wait
 import sys
 
 from numpy import left_shift, sqrt
@@ -182,6 +183,8 @@ class TransitionMatrix(MovingCameraScene):
         self.wait()
 
         self.play(FadeIn(plus_signs))
+
+        self.wait()
 
         self.play(
             markov_ch_mob.vertices[1].animate.set_stroke(opacity=1),
