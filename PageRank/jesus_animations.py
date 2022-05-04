@@ -223,7 +223,7 @@ class TransitionMatrix(MovingCameraScene):
         )
         stationary_dist_tex = (
             MathTex("\pi = \pi P")
-            .scale_to_fit_width(stationary_dist_annotation.width)
+            .scale_to_fit_width(stationary_dist_annotation.width - 2)
             .next_to(stationary_dist_annotation, DOWN)
         )
         self.play(Write(stationary_dist_annotation), run_time=0.8)
@@ -242,7 +242,7 @@ class TransitionMatrix(MovingCameraScene):
 
         # accelerate the simulation so
         # we only show the stationary distribution
-        [markov_ch_sim.transition() for _ in range(20)]
+        [markov_ch_sim.transition() for _ in range(50)]
         for i in range(6):
             transition_map = markov_ch_sim.get_lagged_smooth_transition_animations()
             count_labels, count_transforms = self.update_count_labels(
