@@ -1,3 +1,4 @@
+from os import wait
 import sys
 
 
@@ -422,6 +423,8 @@ class TransitionMatrix(MovingCameraScene):
         self.play(Write(question_1))
         self.wait()
         self.play(Write(question_2))
+
+        self.wait()
 
     def focus_on(self, mobject, buff=2):
         return self.camera.frame.animate.set_width(mobject.width * buff).move_to(
