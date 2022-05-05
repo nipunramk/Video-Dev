@@ -64,13 +64,6 @@ class TransitionMatrix(MovingCameraScene):
             .next_to(trans_matrix_mob, UP, buff=0.1)
         )
 
-        matrix_complete = (
-            VGroup(vertices_right, matrix)
-            .scale(1.5)
-            .to_edge(LEFT, buff=-0.5)
-            .shift(DOWN * 0.6)
-        )
-
         prob_labels = markov_ch_mob.get_transition_labels(scale=0.2)
 
         ################# ANIMATIONS #################
@@ -79,7 +72,7 @@ class TransitionMatrix(MovingCameraScene):
 
         self.wait()
 
-        self.play(self.focus_on(markov_ch_mob, buff=2.8).shift(LEFT * 2.5))
+        self.play(self.focus_on(markov_ch_mob, buff=3.2).shift(LEFT * 3))
 
         # isolate node 0
         mask_0 = (
@@ -186,6 +179,76 @@ class TransitionMatrix(MovingCameraScene):
 
         self.wait()
 
+        full_equation = VGroup(equation_explanation, plus_signs)
+
+        ##### camera pans down for explanation
+        self.play(frame.animate.shift(DOWN * 7), run_time=1.5)
+
+        self.wait()
+
+        math_notation_title = (
+            Text("Some bits of mathematical notation", font=REDUCIBLE_FONT, weight=BOLD)
+            .scale(0.5)
+            .move_to(frame.get_corner(UL), aligned_edge=UL)
+            .shift(DR * 0.5)
+        )
+        self.play(FadeIn(math_notation_title, shift=UP * 0.3))
+
+        dist_definition = (
+            MathTex(
+                # r"\vec{\pi_n} = [\pi_n(0), \pi_n(1), \pi_n(2), \pi_n(3), \pi_n(4) ]",
+                r"\vec{\pi_n} = \begin{bmatrix} \pi_n(0) & \pi_n(1) & \pi_n(2) & \pi_n(3) & \pi_n(4) \end{bmatrix}",
+            )
+            .scale(0.7)
+            .move_to(frame.get_center())
+        )
+
+        self.play(FadeIn(dist_definition, shift=UP * 0.3))
+        self.wait()
+
+        self.play(dist_definition.animate.shift(UP * 2))
+        self.wait()
+
+        trans_column_def = (
+            MathTex(
+                r"\vec{P_{i,0}} = \begin{bmatrix} P(0,0) \\ P(1,0) \\ P(2,0) \\ P(3,0) \\ P(4,0) \end{bmatrix}"
+            )
+            .scale(0.8)
+            .move_to(frame.get_center())
+        )
+        self.play(FadeIn(trans_column_def, shift=UP * 0.3))
+
+        self.wait()
+        self.play(
+            trans_column_def.animate.scale(0.7).next_to(
+                dist_definition, DOWN, buff=0.5, coor_mask=[0, 1, 0]
+            )
+        )
+        self.wait()
+        next_dist_def = (
+            MathTex(r"\vec{\pi}_{n+1}(0) = \vec{\pi_n} \cdot \vec{P_{i,0}}}")
+            .scale(1.4)
+            .move_to(frame.get_center())
+            .shift(DOWN * 1.8)
+        )
+        self.play(FadeIn(next_dist_def, shift=UP * 0.3))
+
+        self.wait()
+        #### camera frame comes back
+        self.play(frame.animate.shift(UP * 7), run_time=1.5)
+
+        self.play(
+            full_equation.animate.move_to(
+                frame.get_corner(UL), aligned_edge=UL, coor_mask=[0.8, 0.8, 0.8]
+            ).scale(0.8),
+            FadeOut(dist_definition),
+            FadeOut(trans_column_def),
+            FadeOut(next_dist_def),
+            FadeOut(math_notation_title),
+        )
+
+        self.wait()
+
         self.play(
             markov_ch_mob.vertices[1].animate.set_stroke(opacity=1),
             markov_ch_mob.vertices[1].animate.set_opacity(0.5),
@@ -205,14 +268,28 @@ class TransitionMatrix(MovingCameraScene):
 
         self.wait()
 
+        matrix_complete = (
+            VGroup(vertices_right, matrix)
+            .scale(1.7)
+            .move_to(frame.get_left(), aligned_edge=LEFT)
+            .shift(RIGHT * 0.6 + UP * 0.4)
+        )
+
         self.play(FadeIn(matrix_complete), FadeIn(prob_labels))
+        dot_product_def = (
+            MathTex(r"\vec{\pi}_{n+1} &= \vec{\pi}_n \cdot P")
+            .scale(1.3)
+            .next_to(trans_matrix_mob, DOWN, buff=0.5)
+        )
+        self.play(FadeIn(dot_product_def, shift=UP * 0.3))
         self.wait()
 
         ######### DEFINE STATIONARY DISTRIBUTON #########
 
         self.play(
-            self.camera.frame.animate.scale(1.4).shift(LEFT * 1.7),
+            self.camera.frame.animate.scale(1.3).shift(LEFT * 1.2),
             FadeOut(matrix),
+            FadeOut(dot_product_def),
             FadeOut(vertices_right),
             FadeOut(prob_labels),
             FadeOut(pi_dists_vg),
@@ -223,11 +300,12 @@ class TransitionMatrix(MovingCameraScene):
             Text("A distribution is stationary if:", font=REDUCIBLE_FONT, weight=BOLD)
             .scale(0.65)
             .next_to(markov_ch_mob, LEFT, buff=4.5, aligned_edge=RIGHT)
+            .shift(UP * 0.8)
         )
         stationary_dist_tex = (
             MathTex("\pi = \pi P")
             .scale_to_fit_width(stationary_dist_annotation.width - 2)
-            .next_to(stationary_dist_annotation, DOWN)
+            .next_to(stationary_dist_annotation, DOWN, buff=0.8)
         )
         self.play(Write(stationary_dist_annotation), run_time=0.8)
         self.play(FadeIn(stationary_dist_tex))
@@ -245,8 +323,8 @@ class TransitionMatrix(MovingCameraScene):
 
         # accelerate the simulation so
         # we only show the stationary distribution
-        [markov_ch_sim.transition() for _ in range(50)]
-        for i in range(6):
+        # [markov_ch_sim.transition() for _ in range(10)]
+        for i in range(15):
             transition_map = markov_ch_sim.get_lagged_smooth_transition_animations()
             count_labels, count_transforms = self.update_count_labels(
                 count_labels, markov_ch_mob, markov_ch_sim, use_dist=True
@@ -263,12 +341,13 @@ class TransitionMatrix(MovingCameraScene):
             FadeOut(stationary_dist_tex),
             *[FadeOut(u) for u in users],
             *[FadeOut(l) for l in count_labels.values()],
+            self.camera.frame.animate.scale(0.9),
         )
 
         ############ IMPORTANT QUESTIONS ############
 
         """
-        it’s important to address the question of whether a unique distribution even exists for a Markov chain. 
+        it's important to address the question of whether a unique distribution even exists for a Markov chain. 
         And, a critical point in our model is if any initial distribution eventually converges to the stationary
         distribution
         """
@@ -280,7 +359,7 @@ class TransitionMatrix(MovingCameraScene):
                 weight=BOLD,
             )
             .scale(0.6)
-            .next_to(markov_ch_mob, LEFT, buff=2)
+            .next_to(markov_ch_mob, LEFT, buff=1.5)
             .shift(UP * 2)
         )
 
