@@ -4,6 +4,10 @@ from typing import Iterable
 
 from math import dist
 
+from networkx.algorithms.centrality.current_flow_betweenness import (
+    approximate_current_flow_betweenness_centrality,
+)
+
 sys.path.insert(1, "common/")
 from fractions import Fraction
 
@@ -951,3 +955,58 @@ class SystemOfEquationsMethod(BruteForceMethod):
         tex_strings = "\\\\".join(tex_strings)
         print(tex_strings)
         return MathTex(tex_strings)
+
+
+class EigenvalueMethod(MovingCameraScene):
+    def construct(self):
+        pi = MathTex(r"\pi").scale(5).shift(DOWN * 0.5)
+        pi_times_P = (
+            MathTex(r"\pi P", substrings_to_isolate="P")
+            .scale(5)
+            .move_to(pi, aligned_edge=DOWN)
+        )
+        stationary_dist = (
+            MathTex(r"\pi = \pi P", substrings_to_isolate="P")
+            .scale(5)
+            .move_to(pi, aligned_edge=DOWN)
+        )
+
+        self.play(FadeIn(pi, scale=0.8))
+        self.wait()
+        self.play(TransformMatchingShapes(pi, pi_times_P))
+        self.wait()
+        self.play(TransformMatchingShapes(pi_times_P, stationary_dist))
+        self.wait()
+        self.play(
+            TransformMatchingShapes(
+                stationary_dist, pi_times_P, fade_transform_mismatches=True
+            )
+        )
+
+        arrow = (
+            CurvedArrow(RIGHT, LEFT, radius=1.3)
+            .next_to(pi_times_P, UP, buff=0.2)
+            .rotate(20 * DEGREES)
+        )
+        self.play(Write(arrow))
+
+        arrow_eigen = Arrow(
+            pi_times_P[0].get_center(),
+            pi_times_P[0].get_center() + UL,
+            color=REDUCIBLE_VIOLET,
+        )
+        self.play(Write(arrow_eigen))
+        self.play(
+            pi_times_P[0].animate.scale(1.4),
+            arrow_eigen.animate.put_start_and_end_on(
+                arrow_eigen.get_start(), arrow_eigen.end + UL * 1.4
+            ),
+            rate_func=there_and_back,
+        )
+        self.play(
+            pi_times_P[0].animate.scale(0.4),
+            arrow_eigen.animate.put_start_and_end_on(
+                arrow_eigen.get_start(), arrow_eigen.end - UL * 1.4
+            ),
+            rate_func=there_and_back,
+        )
