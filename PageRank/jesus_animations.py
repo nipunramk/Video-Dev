@@ -271,6 +271,7 @@ class TransitionMatrix(MovingCameraScene):
         self.play(FadeIn(dot_product_def, shift=UP * 0.3))
         self.wait()
 
+        # first iteration
         surr_rect = SurroundingRectangle(
             trans_matrix_mob[0][0 : len(markov_ch.get_states())], color=REDUCIBLE_YELLOW
         )
@@ -291,6 +292,7 @@ class TransitionMatrix(MovingCameraScene):
                 markov_ch_mob.labels[t].animate.set_opacity(0.4)
                 for t in not_relevant_labels_tuples
             ],
+            *[arr.animate.set_opacity(0.3) for arr in not_relevant_arrows],
         )
 
         for s in markov_ch.get_states()[1:]:
