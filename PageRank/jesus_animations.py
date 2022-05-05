@@ -413,7 +413,7 @@ class BruteForceMethod(TransitionMatrix):
 
         distance = dist(current_dist, last_dist)
         distance_definition = (
-            MathTex(r"D(\pi_{n+1}, \pi_{n}) =  ||\pi_{n+1} - \pi_{n}||")
+            MathTex(r"D(\pi_{n+1}, \pi_{n}) =  ||\pi_{n+1} - \pi_{n}||_2")
             .scale(0.7)
             .next_to(stationary_dist_tex, DOWN, buff=2.5, aligned_edge=LEFT)
         )
@@ -545,6 +545,26 @@ class BruteForceMethod(TransitionMatrix):
                 break
 
         self.wait()
+
+        ### the final distribution is:
+
+        self.play(
+            FadeOut(distance_mob),
+            FadeOut(tolerance_mob),
+            FadeOut(found_iteration),
+            FadeOut(tick),
+            FadeOut(last_dist_mob),
+            current_dist_mob.animate.next_to(stationary_dist_tex, DOWN, buff=1.5).scale(
+                2
+            ),
+        )
+        self.wait()
+        vertices_down = (
+            VGroup(*[dot.copy().scale(0.8) for dot in markov_ch_mob.vertices.values()])
+            .arrange(DOWN, buff=0.3)
+            .next_to(current_dist_mob.copy().shift(RIGHT * 0.25), LEFT, buff=0.2)
+        )
+        self.play(FadeIn(vertices_down), current_dist_mob.animate.shift(RIGHT * 0.25))
 
     def vector_to_mob(self, vector: Iterable):
         str_repr = np.array([f"{a:.2f}" for a in vector]).reshape(-1, 1)
