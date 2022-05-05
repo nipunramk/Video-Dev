@@ -1,9 +1,4 @@
-from ctypes import alignment
-from itertools import count
-from os import wait
 import sys
-
-from numpy import left_shift, sqrt
 
 
 sys.path.insert(1, "common/")
@@ -275,6 +270,54 @@ class TransitionMatrix(MovingCameraScene):
         )
         self.play(FadeIn(dot_product_def, shift=UP * 0.3))
         self.wait()
+
+        surr_rect = SurroundingRectangle(
+            trans_matrix_mob[0][0 : len(markov_ch.get_states())], color=REDUCIBLE_YELLOW
+        )
+
+        not_relevant_labels_tuples = list(
+            filter(lambda x: x[0] != 0, markov_ch_mob.labels.keys())
+        )
+        not_relevant_labels = [
+            markov_ch_mob.labels[t] for t in not_relevant_labels_tuples
+        ]
+        not_relevant_arrows = [
+            markov_ch_mob.edges[t] for t in not_relevant_labels_tuples
+        ]
+
+        self.play(
+            Write(surr_rect),
+            *[
+                markov_ch_mob.labels[t].animate.set_opacity(0.4)
+                for t in not_relevant_labels_tuples
+            ],
+        )
+
+        for s in markov_ch.get_states()[1:]:
+            self.play(
+                *[l.animate.set_opacity(1) for l in not_relevant_labels],
+                *[arr.animate.set_opacity(1) for arr in not_relevant_arrows],
+            )
+
+            not_relevant_labels_tuples = list(
+                filter(lambda x: x[0] != s, markov_ch_mob.labels.keys())
+            )
+            not_relevant_labels = [
+                markov_ch_mob.labels[t] for t in not_relevant_labels_tuples
+            ]
+            not_relevant_arrows = [
+                markov_ch_mob.edges[t] for t in not_relevant_labels_tuples
+            ]
+
+            print(not_relevant_labels)
+
+            self.play(
+                surr_rect.animate.shift(DOWN * 0.44),
+                *[l.animate.set_opacity(0.2) for l in not_relevant_labels],
+                *[arr.animate.set_opacity(0.3) for arr in not_relevant_arrows],
+            )
+
+            self.wait()
 
         ######### DEFINE STATIONARY DISTRIBUTON #########
 
