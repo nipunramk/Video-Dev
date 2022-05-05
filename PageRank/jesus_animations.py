@@ -276,6 +276,7 @@ class TransitionMatrix(MovingCameraScene):
         )
 
         self.play(FadeIn(matrix_complete), FadeIn(prob_labels))
+        self.wait()
         dot_product_def = (
             MathTex(r"\vec{\pi}_{n+1} &= \vec{\pi}_n \cdot P")
             .scale(1.3)
