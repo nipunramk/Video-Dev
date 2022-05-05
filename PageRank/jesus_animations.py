@@ -238,9 +238,6 @@ class TransitionMatrix(MovingCameraScene):
         self.play(frame.animate.shift(UP * 7), run_time=1.5)
 
         self.play(
-            full_equation.animate.move_to(
-                frame.get_corner(UL), aligned_edge=UL, coor_mask=[0.8, 0.8, 0.8]
-            ).scale(0.8),
             FadeOut(dist_definition),
             FadeOut(trans_column_def),
             FadeOut(next_dist_def),
@@ -261,10 +258,6 @@ class TransitionMatrix(MovingCameraScene):
             markov_ch_mob.edges[(0, 3)].animate.set_opacity(1),
             markov_ch_mob.edges[(0, 2)].animate.set_opacity(1),
         )
-
-        self.wait()
-
-        self.play(FadeOut(equation_explanation), FadeOut(plus_signs))
 
         self.wait()
 
