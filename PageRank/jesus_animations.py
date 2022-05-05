@@ -192,7 +192,7 @@ class TransitionMatrix(MovingCameraScene):
             .move_to(frame.get_corner(UL), aligned_edge=UL)
             .shift(DR * 0.5)
         )
-        self.play(FadeIn(math_notation_title, shift=UP * 0.3))
+        self.play(FadeIn(math_notation_title, shift=UP * 0.3), FadeOut(full_equation))
 
         dist_definition = (
             MathTex(
