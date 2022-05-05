@@ -64,7 +64,7 @@ class TransitionMatrix(MovingCameraScene):
             .next_to(trans_matrix_mob, UP, buff=0.1)
         )
 
-        prob_labels = markov_ch_mob.get_transition_labels(scale=0.2)
+        prob_labels = markov_ch_mob.get_transition_labels(scale=0.3)
 
         ################# ANIMATIONS #################
 
@@ -235,18 +235,8 @@ class TransitionMatrix(MovingCameraScene):
 
         self.wait()
         #### camera frame comes back
-        self.play(frame.animate.shift(UP * 7), run_time=1.5)
-
         self.play(
-            FadeOut(dist_definition),
-            FadeOut(trans_column_def),
-            FadeOut(next_dist_def),
-            FadeOut(math_notation_title),
-        )
-
-        self.wait()
-
-        self.play(
+            frame.animate.shift(UP * 7),
             markov_ch_mob.vertices[1].animate.set_stroke(opacity=1),
             markov_ch_mob.vertices[1].animate.set_opacity(0.5),
             markov_ch_mob._labels[1].animate.set_opacity(1),
@@ -257,6 +247,14 @@ class TransitionMatrix(MovingCameraScene):
             markov_ch_mob.edges[(2, 3)].animate.set_opacity(1),
             markov_ch_mob.edges[(0, 3)].animate.set_opacity(1),
             markov_ch_mob.edges[(0, 2)].animate.set_opacity(1),
+            run_time=1.5,
+        )
+
+        self.play(
+            FadeOut(dist_definition),
+            FadeOut(trans_column_def),
+            FadeOut(next_dist_def),
+            FadeOut(math_notation_title),
         )
 
         self.wait()
