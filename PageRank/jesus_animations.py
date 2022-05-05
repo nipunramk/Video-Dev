@@ -1,10 +1,7 @@
-from os import wait
 import sys
 
 from typing import Iterable
-from networkx.algorithms.components import weakly_connected
 
-from numpy import sqrt
 from math import dist
 
 sys.path.insert(1, "common/")
