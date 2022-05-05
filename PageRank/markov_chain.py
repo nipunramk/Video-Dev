@@ -456,6 +456,14 @@ class MarkovChainSimulator:
 
         return (xx[0], yy[0])
 
+    def get_state_to_user(self):
+        state_to_users = {}
+        for user_id, state in self.user_to_state.items():
+            if state not in state_to_users:
+                state_to_users[state] = [user_id]
+            else:
+                state_to_users[state].append(user_id)
+        return state_to_users
 
 class MarkovChainTester(Scene):
     def construct(self):
@@ -1273,3 +1281,178 @@ class ModelingMarkovChains(Scene):
         prob_dist_labels[4].next_to(markov_chain_g.vertices[4], RIGHT)
 
         return VGroup(*prob_dist_labels)
+
+
+class Uniqueness(Scene):
+    def construct(self):
+        challenge = Tex("Can you define a Markov chain with \\\\ multiple stationary distributions?")
+        challenge.scale(1).move_to(UP * 3)
+        self.play(
+            Write(challenge)
+        )
+        self.wait()
+        dist_between_nodes = 3
+        markov_chain = MarkovChain(2, [])
+        markov_chain_g = MarkovChainGraph(markov_chain, layout={0: LEFT * dist_between_nodes / 2, 1: RIGHT * dist_between_nodes / 2})
+        markov_chain_g.scale(1.5).shift(UP * 0.5)
+        self.play(
+            FadeIn(markov_chain_g)
+        )
+        self.wait()
+
+        edges = self.get_edges(markov_chain_g)
+        labels = [self.get_label(edge, 1) for edge in edges.values()]
+        self.play(
+            *[FadeIn(obj) for obj in list(edges.values()) + labels]
+        )
+        self.wait()
+
+        markov_chain_sim = MarkovChainSimulator(markov_chain, markov_chain_g, num_users=60)
+        users = markov_chain_sim.get_users()
+        for u in users:
+            u.scale(1.3)
+        state_to_users = markov_chain_sim.get_state_to_user()
+        for user_id in state_to_users[1]:
+            users[user_id].set_stroke(color=REDUCIBLE_GREEN_LIGHTER).set_fill(color=REDUCIBLE_GREEN_LIGHTER, opacity=0.8)
+        self.play(
+            *[FadeIn(u) for u in users]
+        )
+        self.wait()
+        num_steps = 5
+        for _ in range(num_steps):
+            transition_map = markov_chain_sim.get_lagged_smooth_transition_animations()
+            self.play(
+                *[LaggedStart(*transition_map[i]) for i in markov_chain.get_states()]
+            )
+            self.wait()
+
+        punchline = Tex(r"Any probability distribution $[\,\pi(0) \quad \pi(1)\,]$ is a stationary distribution.")
+        punchline.scale(0.8).move_to(DOWN * 1.5)
+        self.play(
+            FadeIn(punchline)
+        )
+        self.wait()
+
+        transition_matrix = MathTex("P = ")
+        identity_matrix = Matrix([[1, 0], [0, 1]]).scale(0.8)
+        transition_matrix_def = VGroup(transition_matrix, identity_matrix).arrange(RIGHT)
+
+        transition_matrix_def.next_to(punchline, DOWN)
+
+        self.play(
+            FadeIn(transition_matrix_def)
+        )
+        self.wait()
+
+        self.play(
+            FadeOut(transition_matrix_def),
+            FadeOut(punchline),
+            FadeOut(challenge)
+        )
+        self.wait()
+
+        user_transition_group, reducible_markov_chain = self.explain_reducibility(users, state_to_users, markov_chain_g, VGroup(*list(edges.values()) + labels))
+        self.show_irreducible_markov_chain(user_transition_group)
+
+    def get_edges(self, markov_chain_g):
+        edge_map = {}
+        edge_map[(0, 0)] = self.get_self_edge(markov_chain_g, 0)
+        edge_map[(1, 1)] = self.get_self_edge(markov_chain_g, 1)
+        return edge_map
+
+    def get_self_edge(self, markov_chain_g, state):
+        vertices = markov_chain_g.vertices
+        if state == 1:
+            angle = -1.6 * PI
+        else:
+            angle = 1.6 * PI
+        edge = CustomCurvedArrow(vertices[state].get_top(), vertices[state].get_bottom(), angle=angle).set_color(REDUCIBLE_VIOLET)
+        return edge
+
+    def get_label(self, edge, prob):
+        return (Text(str(prob), font=REDUCIBLE_MONO)
+                .set_stroke(BLACK, width=8, background=True, opacity=0.8)
+                .scale(0.5)
+                .move_to(edge.point_from_proportion(0.15)))
+
+    def explain_reducibility(
+        self,
+        users,
+        state_to_users,
+        markov_chain_g,
+        edges_and_labels,
+        ):
+        state_0_user = users[state_to_users[0][0]].copy().scale(1.5)
+        state_1_user = users[state_to_users[1][0]].copy().scale(1.5)
+
+        right_arrow = Arrow(LEFT * 1.5, RIGHT * 1.5, max_tip_length_to_length_ratio=0.1).set_color(GRAY)
+        cross = Cross(Dot().scale(2))
+        right_arrow_with_cross = VGroup(cross, right_arrow)
+        state_0 = markov_chain_g.vertices[0].copy().scale(1 / 1.5)
+        state_1 = markov_chain_g.vertices[1].copy().scale(1 / 1.5)
+
+        user_state_0_trans = VGroup(state_0_user, right_arrow_with_cross, state_1).arrange(RIGHT)
+        user_state_1_trans = VGroup(state_1_user, right_arrow_with_cross.copy(), state_0).arrange(RIGHT)
+
+        user_transition_group = VGroup(user_state_0_trans, user_state_1_trans).arrange(DOWN)
+
+        user_transition_group.next_to(markov_chain_g, DOWN).shift(DOWN * 0.2)
+
+        self.play(
+            Write(user_transition_group[0]),
+            Write(user_transition_group[1])
+        )
+        self.wait()
+
+        reducible_markov_chain = Text("Reducible Markov Chain", font="CMU Serif", weight=BOLD).scale(0.8)
+        reducible_markov_chain.next_to(markov_chain_g, UP).shift(UP * 0.5)
+
+        self.play(
+            FadeIn(reducible_markov_chain)
+        )
+        self.wait()
+        user_group = VGroup(*users)
+        shift_up = UP * 1.5
+        self.play(
+            reducible_markov_chain.animate.shift(shift_up),
+            markov_chain_g.animate.shift(shift_up),
+            user_transition_group.animate.shift(shift_up),
+            user_group.animate.shift(shift_up),
+            edges_and_labels.animate.shift(shift_up)
+        )
+        self.wait()
+
+        return user_transition_group, reducible_markov_chain
+
+    def show_irreducible_markov_chain(self, user_transition_group):
+        irreducible_markov_chain = Text("Irreducible Markov Chain", font="CMU Serif", weight=BOLD).scale(0.8)
+        irreducible_markov_chain.next_to(user_transition_group, DOWN).shift(DOWN * 0.2)
+
+        dist_between_nodes = 3
+        markov_chain = MarkovChain(2, [(0, 1), (1, 0)])
+        markov_chain_g = MarkovChainGraph(markov_chain, layout={0: LEFT * dist_between_nodes / 2, 1: RIGHT * dist_between_nodes / 2})
+        markov_chain_g.scale(1.5).next_to(irreducible_markov_chain, DOWN).shift(DOWN * SMALL_BUFF)
+        self.play(
+            FadeIn(irreducible_markov_chain),
+            FadeIn(markov_chain_g)
+        )
+        self.wait()
+
+        conclusion = Tex(r"All states reachable ", r"$\rightarrow$", " unique stationary distribution exists").scale(0.8)
+
+        conclusion.move_to(DOWN * 3)
+
+        self.play(
+            Write(conclusion[0])
+        )
+        self.wait()
+
+        self.play(
+            Write(conclusion[1])
+        )
+        self.wait()
+
+        self.play(
+            Write(conclusion[2])
+        )
+        self.wait()
