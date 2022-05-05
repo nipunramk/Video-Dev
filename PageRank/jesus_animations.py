@@ -321,6 +321,12 @@ class TransitionMatrix(MovingCameraScene):
 
             self.wait()
 
+        self.play(
+            *[l.animate.set_opacity(1) for l in not_relevant_labels],
+            *[arr.animate.set_opacity(1) for arr in not_relevant_arrows],
+            FadeOut(surr_rect),
+        )
+
         ######### DEFINE STATIONARY DISTRIBUTON #########
 
         self.play(
