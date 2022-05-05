@@ -566,23 +566,32 @@ class SystemOfEquationsMethod(BruteForceMethod):
         add_to_one = (
             MathTex("1 = " + "+".join([f"\pi({s})" for s in markov_ch.get_states()]))
             .scale(0.9)
-            .move_to(last_equation, aligned_edge=LEFT)
+            .next_to(equations_mob, DOWN, aligned_edge=LEFT)
         )
 
-        self.play(Write(equations_mob))
+        stationary_def = MathTex(r"\pi = \pi P ").scale(2.5).move_to(equations_mob)
+
+        self.play(FadeIn(stationary_def, shift=UP * 0.3))
+
+        self.wait()
+
+        self.play(
+            FadeIn(equations_mob),
+            stationary_def.animate.next_to(equations_mob, UP, buff=0.5).scale(0.6),
+        )
         self.wait()
 
         infinite_solutions = (
             Text("Infinite solutions!", font=REDUCIBLE_FONT, weight=BOLD)
-            .scale(0.4)
+            .scale(0.3)
             .move_to(equations_mob, UP + LEFT)
             .rotate(15 * DEGREES)
-            .shift(LEFT + UP * 0.3)
+            .shift(LEFT * 1.6 + UP * 0.3)
         )
 
         self.play(FadeIn(infinite_solutions, shift=UP * 0.3))
 
-        for i in range(4):
+        for i in range(2):
             self.play(
                 infinite_solutions.animate.set_opacity(0),
                 run_time=3 / config.frame_rate,
@@ -596,11 +605,15 @@ class SystemOfEquationsMethod(BruteForceMethod):
 
         self.wait()
         self.play(
-            FadeOut(last_equation, shift=UP * 0.3),
             FadeIn(add_to_one, shift=UP * 0.3),
             FadeOut(infinite_solutions, shift=UP * 0.3),
         )
         self.wait()
+
+        self.play(
+            FadeOut(last_equation, shift=UP * 0.3),
+            add_to_one.animate.move_to(last_equation, aligned_edge=LEFT),
+        )
 
         stationary_distribution = self.solve_system(markov_ch)
 
