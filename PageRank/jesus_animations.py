@@ -1,8 +1,10 @@
+from os import WNOWAIT
 import sys
 from math import dist
 from typing import Iterable
 
 from manim.mobject.svg.svg_path import vector_angle
+from numpy.linalg.linalg import eigvals
 
 sys.path.insert(1, "common/")
 from fractions import Fraction
@@ -992,6 +994,8 @@ class EigenvalueMethod(MovingCameraScene):
             color=REDUCIBLE_YELLOW,
         )
         self.play(Write(arrow_eigen))
+
+        self.wait()
         self.play(
             pi_times_P[0].animate.scale(1.4),
             arrow_eigen.animate.put_start_and_end_on(
@@ -999,6 +1003,8 @@ class EigenvalueMethod(MovingCameraScene):
             ),
             rate_func=there_and_back,
         )
+
+        self.wait()
         self.play(
             pi_times_P[0].animate.scale(0.4),
             arrow_eigen.animate.put_start_and_end_on(
@@ -1006,12 +1012,15 @@ class EigenvalueMethod(MovingCameraScene):
             ),
             rate_func=there_and_back,
         )
+        self.wait()
         self.play(FadeOut(arrow), FadeOut(arrow_eigen))
 
         v = MathTex(r"\vec{v}").scale(5).move_to(pi_times_P[0], aligned_edge=DOWN)
         self.play(FadeOut(pi_times_P[0], shift=UP * 0.3), FadeIn(v, shift=UP * 0.3))
+        self.wait()
 
         self.play(Write(arrow.shift(UP * 0.3)), Write(arrow_eigen))
+        self.wait()
 
         self.play(
             arrow_eigen.animate(rate_func=there_and_back).put_start_and_end_on(
@@ -1019,6 +1028,7 @@ class EigenvalueMethod(MovingCameraScene):
             ),
             Wiggle(v),
         )
+        self.wait()
 
         self.play(FadeOut(arrow_eigen), FadeOut(v), FadeOut(arrow))
 
@@ -1031,6 +1041,7 @@ class EigenvalueMethod(MovingCameraScene):
         self.play(p.animate.move_to(ORIGIN))
         self.wait()
         self.play(p.animate.shift(LEFT * 4), FadeIn(eig_value, scale=0.8))
+        self.wait()
 
         lambdas = VGroup(
             *[MathTex(f"\lambda_{n}") for n in range(4)],
@@ -1056,11 +1067,18 @@ class EigenvalueMethod(MovingCameraScene):
             .next_to(p_brace, LEFT, buff=0.5, aligned_edge=RIGHT)
         )
 
-        self.play(FadeOut(eig_value))
+        # self.play(FadeOut(eig_value))
         self.wait()
-        self.play(Write(p_brace), p.animate.next_to(p_brace, LEFT, buff=0.5))
-        self.play(LaggedStartMap(FadeIn, lambdas), TransformMatchingShapes(p, p_matrix))
+        self.play(
+            Write(p_brace),
+            TransformMatchingShapes(p, p_matrix),
+            Transform(eig_value, lambdas),
+        )
+        # self.play(LaggedStartMap(FadeIn, lambdas))
         self.play(LaggedStartMap(FadeIn, eig_vectors))
 
+        lambdas = eig_value
         all_things = VGroup(p_matrix, p_brace, lambdas, eig_vectors)
         self.play(all_things.animate.move_to(ORIGIN))
+        self.wait()
+        self.play(all_things.animate.scale(1.4))
