@@ -7,7 +7,10 @@ from math import dist
 sys.path.insert(1, "common/")
 from fractions import Fraction
 
+
 from manim import *
+
+config["assets_dir"] = "assets"
 
 from markov_chain import *
 from reducible_colors import *
@@ -579,17 +582,53 @@ class BruteForceMethod(TransitionMatrix):
         )
 
         distance = dist(current_dist, last_dist)
+        distance_definition = (
+            MathTex(r"D(\pi_{n+1}, \pi_{n}) =  ||\pi_{n+1} - \pi_{n}||_2")
+            .scale(0.7)
+            .next_to(stationary_dist_tex, DOWN, buff=2.5, aligned_edge=LEFT)
+        )
         distance_mob = (
-            MathTex(r"D(\pi_{n+1}, \pi_{n}) = " + f"{distance:.2f}")
+            VGroup(
+                MathTex("D(\pi_{" + str(1) + "}, \pi_{" + str(0) + "})"),
+                MathTex("="),
+                Text(f"{distance:.5f}", font=REDUCIBLE_MONO).scale(0.6),
+            )
+            .arrange(RIGHT, buff=0.2)
             .scale(0.7)
             .next_to(stationary_dist_tex, DOWN, buff=2.5, aligned_edge=LEFT)
         )
 
-        self.play(FadeIn(distance_mob))
+        tolerance = 0.001
+        tolerance_mob = (
+            Text(
+                "Threshold = " + str(tolerance),
+                font=REDUCIBLE_FONT,
+                t2f={str(tolerance): REDUCIBLE_MONO},
+            )
+            .scale(0.4)
+            .next_to(distance_mob, DOWN, buff=0.2, aligned_edge=LEFT)
+        )
+
+        self.play(FadeIn(distance_definition))
+        self.wait()
+        self.play(
+            FadeOut(distance_definition, shift=UP * 0.3),
+            FadeIn(distance_mob, shift=UP * 0.3),
+        )
+        self.wait()
+
+        self.play(FadeIn(tolerance_mob, shift=UP * 0.3))
+
+        tick = (
+            SVGMobject("check.svg")
+            .scale(0.1)
+            .set_color(PURE_GREEN)
+            .next_to(tolerance_mob, RIGHT, buff=0.3)
+        )
 
         self.wait()
         ## start the loop
-        for i in range(1, 100):
+        for i in range(2, 100):
             transition_animations = markov_ch_sim.get_instant_transition_animations()
 
             count_labels, count_transforms = self.update_count_labels(
@@ -604,14 +643,12 @@ class BruteForceMethod(TransitionMatrix):
             i_str = str(i)
             i_minus_one_str = str(i - 1)
             new_distance_mob = (
-                MathTex(
-                    "D(\pi_{"
-                    + i_str
-                    + "}, \pi_{"
-                    + i_minus_one_str
-                    + "}) = "
-                    + f"{distance:.2f}"
+                VGroup(
+                    MathTex("D(\pi_{" + i_str + "}, \pi_{" + i_minus_one_str + "})"),
+                    MathTex("="),
+                    Text(f"{distance:.5f}", font=REDUCIBLE_MONO).scale(0.6),
                 )
+                .arrange(RIGHT, buff=0.2)
                 .scale(0.7)
                 .next_to(stationary_dist_tex, DOWN, buff=2.5, aligned_edge=LEFT)
             )
@@ -659,7 +696,45 @@ class BruteForceMethod(TransitionMatrix):
                 )
                 distance_mob = new_distance_mob
 
+            if distance <= tolerance:
+                found_iteration = (
+                    Text(
+                        f"iteration: {str(i)}",
+                        font=REDUCIBLE_FONT,
+                        t2f={str(i): REDUCIBLE_MONO},
+                    )
+                    .scale(0.3)
+                    .next_to(tick, RIGHT, buff=0.1)
+                )
+                self.play(
+                    FadeIn(tick, shift=UP * 0.3),
+                    FadeIn(found_iteration, shift=UP * 0.3),
+                )
+
+                # get out of the loop
+                break
+
         self.wait()
+
+        ### the final distribution is:
+
+        self.play(
+            FadeOut(distance_mob),
+            FadeOut(tolerance_mob),
+            FadeOut(found_iteration),
+            FadeOut(tick),
+            FadeOut(last_dist_mob),
+            current_dist_mob.animate.next_to(stationary_dist_tex, DOWN, buff=1.5).scale(
+                2
+            ),
+        )
+        self.wait()
+        vertices_down = (
+            VGroup(*[dot.copy().scale(0.8) for dot in markov_ch_mob.vertices.values()])
+            .arrange(DOWN, buff=0.3)
+            .next_to(current_dist_mob.copy().shift(RIGHT * 0.25), LEFT, buff=0.2)
+        )
+        self.play(FadeIn(vertices_down), current_dist_mob.animate.shift(RIGHT * 0.25))
 
     def vector_to_mob(self, vector: Iterable):
         str_repr = np.array([f"{a:.2f}" for a in vector]).reshape(-1, 1)
