@@ -1,23 +1,19 @@
 import sys
-
+from math import dist
 from typing import Iterable
 
-from math import dist
-
-from networkx.algorithms.centrality.current_flow_betweenness import (
-    approximate_current_flow_betweenness_centrality,
-)
+from manim.mobject.svg.svg_path import vector_angle
 
 sys.path.insert(1, "common/")
 from fractions import Fraction
-
 
 from manim import *
 
 config["assets_dir"] = "assets"
 
-from markov_chain import *
 from reducible_colors import *
+
+from markov_chain import *
 
 
 class TransitionMatrix(MovingCameraScene):
@@ -993,7 +989,7 @@ class EigenvalueMethod(MovingCameraScene):
         arrow_eigen = Arrow(
             pi_times_P[0].get_center(),
             pi_times_P[0].get_center() + UL,
-            color=REDUCIBLE_VIOLET,
+            color=REDUCIBLE_YELLOW,
         )
         self.play(Write(arrow_eigen))
         self.play(
@@ -1010,3 +1006,57 @@ class EigenvalueMethod(MovingCameraScene):
             ),
             rate_func=there_and_back,
         )
+        self.play(FadeOut(arrow), FadeOut(arrow_eigen))
+
+        v = MathTex(r"\vec{v}").scale(5).move_to(pi_times_P[0], aligned_edge=DOWN)
+        self.play(FadeOut(pi_times_P[0], shift=UP * 0.3), FadeIn(v, shift=UP * 0.3))
+
+        self.play(Write(arrow.shift(UP * 0.3)), Write(arrow_eigen))
+
+        self.play(
+            arrow_eigen.animate(rate_func=there_and_back).put_start_and_end_on(
+                arrow_eigen.get_start(), arrow_eigen.end + UL * 1.4
+            ),
+            Wiggle(v),
+        )
+
+        self.play(FadeOut(arrow_eigen), FadeOut(v), FadeOut(arrow))
+
+        # self.play(pi_times_P[1].animate.shift(LEFT))
+
+        # self.play(TransformMatchingShapes(pi_times_P[1], p_matrix))
+
+        p = pi_times_P[1]
+        eig_value = MathTex(r"\lambda").scale(5)
+        self.play(p.animate.move_to(ORIGIN))
+        self.wait()
+        self.play(p.animate.shift(LEFT * 4), FadeIn(eig_value, scale=0.8))
+
+        lambdas = VGroup(
+            *[MathTex(f"\lambda_{n}") for n in range(4)],
+            MathTex(r"\vdots"),
+            MathTex(r"\lambda_n"),
+        ).arrange(DOWN, buff=0.2)
+
+        p_brace = Brace(lambdas, LEFT)
+
+        eig_vectors = (
+            VGroup(
+                *[MathTex(r"\vec{v}_{" + str(n) + "}") for n in range(4)],
+                MathTex(r"\vdots"),
+                MathTex(r"\vec{v}_n"),
+            )
+            .arrange(DOWN, buff=0.2)
+            .next_to(lambdas, RIGHT, buff=0.5)
+        )
+
+        p_matrix = (
+            MathTex(r"P_{\scriptscriptstyle{n \times n}}", substrings_to_isolate="P")
+            .scale(3)
+            .next_to(p_brace, LEFT, buff=0.5, aligned_edge=RIGHT)
+        )
+
+        self.play(FadeOut(eig_value))
+        self.play(Write(p_brace), p.animate.next_to(p_brace, LEFT, buff=0.5))
+        self.play(LaggedStartMap(FadeIn, lambdas), Transform(p, p_matrix))
+        self.play(LaggedStartMap(FadeIn, eig_vectors))
