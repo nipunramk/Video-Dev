@@ -33,7 +33,6 @@ def is_diff_med(dg, dr_dg, db_dg):
         dr_dg > -9 and dr_dg < 8 and dg > -33 and dg < 32 and db_dg > -9 and db_dg < 8
     )
 
-
 def get_glowing_surround_rect(
     pixel, buff_min=0, buff_max=0.15, color=REDUCIBLE_YELLOW, n=40, opacity_multiplier=1
 ):
@@ -47,15 +46,23 @@ def get_glowing_surround_rect(
         rect.set_stroke(color, width=0.5, opacity=1 - i / n)
     return glowing_rect
 
+def get_glowing_surround_circle(
+    circle, buff_min=0, buff_max=0.15, color=REDUCIBLE_YELLOW, n=40, opacity_multiplier=1
+):
+    current_radius = circle.width / 2
+    glowing_circle = VGroup(
+        *[
+            Circle(radius=current_radius+interpolate(buff_min, buff_max, b))
+            for b in np.linspace(0, 1, n)
+        ]
+    )
+    for i, c in enumerate(glowing_circle):
+        c.set_stroke(color, width=0.5, opacity=1- i / n)
+    return glowing_circle.move_to(circle.get_center())
+
 def g2h(n):
     """Abbreviation for grayscale to hex"""
     return rgb_to_hex((n, n, n))
-
-def get_glowing_surround_rect(mob, buff_min=0, buff_max=0.15, color=REDUCIBLE_YELLOW, n=40, opacity_multiplier=1):
-	glowing_rect = VGroup(*[SurroundingRectangle(mob, buff=interpolate(buff_min, buff_max, b)) for b in np.linspace(0, 1, n)])
-	for i, rect in enumerate(glowing_rect):
-		rect.set_stroke(color, width=0.5, opacity=1 - i/n)
-	return glowing_rect
 
 def align_text_vertically(*text, buff=DEFAULT_MOBJECT_TO_MOBJECT_BUFFER, aligned_edge=ORIGIN):
 	start_text = text[0]
