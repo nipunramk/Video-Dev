@@ -199,7 +199,7 @@ class TransitionMatrix(MovingCameraScene):
         dist_definition = (
             MathTex(
                 # r"\vec{\pi_n} = [\pi_n(0), \pi_n(1), \pi_n(2), \pi_n(3), \pi_n(4) ]",
-                r"\vec{\pi_n} = \begin{bmatrix} \pi_n(0) & \pi_n(1) & \pi_n(2) & \pi_n(3) & \pi_n(4) \end{bmatrix}",
+                r"\vec{\pi}_n = \begin{bmatrix} \pi_n(0) & \pi_n(1) & \pi_n(2) & \pi_n(3) & \pi_n(4) \end{bmatrix}",
             )
             .scale(0.7)
             .move_to(frame.get_center())
@@ -213,7 +213,7 @@ class TransitionMatrix(MovingCameraScene):
 
         trans_column_def = (
             MathTex(
-                r"\vec{P_{i,0}} = \begin{bmatrix} P(0,0) \\ P(1,0) \\ P(2,0) \\ P(3,0) \\ P(4,0) \end{bmatrix}"
+                r"\vec{P}_{i,0} = \begin{bmatrix} P(0,0) \\ P(1,0) \\ P(2,0) \\ P(3,0) \\ P(4,0) \end{bmatrix}"
             )
             .scale(0.8)
             .move_to(frame.get_center())
@@ -228,7 +228,7 @@ class TransitionMatrix(MovingCameraScene):
         )
         self.wait()
         next_dist_def = (
-            MathTex(r"\vec{\pi}_{n+1}(0) = \vec{\pi_n} \cdot \vec{P_{i,0}}}")
+            MathTex(r"\vec{\pi}_{n+1}(0) = \vec{\pi}_n \cdot \vec{P}_{i,0}}")
             .scale(1.4)
             .move_to(frame.get_center())
             .shift(DOWN * 1.8)
@@ -301,6 +301,7 @@ class TransitionMatrix(MovingCameraScene):
             ],
             *[arr.animate.set_opacity(0.3) for arr in not_relevant_arrows],
         )
+        self.wait()
 
         for s in markov_ch.get_states()[1:]:
             self.play(
