@@ -1,8 +1,11 @@
-from os import wait
 import sys
 
+from typing import Iterable
+
+from math import dist
 
 sys.path.insert(1, "common/")
+from fractions import Fraction
 
 from manim import *
 
@@ -360,6 +363,8 @@ class TransitionMatrix(MovingCameraScene):
             markov_chain_g=markov_ch_mob, markov_chain_sim=markov_ch_sim, use_dist=True
         )
 
+        self.wait()
+
         self.play(
             *[FadeIn(l) for l in count_labels.values()],
             *[FadeIn(u) for u in users],
@@ -481,3 +486,393 @@ class TransitionMatrix(MovingCameraScene):
             ]
 
         return count_labels, transforms
+
+
+class BruteForceMethod(TransitionMatrix):
+    def construct(self):
+
+        frame = self.camera.frame
+        markov_ch = MarkovChain(
+            4,
+            edges=[
+                (2, 0),
+                (2, 3),
+                (0, 3),
+                (3, 1),
+                (2, 1),
+                (1, 2),
+            ],
+            dist=[0.2, 0.5, 0.2, 0.1],
+        )
+
+        markov_ch_mob = MarkovChainGraph(
+            markov_ch,
+            curved_edge_config={"radius": 2, "tip_length": 0.1},
+            straight_edge_config={"max_tip_length_to_length_ratio": 0.08},
+            layout="circular",
+        )
+
+        markov_ch_sim = MarkovChainSimulator(markov_ch, markov_ch_mob, num_users=50)
+        users = markov_ch_sim.get_users()
+
+        count_labels = self.get_current_count_mobs(
+            markov_chain_g=markov_ch_mob, markov_chain_sim=markov_ch_sim, use_dist=True
+        )
+
+        stationary_dist_tex = (
+            MathTex("\pi_{n+1} = \pi_{n} P")
+            .scale(1.3)
+            .next_to(markov_ch_mob, RIGHT, buff=6, aligned_edge=LEFT)
+            .shift(UP * 2)
+        )
+        ############### ANIMATIONS
+
+        self.play(Write(markov_ch_mob))
+        self.play(
+            LaggedStart(*[FadeIn(u) for u in users]),
+            LaggedStart(
+                *[FadeIn(l) for l in count_labels.values()],
+            ),
+            run_time=0.5,
+        )
+
+        self.play(frame.animate.shift(RIGHT * 4 + UP * 0.5).scale(1.2))
+
+        title = (
+            Text("Brute Force Method", font=REDUCIBLE_FONT, weight=BOLD)
+            .scale(1)
+            .move_to(frame.get_top())
+            .shift(DOWN * 0.9)
+        )
+        self.play(FadeIn(title))
+        self.wait()
+
+        self.play(Write(stationary_dist_tex[0][-1]))
+        self.play(Write(stationary_dist_tex[0][5:7]))
+        self.play(Write(stationary_dist_tex[0][:5]))
+
+        last_dist = markov_ch_sim.get_user_dist().values()
+        last_dist_mob = (
+            self.vector_to_mob(last_dist)
+            .scale_to_fit_width(stationary_dist_tex[0][5:7].width)
+            .next_to(stationary_dist_tex[0][5:7], DOWN, buff=0.4)
+        )
+        self.play(FadeIn(last_dist_mob))
+        self.wait()
+
+        # first iteration
+        transition_map = markov_ch_sim.get_lagged_smooth_transition_animations()
+        count_labels, count_transforms = self.update_count_labels(
+            count_labels, markov_ch_mob, markov_ch_sim, use_dist=True
+        )
+
+        current_dist = markov_ch_sim.get_user_dist().values()
+        current_dist_mob = (
+            self.vector_to_mob(current_dist)
+            .scale_to_fit_width(last_dist_mob.width)
+            .next_to(stationary_dist_tex[0][:4], DOWN, buff=0.4)
+        )
+        self.play(
+            *[LaggedStart(*transition_map[i]) for i in markov_ch.get_states()],
+            *count_transforms,
+            FadeIn(current_dist_mob),
+        )
+
+        distance = dist(current_dist, last_dist)
+        distance_mob = (
+            MathTex(r"D(\pi_{n+1}, \pi_{n}) = " + f"{distance:.2f}")
+            .scale(0.7)
+            .next_to(stationary_dist_tex, DOWN, buff=2.5, aligned_edge=LEFT)
+        )
+
+        self.play(FadeIn(distance_mob))
+
+        self.wait()
+        ## start the loop
+        for i in range(1, 100):
+            transition_animations = markov_ch_sim.get_instant_transition_animations()
+
+            count_labels, count_transforms = self.update_count_labels(
+                count_labels, markov_ch_mob, markov_ch_sim, use_dist=True
+            )
+
+            last_dist = current_dist
+            current_dist = markov_ch_sim.get_user_dist().values()
+
+            distance = dist(current_dist, last_dist)
+
+            i_str = str(i)
+            i_minus_one_str = str(i - 1)
+            new_distance_mob = (
+                MathTex(
+                    "D(\pi_{"
+                    + i_str
+                    + "}, \pi_{"
+                    + i_minus_one_str
+                    + "}) = "
+                    + f"{distance:.2f}"
+                )
+                .scale(0.7)
+                .next_to(stationary_dist_tex, DOWN, buff=2.5, aligned_edge=LEFT)
+            )
+
+            run_time = 0.8 if i < 6 else 1 / i
+
+            if i < 6:
+                current_to_last_shift = current_dist_mob.animate.move_to(last_dist_mob)
+                fade_last_dist = FadeOut(last_dist_mob)
+                last_dist_mob = current_dist_mob
+
+                current_dist_mob = (
+                    self.vector_to_mob(current_dist)
+                    .scale_to_fit_width(last_dist_mob.width)
+                    .next_to(stationary_dist_tex[0][:4], DOWN, buff=0.4)
+                )
+
+                self.play(
+                    *transition_animations + count_transforms,
+                    current_to_last_shift,
+                    fade_last_dist,
+                    FadeIn(current_dist_mob),
+                    FadeTransform(distance_mob, new_distance_mob),
+                    run_time=run_time,
+                )
+
+                distance_mob = new_distance_mob
+            else:
+
+                self.remove(last_dist_mob)
+                last_dist_mob = current_dist_mob.move_to(last_dist_mob)
+
+                current_dist_mob = (
+                    self.vector_to_mob(current_dist)
+                    .scale_to_fit_width(last_dist_mob.width)
+                    .next_to(stationary_dist_tex[0][:4], DOWN, buff=0.4)
+                )
+
+                self.add(current_dist_mob)
+
+                self.play(
+                    *transition_animations + count_transforms,
+                    FadeTransform(distance_mob, new_distance_mob),
+                    run_time=run_time,
+                )
+                distance_mob = new_distance_mob
+
+        self.wait()
+
+    def vector_to_mob(self, vector: Iterable):
+        str_repr = np.array([f"{a:.2f}" for a in vector]).reshape(-1, 1)
+        return Matrix(
+            str_repr,
+            left_bracket="[",
+            right_bracket="]",
+            element_to_mobject=Text,
+            element_to_mobject_config={"font": REDUCIBLE_MONO},
+            h_buff=2.3,
+            v_buff=1.3,
+        )
+
+
+class SystemOfEquationsMethod(BruteForceMethod):
+    def construct(self):
+        frame = self.camera.frame
+        markov_ch = MarkovChain(
+            4,
+            edges=[
+                (2, 0),
+                (2, 3),
+                (0, 3),
+                (3, 1),
+                (2, 1),
+                (1, 2),
+            ],
+            dist=[0.2, 0.5, 0.2, 0.1],
+        )
+
+        markov_ch_mob = MarkovChainGraph(
+            markov_ch,
+            curved_edge_config={"radius": 2, "tip_length": 0.1},
+            straight_edge_config={"max_tip_length_to_length_ratio": 0.08},
+            layout="circular",
+        )
+
+        markov_ch_sim = MarkovChainSimulator(markov_ch, markov_ch_mob, num_users=50)
+
+        equations_mob = (
+            self.get_balance_equations(markov_chain=markov_ch)
+            .scale(1)
+            .next_to(markov_ch_mob, RIGHT, buff=2.5)
+        )
+        last_equation = equations_mob[0][38:]
+
+        pi_dists = []
+        for s in markov_ch.get_states():
+            state = markov_ch_mob.vertices[s]
+            label_direction = normalize(state.get_center() - markov_ch_mob.get_center())
+            pi_dists.append(
+                MathTex(f"\pi({s})")
+                .scale(0.8)
+                .next_to(state, label_direction, buff=0.1)
+            )
+
+        pi_dists_vg = VGroup(*pi_dists)
+
+        self.play(Write(markov_ch_mob))
+        self.play(Write(pi_dists_vg))
+        self.play(frame.animate.shift(RIGHT * 3.3 + UP * 0.8).scale(1.2))
+
+        title = (
+            Text("System of Equations Method", font=REDUCIBLE_FONT, weight=BOLD)
+            .scale(1)
+            .move_to(frame.get_top())
+            .shift(DOWN * 0.9)
+        )
+        self.play(Write(title))
+
+        add_to_one = (
+            MathTex("1 = " + "+".join([f"\pi({s})" for s in markov_ch.get_states()]))
+            .scale(0.9)
+            .next_to(equations_mob, DOWN, aligned_edge=LEFT)
+        )
+
+        stationary_def = MathTex(r"\pi = \pi P ").scale(2.5).move_to(equations_mob)
+
+        self.play(FadeIn(stationary_def, shift=UP * 0.3))
+
+        self.wait()
+
+        self.play(
+            FadeIn(equations_mob),
+            stationary_def.animate.next_to(equations_mob, UP, buff=0.5).scale(0.6),
+        )
+        self.wait()
+
+        infinite_solutions = (
+            Text("Infinite solutions!", font=REDUCIBLE_FONT, weight=BOLD)
+            .scale(0.3)
+            .move_to(equations_mob, UP + LEFT)
+            .rotate(15 * DEGREES)
+            .shift(LEFT * 1.6 + UP * 0.3)
+        )
+
+        self.play(FadeIn(infinite_solutions, shift=UP * 0.3))
+
+        for i in range(2):
+            self.play(
+                infinite_solutions.animate.set_opacity(0),
+                run_time=3 / config.frame_rate,
+            )
+            # self.wait(1 / config.frame_rate)
+            self.play(
+                infinite_solutions.animate.set_opacity(1),
+                run_time=3 / config.frame_rate,
+            )
+            self.wait(3 / config.frame_rate)
+
+        self.wait()
+        self.play(
+            FadeIn(add_to_one, shift=UP * 0.3),
+            FadeOut(infinite_solutions, shift=UP * 0.3),
+        )
+        self.wait()
+
+        self.play(
+            FadeOut(last_equation, shift=UP * 0.3),
+            add_to_one.animate.move_to(last_equation, aligned_edge=LEFT),
+        )
+
+        stationary_distribution = self.solve_system(markov_ch)
+
+        tex_strings = []
+        for i, s in enumerate(stationary_distribution):
+            tex_str = f"\pi({i}) &= {s:.3f}"
+            tex_strings.append(tex_str)
+
+        stationary_dist_mob = MathTex("\\\\".join(tex_strings)).move_to(equations_mob)
+
+        self.play(
+            FadeOut(equations_mob[0][:38], shift=UP * 0.3),
+            FadeOut(add_to_one, shift=UP * 0.3),
+            FadeIn(stationary_dist_mob, shift=UP * 0.3),
+        )
+
+        line = (
+            Line()
+            .set_stroke(width=2)
+            .stretch_to_fit_width(stationary_dist_mob.width * 1.3)
+            .next_to(stationary_dist_mob, DOWN, buff=-0.1)
+        )
+        total = (
+            Text("Total = 1.000", font=REDUCIBLE_FONT, weight=BOLD)
+            .scale_to_fit_width(stationary_dist_mob.width)
+            .next_to(line, DOWN, buff=0.3)
+        )
+        self.wait()
+        self.play(stationary_dist_mob.animate.shift(UP * 0.4))
+
+        self.play(Write(line), Write(total))
+
+    def solve_system(self, markov_chain: MarkovChain):
+        P = markov_chain.get_transition_matrix()
+
+        # P.T gives us the balance equations
+        dependent_system = P.T
+
+        # in this step, we are essentially moving every term
+        # to the left, so we end up with 0s on the other side
+        # of the equation
+        for i, eq in enumerate(dependent_system):
+            eq[i] -= 1
+
+        # this removes the last equation and substitutes it
+        # for our probability constraint
+        dependent_system[-1] = [1.0 for s in range(dependent_system.shape[1])]
+
+        # now we create the other side of the equations, which
+        # will be a vector of size len(states) with all zeros but
+        # a single 1 for the last element
+        right_side = [0.0 for s in range(dependent_system.shape[1])]
+        right_side[-1] = 1
+
+        # we finally solve the system!
+        return np.linalg.solve(dependent_system, right_side)
+
+    def get_balance_equations(self, markov_chain: MarkovChain):
+        trans_matrix_T = markov_chain.get_transition_matrix().T
+        state_names = markov_chain.get_states()
+
+        balance_equations = []
+        for equation in trans_matrix_T:
+            balance_equations.append(
+                [
+                    (
+                        Fraction(term).limit_denominator().numerator,
+                        Fraction(term).limit_denominator().denominator,
+                    )
+                    for term in equation
+                ]
+            )
+
+        tex_strings = []
+        for state, fractions in zip(state_names, balance_equations):
+            pi_sub_state = f"\pi({state})"
+
+            terms = []
+            for i, term in enumerate(fractions):
+                state_term = f"\pi({state_names[i]})"
+                if term[0] == 1 and term[1] == 1:
+                    terms.append(state_term)
+                else:
+                    if term[0] != 0:
+                        fraction = r"\frac{" + str(term[0]) + "}{" + str(term[1]) + "}"
+                        terms.append(fraction + state_term)
+
+            terms = "+".join(terms)
+
+            full_equation_tex = pi_sub_state + "&=" + terms
+            tex_strings.append(full_equation_tex)
+
+        tex_strings = "\\\\".join(tex_strings)
+        print(tex_strings)
+        return MathTex(tex_strings)
