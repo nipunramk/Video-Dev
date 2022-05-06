@@ -1,9 +1,7 @@
 import sys
 
 from typing import Iterable
-from networkx.algorithms.components import weakly_connected
 
-from numpy import sqrt
 from math import dist
 
 sys.path.insert(1, "common/")
@@ -20,6 +18,7 @@ from reducible_colors import *
 
 class TransitionMatrix(MovingCameraScene):
     def construct(self):
+        frame = self.camera.frame
         markov_ch = MarkovChain(
             5,
             edges=[
@@ -45,27 +44,10 @@ class TransitionMatrix(MovingCameraScene):
         markov_ch_sim = MarkovChainSimulator(markov_ch, markov_ch_mob, num_users=50)
         users = markov_ch_sim.get_users()
 
-        dot_product = (
-            MathTex(
-                r"\pi_{n+1}(0) &= \pi_{n}(3) * P(3, 0)\\ &+ \pi_{n}(2) * P(2, 0)\\ &+ \pi_{n}(4) * P(4, 0)"
-            )
-            .scale(0.7)
-            .shift(LEFT * 5.5 + DOWN * 1.5)
-        )
-        annotation = (
-            Text(
-                "Probability of ending in state 0 in the next step:",
-                font=REDUCIBLE_FONT,
-                weight=BOLD,
-            )
-            .scale_to_fit_width(dot_product.width)
-            .next_to(dot_product, UP, buff=0.15)
-        )
-
         trans_matrix_mob = self.matrix_to_mob(markov_ch.get_transition_matrix())
 
         p_equals = (
-            MarkupText("P<sub>0</sub> = ", font=REDUCIBLE_FONT, weight=BOLD)
+            Text("P = ", font=REDUCIBLE_FONT, weight=BOLD)
             .scale(0.3)
             .next_to(trans_matrix_mob, LEFT)
         )
@@ -73,19 +55,18 @@ class TransitionMatrix(MovingCameraScene):
         vertices_down = VGroup(
             *[dot.copy().scale(0.4) for dot in markov_ch_mob.vertices.values()]
         ).arrange(DOWN, buff=0.05)
-        vertices_right = VGroup(
-            *[dot.copy() for dot in markov_ch_mob.vertices.values()]
-        ).arrange(RIGHT)
 
-        matrix = (
-            VGroup(p_equals, vertices_down, trans_matrix_mob)
-            .arrange(RIGHT, buff=0.1)
-            .scale(1.5)
-            .to_edge(LEFT, buff=-0.5)
-            .shift(DOWN * 0.6)
+        matrix = VGroup(p_equals, vertices_down, trans_matrix_mob).arrange(
+            RIGHT, buff=0.1
         )
 
-        prob_labels = markov_ch_mob.get_transition_labels(scale=0.2)
+        vertices_right = (
+            VGroup(*[dot.copy().scale(0.4) for dot in markov_ch_mob.vertices.values()])
+            .arrange(RIGHT, buff=0.27)
+            .next_to(trans_matrix_mob, UP, buff=0.1)
+        )
+
+        prob_labels = markov_ch_mob.get_transition_labels(scale=0.3)
 
         ################# ANIMATIONS #################
 
@@ -93,15 +74,38 @@ class TransitionMatrix(MovingCameraScene):
 
         self.wait()
 
-        self.play(self.focus_on(markov_ch_mob, buff=2.8).shift(LEFT * 2.5))
+        self.play(self.focus_on(markov_ch_mob, buff=3.2).shift(LEFT * 3))
 
-        self.play(
-            Indicate(markov_ch_mob.vertices[0]),
+        # isolate node 0
+        mask_0 = (
+            Difference(
+                Rectangle(height=10, width=20),
+                markov_ch_mob.vertices[0].copy().scale(1.05),
+            )
+            .set_color(BLACK)
+            .set_stroke(width=0)
+            .set_opacity(0.7)
         )
+        self.play(FadeIn(mask_0))
+        self.wait()
+        self.play(FadeOut(mask_0))
+
+        mask_but_0 = Rectangle(width=20, height=20)
+        # only way to create a mask of several mobjects is to
+        # keep poking the holes on the mask one by one
+        for v in list(markov_ch_mob.vertices.values())[1:]:
+            mask_but_0 = Difference(mask_but_0, v.copy().scale(1.05))
+
+        mask_but_0.set_color(BLACK).set_stroke(width=0).set_opacity(0.7)
+
+        self.play(FadeIn(mask_but_0))
+        self.wait()
+        self.play(FadeOut(mask_but_0))
 
         self.play(
             markov_ch_mob.vertices[1].animate.set_opacity(0.3),
             markov_ch_mob.edges[(2, 1)].animate.set_opacity(0.3),
+            markov_ch_mob.edges[(1, 2)].animate.set_opacity(0.3),
             markov_ch_mob.edges[(4, 1)].animate.set_opacity(0.3),
             markov_ch_mob.edges[(3, 4)].animate.set_opacity(0.3),
             markov_ch_mob.edges[(2, 3)].animate.set_opacity(0.3),
@@ -111,80 +115,234 @@ class TransitionMatrix(MovingCameraScene):
 
         self.wait()
 
-        self.play(FadeIn(annotation), run_time=0.6)
-        self.play(FadeIn(dot_product))
+        pi_dists = []
+        for s in markov_ch.get_states():
+            state = markov_ch_mob.vertices[s]
+            label_direction = normalize(state.get_center() - markov_ch_mob.get_center())
+            pi_dists.append(
+                MathTex(f"\pi({s})")
+                .scale(0.6)
+                .next_to(state, label_direction, buff=0.1)
+            )
+
+        pi_dists_vg = VGroup(*pi_dists)
+
+        self.play(FadeIn(pi_dists_vg))
+
+        pi_next_0 = MathTex("\pi_{n+1}(0)").scale(0.8)
+
+        math_str = [
+            "\pi_{n}" + f"({i})" + f"&\cdot P({i},0)"
+            for i in range(len(markov_ch.get_states()))
+        ]
+
+        dot_prod_mob = MathTex("\\\\".join(math_str)).scale(0.6)
+
+        brace = Brace(dot_prod_mob, LEFT)
+        equation_explanation = (
+            VGroup(pi_next_0, brace, dot_prod_mob)
+            .arrange(RIGHT, buff=0.1)
+            .move_to(frame.get_left(), aligned_edge=LEFT)
+            .shift(RIGHT * 0.5)
+        )
+        plus_signs = (
+            VGroup(*[Tex("+").scale(0.7) for _ in range(4)])
+            .arrange(DOWN, buff=0.22)
+            .next_to(dot_prod_mob, RIGHT, buff=0.1, aligned_edge=UP)
+            .shift(DOWN * 0.02)
+        )
+
+        self.play(FadeIn(pi_next_0))
 
         self.wait()
 
         self.play(
-            FadeOut(annotation),
-            FadeOut(dot_product),
+            FadeIn(brace),
+            FadeIn(dot_prod_mob[0][0:5]),
+            FadeIn(dot_prod_mob[0][12:17]),
+            FadeIn(dot_prod_mob[0][24:29]),
+            FadeIn(dot_prod_mob[0][36:41]),
+            FadeIn(dot_prod_mob[0][48:53]),
         )
+
+        self.wait()
+
         self.play(
+            FadeIn(dot_prod_mob[0][5:12]),
+            FadeIn(dot_prod_mob[0][17:24]),
+            FadeIn(dot_prod_mob[0][29:36]),
+            FadeIn(dot_prod_mob[0][41:48]),
+            FadeIn(dot_prod_mob[0][53:]),
+        )
+
+        self.wait()
+
+        self.play(FadeIn(plus_signs))
+
+        self.wait()
+
+        full_equation = VGroup(equation_explanation, plus_signs)
+
+        ##### camera pans down for explanation
+        self.play(frame.animate.shift(DOWN * 7), run_time=1.5)
+
+        self.wait()
+
+        math_notation_title = (
+            Text("Some bits of mathematical notation", font=REDUCIBLE_FONT, weight=BOLD)
+            .scale(0.5)
+            .move_to(frame.get_corner(UL), aligned_edge=UL)
+            .shift(DR * 0.5)
+        )
+        self.play(FadeIn(math_notation_title, shift=UP * 0.3), FadeOut(full_equation))
+
+        dist_definition = (
+            MathTex(
+                # r"\vec{\pi_n} = [\pi_n(0), \pi_n(1), \pi_n(2), \pi_n(3), \pi_n(4) ]",
+                r"\vec{\pi_n} = \begin{bmatrix} \pi_n(0) & \pi_n(1) & \pi_n(2) & \pi_n(3) & \pi_n(4) \end{bmatrix}",
+            )
+            .scale(0.7)
+            .move_to(frame.get_center())
+        )
+
+        self.play(FadeIn(dist_definition, shift=UP * 0.3))
+        self.wait()
+
+        self.play(dist_definition.animate.shift(UP * 2))
+        self.wait()
+
+        trans_column_def = (
+            MathTex(
+                r"\vec{P_{i,0}} = \begin{bmatrix} P(0,0) \\ P(1,0) \\ P(2,0) \\ P(3,0) \\ P(4,0) \end{bmatrix}"
+            )
+            .scale(0.8)
+            .move_to(frame.get_center())
+        )
+        self.play(FadeIn(trans_column_def, shift=UP * 0.3))
+
+        self.wait()
+        self.play(
+            trans_column_def.animate.scale(0.7).next_to(
+                dist_definition, DOWN, buff=0.5, coor_mask=[0, 1, 0]
+            )
+        )
+        self.wait()
+        next_dist_def = (
+            MathTex(r"\vec{\pi}_{n+1}(0) = \vec{\pi_n} \cdot \vec{P_{i,0}}}")
+            .scale(1.4)
+            .move_to(frame.get_center())
+            .shift(DOWN * 1.8)
+        )
+        self.play(FadeIn(next_dist_def, shift=UP * 0.3))
+
+        self.wait()
+        #### camera frame comes back
+        self.play(
+            frame.animate.shift(UP * 7),
             markov_ch_mob.vertices[1].animate.set_stroke(opacity=1),
             markov_ch_mob.vertices[1].animate.set_opacity(0.5),
             markov_ch_mob._labels[1].animate.set_opacity(1),
             markov_ch_mob.edges[(2, 1)].animate.set_opacity(1),
+            markov_ch_mob.edges[(1, 2)].animate.set_opacity(1),
             markov_ch_mob.edges[(4, 1)].animate.set_opacity(1),
             markov_ch_mob.edges[(3, 4)].animate.set_opacity(1),
             markov_ch_mob.edges[(2, 3)].animate.set_opacity(1),
             markov_ch_mob.edges[(0, 3)].animate.set_opacity(1),
             markov_ch_mob.edges[(0, 2)].animate.set_opacity(1),
+            run_time=1.5,
         )
 
-        # now lets simulate the chain and show the transition matrix
-        self.play(*[FadeIn(user) for user in users])
+        self.play(
+            FadeOut(dist_definition),
+            FadeOut(trans_column_def),
+            FadeOut(next_dist_def),
+            FadeOut(math_notation_title),
+        )
+
         self.wait()
 
-        steps = 6
-        trans_matrix = markov_ch.get_transition_matrix()
-        new_matrix = trans_matrix.copy()
+        matrix_complete = (
+            VGroup(vertices_right, matrix)
+            .scale(1.7)
+            .move_to(frame.get_left(), aligned_edge=LEFT)
+            .shift(RIGHT * 0.6 + UP * 0.4)
+        )
 
-        print(markov_ch_mob.vertices)
+        self.play(FadeIn(matrix_complete), FadeIn(prob_labels))
+        self.wait()
+        dot_product_def = (
+            MathTex(r"\vec{\pi}_{n+1} &= \vec{\pi}_n \cdot P")
+            .scale(1.3)
+            .next_to(trans_matrix_mob, DOWN, buff=0.5)
+        )
+        self.play(FadeIn(dot_product_def, shift=UP * 0.3))
+        self.wait()
 
-        for n in range(steps):
-            if n == 0:
-                self.play(FadeIn(matrix), FadeIn(prob_labels))
-                self.wait()
-            else:
-                new_matrix = new_matrix @ trans_matrix
-                new_transition_matrix = (
-                    self.matrix_to_mob(new_matrix)
-                    .scale_to_fit_width(trans_matrix_mob.width)
-                    .move_to(trans_matrix_mob)
-                )
+        # first iteration
+        surr_rect = SurroundingRectangle(
+            trans_matrix_mob[0][0 : len(markov_ch.get_states())], color=REDUCIBLE_YELLOW
+        )
 
-                transition_map = markov_ch_sim.get_lagged_smooth_transition_animations()
+        not_relevant_labels_tuples = list(
+            filter(lambda x: x[0] != 0, markov_ch_mob.labels.keys())
+        )
+        not_relevant_labels = [
+            markov_ch_mob.labels[t] for t in not_relevant_labels_tuples
+        ]
+        not_relevant_arrows = [
+            markov_ch_mob.edges[t] for t in not_relevant_labels_tuples
+        ]
 
-                new_iteration_text = (
-                    MarkupText(f"P<sub>{n}</sub> = ", font=REDUCIBLE_FONT, weight=BOLD)
-                    .scale_to_fit_width(p_equals.width)
-                    .move_to(p_equals, LEFT)
-                )
+        self.play(
+            Write(surr_rect),
+            *[
+                markov_ch_mob.labels[t].animate.set_opacity(0.4)
+                for t in not_relevant_labels_tuples
+            ],
+            *[arr.animate.set_opacity(0.3) for arr in not_relevant_arrows],
+        )
 
-                # new_matrix_vg = (
-                #     VGroup(new_iteration_text, vertices_down, new_transition_matrix)
-                #     .arrange(RIGHT, buff=0.1)
-                #     .to_edge(LEFT, buff=-0.5)
-                #     .shift(DOWN * 0.3)
-                # )
+        for s in markov_ch.get_states()[1:]:
+            self.play(
+                *[l.animate.set_opacity(1) for l in not_relevant_labels],
+                *[arr.animate.set_opacity(1) for arr in not_relevant_arrows],
+            )
 
-                self.play(
-                    *[LaggedStart(*transition_map[i]) for i in markov_ch.get_states()],
-                    # Transform(matrix, new_matrix_vg),
-                    Transform(p_equals, new_iteration_text),
-                    Transform(trans_matrix_mob, new_transition_matrix),
-                    run_time=1,
-                )
-                self.wait()
+            not_relevant_labels_tuples = list(
+                filter(lambda x: x[0] != s, markov_ch_mob.labels.keys())
+            )
+            not_relevant_labels = [
+                markov_ch_mob.labels[t] for t in not_relevant_labels_tuples
+            ]
+            not_relevant_arrows = [
+                markov_ch_mob.edges[t] for t in not_relevant_labels_tuples
+            ]
+
+            print(not_relevant_labels)
+
+            self.play(
+                surr_rect.animate.shift(DOWN * 0.44),
+                *[l.animate.set_opacity(0.2) for l in not_relevant_labels],
+                *[arr.animate.set_opacity(0.3) for arr in not_relevant_arrows],
+            )
+
+            self.wait()
+
+        self.play(
+            *[l.animate.set_opacity(1) for l in not_relevant_labels],
+            *[arr.animate.set_opacity(1) for arr in not_relevant_arrows],
+            FadeOut(surr_rect),
+        )
 
         ######### DEFINE STATIONARY DISTRIBUTON #########
 
         self.play(
-            self.camera.frame.animate.scale(1.4).shift(LEFT * 1.7),
+            self.camera.frame.animate.scale(1.3).shift(LEFT * 1.2),
             FadeOut(matrix),
-            *[FadeOut(user) for user in users],
+            FadeOut(dot_product_def),
+            FadeOut(vertices_right),
             FadeOut(prob_labels),
+            FadeOut(pi_dists_vg),
         )
         self.wait()
 
@@ -192,11 +350,12 @@ class TransitionMatrix(MovingCameraScene):
             Text("A distribution is stationary if:", font=REDUCIBLE_FONT, weight=BOLD)
             .scale(0.65)
             .next_to(markov_ch_mob, LEFT, buff=4.5, aligned_edge=RIGHT)
+            .shift(UP * 0.8)
         )
         stationary_dist_tex = (
-            MathTex("\pi_{n+1} = \pi_{n} P")
-            .scale_to_fit_width(stationary_dist_annotation.width)
-            .next_to(stationary_dist_annotation, DOWN)
+            MathTex("\pi = \pi P")
+            .scale_to_fit_width(stationary_dist_annotation.width - 2)
+            .next_to(stationary_dist_annotation, DOWN, buff=0.8)
         )
         self.play(Write(stationary_dist_annotation), run_time=0.8)
         self.play(FadeIn(stationary_dist_tex))
@@ -214,13 +373,18 @@ class TransitionMatrix(MovingCameraScene):
             *[FadeIn(u) for u in users],
         )
 
-        for i in range(2):
-            transition_animations = markov_ch_sim.get_instant_transition_animations()
+        # accelerate the simulation so
+        # we only show the stationary distribution
+        # [markov_ch_sim.transition() for _ in range(10)]
+        for i in range(15):
+            transition_map = markov_ch_sim.get_lagged_smooth_transition_animations()
             count_labels, count_transforms = self.update_count_labels(
                 count_labels, markov_ch_mob, markov_ch_sim, use_dist=True
             )
-            run_time = 1 / sqrt(i + 1)
-            self.play(*transition_animations + count_transforms, run_time=run_time)
+            self.play(
+                *[LaggedStart(*transition_map[i]) for i in markov_ch.get_states()]
+                + count_transforms
+            )
 
         self.wait()
 
@@ -229,12 +393,13 @@ class TransitionMatrix(MovingCameraScene):
             FadeOut(stationary_dist_tex),
             *[FadeOut(u) for u in users],
             *[FadeOut(l) for l in count_labels.values()],
+            self.camera.frame.animate.scale(0.9),
         )
 
         ############ IMPORTANT QUESTIONS ############
 
         """
-        it’s important to address the question of whether a unique distribution even exists for a Markov chain. 
+        it's important to address the question of whether a unique distribution even exists for a Markov chain. 
         And, a critical point in our model is if any initial distribution eventually converges to the stationary
         distribution
         """
@@ -246,7 +411,7 @@ class TransitionMatrix(MovingCameraScene):
                 weight=BOLD,
             )
             .scale(0.6)
-            .next_to(markov_ch_mob, LEFT, buff=2)
+            .next_to(markov_ch_mob, LEFT, buff=1.5)
             .shift(UP * 2)
         )
 
@@ -267,6 +432,8 @@ class TransitionMatrix(MovingCameraScene):
         self.wait()
         self.play(Write(question_2))
 
+        self.wait()
+
     def focus_on(self, mobject, buff=2):
         return self.camera.frame.animate.set_width(mobject.width * buff).move_to(
             mobject
@@ -276,8 +443,8 @@ class TransitionMatrix(MovingCameraScene):
         str_repr = [[f"{a:.2f}" for a in row] for row in matrix]
         return Matrix(
             str_repr,
-            left_bracket="(",
-            right_bracket=")",
+            left_bracket="[",
+            right_bracket="]",
             element_to_mobject=Text,
             element_to_mobject_config={"font": REDUCIBLE_MONO},
             h_buff=2.3,
