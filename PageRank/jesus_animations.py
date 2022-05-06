@@ -1057,6 +1057,10 @@ class EigenvalueMethod(MovingCameraScene):
         )
 
         self.play(FadeOut(eig_value))
+        self.wait()
         self.play(Write(p_brace), p.animate.next_to(p_brace, LEFT, buff=0.5))
-        self.play(LaggedStartMap(FadeIn, lambdas), Transform(p, p_matrix))
+        self.play(LaggedStartMap(FadeIn, lambdas), TransformMatchingShapes(p, p_matrix))
         self.play(LaggedStartMap(FadeIn, eig_vectors))
+
+        all_things = VGroup(p_matrix, p_brace, lambdas, eig_vectors)
+        self.play(all_things.animate.move_to(ORIGIN))
