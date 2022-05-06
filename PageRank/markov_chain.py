@@ -64,6 +64,8 @@ class MarkovChain:
                 [1 / len(self.states) for _ in range(len(self.states))]
             )
 
+        self.starting_dist = self.dist
+
     def get_states(self):
         return list(self.states)
 
@@ -88,6 +90,13 @@ class MarkovChain:
     def get_true_stationary_dist(self):
         dist = np.linalg.eig(np.transpose(self.transition_matrix))[1][:,0]
         return dist / sum(dist)
+
+    def set_starting_dist(self, starting_dist):
+        self.starting_dist = starting_dist
+        self.dist = starting_dist
+
+    def get_starting_dist(self):
+        return self.starting_dist
 
 class CustomLabel(Text):
     def __init__(self, label, font="SF Mono", scale=1, weight=BOLD):
@@ -120,6 +129,7 @@ class MarkovChainGraph(Graph):
         straight_edge_config: dict = None,
         enable_curved_double_arrows=True,
         labels=True,
+        state_color_map=None,
         **kwargs,
     ):
         self.markov_chain = markov_chain
@@ -136,12 +146,21 @@ class MarkovChainGraph(Graph):
             "max_tip_length_to_length_ratio": 0.06,
             "stroke_width": 3,
         }
+        self.state_color_map = state_color_map
 
         if labels:
             labels={
                 k: CustomLabel(str(k), scale=0.6) for k in markov_chain.get_states()
             }
         
+        if self.state_color_map:
+            new_vertex_config = {}
+            for state in markov_chain.get_states():
+                new_vertex_config[state] = vertex_config.copy()
+                new_vertex_config[state]["stroke_color"] = self.state_color_map[state]
+                new_vertex_config[state]["fill_color"] = self.state_color_map[state]
+
+            vertex_config = new_vertex_config
 
         self.labels = {}
 
@@ -152,7 +171,6 @@ class MarkovChainGraph(Graph):
             labels=labels,
             **kwargs
         )
-        
 
         self._graph = self._graph.to_directed()
         self.remove_edges(*self.edges)
@@ -337,14 +355,13 @@ class MarkovChainGraph(Graph):
 
 class MarkovChainSimulator:
     def __init__(
-        self, markov_chain: MarkovChain, markov_chain_g: MarkovChainGraph, num_users=50, user_radius=0.035, state_color_map=None,
+        self, markov_chain: MarkovChain, markov_chain_g: MarkovChainGraph, num_users=50, user_radius=0.035
     ):
         self.markov_chain = markov_chain
         self.markov_chain_g = markov_chain_g
         self.num_users = num_users
         self.state_counts = {i: 0 for i in markov_chain.get_states()}
         self.user_radius = user_radius
-        self.state_color_map = state_color_map
         self.distribution_sequence = []
         self.init_users()
 
@@ -371,15 +388,6 @@ class MarkovChainSimulator:
             user.move_to(user_location)
 
         self.distribution_sequence.append(self.markov_chain.get_current_dist())
-
-        if self.state_color_map is None:
-            return
-
-        state_to_users = self.get_state_to_user()
-        for state, user_ids in state_to_users.items():
-            for user_id in user_ids:
-                color = self.state_color_map[state]
-                self.users[user_id].set_color(color).set_opacity(0.6).set_stroke(color=color, width=2, opacity=0.8)
 
     def get_user_location(self, user: int):
         user_state = self.user_to_state[user]
@@ -425,14 +433,7 @@ class MarkovChainSimulator:
         self.transition()
         for user_id, user in enumerate(self.users):
             new_location = self.get_user_location(user_id)
-            if self.state_color_map is not None:
-                new_state = self.user_to_state[user_id]
-                new_color = self.state_color_map[new_state]
-                transition_animations.append(
-                    user.animate.set_color(new_color).set_stroke(opacity=0.6).set_stroke(color=new_color, opacity=0.8).move_to(new_location)
-                )
-            else:
-                transition_animations.append(user.animate.move_to(new_location))
+            transition_animations.append(user.animate.move_to(new_location))
         return transition_animations
 
     def get_lagged_smooth_transition_animations(self):
@@ -440,16 +441,9 @@ class MarkovChainSimulator:
         self.transition()
         for user_id, user in enumerate(self.users):
             new_location = self.get_user_location(user_id)
-            if self.state_color_map is not None:
-                new_state = self.user_to_state[user_id]
-                new_color = self.state_color_map[new_state]
-                transition_map[self.user_to_state[user_id]].append(
-                    user.animate.set_color(new_color).set_stroke(opacity=0.6).set_stroke(color=new_color, opacity=0.8).move_to(new_location)
-                )
-            else:
-                transition_map[self.user_to_state[user_id]].append(
-                    user.animate.move_to(new_location)
-                )
+            transition_map[self.user_to_state[user_id]].append(
+                user.animate.move_to(new_location)
+            )
         return transition_map
 
     def poisson_distribution(self, center):
@@ -1490,6 +1484,13 @@ class Uniqueness(Scene):
 
 class Periodicity(Scene):
     def construct(self):
+        self.state_color_map = {
+        0: REDUCIBLE_PURPLE,
+        1: REDUCIBLE_GREEN,
+        2: PURE_BLUE,
+        3: PURE_GREEN
+        }
+
         markov_chain = MarkovChain(
             4,
             [
@@ -1511,7 +1512,201 @@ class Periodicity(Scene):
                 ]
             )
         )
-        markov_chain_g = MarkovChainGraph(markov_chain, enable_curved_double_arrows=True, layout="circular")
+
+        to_fade, markov_chain_g = self.show_convergence(markov_chain, 20, 5/15)
+        self.play(
+            FadeOut(to_fade)
+        )
+        self.wait()
+
+        self.clear()
+
+        new_markov_chain = MarkovChain(
+            4,
+            [
+                (0, 1),
+                (1, 0),
+                (0, 2),
+                (1, 2),
+                (1, 3),
+                (2, 0),
+                (2, 3),
+                (3, 1),
+            ],
+            transition_matrix=np.array(
+                [
+                [0, 0.7, 0.3, 0],
+                [0.2, 0, 0.6, 0.2],
+                [0.6, 0, 0, 0.4],
+                [0, 1, 0, 0],
+                ]
+            ),
+            dist=np.array([1, 0, 0, 0])
+        )
+
+        to_fade, markov_chain_g = self.show_convergence(new_markov_chain, 25, 1/15)
+        challenge = Tex(
+            "Challenge: find an irreducible Markov chain \\\\",
+            "where stationary distribution does not converge."
+        ).scale(0.8)
+        challenge[1][-16:-1].set_color(REDUCIBLE_YELLOW)
+        challenge.move_to(DOWN * 3.3)
+        self.play(
+            FadeIn(challenge)
+        )
+        self.wait()
+
+        self.play(
+            FadeOut(to_fade),
+            FadeOut(markov_chain_g)
+        )
+        self.wait()
+
+        self.state_color_map = {
+        0: REDUCIBLE_PURPLE,
+        1: REDUCIBLE_GREEN,
+        }
+
+        periodic_markov_chain = MarkovChain(
+            2,
+            [
+                (0, 1),
+                (1, 0),
+            ],
+        )
+
+        markov_chain_g = MarkovChainGraph(periodic_markov_chain, enable_curved_double_arrows=True, layout="circular")
+
+        markov_chain_g.scale(1.5)
+        markov_chain_t_labels = markov_chain_g.get_transition_labels()
+
+        markov_chain_group = VGroup(markov_chain_g, markov_chain_t_labels)
+
+        self.play(
+            *[Write(markov_chain_g.vertices[state]) for state in periodic_markov_chain.get_states()]
+        )
+
+        self.wait()
+
+        self.play(
+            *[Write(markov_chain_g.edges[e]) for e in periodic_markov_chain.get_edges()],
+            FadeIn(markov_chain_t_labels)
+        )
+        self.wait()
+
+        self.play(
+            markov_chain_group.animate.shift(UP * 2.5),
+            FadeOut(challenge)
+        )
+        self.wait()
+
+        markov_chain_sim, left_axes_group, left_state_to_line_segments = self.show_periodicity(periodic_markov_chain, markov_chain_group, LEFT * 3.3 + DOWN * 1.5)
+        self.play(
+            *[FadeOut(u) for u in markov_chain_sim.get_users()]
+        )
+        self.wait()
+
+        periodic_markov_chain.set_starting_dist(np.array([0.8, 0.2]))
+
+        markov_chain_sim, right_axes_group, right_state_to_line_segments = self.show_periodicity(periodic_markov_chain, markov_chain_group, RIGHT * 3.3 + DOWN * 1.5)
+
+        periodic_markov_chain_title = Text("Periodic Markov Chains", font="CMU Serif", weight=BOLD).scale(0.7)
+        periodic_markov_chain_title.to_edge(LEFT * 2).shift(UP * 1)
+        self.play(
+            *[FadeOut(u) for u in markov_chain_sim.get_users()],
+            FadeOut(left_axes_group),
+            *[FadeOut(seg) for seg in list(left_state_to_line_segments.values())],
+            Write(periodic_markov_chain_title)
+        )
+        self.wait()
+
+        intuitive_def = BulletedList(
+            "Must be an irreducible Markov chain",
+            r"User visits states in regular interval (period) $ > 1 $ (*)",
+            r"No guarantee of convergence to stationary distribution",
+            r"No such period $> 1$ exists $\rightarrow$ aperiodic Markov chain",
+            buff=0.4,
+        ).scale(0.6)
+
+        intuitive_def.next_to(periodic_markov_chain_title, DOWN, buff=0.5, aligned_edge=LEFT)
+        note = Tex("(*) more rigorous and precise definitions exist").scale(0.55).next_to(intuitive_def, DOWN, aligned_edge=LEFT, buff=0.5)
+
+        for i, point in enumerate(intuitive_def):
+            self.play(
+                FadeIn(point)
+            )
+            if i == 1:
+                self.add(note)
+            self.wait()
+
+    def show_periodicity(self, markov_chain, markov_chain_group, axes_position):
+        markov_chain_g, markov_chain_t_labels = markov_chain_group
+
+        markov_chain_sim = MarkovChainSimulator(
+            markov_chain, markov_chain_g, num_users=80,
+        )
+
+        users = markov_chain_sim.get_users()
+        self.play(
+            *[FadeIn(u) for u in users]
+        )
+        self.wait()
+
+        num_steps = 10
+        axes, state_to_line_segments = self.get_distribution_plot(
+            markov_chain, num_steps,
+            axes_position=axes_position,
+            ax_width=5, ax_height=3.2,
+            dist=markov_chain.get_starting_dist()
+        )
+        legend = self.get_legend().move_to(axes.get_center() + RIGHT * (axes.width / 2 - MED_SMALL_BUFF) + UP * (axes.height / 2) - MED_SMALL_BUFF)
+        starting_dist = markov_chain.get_starting_dist()
+
+        initial_dist = MathTex(
+            r"\pi_0(0) = {0} \quad \pi_0(1) = {1}".format(starting_dist[0], starting_dist[1])
+        ).scale(0.8).next_to(axes, UP).shift(RIGHT * SMALL_BUFF + UP * SMALL_BUFF * 2)
+
+        self.play(
+            Write(axes),
+            Write(legend),
+            Write(initial_dist)
+        )
+        self.wait()
+        for state in state_to_line_segments:
+            if state == 1 or starting_dist[0] != starting_dist[1]:
+                continue
+            for seg in state_to_line_segments[state]:
+                seg.set_stroke(width=10)
+
+        self.demo_convergence_graph(state_to_line_segments, markov_chain_sim, num_steps, step_threshold=3)
+
+        return markov_chain_sim, VGroup(axes, legend, initial_dist), state_to_line_segments
+
+    def demo_convergence_graph(self, state_to_line_segments, markov_chain_sim, num_steps, short_wait_time=1/15, step_threshold=5):
+        for step in range(num_steps):
+            if step < step_threshold:
+                rate_func = smooth
+            else:
+                rate_func = linear
+            transition_animations = markov_chain_sim.get_instant_transition_animations()
+            dist_graph_aniamtions = self.get_dist_graph_step_animations(state_to_line_segments, step)
+            self.play(
+                *transition_animations + dist_graph_aniamtions, rate_func=rate_func
+            )
+            if step < step_threshold:
+                self.wait()
+            else:
+                self.wait(short_wait_time)
+
+        self.wait()
+
+    def show_convergence(self, markov_chain, num_steps, short_wait_time):
+        markov_chain_g = MarkovChainGraph(
+            markov_chain,
+            enable_curved_double_arrows=True,
+            layout="circular",
+            state_color_map=self.state_color_map
+        )
 
         markov_chain_g.scale(1.5)
         markov_chain_t_labels = markov_chain_g.get_transition_labels()
@@ -1529,16 +1724,8 @@ class Periodicity(Scene):
         )
         self.wait()
 
-        self.state_color_map = {
-        0: REDUCIBLE_YELLOW,
-        1: REDUCIBLE_GREEN,
-        2: ORANGE,
-        3: PURE_GREEN
-        }
-
         markov_chain_sim = MarkovChainSimulator(
             markov_chain, markov_chain_g, num_users=100,
-            state_color_map=self.state_color_map
         )
 
         users = markov_chain_sim.get_users()
@@ -1548,11 +1735,12 @@ class Periodicity(Scene):
         self.wait()
 
         stationary_dist = markov_chain.get_true_stationary_dist()
-        num_steps = 20
 
-        axes, state_to_line_segments = self.get_distribution_plot(markov_chain, num_steps)
+        axes, state_to_line_segments = self.get_distribution_plot(markov_chain, num_steps, dist=markov_chain.get_starting_dist())
+        legend = self.get_legend().to_edge(RIGHT * 3).shift(UP * 2.5)
         self.play(
-            Write(axes)
+            Write(axes),
+            Write(legend),
         )
         self.wait()
 
@@ -1569,15 +1757,10 @@ class Periodicity(Scene):
             if step < 5:
                 self.wait()
             else:
-                self.wait(5/15)
+                self.wait(short_wait_time)
 
-        # for step in range(num_steps):
-        #     transition_map = markov_chain_sim.get_lagged_smooth_transition_animations()
-        #     dist_graph_aniamtions = self.get_dist_graph_step_animations(state_to_line_segments, step)
-        #     self.play(
-        #         *[LaggedStart(*transition_map[i]) for i in markov_chain.get_states()] + dist_graph_aniamtions
-        #     )
-        #     self.wait()
+        self.wait()
+        return VGroup(axes, legend, VGroup(*list(state_to_line_segments.values())), VGroup(*users)), markov_chain_group
 
     def get_dist_graph_step_animations(self, state_to_line_segments, step):
         animations = []
@@ -1587,7 +1770,7 @@ class Periodicity(Scene):
             )
         return animations
 
-    def get_distribution_plot(self, markov_chain, num_steps, dist=None):
+    def get_distribution_plot(self, markov_chain, num_steps, axes_position=RIGHT*3, ax_width=5, ax_height=5, dist=None):
         markov_chain_copy = MarkovChain(
             len(markov_chain.get_states()),
             markov_chain.get_edges(),
@@ -1604,14 +1787,14 @@ class Periodicity(Scene):
 
         axes = Axes(
             x_range=(0, num_steps, 1),
-            y_range=(0, 0.5, 0.1),
-            x_length=5,
-            y_length=4,
+            y_range=(0, 1, 0.1),
+            x_length=ax_width,
+            y_length=ax_height,
             tips=False,
             axis_config={"include_numbers": True, "include_ticks": False},
-            x_axis_config={"numbers_to_exclude": range(num_steps + 1)},
-            y_axis_config={"numbers_to_exclude": np.arange(0.1, 0.45, 0.1)}
-        ).move_to(RIGHT * 3)
+            x_axis_config={"numbers_to_exclude": range(num_steps)},
+            y_axis_config={"numbers_to_exclude": np.arange(0.1, 0.95, 0.1)}
+        ).move_to(axes_position)
 
         state_to_line_segments = {}
         for state in markov_chain.get_states():
@@ -1633,3 +1816,280 @@ class Periodicity(Scene):
 
         return VGroup(*line_segments)
 
+    def get_legend(self):
+        legend = VGroup()
+        for state, color in self.state_color_map.items():
+            label = Text(str(state), font="SF Mono").scale(0.4)
+            line = Line(LEFT*SMALL_BUFF, RIGHT*SMALL_BUFF).set_stroke(color)
+            legend_item = VGroup(line, label).arrange(RIGHT)
+            legend.add(legend_item)
+        return legend.arrange_in_grid(rows=2)
+
+class PeriodicityUsersMovement(Scene):
+    def construct(self):
+        periodic_markov_chain = MarkovChain(
+            2,
+            [
+                (0, 1),
+                (1, 0),
+            ],
+        )
+
+        markov_chain_g = MarkovChainGraph(periodic_markov_chain, enable_curved_double_arrows=True, layout="circular")
+
+        markov_chain_g.scale(1.5)
+        markov_chain_t_labels = markov_chain_g.get_transition_labels()
+
+        markov_chain_group = VGroup(markov_chain_g, markov_chain_t_labels).shift(UP * 2.5)
+        markov_chain_sim = MarkovChainSimulator(
+            periodic_markov_chain, markov_chain_g, num_users=1,
+        )
+        users = markov_chain_sim.get_users()
+        users[0].scale(1.2)
+        self.play(
+            FadeIn(users[0])
+        )
+        self.wait()
+
+        for step in range(10):
+            transition_animations = markov_chain_sim.get_instant_transition_animations()
+            self.play(
+                *transition_animations
+            )
+
+
+class IntroduceBigTheorem1(Periodicity):
+    def construct(self):
+        self.state_color_map = {
+        0: REDUCIBLE_PURPLE,
+        1: REDUCIBLE_GREEN,
+        2: REDUCIBLE_WARM_BLUE,
+        3: PURE_GREEN
+        }
+
+        markov_chain_1 = MarkovChain(
+            4,
+            [
+                (0, 1),
+                (1, 0),
+                (0, 2),
+                (1, 2),
+                (1, 3),
+                (2, 0),
+                (2, 3),
+                (3, 1),
+            ],
+            transition_matrix=np.array(
+                [
+                [0, 0.7, 0.3, 0],
+                [0.2, 0, 0.6, 0.2],
+                [0.6, 0, 0, 0.4],
+                [0, 1, 0, 0],
+                ]
+            ),
+        )
+
+        self.make_convergence_scene(markov_chain_1, 25)
+
+    def make_convergence_scene(self, markov_chain, num_steps, short_wait_time=1/15):
+        markov_chain_g = MarkovChainGraph(
+            markov_chain,
+            enable_curved_double_arrows=True,
+            layout="circular",
+            state_color_map=self.state_color_map
+        )
+
+        markov_chain_t_labels = markov_chain_g.get_transition_labels()
+
+        markov_chain_g.clear_updaters()
+        markov_chain_group = VGroup(markov_chain_g, markov_chain_t_labels)
+
+        markov_chain_group.scale(1.1).shift(LEFT * 3.5)
+
+        markov_chain_sim = MarkovChainSimulator(
+            markov_chain, markov_chain_g, num_users=100,
+        )
+
+        users = markov_chain_sim.get_users()
+        self.play(
+            FadeIn(markov_chain_group),
+            *[FadeIn(u) for u in users]
+        )
+        self.wait()
+
+        stationary_dist = markov_chain.get_true_stationary_dist()
+
+        axes, state_to_line_segments = self.get_distribution_plot(markov_chain, num_steps, dist=markov_chain.get_starting_dist())
+        legend = self.get_legend().to_edge(RIGHT * 3).shift(UP * 2.5)
+
+        starting_dist = markov_chain.get_starting_dist()
+        initial_dist = MathTex(
+            r"\pi_0(0) = {0} \quad \pi_0(1) = {1} \quad \pi_0(2) = {2} \quad \pi_0(3) = {3}".format(
+                starting_dist[0], starting_dist[1], starting_dist[2], starting_dist[3]
+            )
+        ).scale(0.8).move_to(DOWN * 3.2)
+        self.play(
+            Write(axes),
+            Write(legend),
+            FadeIn(initial_dist)
+        )
+        self.wait()
+
+        for step in range(num_steps):
+            if step < 5:
+                rate_func = smooth
+            else:
+                rate_func = linear
+
+            transition_animations = markov_chain_sim.get_instant_transition_animations()
+            dist_graph_aniamtions = self.get_dist_graph_step_animations(state_to_line_segments, step)
+
+            self.play(
+                *transition_animations + dist_graph_aniamtions, rate_func=rate_func
+            )
+            if step < 5:
+                self.wait()
+            else:
+                self.wait(short_wait_time)
+
+        self.wait()
+        return VGroup(axes, legend, VGroup(*list(state_to_line_segments.values())), VGroup(*users)), markov_chain_group
+
+
+class IntroduceBigTheorem2(IntroduceBigTheorem1):
+    def construct(self):
+        self.state_color_map = {
+        0: REDUCIBLE_PURPLE,
+        1: REDUCIBLE_GREEN,
+        2: REDUCIBLE_WARM_BLUE,
+        3: PURE_GREEN
+        }
+
+        markov_chain_1 = MarkovChain(
+            4,
+            [
+                (0, 1),
+                (1, 0),
+                (0, 2),
+                (1, 2),
+                (1, 3),
+                (2, 0),
+                (2, 3),
+                (3, 1),
+            ],
+            transition_matrix=np.array(
+                [
+                [0, 0.7, 0.3, 0],
+                [0.2, 0, 0.6, 0.2],
+                [0.6, 0, 0, 0.4],
+                [0, 1, 0, 0],
+                ]
+            ),
+            dist=[0, 1, 0, 0]
+        )
+
+        self.make_convergence_scene(markov_chain_1, 25)
+
+class IntroduceBigTheorem3(IntroduceBigTheorem1):
+    def construct(self):
+        self.state_color_map = {
+        0: REDUCIBLE_PURPLE,
+        1: REDUCIBLE_GREEN,
+        2: REDUCIBLE_WARM_BLUE,
+        3: PURE_GREEN
+        }
+
+        markov_chain_1 = MarkovChain(
+            4,
+            [
+                (0, 1),
+                (1, 0),
+                (0, 2),
+                (1, 2),
+                (1, 3),
+                (2, 0),
+                (2, 3),
+                (3, 1),
+            ],
+            transition_matrix=np.array(
+                [
+                [0, 0.7, 0.3, 0],
+                [0.2, 0, 0.6, 0.2],
+                [0.6, 0, 0, 0.4],
+                [0, 1, 0, 0],
+                ]
+            ),
+            dist=[0.5, 0.1, 0.2, 0.2]
+        )
+
+        self.make_convergence_scene(markov_chain_1, 25)
+
+class IntroduceBigTheorem4(IntroduceBigTheorem1):
+    def construct(self):
+        self.state_color_map = {
+        0: REDUCIBLE_PURPLE,
+        1: REDUCIBLE_GREEN,
+        2: REDUCIBLE_WARM_BLUE,
+        3: PURE_GREEN
+        }
+
+        markov_chain_1 = MarkovChain(
+            4,
+            [
+                (0, 1),
+                (1, 0),
+                (0, 2),
+                (1, 2),
+                (1, 3),
+                (2, 0),
+                (2, 3),
+                (3, 1),
+            ],
+            transition_matrix=np.array(
+                [
+                [0, 0.7, 0.3, 0],
+                [0.2, 0, 0.6, 0.2],
+                [0.6, 0, 0, 0.4],
+                [0, 1, 0, 0],
+                ]
+            ),
+            dist=[0.1, 0.1, 0.7, 0.1]
+        )
+
+        self.make_convergence_scene(markov_chain_1, 25)
+
+class IntroduceBigTheoremText(Scene):
+    def construct(self):
+        theorem = Text("Ergodic Theorem", font="CMU Serif", weight=BOLD)
+        theory = Tex("For irreducible and aperiodic Markov chains:").scale(1)
+        tenet_1 = Tex(r"1. A unique stationary distribution $\pi$ exists").scale(0.9)
+        tenet_2 = Tex(r"2. All initial distributions $\pi_0$ converge to $\pi$").scale(0.9)
+
+        left_aligned_text = VGroup(
+            tenet_1, tenet_2
+        ).arrange(DOWN, aligned_edge=LEFT)
+
+        general_explanation = VGroup(theory, left_aligned_text).arrange(DOWN)
+
+        all_text = VGroup(theorem, general_explanation).arrange(DOWN, buff=0.5)
+
+        self.play(
+            Write(theorem)
+        )
+        self.wait()
+
+        self.play(
+            Write(theory)
+        )
+
+        self.wait()
+
+        self.play(
+            FadeIn(tenet_1)
+        )
+        self.wait()
+
+        self.play(
+            FadeIn(tenet_2)
+        )
+        self.wait()
