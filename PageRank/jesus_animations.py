@@ -1095,6 +1095,8 @@ class EigenvalueMethod(MovingCameraScene):
         )
 
         purple_plane = NumberPlane(
+            x_range=[-10, 10],
+            y_range=[-10, 10],
             background_line_style={
                 "stroke_color": REDUCIBLE_VIOLET,
                 "stroke_width": 3,
@@ -1104,7 +1106,7 @@ class EigenvalueMethod(MovingCameraScene):
                 "stroke_color": REDUCIBLE_PURPLE,
                 "stroke_opacity": 0.5,
             },
-            # faded_line_ratio=2,
+            # faded_line_ratio=4,
             axis_config={"stroke_color": REDUCIBLE_PURPLE, "stroke_width": 0},
         )
 
@@ -1119,4 +1121,45 @@ class EigenvalueMethod(MovingCameraScene):
         ).set_opacity(0.6)
 
         self.play(FadeIn(static_plane), FadeIn(purple_plane))
-        self.play(ApplyMatrix([[3, 1], [0, 2]], purple_plane))
+
+        trans_matrix = [[1, 1], [0, 1]]
+        up_vector = Vector([0, 1]).set_color(REDUCIBLE_YELLOW)
+        right_vector = Vector([1, 0]).set_color(REDUCIBLE_YELLOW)
+        diag_vector = Vector([1, 1]).set_color(REDUCIBLE_YELLOW)
+
+        self.play(Write(up_vector))
+        self.play(Write(right_vector))
+        self.play(Write(diag_vector))
+
+        self.play(
+            ApplyMatrix(trans_matrix, purple_plane),
+            self.apply_matrix_to_vector(trans_matrix, up_vector),
+            self.apply_matrix_to_vector(trans_matrix, right_vector),
+            self.apply_matrix_to_vector(trans_matrix, diag_vector),
+            run_time=1.5,
+        )
+        trans_matrix_mob = self.matrix_to_mob(
+            trans_matrix, has_background_color=True
+        ).to_corner(UL, buff=1)
+        self.play(FadeIn(trans_matrix_mob))
+
+    def apply_matrix_to_vector(self, matrix: np.ndarray, mob_vector: Vector):
+        vector = mob_vector.get_vector()[:2]
+        trans_vector = np.dot(matrix, vector)
+
+        return mob_vector.animate.put_start_and_end_on(
+            mob_vector.start, [trans_vector[0], trans_vector[1], 0]
+        )
+
+    def matrix_to_mob(self, matrix: np.ndarray, has_background_color=False):
+        str_repr = [[f"{a:.2f}" for a in row] for row in matrix]
+        return Matrix(
+            str_repr,
+            left_bracket="[",
+            right_bracket="]",
+            element_to_mobject=Text,
+            include_background_rectangle=has_background_color,
+            element_to_mobject_config={"font": REDUCIBLE_MONO},
+            h_buff=2.3,
+            v_buff=1.3,
+        )
