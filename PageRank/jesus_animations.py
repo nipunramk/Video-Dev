@@ -1138,7 +1138,9 @@ class EigenvalueMethod(MovingCameraScene):
         e_vals, e_vecs = np.linalg.eig(trans_matrix)
         print(e_vecs)
         print(e_vals)
-        scaled_vector = Vector([1, 1]).set_color(REDUCIBLE_YELLOW)
+        scaled_vector = Vector([1, 1], max_tip_length_to_length_ratio=0.17).set_color(
+            REDUCIBLE_YELLOW
+        )
         distorted_vector = Vector([1, 0]).set_color(REDUCIBLE_YELLOW)
 
         self.play(FadeIn(static_plane), FadeIn(purple_plane))
@@ -1242,6 +1244,67 @@ class EigenvalueMethod(MovingCameraScene):
             .next_to(scaled_vector.get_end(), RIGHT, buff=0.3)
         )
         self.play(FadeIn(eig_val_1), FadeIn(eig_val_3))
+
+        self.wait()
+        self.play(*[FadeOut(mob) for mob in [eig_val_3, scaled_vector]])
+
+        ############# So, with that in mind,
+        p = MathTex("P")
+        lambdas_with_value = VGroup(
+            *[
+                MathTex(f"\lambda_{n} &= {v}")
+                for n, v in zip(range(6), [0.3, 0.89, 1, 2.3, 4, 0.02, 6])
+            ],
+            # MathTex(r"\vdots"),
+            # MathTex(r"\lambda_n"),
+        ).arrange(DOWN, buff=0.2, aligned_edge=LEFT)
+
+        eig_vectors_example = (
+            VGroup(
+                *[MathTex(r"\vec{v}_{" + str(n) + "}") for n in range(6)],
+            )
+            .arrange(DOWN, buff=0.2)
+            .next_to(lambdas, RIGHT, buff=0.5)
+        )
+
+        p_with_eigs = (
+            VGroup(p, p_brace, lambdas_with_value, eig_vectors_example)
+            .set_stroke(width=8, background=True)
+            .arrange(RIGHT, buff=0.5)
+            .to_corner(UL, buff=0.7)
+        )
+
+        self.play(
+            FadeOut(m_with_eigs, shift=UP * 0.3),
+            FadeOut(surr_rect_math, shift=UP * 0.3),
+        )
+        self.wait()
+        self.play(
+            FadeIn(p_with_eigs, shift=UP * 0.3),
+        )
+        self.wait()
+
+        surr_rect = SurroundingRectangle(lambdas_with_value[0], REDUCIBLE_YELLOW)
+        self.play(FadeIn(surr_rect))
+        self.wait()
+        for l in lambdas_with_value[1:3]:
+            self.play(Transform(surr_rect, SurroundingRectangle(l, REDUCIBLE_YELLOW)))
+            self.wait()
+
+        pi.set_stroke(width=8, background=True).scale_to_fit_height(
+            eig_vectors_example[0].height
+        ).next_to(eig_vectors_example[2], RIGHT, buff=1.3, aligned_edge=DOWN)
+        arrow = (
+            Arrow(
+                ORIGIN,
+                RIGHT * 1.3,
+                max_tip_length_to_length_ratio=0.1,
+                max_stroke_width_to_length_ratio=2,
+            )
+            .set_color(REDUCIBLE_YELLOW)
+            .next_to(eig_vectors_example[2], RIGHT)
+        )
+        self.play(FadeOut(surr_rect), FadeIn(arrow, shift=RIGHT * 0.3), FadeIn(pi))
 
     def apply_matrix_to_vector(self, matrix: np.ndarray, mob_vector: Vector):
         vector = mob_vector.get_vector()[:2]
