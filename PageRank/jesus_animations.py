@@ -1,4 +1,3 @@
-from os import WNOWAIT
 import sys
 from math import dist
 from typing import Iterable
@@ -952,7 +951,7 @@ class SystemOfEquationsMethod(BruteForceMethod):
         return MathTex(tex_strings)
 
 
-class EigenvalueMethod(MovingCameraScene):
+class EigenvalueMethodOld(MovingCameraScene):
     def construct(self):
         pi = MathTex(r"\pi").scale(5).shift(DOWN * 0.5)
         pi_times_P = (
@@ -1079,3 +1078,45 @@ class EigenvalueMethod(MovingCameraScene):
         self.play(all_things.animate.move_to(ORIGIN))
         self.wait()
         self.play(all_things.animate.scale(1.4))
+
+
+class EigenvalueMethod(MovingCameraScene):
+    def construct(self):
+        pi = MathTex(r"\pi").scale(5).shift(DOWN * 0.5)
+        pi_times_P = (
+            MathTex(r"\pi P", substrings_to_isolate="P")
+            .scale(5)
+            .move_to(pi, aligned_edge=DOWN)
+        )
+        stationary_dist = (
+            MathTex(r"\pi = \pi P", substrings_to_isolate="P")
+            .scale(5)
+            .move_to(pi, aligned_edge=DOWN)
+        )
+
+        purple_plane = NumberPlane(
+            background_line_style={
+                "stroke_color": REDUCIBLE_VIOLET,
+                "stroke_width": 3,
+                # "stroke_opacity": 0.5,
+            },
+            faded_line_style={
+                "stroke_color": REDUCIBLE_PURPLE,
+                "stroke_opacity": 0.5,
+            },
+            # faded_line_ratio=2,
+            axis_config={"stroke_color": REDUCIBLE_PURPLE, "stroke_width": 0},
+        )
+
+        static_plane = NumberPlane(
+            background_line_style={
+                "stroke_color": REDUCIBLE_PURPLE,
+            },
+            faded_line_style={
+                "stroke_color": REDUCIBLE_PURPLE,
+            },
+            axis_config={"stroke_color": REDUCIBLE_PURPLE, "stroke_opacity": 0},
+        ).set_opacity(0.6)
+
+        self.play(FadeIn(static_plane), FadeIn(purple_plane))
+        self.play(ApplyMatrix([[3, 1], [0, 2]], purple_plane))
