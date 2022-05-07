@@ -3,9 +3,6 @@ import sys
 from math import dist
 from typing import Iterable
 
-from manim.mobject.svg.svg_path import vector_angle
-from numpy.linalg.linalg import eigvals
-
 sys.path.insert(1, "common/")
 from fractions import Fraction
 
