@@ -1487,8 +1487,8 @@ class Periodicity(Scene):
         self.state_color_map = {
         0: REDUCIBLE_PURPLE,
         1: REDUCIBLE_GREEN,
-        2: PURE_BLUE,
-        3: PURE_GREEN
+        2: REDUCIBLE_ORANGE,
+        3: REDUCIBLE_CHARM,
         }
 
         markov_chain = MarkovChain(
@@ -1579,6 +1579,7 @@ class Periodicity(Scene):
 
         markov_chain_g.scale(1.5)
         markov_chain_t_labels = markov_chain_g.get_transition_labels()
+        markov_chain_g.clear_updaters()
 
         markov_chain_group = VGroup(markov_chain_g, markov_chain_t_labels)
 
@@ -1600,18 +1601,20 @@ class Periodicity(Scene):
         )
         self.wait()
 
-        markov_chain_sim, left_axes_group, left_state_to_line_segments = self.show_periodicity(periodic_markov_chain, markov_chain_group, LEFT * 3.3 + DOWN * 1.5)
+        markov_chain_sim, left_axes_group, left_state_to_line_segments = self.show_periodicity(periodic_markov_chain, markov_chain_group, DOWN * 1.5)
         self.play(
-            *[FadeOut(u) for u in markov_chain_sim.get_users()]
+            *[FadeOut(u) for u in markov_chain_sim.get_users()],
+            left_axes_group.animate.shift(LEFT * 3.1),
+            *[line_segs.animate.shift(LEFT * 3.1) for line_segs in left_state_to_line_segments.values()]
         )
         self.wait()
 
         periodic_markov_chain.set_starting_dist(np.array([0.8, 0.2]))
 
-        markov_chain_sim, right_axes_group, right_state_to_line_segments = self.show_periodicity(periodic_markov_chain, markov_chain_group, RIGHT * 3.3 + DOWN * 1.5)
+        markov_chain_sim, right_axes_group, right_state_to_line_segments = self.show_periodicity(periodic_markov_chain, markov_chain_group, RIGHT * 3.5 + DOWN * 1.5)
 
         periodic_markov_chain_title = Text("Periodic Markov Chains", font="CMU Serif", weight=BOLD).scale(0.7)
-        periodic_markov_chain_title.to_edge(LEFT * 2).shift(UP * 1)
+        periodic_markov_chain_title.to_edge(LEFT * 1.5).shift(UP * 1)
         self.play(
             *[FadeOut(u) for u in markov_chain_sim.get_users()],
             FadeOut(left_axes_group),
@@ -1626,10 +1629,10 @@ class Periodicity(Scene):
             r"No guarantee of convergence to stationary distribution",
             r"No such period $> 1$ exists $\rightarrow$ aperiodic Markov chain",
             buff=0.4,
-        ).scale(0.6)
+        ).scale(0.55)
 
         intuitive_def.next_to(periodic_markov_chain_title, DOWN, buff=0.5, aligned_edge=LEFT)
-        note = Tex("(*) more rigorous and precise definitions exist").scale(0.55).next_to(intuitive_def, DOWN, aligned_edge=LEFT, buff=0.5)
+        note = Tex("(*) more rigorous and precise definitions exist").scale(0.5).next_to(intuitive_def, DOWN, aligned_edge=LEFT, buff=0.5)
 
         for i, point in enumerate(intuitive_def):
             self.play(
@@ -1792,9 +1795,24 @@ class Periodicity(Scene):
             y_length=ax_height,
             tips=False,
             axis_config={"include_numbers": True, "include_ticks": False},
-            x_axis_config={"numbers_to_exclude": range(num_steps)},
-            y_axis_config={"numbers_to_exclude": np.arange(0.1, 0.95, 0.1)}
+            x_axis_config={"numbers_to_exclude": range(num_steps + 1)},
+            y_axis_config={"numbers_to_exclude": np.arange(0.1, 1.05, 0.1)}
         ).move_to(axes_position)
+
+        custom_y_label = Text("1.0", font=REDUCIBLE_MONO).scale(0.4)
+        custom_y_label_pos = axes.y_axis.n2p(1) + LEFT * 0.4
+        custom_y_label.move_to(custom_y_label_pos)
+
+        y_axis_label = MathTex(r"\pi_n( \cdot )").scale(0.7).next_to(axes.y_axis, LEFT)
+
+
+        custom_x_label = Text(f"{num_steps}", font=REDUCIBLE_MONO).scale(0.4)
+        custom_x_label_pos = axes.x_axis.n2p(num_steps) + DOWN * MED_SMALL_BUFF
+        custom_x_label.move_to(custom_x_label_pos)
+
+        x_axis_label = Text("Step/Iteration", font=REDUCIBLE_MONO).scale(0.5).next_to(axes.x_axis, DOWN)
+
+        axes.add(custom_x_label, custom_y_label, x_axis_label, y_axis_label)
 
         state_to_line_segments = {}
         for state in markov_chain.get_states():
@@ -1863,8 +1881,8 @@ class IntroduceBigTheorem1(Periodicity):
         self.state_color_map = {
         0: REDUCIBLE_PURPLE,
         1: REDUCIBLE_GREEN,
-        2: REDUCIBLE_WARM_BLUE,
-        3: PURE_GREEN
+        2: REDUCIBLE_ORANGE,
+        3: REDUCIBLE_CHARM,
         }
 
         markov_chain_1 = MarkovChain(
@@ -1889,7 +1907,7 @@ class IntroduceBigTheorem1(Periodicity):
             ),
         )
 
-        self.make_convergence_scene(markov_chain_1, 25)
+        self.make_convergence_scene(markov_chain_1, 40)
 
     def make_convergence_scene(self, markov_chain, num_steps, short_wait_time=1/15):
         markov_chain_g = MarkovChainGraph(
@@ -1904,7 +1922,7 @@ class IntroduceBigTheorem1(Periodicity):
         markov_chain_g.clear_updaters()
         markov_chain_group = VGroup(markov_chain_g, markov_chain_t_labels)
 
-        markov_chain_group.scale(1.1).shift(LEFT * 3.5)
+        markov_chain_group.scale(1.1).shift(LEFT * 3.5 + UP * 0.5)
 
         markov_chain_sim = MarkovChainSimulator(
             markov_chain, markov_chain_g, num_users=100,
@@ -1919,7 +1937,7 @@ class IntroduceBigTheorem1(Periodicity):
 
         stationary_dist = markov_chain.get_true_stationary_dist()
 
-        axes, state_to_line_segments = self.get_distribution_plot(markov_chain, num_steps, dist=markov_chain.get_starting_dist())
+        axes, state_to_line_segments = self.get_distribution_plot(markov_chain, num_steps, dist=markov_chain.get_starting_dist(), axes_position=RIGHT * 3 + UP * 0.5)
         legend = self.get_legend().to_edge(RIGHT * 3).shift(UP * 2.5)
 
         starting_dist = markov_chain.get_starting_dist()
@@ -1934,7 +1952,7 @@ class IntroduceBigTheorem1(Periodicity):
             FadeIn(initial_dist)
         )
         self.wait()
-
+        wait_time = 1
         for step in range(num_steps):
             if step < 5:
                 rate_func = smooth
@@ -1948,9 +1966,8 @@ class IntroduceBigTheorem1(Periodicity):
                 *transition_animations + dist_graph_aniamtions, rate_func=rate_func
             )
             if step < 5:
-                self.wait()
-            else:
-                self.wait(short_wait_time)
+                self.wait(wait_time)
+                wait_time *= 0.8
 
         self.wait()
         return VGroup(axes, legend, VGroup(*list(state_to_line_segments.values())), VGroup(*users)), markov_chain_group
@@ -1961,8 +1978,8 @@ class IntroduceBigTheorem2(IntroduceBigTheorem1):
         self.state_color_map = {
         0: REDUCIBLE_PURPLE,
         1: REDUCIBLE_GREEN,
-        2: REDUCIBLE_WARM_BLUE,
-        3: PURE_GREEN
+        2: REDUCIBLE_ORANGE,
+        3: REDUCIBLE_CHARM,
         }
 
         markov_chain_1 = MarkovChain(
@@ -1988,15 +2005,15 @@ class IntroduceBigTheorem2(IntroduceBigTheorem1):
             dist=[0, 1, 0, 0]
         )
 
-        self.make_convergence_scene(markov_chain_1, 25)
+        self.make_convergence_scene(markov_chain_1, 40)
 
 class IntroduceBigTheorem3(IntroduceBigTheorem1):
     def construct(self):
         self.state_color_map = {
         0: REDUCIBLE_PURPLE,
         1: REDUCIBLE_GREEN,
-        2: REDUCIBLE_WARM_BLUE,
-        3: PURE_GREEN
+        2: REDUCIBLE_ORANGE,
+        3: REDUCIBLE_CHARM,
         }
 
         markov_chain_1 = MarkovChain(
@@ -2022,15 +2039,15 @@ class IntroduceBigTheorem3(IntroduceBigTheorem1):
             dist=[0.5, 0.1, 0.2, 0.2]
         )
 
-        self.make_convergence_scene(markov_chain_1, 25)
+        self.make_convergence_scene(markov_chain_1, 40)
 
 class IntroduceBigTheorem4(IntroduceBigTheorem1):
     def construct(self):
         self.state_color_map = {
         0: REDUCIBLE_PURPLE,
         1: REDUCIBLE_GREEN,
-        2: REDUCIBLE_WARM_BLUE,
-        3: PURE_GREEN
+        2: REDUCIBLE_ORANGE,
+        3: REDUCIBLE_CHARM,
         }
 
         markov_chain_1 = MarkovChain(
@@ -2056,7 +2073,7 @@ class IntroduceBigTheorem4(IntroduceBigTheorem1):
             dist=[0.1, 0.1, 0.7, 0.1]
         )
 
-        self.make_convergence_scene(markov_chain_1, 25)
+        self.make_convergence_scene(markov_chain_1, 40)
 
 class IntroduceBigTheoremText(Scene):
     def construct(self):
