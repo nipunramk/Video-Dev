@@ -1095,6 +1095,16 @@ class EigenvalueMethod(MovingCameraScene):
             .move_to(pi, aligned_edge=DOWN)
         )
 
+        self.play(FadeIn(pi, scale=0.8))
+        self.wait()
+        self.play(TransformMatchingShapes(pi, pi_times_P))
+        self.wait()
+        self.play(TransformMatchingShapes(pi_times_P, stationary_dist))
+
+        self.play(FadeOut(stationary_dist))
+
+        ########################### Going back to fundamentals...
+
         purple_plane = NumberPlane(
             x_range=[-10, 10],
             y_range=[-10, 10],
@@ -1121,28 +1131,117 @@ class EigenvalueMethod(MovingCameraScene):
             axis_config={"stroke_color": REDUCIBLE_PURPLE, "stroke_opacity": 0},
         ).set_opacity(0.6)
 
+        trans_matrix = [
+            [2, 1],
+            [1, 2],
+        ]
+        e_vals, e_vecs = np.linalg.eig(trans_matrix)
+        print(e_vecs)
+        print(e_vals)
+        scaled_vector = Vector([1, 1]).set_color(REDUCIBLE_YELLOW)
+        distorted_vector = Vector([1, 0]).set_color(REDUCIBLE_YELLOW)
+
         self.play(FadeIn(static_plane), FadeIn(purple_plane))
-
-        trans_matrix = [[1, 1], [0, 1]]
-        up_vector = Vector([0, 1]).set_color(REDUCIBLE_YELLOW)
-        right_vector = Vector([1, 0]).set_color(REDUCIBLE_YELLOW)
-        diag_vector = Vector([1, 1]).set_color(REDUCIBLE_YELLOW)
-
-        self.play(Write(up_vector))
-        self.play(Write(right_vector))
-        self.play(Write(diag_vector))
+        self.wait()
+        self.play(Write(distorted_vector))
 
         self.play(
             ApplyMatrix(trans_matrix, purple_plane),
-            self.apply_matrix_to_vector(trans_matrix, up_vector),
-            self.apply_matrix_to_vector(trans_matrix, right_vector),
-            self.apply_matrix_to_vector(trans_matrix, diag_vector),
+            self.apply_matrix_to_vector(trans_matrix, distorted_vector),
             run_time=1.5,
         )
-        trans_matrix_mob = self.matrix_to_mob(
-            trans_matrix, has_background_color=True
-        ).to_corner(UL, buff=1)
+        self.wait()
+
+        trans_matrix_mob = (
+            self.matrix_to_mob(trans_matrix, has_background_color=False)
+            .set_stroke(width=10, background=True)
+            .scale(0.7)
+            .to_corner(UL, buff=1)
+        )
         self.play(FadeIn(trans_matrix_mob))
+
+        self.wait()
+        self.play(
+            FadeOut(distorted_vector),
+            ApplyMatrix(np.linalg.inv(trans_matrix), purple_plane),
+            run_time=1,
+        )
+        self.wait()
+        self.play(FadeIn(scaled_vector))
+        self.play(
+            ApplyMatrix(trans_matrix, purple_plane),
+            self.apply_matrix_to_vector(trans_matrix, scaled_vector),
+            run_time=1,
+        )
+        self.wait()
+        eig_vector = Vector(direction=e_vecs[0]).set_color(REDUCIBLE_YELLOW)
+        self.play(
+            FadeOut(scaled_vector),
+            ApplyMatrix(np.linalg.inv(trans_matrix), purple_plane),
+            run_time=1,
+        )
+        self.wait()
+
+        self.play(FadeIn(eig_vector))
+        self.play(
+            ApplyMatrix(trans_matrix, purple_plane),
+            self.apply_matrix_to_vector(trans_matrix, eig_vector),
+            run_time=1,
+        )
+
+        self.play(FadeOut(trans_matrix_mob))
+
+        m = MathTex("M ")
+
+        lambdas = VGroup(
+            *[MathTex(f"\lambda_{n}") for n in range(4)],
+            MathTex(r"\vdots"),
+            MathTex(r"\lambda_n"),
+        ).arrange(DOWN, buff=0.2)
+
+        p_brace = Brace(lambdas, LEFT)
+
+        eig_vectors = (
+            VGroup(
+                *[MathTex(r"\vec{v}_{" + str(n) + "}") for n in range(4)],
+                MathTex(r"\vdots"),
+                MathTex(r"\vec{v}_n"),
+            )
+            .arrange(DOWN, buff=0.2)
+            .next_to(lambdas, RIGHT, buff=0.5)
+        )
+
+        m_with_eigs = (
+            VGroup(m, p_brace, lambdas, eig_vectors)
+            .set_stroke(width=8, background=True)
+            .arrange(RIGHT, buff=0.5)
+            .to_corner(UL, buff=0.7)
+        )
+        surr_rect_math = (
+            SurroundingRectangle(m_with_eigs)
+            .set_stroke(width=0)
+            .set_color(BLACK)
+            .set_opacity(0.5)
+        )
+        self.play(
+            FadeIn(surr_rect_math),
+            FadeIn(m_with_eigs),
+        )
+
+        self.play(FadeIn(scaled_vector))
+        self.wait()
+
+        eig_val_1 = (
+            MathTex(r"\lambda_{0} = 1")
+            .set_stroke(width=8, background=True)
+            .next_to(eig_vector.get_end(), RIGHT, buff=0.3)
+        )
+        eig_val_3 = (
+            MathTex(r"\lambda_{1} = 3")
+            .set_stroke(width=8, background=True)
+            .next_to(scaled_vector.get_end(), RIGHT, buff=0.3)
+        )
+        self.play(FadeIn(eig_val_1), FadeIn(eig_val_3))
 
     def apply_matrix_to_vector(self, matrix: np.ndarray, mob_vector: Vector):
         vector = mob_vector.get_vector()[:2]
