@@ -1117,65 +1117,113 @@ class EigenvalueMethod(MovingCameraScene):
         self.play(FadeIn(eig_val_1), FadeIn(eig_val_3))
 
         self.wait()
-        self.play(*[FadeOut(mob) for mob in [eig_val_3, scaled_vector]])
 
         ############# So, with that in mind,
+        markov_ch = MarkovChain(
+            4,
+            edges=[
+                (0, 1),
+                # (1, 0),
+                (1, 2),
+                (2, 1),
+                (2, 0),
+                (2, 3),
+                (0, 3),
+                # (3, 1),
+                (3, 2),
+            ],
+        )
+
+        markov_ch_mob = MarkovChainGraph(
+            markov_ch,
+            curved_edge_config={"radius": 2},
+            straight_edge_config={"max_tip_length_to_length_ratio": 0.06},
+            layout_scale=2,
+            layout="circular",
+        ).shift(RIGHT * 4 + DOWN * 0.7)
+
         p = MathTex("P")
+
+        # the stationary dists are eigvecs with eigval 1 from the P.T
+        eig_vals_P, eig_vecs_P = np.linalg.eig(markov_ch.get_transition_matrix().T)
+        eig_vecs_P = eig_vecs_P.T.astype(float)
+        eig_vals_P = eig_vals_P.astype(float)
+        print()
+        print()
+        print()
+        print(eig_vecs_P)
+        print()
+        print(eig_vals_P)
+        print()
+        # print(np.sum(eig_vecs_P, axis=1))
+
         lambdas_with_value = VGroup(
             *[
-                MathTex(f"\lambda_{n} &= {v}")
-                for n, v in zip(range(6), [0.3, 0.89, 1, 2.3, 4, 0.02, 6])
+                MathTex(f"\lambda_{n} &= {v:.1f}")
+                for n, v in zip(range(len(markov_ch.get_states())), eig_vals_P)
             ],
-            # MathTex(r"\vdots"),
-            # MathTex(r"\lambda_n"),
         ).arrange(DOWN, buff=0.2, aligned_edge=LEFT)
 
-        eig_vectors_example = (
+        pi_vectors_example = (
             VGroup(
-                *[MathTex(r"\vec{v}_{" + str(n) + "}") for n in range(6)],
+                *[
+                    MathTex(r"\vec{\pi}_{" + str(n) + "}")
+                    for n in range(len(markov_ch.get_states()))
+                ],
             )
             .arrange(DOWN, buff=0.2)
             .next_to(lambdas, RIGHT, buff=0.5)
         )
 
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
+        self.wait()
+
+        p_brace = Brace(lambdas_with_value, LEFT)
+
         p_with_eigs = (
-            VGroup(p, p_brace, lambdas_with_value, eig_vectors_example)
+            VGroup(p.scale(1.4), p_brace, lambdas_with_value, pi_vectors_example)
             .set_stroke(width=8, background=True)
             .arrange(RIGHT, buff=0.5)
             .to_corner(UL, buff=0.7)
         )
 
         self.play(
-            FadeOut(m_with_eigs, shift=UP * 0.3),
-            FadeOut(surr_rect_math, shift=UP * 0.3),
-        )
-        self.wait()
-        self.play(
             FadeIn(p_with_eigs, shift=UP * 0.3),
+            Write(markov_ch_mob),
         )
         self.wait()
 
-        surr_rect = SurroundingRectangle(lambdas_with_value[0], REDUCIBLE_YELLOW)
-        self.play(FadeIn(surr_rect))
-        self.wait()
-        for l in lambdas_with_value[1:3]:
-            self.play(Transform(surr_rect, SurroundingRectangle(l, REDUCIBLE_YELLOW)))
-            self.wait()
+        eig_index = np.ravel(np.argwhere(eig_vals_P.round(1) == 1.0))[0]
 
-        pi.set_stroke(width=8, background=True).scale_to_fit_height(
-            eig_vectors_example[0].height
-        ).next_to(eig_vectors_example[2], RIGHT, buff=1.3, aligned_edge=DOWN)
-        arrow = (
-            Arrow(
-                ORIGIN,
-                RIGHT * 1.3,
-                max_tip_length_to_length_ratio=0.1,
-                max_stroke_width_to_length_ratio=2,
+        underline_eig_1 = Underline(lambdas_with_value[eig_index]).set_color(
+            REDUCIBLE_YELLOW
+        )
+        self.play(Succession(Create(underline_eig_1), FadeOut(underline_eig_1)))
+
+        stationary_pi = MathTex(r"\vec{\pi}_" + str(eig_index) + " = ")
+        stationary_dist = self.vector_to_mob(eig_vecs_P[eig_index]).scale(0.3)
+
+        vertices_down = VGroup(
+            *[s.copy().scale(0.5) for s in markov_ch_mob.vertices.values()]
+        ).arrange(DOWN, buff=0.13)
+
+        stationary_distribution = (
+            VGroup(stationary_pi, vertices_down, stationary_dist)
+            .arrange(RIGHT, buff=0.15)
+            .next_to(p_with_eigs, DOWN, buff=2)
+        ).scale(2)
+
+        stationary_dist_normalized = (
+            self.vector_to_mob(
+                [e / sum(eig_vecs_P[eig_index]) for e in eig_vecs_P[eig_index]]
             )
-            .set_color(REDUCIBLE_YELLOW)
-            .next_to(eig_vectors_example[2], RIGHT)
+            .scale_to_fit_height(stationary_dist.height)
+            .move_to(stationary_dist)
         )
-        self.play(FadeOut(surr_rect), FadeIn(arrow, shift=RIGHT * 0.3), FadeIn(pi))
+
+        self.play(FadeIn(stationary_distribution, shift=RIGHT * 0.4))
+        self.wait()
+        self.play(Transform(stationary_dist, stationary_dist_normalized))
 
     def apply_matrix_to_vector(self, matrix: np.ndarray, mob_vector: Vector):
         vector = mob_vector.get_vector()[:2]
@@ -1193,6 +1241,19 @@ class EigenvalueMethod(MovingCameraScene):
             right_bracket="]",
             element_to_mobject=Text,
             include_background_rectangle=has_background_color,
+            element_to_mobject_config={"font": REDUCIBLE_MONO},
+            h_buff=2.3,
+            v_buff=1.3,
+        )
+
+    def vector_to_mob(self, vector: Iterable):
+        str_repr = [[f"{a:.2f}"] for a in vector]
+
+        return Matrix(
+            str_repr,
+            left_bracket="[",
+            right_bracket="]",
+            element_to_mobject=Text,
             element_to_mobject_config={"font": REDUCIBLE_MONO},
             h_buff=2.3,
             v_buff=1.3,
