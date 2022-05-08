@@ -1192,8 +1192,8 @@ class EigenvalueMethod(MovingCameraScene):
         self.play(
             FadeIn(p_with_eigs, shift=UP * 0.3),
             Write(markov_ch_mob),
-            Write(labels),
         )
+        self.play(FadeIn(labels))
         self.wait()
 
         eig_index = np.ravel(np.argwhere(eig_vals_P.round(1) == 1.0))[0]
