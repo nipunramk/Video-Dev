@@ -1187,9 +1187,12 @@ class EigenvalueMethod(MovingCameraScene):
             .to_corner(UL, buff=0.7)
         )
 
+        labels = markov_ch_mob.get_transition_labels()
+
         self.play(
             FadeIn(p_with_eigs, shift=UP * 0.3),
             Write(markov_ch_mob),
+            Write(labels),
         )
         self.wait()
 
@@ -1199,6 +1202,7 @@ class EigenvalueMethod(MovingCameraScene):
             REDUCIBLE_YELLOW
         )
         self.play(Succession(Create(underline_eig_1), FadeOut(underline_eig_1)))
+        self.wait()
 
         stationary_pi = MathTex(r"\vec{\pi}_" + str(eig_index) + " = ")
         stationary_dist = self.vector_to_mob(eig_vecs_P[eig_index]).scale(0.3)
