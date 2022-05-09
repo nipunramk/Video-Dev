@@ -1262,3 +1262,171 @@ class EigenvalueMethod(MovingCameraScene):
             h_buff=2.3,
             v_buff=1.3,
         )
+
+
+class PerformanceEvaluation(IntroWebGraph, TransitionMatrix, Periodicity):
+    def construct(self):
+
+        # markov_ch, markov_ch_mob = self.get_web_graph()
+        markov_ch = MarkovChain(
+            4,
+            edges=[
+                (2, 0),
+                (2, 3),
+                (0, 3),
+                (3, 1),
+                (2, 1),
+                (1, 2),
+            ],
+            dist=[0.2, 0.5, 0.2, 0.1],
+        )
+
+        markov_ch_mob = MarkovChainGraph(
+            markov_ch,
+            curved_edge_config={"radius": 2, "tip_length": 0.1},
+            straight_edge_config={"max_tip_length_to_length_ratio": 0.08},
+            layout="circular",
+        )
+
+        markov_ch_sim = MarkovChainSimulator(markov_ch, markov_ch_mob, num_users=100)
+        users = markov_ch_sim.get_users()
+
+        self.play(
+            LaggedStart(*[FadeIn(u) for u in users]),
+            run_time=0.5,
+        )
+
+        last_dist = markov_ch_sim.get_user_dist().values()
+
+        # first iteration
+        transition_map = markov_ch_sim.get_lagged_smooth_transition_animations()
+
+        current_dist = markov_ch_sim.get_user_dist().values()
+
+        last_distance = dist(current_dist, last_dist)
+        tolerance = 0.001
+
+        print(f"{last_distance = }")
+
+        num_steps = 100
+        axes = Axes(
+            x_range=[0, num_steps],
+            y_range=[0, last_distance],
+            y_axis_config={
+                "numbers_to_exclude": np.arange(0.1, 1.05, 0.1),
+                "stroke_width": 1,
+            },
+            x_axis_config={
+                "numbers_to_exclude": range(num_steps + 1),
+                "stroke_width": 1,
+            },
+            tips=False,
+            x_length=3,
+            y_length=2,
+            axis_config={"include_numbers": False, "include_ticks": False},
+        ).set_stroke(width=8, background=True)
+
+        bg_axes = (
+            SurroundingRectangle(axes)
+            .set_color(BLACK)
+            .set_stroke(width=0)
+            .set_opacity(0.4)
+        )
+        axes_vg = VGroup(bg_axes, axes).to_corner(UR, buff=0.5)
+
+        tolerance_line = (
+            axes.get_horizontal_line(axes.c2p(num_steps, tolerance), line_func=Line)
+            .set_color(REDUCIBLE_PURPLE)
+            .set_stroke(width=2)
+        )
+
+        self.play(
+            *[LaggedStart(*transition_map[i]) for i in markov_ch.get_states()],
+            FadeIn(axes_vg),
+            Write(tolerance_line),
+        )
+
+        line_chunks = []
+        did_change = False
+        for i in range(1, num_steps):
+            transition_animations = markov_ch_sim.get_instant_transition_animations()
+
+            last_dist = current_dist
+            current_dist = markov_ch_sim.get_user_dist().values()
+
+            current_distance = dist(current_dist, last_dist)
+            new_line_chunk = self.next_iteration_line(
+                axes, i, current_distance, last_distance
+            )
+            line_chunks.append(new_line_chunk)
+
+            run_time = 0.8 if i < 6 else 1 / i
+
+            if i < 6:
+                self.play(
+                    *transition_animations,
+                    Write(new_line_chunk),
+                    run_time=run_time,
+                )
+
+            else:
+                self.play(
+                    *transition_animations,
+                    Write(new_line_chunk),
+                    run_time=run_time,
+                )
+
+            if current_distance <= tolerance * 2 and not did_change:
+                axes_precise = (
+                    Axes(
+                        x_range=[i, num_steps],
+                        y_range=[0, tolerance * 2],
+                        y_axis_config={
+                            "numbers_to_exclude": np.arange(0.1, 1.05, 0.1),
+                            "stroke_width": 1,
+                        },
+                        x_axis_config={
+                            "numbers_to_exclude": range(num_steps + 1),
+                            "stroke_width": 1,
+                        },
+                        tips=False,
+                        x_length=3,
+                        y_length=2,
+                        axis_config={"include_numbers": False, "include_ticks": False},
+                    )
+                    .set_stroke(width=8, background=True)
+                    .move_to(axes)
+                )
+                tolerance_line_precise = (
+                    axes.get_horizontal_line(
+                        axes_precise.c2p(num_steps, tolerance), line_func=Line
+                    )
+                    .set_color(REDUCIBLE_PURPLE)
+                    .set_stroke(width=2)
+                )
+
+                self.play(
+                    Transform(axes, axes_precise),
+                    Transform(tolerance_line, tolerance_line_precise),
+                    *[FadeOut(line) for line in line_chunks],
+                    run_time=0.7,
+                )
+                axes = axes_precise
+                did_change = True
+
+            last_distance = current_distance
+
+        self.wait()
+
+    def next_iteration_line(
+        self, axes: Axes, iteration: int, curr_distance: float, last_distance: float
+    ):
+
+        last_distance_p2c = axes.c2p(iteration - 1, last_distance)
+        curr_distance_p2c = axes.c2p(iteration, curr_distance)
+
+        return (
+            Line(last_distance_p2c, curr_distance_p2c)
+            .set_color(REDUCIBLE_YELLOW)
+            .set_stroke(width=2)
+        )
