@@ -1267,26 +1267,26 @@ class EigenvalueMethod(MovingCameraScene):
 class PerformanceEvaluation(IntroWebGraph, TransitionMatrix, Periodicity):
     def construct(self):
 
-        # markov_ch, markov_ch_mob = self.get_web_graph()
-        markov_ch = MarkovChain(
-            4,
-            edges=[
-                (2, 0),
-                (2, 3),
-                (0, 3),
-                (3, 1),
-                (2, 1),
-                (1, 2),
-            ],
-            dist=[0.2, 0.5, 0.2, 0.1],
-        )
+        markov_ch, markov_ch_mob = self.get_web_graph()
+        # markov_ch = MarkovChain(
+        #     4,
+        #     edges=[
+        #         (2, 0),
+        #         (2, 3),
+        #         (0, 3),
+        #         (3, 1),
+        #         (2, 1),
+        #         (1, 2),
+        #     ],
+        #     dist=[0.2, 0.5, 0.2, 0.1],
+        # )
 
-        markov_ch_mob = MarkovChainGraph(
-            markov_ch,
-            curved_edge_config={"radius": 2, "tip_length": 0.1},
-            straight_edge_config={"max_tip_length_to_length_ratio": 0.08},
-            layout="circular",
-        )
+        # markov_ch_mob = MarkovChainGraph(
+        #     markov_ch,
+        #     curved_edge_config={"radius": 2, "tip_length": 0.1},
+        #     straight_edge_config={"max_tip_length_to_length_ratio": 0.08},
+        #     layout="circular",
+        # )
 
         markov_ch_sim = MarkovChainSimulator(markov_ch, markov_ch_mob, num_users=100)
         users = markov_ch_sim.get_users()
