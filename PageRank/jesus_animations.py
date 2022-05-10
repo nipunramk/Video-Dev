@@ -948,7 +948,6 @@ class SystemOfEquationsMethod(BruteForceMethod):
             tex_strings.append(full_equation_tex)
 
         tex_strings = "\\\\".join(tex_strings)
-        print(tex_strings)
         return MathTex(tex_strings)
 
 
@@ -1264,8 +1263,43 @@ class EigenvalueMethod(MovingCameraScene):
         )
 
 
-class PerformanceEvaluation(IntroWebGraph, TransitionMatrix, Periodicity):
+class PerformanceEvaluation(IntroWebGraph, SystemOfEquationsMethod, Periodicity):
     def construct(self):
+
+        # self.intro_pip()
+        # self.wait()
+        self.massive_system_of_equations()
+        # self.brute_force_benchmark()
+
+    def intro_pip(self):
+        title = (
+            Text("Which method will perform best?", font=REDUCIBLE_FONT, weight=BOLD)
+            .scale(0.8)
+            .to_edge(UP)
+        )
+
+        self.play(FadeIn(title, shift=UP * 0.3))
+
+        # design icons
+        # maybe it's better that nipun adds them in post rather than
+        # putting them here
+
+    def massive_system_of_equations(self):
+        frame = self.camera.frame
+        markov_ch = self.create_big_markov_chain(50)
+
+        equations = (
+            self.get_balance_equations(markov_ch)
+            .scale(0.4)
+            .move_to(frame.get_corner(UL), aligned_edge=UL)
+        )
+
+        self.add(equations)
+
+    def lots_of_eigen_values(self):
+        pass
+
+    def brute_force_benchmark(self):
 
         markov_ch, markov_ch_mob = self.get_web_graph()
         # markov_ch = MarkovChain(
@@ -1418,6 +1452,7 @@ class PerformanceEvaluation(IntroWebGraph, TransitionMatrix, Periodicity):
 
         self.wait()
 
+    # utils
     def next_iteration_line(
         self, axes: Axes, iteration: int, curr_distance: float, last_distance: float
     ):
@@ -1430,3 +1465,18 @@ class PerformanceEvaluation(IntroWebGraph, TransitionMatrix, Periodicity):
             .set_color(REDUCIBLE_YELLOW)
             .set_stroke(width=2)
         )
+
+    def create_big_markov_chain(self, size: int) -> MarkovChain:
+        tuples = []
+        for i in range(size):
+            random_edges = np.random.choice(
+                list(range(size)),
+                size=size // 2,
+                # size=np.random.randint(int(size * 0.1), int(size * 0.9)),
+            )
+            for r in random_edges:
+                tuples.append((i, r))
+
+        tuples = list(filter(lambda x: x[0] != x[1], tuples))
+
+        return MarkovChain(size, tuples)
