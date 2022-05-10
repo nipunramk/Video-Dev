@@ -96,6 +96,9 @@ class MarkovChain:
     def get_starting_dist(self):
         return self.starting_dist
 
+    def set_transition_matrix(self, transition_matrix):
+        self.transition_matrix = transition_matrix
+
 class CustomLabel(Text):
     def __init__(self, label, font="SF Mono", scale=1, weight=BOLD):
         super().__init__(label, font=font, weight=weight)
@@ -322,7 +325,7 @@ class MarkovChainGraph(Graph):
 
         return self.get_group_class()(*added_mobjects)
 
-    def get_transition_labels(self, scale=0.3):
+    def get_transition_labels(self, scale=0.3, round_val=True):
         """
         This function returns a VGroup with the probability that each
         each state has to transition to another state, based on the
@@ -343,7 +346,7 @@ class MarkovChainGraph(Graph):
                     edge_tuple = (s, e)
                     matrix_prob = tm[s, e]
 
-                    if round(matrix_prob, 2) != matrix_prob:
+                    if round_val and round(matrix_prob, 2) != matrix_prob:
                         matrix_prob = round(matrix_prob, 2)
 
                     label = (
@@ -2152,3 +2155,583 @@ class IntroduceBigTheoremText(Scene):
             FadeIn(tenet_2)
         )
         self.wait()
+
+class PageRank(IntroduceBigTheorem1):
+    def construct(self):
+        self.show_pagerank_cxn()
+        self.clear()
+
+    def show_pagerank_cxn(self):
+        template = TexTemplate()
+        template.add_to_preamble(r"\usepackage{bm}")
+        page_rank = Text("PageRank", font=REDUCIBLE_FONT, weight=BOLD)
+        arrow = Tex(
+            r"$\bm{\Updownarrow}$",
+            tex_template=template
+        ).scale(1.5)
+        stationary_dist_text = Text("Stationary Distributions of Markov Chains", font=REDUCIBLE_FONT, weight=BOLD).scale(0.8)
+        group = VGroup(page_rank, arrow, stationary_dist_text).arrange(DOWN)
+
+        self.play(
+            Write(page_rank)
+        )
+        self.wait()
+
+        self.play(
+            Write(arrow)
+        )
+        self.wait()
+
+        self.play(
+            FadeIn(stationary_dist_text)
+        )
+        self.wait()
+
+        self.clear()
+
+        self.intro_issue()
+
+    def intro_issue(self):
+        reducible_markov_chain = MarkovChain(
+            4,
+            [(0, 1), (1, 2), (2, 3), (1, 3), (0, 2)]
+        )
+
+        self.state_color_map = {
+        0: REDUCIBLE_PURPLE,
+        1: REDUCIBLE_GREEN,
+        2: REDUCIBLE_ORANGE,
+        3: REDUCIBLE_CHARM,
+        }
+
+        red_graph, reducible_markov_chain_g = self.make_convergence_scene(reducible_markov_chain, 25)
+
+        problem = Text("How to rank states 0, 1 and 2?", font=REDUCIBLE_FONT).scale(0.8).move_to(DOWN * 3.3)
+
+        self.play(
+            FadeIn(problem)
+        )
+        self.wait()
+
+        self.clear()
+
+        # self.play(
+        #     FadeOut(graph),
+        #     FadeOut(reducible_markov_chain_g),
+        #     FadeOut(problem)
+        # )
+        # self.wait()
+
+        periodic_markov_chain = MarkovChain(
+            4,
+            [(0, 1), (1, 0), (2, 1), (3, 0), (2, 3), (3, 2)]
+        )
+
+        periodic_graph, periodic_markov_chain_g = self.make_convergence_scene(periodic_markov_chain, 25, add_stroke=True, extra_stroke_states=[0, 2])
+
+
+        problem = Text("How to rank states 2 and 3?", font=REDUCIBLE_FONT).scale(0.8).move_to(DOWN * 3.3)
+
+        self.play(
+            FadeIn(problem)
+        )
+        self.wait()
+
+        reducible_markov_chain_g.scale(1).move_to(LEFT * 3.5)
+
+        self.play(
+            FadeOut(periodic_graph),
+            FadeOut(problem),
+            periodic_markov_chain_g.animate.scale(1).move_to(RIGHT * 3.5),
+            FadeIn(reducible_markov_chain_g)
+        )
+        self.wait()
+
+        question = Tex("How to deal with Markov chains that \\\\ are not irreducible and aperiodic?").scale(0.8)
+
+        question.move_to(UP * 3.3)
+
+        self.play(
+            Write(question)
+        )
+
+        self.wait()
+
+        self.clear()
+
+        self.show_larger_reducible_markov_chain()
+
+    def make_convergence_scene(self, markov_chain, num_steps, short_wait_time=1/15, add_stroke=False, extra_stroke_states=None):
+        markov_chain_g = MarkovChainGraph(
+            markov_chain,
+            enable_curved_double_arrows=True,
+            layout="circular",
+            state_color_map=self.state_color_map
+        )
+
+        markov_chain_t_labels = markov_chain_g.get_transition_labels()
+
+        markov_chain_g.clear_updaters()
+        markov_chain_group = VGroup(markov_chain_g, markov_chain_t_labels)
+
+        markov_chain_group.scale(1.1).shift(LEFT * 3.5 + UP * 0.5)
+
+        markov_chain_sim = MarkovChainSimulator(
+            markov_chain, markov_chain_g, num_users=100,
+        )
+
+        users = markov_chain_sim.get_users()
+        self.play(
+            FadeIn(markov_chain_group),
+            *[FadeIn(u) for u in users]
+        )
+        self.wait()
+
+        stationary_dist = markov_chain.get_true_stationary_dist()
+
+        axes, state_to_line_segments = self.get_distribution_plot(markov_chain, num_steps, dist=markov_chain.get_starting_dist(), axes_position=RIGHT * 3 + UP * 0.5)
+        if add_stroke:
+            for state in state_to_line_segments:
+                if state in extra_stroke_states:
+                    line_segments = state_to_line_segments[state]
+                    for seg in line_segments:
+                        seg.set_stroke(width=7)
+
+        legend = self.get_legend().to_edge(RIGHT * 3).shift(UP * 2.5)
+
+        starting_dist = markov_chain.get_starting_dist()
+        self.play(
+            Write(axes),
+            Write(legend),
+        )
+        self.wait()
+        wait_time = 1
+        for step in range(num_steps):
+            if step < 5:
+                rate_func = smooth
+            else:
+                rate_func = linear
+
+            transition_animations = markov_chain_sim.get_instant_transition_animations()
+            dist_graph_aniamtions = self.get_dist_graph_step_animations(state_to_line_segments, step)
+
+            self.play(
+                *transition_animations + dist_graph_aniamtions, rate_func=rate_func
+            )
+            if step < 5:
+                self.wait(wait_time)
+                wait_time *= 0.8
+
+        self.wait()
+        return VGroup(axes, legend, VGroup(*list(state_to_line_segments.values())), VGroup(*users)), markov_chain_group
+
+    def show_larger_reducible_markov_chain(self):
+        markov_chain, markov_chain_g = self.get_web_graph()
+
+        self.play(
+            FadeIn(markov_chain_g)
+        )
+        self.wait()
+        markov_chain_sim = MarkovChainSimulator(markov_chain, markov_chain_g, num_users=1)
+        user = markov_chain_sim.get_users()[0].scale(1.2)
+        sequence_of_states = [39, 52, 63, 74, 61, 60, 49, 62, 74, 73, 72] + [72] * 10
+        for i, state in enumerate(sequence_of_states):
+            location = markov_chain_sim.poisson_distribution(markov_chain_g.vertices[state].get_center())
+            user_location = np.array([location[0], location[1], 0])
+            if i == 0:
+                self.play(
+                    FadeIn(user)
+                )
+            else:
+                self.play(
+                    user.animate.move_to(user_location)
+                )
+
+        self.wait()
+
+        location = markov_chain_sim.poisson_distribution(markov_chain_g.vertices[24].get_center())
+        user_location = np.array([location[0], location[1], 0])
+        self.play(
+            user.animate.move_to(user_location)
+        )
+        self.wait()
+
+        for _ in range(10):
+            transition_animations = markov_chain_sim.get_instant_transition_animations()
+            self.play(
+                *transition_animations
+            )
+
+
+    def get_web_graph(self):
+        graph_layout = self.get_web_graph_layout()
+        graph_edges = self.get_web_graph_edges(graph_layout)
+        graph_edges.remove((72, 73))
+        graph_edges.append((73, 72))
+        print(len(graph_layout))
+        initial_dist = [0] * len(graph_layout)
+        initial_dist[24] = 1
+        markov_chain = MarkovChain(len(graph_layout), graph_edges, dist=np.array(initial_dist))
+        markov_chain_g = MarkovChainGraph(
+            markov_chain,
+            labels=False,
+            enable_curved_double_arrows=False,
+            straight_edge_config={"max_tip_length_to_length_ratio": 0.1},
+            layout=graph_layout,
+        )
+
+        return markov_chain, markov_chain_g.shift(UP)
+
+    def get_web_graph_layout(self):
+        grid_height = 7
+        grid_width = 12
+
+        layout = {}
+        node_id = 0
+        STEP = 1
+        for i in np.arange(-grid_height // 2, grid_height // 2, STEP):
+            for j in np.arange(-grid_width // 2, grid_width // 2, STEP):
+                noise = RIGHT * np.random.uniform(-1, 1) + UP * np.random.uniform(-1, 1)
+                layout[node_id] = UP * i + RIGHT * j + noise * 0.5 / 3.1
+                node_id += 1
+
+        return layout
+
+    def get_web_graph_edges(self, graph_layout):
+        edges = []
+        for u in graph_layout:
+            for v in graph_layout:
+                if u != v and np.linalg.norm(graph_layout[v] - graph_layout[u]) < 1.6:
+                    if np.random.uniform() < 0.6:
+                        edges.append((u, v))
+        return edges
+
+class PageRankSolution(Scene):
+    def construct(self):
+        text = Text("Idea: randomly select a new state.", font=REDUCIBLE_FONT).scale(0.8).move_to(UP * 3.5)
+        self.play(
+            Write(text),
+            run_time=2
+        )
+        self.wait()
+
+class PageRankAlphaIntro(Scene):
+    def construct(self):
+        reducible_markov_chain = MarkovChain(
+            4,
+            [(0, 1), (1, 2), (2, 3), (1, 3), (0, 2)]
+        )
+
+        self.state_color_map = {
+        0: REDUCIBLE_PURPLE,
+        1: REDUCIBLE_GREEN,
+        2: REDUCIBLE_ORANGE,
+        3: REDUCIBLE_CHARM,
+        }
+
+        markov_chain_g = MarkovChainGraph(
+            reducible_markov_chain,
+            enable_curved_double_arrows=True,
+            layout="circular",
+            state_color_map=self.state_color_map
+        )
+
+        markov_chain_t_labels = markov_chain_g.get_transition_labels()
+
+        markov_chain_g.clear_updaters()
+        markov_chain_group = VGroup(markov_chain_g, markov_chain_t_labels)
+
+        idea = Tex(r"With probability $\frac{\alpha}{N}$, transition to a random state").scale(0.8).move_to(UP * 3.5)
+        note_1 = Tex(r"$N = 4$ (number of states), we pick $\alpha$ (e.g $\alpha = 0.4$)").scale(0.7).next_to(idea, DOWN)
+        markov_chain_group.scale(1)
+        self.wait()
+        self.play(
+            Write(markov_chain_group),
+            Write(idea)
+        )
+        self.wait()
+
+        self.play(
+            FadeIn(note_1)
+        )
+        self.wait()
+
+        self.play(
+            markov_chain_group.animate.shift(LEFT * 3.5 + DOWN * 0.2)
+        )
+        self.wait()
+
+        new_markov_chain_incorrect = MarkovChain(
+            4,
+            [
+            (0, 1),
+            (0, 2),
+            (0, 3),
+            (1, 0),
+            (1, 2),
+            (1, 3),
+            (2, 0),
+            (2, 1),
+            (2, 3),
+            (3, 0),
+            (3, 1),
+            (3, 2),
+            ]
+        )
+
+        self.alpha = 0.4
+
+        original_transition_matrix = new_markov_chain_incorrect.get_transition_matrix()
+        reducible_markov_chain_matrix = reducible_markov_chain.get_transition_matrix()
+        for i in range(original_transition_matrix.shape[0]):
+            for j in range(original_transition_matrix.shape[1]):
+                if reducible_markov_chain_matrix[i][j] != 0:
+                    original_transition_matrix[i][j] = reducible_markov_chain_matrix[i][j] + self.alpha / 4
+                else:
+                    original_transition_matrix[i][j] = self.alpha / 4
+
+        new_markov_chain_incorrect.set_transition_matrix(original_transition_matrix)
+
+        markov_chain_incorrect_g = MarkovChainGraph(
+            new_markov_chain_incorrect,
+            enable_curved_double_arrows=True,
+            layout="circular",
+            state_color_map=self.state_color_map
+        )
+
+        markov_chain_incorrect_labels = markov_chain_incorrect_g.get_transition_labels(scale=0.25, round_val=False)
+
+        markov_chain_incorrect_g.clear_updaters()
+        markov_chain_incorrect_group = VGroup(markov_chain_incorrect_g, markov_chain_incorrect_labels)
+
+        markov_chain_incorrect_group.shift(RIGHT * 3.5 + DOWN * 0.2)
+
+        self_edges = VGroup(*[self.get_self_edge(markov_chain_incorrect_g, state) for state in new_markov_chain_incorrect.get_states()])
+
+        self.play(
+            FadeIn(markov_chain_incorrect_group),
+            FadeIn(self_edges)
+        )
+        self.wait()
+
+        to_reduce_opacity = []
+        for state in new_markov_chain_incorrect.get_states():
+            if state != 0:
+                to_reduce_opacity.append(markov_chain_incorrect_g.vertices[state])
+                # to_reduce_opacity.append(self_edges[state])
+
+        for edge in new_markov_chain_incorrect.get_edges():
+            if edge[0] != 0:
+                to_reduce_opacity.append(markov_chain_incorrect_g.edges[edge])
+                to_reduce_opacity.append(markov_chain_incorrect_g.labels[edge])
+
+        self.play(
+            *[mob.animate.set_opacity(0.3) for mob in to_reduce_opacity],
+            *[arrow[0].animate.set_stroke(opacity=0.3) for arrow in self_edges[1:]],
+            *[arrow[1].animate.set_fill(opacity=0.3) for arrow in self_edges[1:]],
+            *[arrow[0].tip.animate.set_fill(opacity=0.3).set_stroke(opacity=0.3) for arrow in self_edges[1:]]
+        )
+        self.wait()
+
+        second_part = Tex(
+            "Reduce original transition probabilities by factor of" + "\\\\",
+            r"$(1 - \alpha)$ and then add the random state transition of $\frac{\alpha}{N}$"
+        ).scale(0.7)
+        second_part.move_to(DOWN * 3.5)
+
+        self.play(
+            FadeIn(second_part)
+        )
+
+        self.wait()
+
+        self.play(
+            *[mob.animate.set_fill(opacity=0.8).set_stroke(opacity=1) for mob in to_reduce_opacity[:3]],
+            *[mob.animate.set_opacity(1) for mob in to_reduce_opacity[3:]],
+            *[arrow[0].animate.set_stroke(opacity=1) for arrow in self_edges[1:]],
+            *[arrow[1].animate.set_fill(opacity=1) for arrow in self_edges[1:]],
+            *[arrow[0].tip.animate.set_fill(opacity=1).set_stroke(opacity=0.3) for arrow in self_edges[1:]]
+        )
+        self.wait()
+
+        new_intermediate_labels = {}
+        for edge in reducible_markov_chain.get_edges():
+            u, v = edge
+            edge_mob = markov_chain_g.edges[edge]
+            text = str(reducible_markov_chain_matrix[u][v]) + " * 0.6 + 0.4 / 4"
+            label = self.make_label(text, edge_mob, prop=0.4)
+            new_intermediate_labels[edge] = label
+
+        self.play(
+            *[Transform(markov_chain_g.labels[edge], new_intermediate_labels[edge]) for edge in reducible_markov_chain.get_edges()]
+        )
+        self.wait()
+
+        new_labels = {}
+        new_labels_corrected = {}
+        for edge in reducible_markov_chain.get_edges():
+            u, v = edge
+            edge_mob = markov_chain_g.edges[edge]
+            text = str(reducible_markov_chain_matrix[u][v] * (1 - self.alpha) + self.alpha / 4)
+            label = self.make_label(text, edge_mob, scale=0.25)
+            new_labels_corrected[edge] = self.make_label(text, markov_chain_incorrect_g.edges[edge], scale=0.25)
+            new_labels[edge] = label
+
+        self.play(
+            *[Transform(markov_chain_g.labels[edge], new_labels[edge]) for edge in reducible_markov_chain.get_edges()],
+            *[Transform(markov_chain_incorrect_g.labels[edge], new_labels_corrected[edge]) for edge in reducible_markov_chain.get_edges()]
+        )
+        self.wait()
+
+
+        note_2 = Tex(r"$N = 4$ (number of states), we pick $\alpha$ (typically $\alpha = 0.15$)").scale(0.7).next_to(idea, DOWN)
+        self.play(
+            ReplacementTransform(note_1, note_2),
+            FadeOut(markov_chain_group),
+            FadeOut(markov_chain_incorrect_group),
+            *[FadeOut(mob) for mob in self_edges]
+        )
+        self.wait()
+
+        periodic_markov_chain = MarkovChain(
+            4,
+            [(0, 1), (1, 0), (2, 1), (3, 0), (2, 3), (3, 2)]
+        )
+
+        periodic_markov_chain_g = MarkovChainGraph(
+            periodic_markov_chain,
+            enable_curved_double_arrows=True,
+            layout="circular",
+            state_color_map=self.state_color_map
+        )
+
+        periodic_markov_chain_t_labels = periodic_markov_chain_g.get_transition_labels()
+
+        periodic_markov_chain_g.clear_updaters()
+        periodic_markov_chain_group = VGroup(periodic_markov_chain_g, periodic_markov_chain_t_labels)
+
+        periodic_markov_chain_group.move_to(LEFT * 3.5)
+
+        self.play(
+            FadeIn(periodic_markov_chain_group)
+        )
+        self.wait()
+        p_equals = Tex(r"$P = $")
+        p_matrix = Matrix(periodic_markov_chain.get_transition_matrix()).scale(0.8)
+
+        p_matrix_group = VGroup(p_equals, p_matrix).arrange(RIGHT)
+        p_matrix_group.scale(0.8).move_to(RIGHT * 2.3)
+
+        self.play(
+            FadeIn(p_matrix_group)
+        )
+        self.wait()
+
+        self.play(
+            p_matrix_group.animate.shift(UP * 1.5)
+        )
+
+        p_hat_expr = MathTex(r"\hat{P} = (1 - \alpha) P + \frac{\alpha}{N} (N \cross N \text{ matrix of all 1`s)}").scale(0.7)
+        self.alpha = 0.15
+        p_hat_matrix_value = periodic_markov_chain.get_transition_matrix() * (1 - self.alpha) + self.alpha * np.ones(4) * 1 / 4
+        print(p_hat_matrix_value)
+        p_hat_matrix_value = np.around(p_hat_matrix_value, decimals=4)
+        p_hat_expr.next_to(p_matrix_group, DOWN, aligned_edge=LEFT)
+
+        self.play(
+            FadeIn(p_hat_expr)
+        )
+        self.wait()
+
+        p_hat_actual = Tex(r"$\hat{P} = $")
+        p_hat_matrix = Matrix(p_hat_matrix_value, h_buff=1.7).scale(0.8)
+
+        p_hat_matrix_group = VGroup(p_hat_actual, p_hat_matrix).arrange(RIGHT).scale(0.8)
+        p_hat_matrix_group.next_to(p_hat_expr, DOWN, aligned_edge=LEFT)
+
+        self.play(
+            FadeIn(p_hat_matrix_group)
+        )
+        self.wait()
+        shift_up = DOWN * p_hat_matrix_group.get_center()[1]
+        self.play(
+            FadeOut(note_2),
+            FadeOut(p_matrix_group),
+            FadeOut(second_part),
+            FadeOut(idea),
+            FadeOut(p_hat_expr),
+            p_hat_matrix_group.animate.shift(shift_up + UP * 0.5)
+        )
+        self.wait()
+
+        stationary_dist_note = Tex(
+            r"PageRank calculates $\pi$ from $\hat{P}$",
+        ).scale(0.8).next_to(p_hat_matrix_group, DOWN)
+
+        self.play(
+            FadeIn(stationary_dist_note)
+        )
+        self.wait()
+
+    def get_self_edge(self, markov_chain_g, state):
+        size_of_angle = 1.5
+        vertices = markov_chain_g.vertices
+        if state == 0:
+            start, end = vertices[state].get_top(), vertices[state].get_bottom()
+            angle = -size_of_angle * PI
+        elif state == 1:
+            start, end = vertices[state].get_right(), vertices[state].get_left()
+            angle = size_of_angle * PI
+        elif state == 2:
+            start, end = vertices[state].get_top(), vertices[state].get_bottom()
+            angle = size_of_angle * PI
+            pass
+        else:
+            start, end = vertices[state].get_left(), vertices[state].get_right()
+            angle = size_of_angle * PI
+        edge = CustomCurvedArrow(
+            start, end, angle=angle
+        ).set_color(REDUCIBLE_VIOLET)
+        label = self.make_label(self.alpha / 4, edge, scale=0.25)
+        return VGroup(edge, label)
+
+    def make_label(self, text, edge, scale=0.3, prop=0.2):
+        label = (
+            Text(str(text), font=REDUCIBLE_MONO)
+            .set_stroke(BLACK, width=8, background=True, opacity=0.8)
+            .scale(scale)
+            .move_to(edge.point_from_proportion(prop))
+        )
+        return label
+
+class PageRankRecap(Scene):
+    def construct(self):
+        title = Text("PageRank Algorithm", font=REDUCIBLE_FONT, weight=BOLD)
+        title.move_to(UP * 3.5)
+
+        screen_rect = ScreenRectangle(height=4).next_to(title, DOWN)
+
+        self.play(
+            Write(title)
+        )
+        self.wait()
+        step_scale = 0.7
+        step_one = Tex(r"1. Web Graph $\rightarrow$ Markov chain ($N$, $P$)").scale(step_scale)
+        step_two = Tex(r"2. Define $\hat{P} = \hat{P} = (1 - \alpha) P + \frac{\alpha}{N} (N \cross N \text{ matrix of all 1`s)}$").scale(step_scale)
+        step_three = Tex(r"3. Calculate $\pi$ from Markov chain $(N, \hat{P})$").scale(step_scale)
+        step_four = Tex(r"4. Rank web pages according to $\pi$").scale(step_scale)
+
+        steps = VGroup(step_one, step_two, step_three, step_four).arrange(DOWN, aligned_edge=LEFT, buff=MED_SMALL_BUFF)
+        steps.shift(DOWN * 2.5)
+
+        for i, step in enumerate(steps):
+            if i == 0:
+                self.play(
+                    FadeIn(screen_rect),
+                    FadeIn(step)
+                )
+            else:
+                self.play(
+                    FadeIn(step)
+                )
+            self.wait()
