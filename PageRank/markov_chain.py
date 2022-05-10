@@ -9,7 +9,7 @@ from manim.mobject.geometry.tips import ArrowTriangleFilledTip
 from reducible_colors import *
 from functions import *
 
-from typing import Hashable
+from typing import Hashable, Iterable
 
 import numpy as np
 import itertools as it
@@ -2735,3 +2735,520 @@ class PageRankRecap(Scene):
                     FadeIn(step)
                 )
             self.wait()
+
+
+class EigenValueMethod(Scene):
+    def construct(self):
+        markov_chain = MarkovChain(
+            3,
+            [(0, 1), (1, 2), (1, 0), (0, 2), (2, 1)]
+        )
+
+        markov_scale = 0.8
+        markov_chain_g = MarkovChainGraph(markov_chain)
+        markov_chain_g.clear_updaters()
+        markov_chain_g.scale(markov_scale).shift(UP * 2)
+
+        self.play(
+            FadeIn(markov_chain_g)
+        )
+        self.wait()
+
+        transpose_transition_eq = self.show_transition_equation(markov_chain_g, markov_chain)
+
+        self.show_eigen_concept(transpose_transition_eq)
+
+        self.show_example()
+
+    def show_transition_equation(self, markov_chain_g, markov_chain):
+        transition_eq = MathTex(r"\pi_{n + 1} = \pi_n P").next_to(markov_chain_g, RIGHT, buff=0.5)
+
+        pi_n_1_row_vec = Matrix(
+            [[r"\pi_{n + 1}(0)", r"\pi_{n+1}(1)", r"\pi_{n + 1}(2)"]],
+            h_buff=2,
+        ).scale(0.7)
+
+        equals = MathTex("=")
+        pi_n_row_vec =  Matrix(
+            [[r"\pi_n(0)", r"\pi_n(1)", r"\pi_n(2)"]],
+            h_buff=1.7,
+        ).scale(0.7)
+
+        p_matrix = Matrix(
+            [
+            ["P(0, 0)", "P(0, 1)", "P(0, 2)"],
+            ["P(1, 0)", "P(1, 1)", "P(1, 2)"],
+            ["P(2, 0)", "P(2, 1)", "P(2, 2)"],
+            ],
+            h_buff=2
+        ).scale(0.7)
+
+        row_vec_equation = VGroup(pi_n_1_row_vec, equals, pi_n_row_vec, p_matrix).arrange(RIGHT)
+
+        vector_scale = 0.7
+
+        pi_n_1_col_vec = pi_n_1_row_vec = Matrix(
+            [[r"\pi_{n + 1}(0)"], [r"\pi_{n+1}(1)"], [r"\pi_{n + 1}(2)"]],
+        ).scale(vector_scale)
+
+        pi_n_col_vec = pi_n_1_row_vec = Matrix(
+            [[r"\pi_{n}(0)"], [r"\pi_{n}(1)"], [r"\pi_{n}(2)"]],
+        ).scale(vector_scale)
+
+        p_transpose_matrix = Matrix(
+            [
+            ["P(0, 0)", "P(1, 0)", "P(2, 0)"],
+            ["P(0, 1)", "P(1, 1)", "P(2, 1)"],
+            ["P(0, 2)", "P(1, 2)", "P(2, 2)"],
+            ],
+            h_buff=2
+        ).scale(vector_scale)
+
+        col_vec_equation = VGroup(pi_n_1_col_vec, equals.copy(), p_transpose_matrix, pi_n_col_vec).arrange(RIGHT)
+
+        equation_transformation = VGroup(row_vec_equation, col_vec_equation).arrange(DOWN, buff=0.7).scale(0.8).next_to(markov_chain_g, DOWN)
+
+        self.play(
+            FadeIn(transition_eq),
+            markov_chain_g.animate.shift(LEFT * 2)
+        )
+        self.wait()
+
+        self.play(
+            FadeIn(row_vec_equation)
+        )
+        self.wait()
+
+        self.play(
+            FadeIn(col_vec_equation)
+        )
+        self.wait()
+
+        transpose_transition_eq = MathTex(r"\pi_{n + 1} = P^T \pi_n").next_to(transition_eq, DOWN, aligned_edge=LEFT)
+        transpose_transition_eq.shift(UP * 0.5)
+
+        self.play(
+            transition_eq.animate.shift(UP * 0.5)
+        )
+
+        self.play(
+            Write(transpose_transition_eq)
+        )
+        self.wait()
+
+        self.play(
+            FadeOut(markov_chain_g),
+            FadeOut(equation_transformation),
+            FadeOut(transition_eq),
+            transpose_transition_eq.animate.move_to(UP * 3.5)
+        )
+        self.wait()
+
+        return transpose_transition_eq
+
+    def show_eigen_concept(self, transpose_transition_eq):
+        dist_between_nodes = 3
+        transition_matrix = np.array([[0.3, 0.7], [0.4, 0.6]])
+        markov_chain = MarkovChain(
+            2,
+            [(0, 1), (1, 0)],
+            transition_matrix=transition_matrix,
+            dist=np.array([0.9, 0.1]),
+        )
+
+        markov_chain_g = MarkovChainGraph(
+            markov_chain,
+            layout={
+                0: LEFT * dist_between_nodes / 2,
+                1: RIGHT * dist_between_nodes / 2,
+            },
+        )
+        markov_chain_g.scale(1).shift(UP * 2.5)
+        markov_chain_t_labels = markov_chain_g.get_transition_labels()
+
+        self_edges = self.get_edges(markov_chain_g)
+        labels = [self.get_label(self_edges[(u, v)], transition_matrix[u][v]) for u, v in self_edges]
+        self_edges_group = VGroup(*[obj for obj in list(self_edges.values()) + labels])
+        markov_chain_group = VGroup(markov_chain_g, markov_chain_t_labels, self_edges_group)
+        self.play(
+            FadeIn(markov_chain_group)
+        )
+        self.wait()
+
+        markov_chain_sim = MarkovChainSimulator(markov_chain, markov_chain_g, num_users=50)
+        users = markov_chain_sim.get_users()
+
+        purple_plane = NumberPlane(
+            x_range=[0, 1, 0.25],
+            y_range=[0, 1, 0.25],
+            x_length=7,
+            y_length=4.5,
+            background_line_style={
+                "stroke_color": REDUCIBLE_VIOLET,
+                "stroke_width": 3,
+                "stroke_opacity": 0.5,
+            },
+            # faded_line_ratio=4,
+            axis_config={"stroke_color": REDUCIBLE_VIOLET, "stroke_width": 0, "include_numbers": True, "numbers_to_exclude": [0.25, 0.75]},
+        ).move_to(DOWN * 1)
+
+        surround_plane = Polygon(
+            purple_plane.coords_to_point(0, 0),
+            purple_plane.coords_to_point(0, 1),
+            purple_plane.coords_to_point(1, 1),
+            purple_plane.coords_to_point(1, 0),
+        ).set_stroke(color=REDUCIBLE_VIOLET)
+
+        self.play(
+            FadeIn(purple_plane),
+            FadeIn(surround_plane)
+        )
+        self.wait()
+
+        current_dist = markov_chain.get_current_dist()
+        current_vector = self.get_vector(
+            current_dist,
+            purple_plane,
+            r"\pi_0",
+            max_tip_length_to_length_ratio=0.1)
+        num_steps = 5
+
+        self.play(
+             *[FadeIn(u) for u in users],
+            FadeIn(current_vector),
+        )
+        self.wait()
+
+        for i in range(1, num_steps + 1):
+            transition_animations = markov_chain_sim.get_instant_transition_animations()
+            self.play(
+                current_vector.animate.become(
+                    self.get_vector(
+                        markov_chain.get_current_dist(),
+                        purple_plane,
+                        r"\pi_{0}".format(i),
+                        max_tip_length_to_length_ratio=0.1
+                    )
+                ),
+                *transition_animations,
+            )
+            self.wait()
+
+        stationary_dist_def = MathTex(r"\tilde{\pi} = P^T \tilde{\pi}").move_to(transpose_transition_eq.get_center())
+
+        self.play(
+            ReplacementTransform(transpose_transition_eq, stationary_dist_def)
+        )
+        self.wait()
+
+        title = Text("Eigenvalues/Eigenvectors", font=REDUCIBLE_FONT, weight=BOLD).scale(0.8)
+        title.move_to(UP * 3.5)
+
+        self.play(
+            FadeOut(purple_plane),
+            FadeOut(current_vector),
+            Write(title),
+            FadeOut(surround_plane),
+            *[FadeOut(u) for u in users],
+            FadeOut(markov_chain_group),
+            stationary_dist_def.animate.shift(DOWN)
+        )
+        self.wait()
+
+        eigen_def = MathTex(r"\lambda \vec{v} = A \vec{v}").next_to(stationary_dist_def, DOWN)
+
+        self.play(
+            FadeIn(eigen_def)
+        )
+        self.wait()
+
+        left_plane = NumberPlane(
+            x_range=[-2, 2, 0.5],
+            y_range=[-2, 2, 0.5],
+            x_length=4.5,
+            y_length=3.5,
+            background_line_style={
+                "stroke_color": REDUCIBLE_VIOLET,
+                "stroke_width": 3,
+                "stroke_opacity": 0.5,
+            },
+            # faded_line_ratio=4,
+            axis_config={"stroke_color": REDUCIBLE_VIOLET},
+        ).move_to(LEFT * 3.5 + DOWN * 1)
+
+        left_surround_plane = SurroundingRectangle(left_plane, buff=0, color=REDUCIBLE_VIOLET)
+
+        right_plane = NumberPlane(
+            x_range=[-2, 2, 0.5],
+            y_range=[-2, 2, 0.5],
+            x_length=4.5,
+            y_length=3.5,
+            background_line_style={
+                "stroke_color": REDUCIBLE_VIOLET,
+                "stroke_width": 3,
+                "stroke_opacity": 0.5,
+            },
+            # faded_line_ratio=4,
+            axis_config={"stroke_color": REDUCIBLE_VIOLET},
+        ).move_to(RIGHT * 3.5 + DOWN * 1)
+
+        right_surround_plane = SurroundingRectangle(right_plane, buff=0, color=REDUCIBLE_VIOLET)
+
+        self.play(
+            FadeIn(left_plane),
+            FadeIn(left_surround_plane),
+        )
+        self.wait()
+
+        v = np.array([0.4, 0.6])
+        left_vector = self.get_vector(v, left_plane, r"\vec{v}", max_tip_length_to_length_ratio=0.15)
+
+        self.play(
+            FadeIn(left_vector)
+        )
+        self.wait()
+
+        left_to_right_arr = Arrow(left_plane.get_right(), right_plane.get_left(), max_tip_length_to_length_ratio=0.1).set_color(GRAY)
+        transformation = MathTex(r"A \vec{v}").scale(0.8).next_to(left_to_right_arr, UP).shift(DOWN * SMALL_BUFF)
+
+        self.play(
+            Write(left_to_right_arr),
+            Write(transformation)
+        )
+
+        self.play(
+            FadeIn(right_plane),
+            FadeIn(right_surround_plane),
+        )
+        self.wait()
+
+        right_vector = self.get_vector(v * 1.2, right_plane, r"\lambda \vec{v}", max_tip_length_to_length_ratio=0.15)
+
+        self.play(
+            FadeIn(right_vector)
+        )
+        self.wait()
+
+        scales = [2, 1.2, -0.4, -1.2, -2, -1.2, -0.4, 1]
+
+        for scale in scales:
+            new_right_vec = self.get_vector(v * scale, right_plane, r"\lambda \vec{v}", max_tip_length_to_length_ratio=0.15)
+            self.play(
+                right_vector.animate.become(new_right_vec),
+                rate_func=linear
+            )
+
+        self.wait()
+
+        conclusion = Tex(r"$\tilde{\pi}$ is unique eigenvector corresponding to $\lambda = 1$ of $P^T$").scale(0.8)
+        conclusion.move_to(DOWN * 3.3)
+
+        self.play(
+            FadeIn(conclusion)
+        )
+        self.wait()
+
+        self.clear()
+
+    def get_vector(self, dist, plane, tex, **kwargs):
+        start_c = plane.coords_to_point(0, 0)
+        end_c = plane.coords_to_point(dist[0], dist[1])
+        arrow = Arrow(start_c, end_c, buff=0, **kwargs)
+        arrow.set_color(REDUCIBLE_YELLOW)
+        label = self.get_tex_label(tex, arrow, normalize(end_c - start_c))
+        return VGroup(arrow, label)
+
+    def get_tex_label(self, tex, arrow, direction):
+        label = MathTex(tex).scale(0.7)
+        label.add_background_rectangle()
+        label.next_to(arrow, direction=direction, buff=SMALL_BUFF)
+        return label
+
+    def get_edges(self, markov_chain_g):
+        edge_map = {}
+        edge_map[(0, 0)] = self.get_self_edge(markov_chain_g, 0)
+        edge_map[(1, 1)] = self.get_self_edge(markov_chain_g, 1)
+        return edge_map
+
+    def get_self_edge(self, markov_chain_g, state):
+        vertices = markov_chain_g.vertices
+        if state == 1:
+            angle = -1.6 * PI
+        else:
+            angle = 1.6 * PI
+        edge = CustomCurvedArrow(
+            vertices[state].get_top(), vertices[state].get_bottom(), angle=angle
+        ).set_color(REDUCIBLE_VIOLET)
+        return edge
+
+    def get_label(self, edge, prob, scale=0.3):
+        return (
+            Text(str(prob), font=REDUCIBLE_MONO)
+            .set_stroke(BLACK, width=8, background=True, opacity=0.8)
+            .scale(scale)
+            .move_to(edge.point_from_proportion(0.15))
+        )
+
+    def show_example(self):
+        markov_ch = MarkovChain(
+            4,
+            edges=[
+                (0, 1),
+                # (1, 0),
+                (1, 2),
+                (2, 1),
+                (2, 0),
+                (2, 3),
+                (0, 3),
+                # (3, 1),
+                (3, 2),
+            ],
+        )
+
+        markov_ch_mob = MarkovChainGraph(
+            markov_ch,
+            curved_edge_config={"radius": 2},
+            straight_edge_config={"max_tip_length_to_length_ratio": 0.06},
+            layout_scale=2,
+            layout="circular",
+        ).shift(LEFT * 4 + UP * 1.5)
+
+        p = MathTex(r"\text{eig}(P^T)").scale(0.8)
+
+        # the stationary dists are eigvecs with eigval 1 from the P.T
+        eig_vals_P, eig_vecs_P = np.linalg.eig(markov_ch.get_transition_matrix().T)
+        eig_vecs_P = eig_vecs_P.T.astype(float)
+        eig_vals_P = eig_vals_P.astype(float)
+        print(eig_vecs_P)
+        print(eig_vals_P)
+
+        lambdas_with_value = VGroup(
+            *[
+                MathTex(f"\lambda_{n} &= {v:.1f}")
+                for n, v in zip(range(len(markov_ch.get_states())), eig_vals_P)
+            ],
+        ).arrange(DOWN, buff=0.2, aligned_edge=LEFT)
+
+        pi_vectors_example = (
+            VGroup(
+                *[
+                    MathTex(r"\vec{v}_{" + str(n) + "}")
+                    for n in range(len(markov_ch.get_states()))
+                ],
+            )
+            .arrange(DOWN, buff=0.2)
+            .to_edge(RIGHT * 2)
+            .shift(UP * 2)
+        )
+
+        p_brace = Brace(lambdas_with_value, LEFT)
+
+        p_with_eigs = (
+            VGroup(p.scale(1.4), p_brace, lambdas_with_value, pi_vectors_example)
+            .set_stroke(width=8, background=True)
+            .arrange(RIGHT, buff=0.5)
+            .move_to(DOWN * 2 + LEFT * 2.7)
+        )
+
+        labels = markov_ch_mob.get_transition_labels()
+
+        self.play(
+            Write(markov_ch_mob),
+        )
+        self.play(FadeIn(labels))
+        self.wait()
+
+        P_matrix = self.matrix_to_mob(markov_ch.get_transition_matrix()).scale(0.5)
+
+        p_matrix_group = VGroup(MathTex("P"), MathTex("="), P_matrix).arrange(RIGHT).next_to(markov_ch_mob, RIGHT, buff=1)
+
+        self.play(
+            FadeIn(p_matrix_group)
+        )
+        self.wait()
+
+
+        eig_index = np.ravel(np.argwhere(eig_vals_P.round(1) == 1.0))[0]
+
+        underline_eig_1 = Underline(lambdas_with_value[eig_index]).set_color(
+            REDUCIBLE_YELLOW
+        )
+
+
+
+        stationary_pi = MathTex(r"\vec{v}_" + str(eig_index) + " = ")
+        stationary_dist = self.vector_to_mob(eig_vecs_P[eig_index]).scale(0.3)
+
+        vertices_down = VGroup(
+            *[s.copy().scale(0.5) for s in markov_ch_mob.vertices.values()]
+        ).arrange(DOWN, buff=0.13)
+
+        stationary_distribution = (
+            VGroup(stationary_pi, vertices_down, stationary_dist)
+            .arrange(RIGHT, buff=0.15)
+            .next_to(p_with_eigs, RIGHT, buff=2)
+        ).scale(1.5)
+
+        stationary_dist_normalized = (
+            self.vector_to_mob(
+                [e / sum(eig_vecs_P[eig_index]) for e in eig_vecs_P[eig_index]]
+            )
+            .scale_to_fit_height(stationary_dist.height)
+            .move_to(stationary_dist)
+        )
+        print([e / sum(eig_vecs_P[eig_index]) for e in eig_vecs_P[eig_index]])
+        print('sum', np.sum([e / sum(eig_vecs_P[eig_index]) for e in eig_vecs_P[eig_index]]))
+
+        # VGroup(p_with_eigs, stationary_dist).arrange(RIGHT, buff=1.5).shift(DOWN * 1.5)
+        self.play(
+            FadeIn(p_with_eigs, shift=UP*0.3)
+        )
+        self.wait()
+
+        self.play(Succession(Create(underline_eig_1), FadeOut(underline_eig_1)))
+        self.wait()
+
+        self.play(FadeIn(stationary_distribution, shift=RIGHT * 0.4))
+        self.wait()
+
+        new_stationary_pi = MathTex(r"\tilde{\pi} =").move_to(stationary_pi.get_center()).scale(1.5)
+
+        self.play(
+            Transform(stationary_dist, stationary_dist_normalized),
+            Transform(stationary_pi, new_stationary_pi),
+        )
+        self.wait()
+
+    def apply_matrix_to_vector(self, matrix: np.ndarray, mob_vector: Vector):
+        vector = mob_vector.get_vector()[:2]
+        trans_vector = np.dot(matrix, vector)
+
+        return mob_vector.animate.put_start_and_end_on(
+            mob_vector.start, [trans_vector[0], trans_vector[1], 0]
+        )
+
+    def matrix_to_mob(self, matrix: np.ndarray, has_background_color=False):
+        str_repr = [[f"{a:.2f}" for a in row] for row in matrix]
+        return Matrix(
+            str_repr,
+            left_bracket="[",
+            right_bracket="]",
+            element_to_mobject=Text,
+            include_background_rectangle=has_background_color,
+            element_to_mobject_config={"font": REDUCIBLE_MONO},
+            h_buff=2.3,
+            v_buff=1.3,
+        )
+
+    def vector_to_mob(self, vector: Iterable):
+        str_repr = [[f"{a:.2f}"] for a in vector]
+
+        return Matrix(
+            str_repr,
+            left_bracket="[",
+            right_bracket="]",
+            element_to_mobject=Text,
+            element_to_mobject_config={"font": REDUCIBLE_MONO},
+            h_buff=2.3,
+            v_buff=1.3,
+        )
