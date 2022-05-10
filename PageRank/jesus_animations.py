@@ -11,7 +11,9 @@ config["assets_dir"] = "assets"
 
 from reducible_colors import *
 
+
 from markov_chain import *
+from classes import RVariable, RDecimalNumber
 
 
 class TransitionMatrix(MovingCameraScene):
@@ -1266,10 +1268,21 @@ class EigenvalueMethod(MovingCameraScene):
 class PerformanceEvaluation(IntroWebGraph, SystemOfEquationsMethod, Periodicity):
     def construct(self):
 
-        # self.intro_pip()
-        # self.wait()
+        self.intro_pip()
+        self.wait()
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
+
         self.massive_system_of_equations()
-        # self.brute_force_benchmark()
+        self.wait()
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
+
+        self.massive_eigen_system()
+        self.wait()
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
+
+        self.brute_force_benchmark()
+        self.wait()
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
 
     def intro_pip(self):
         title = (
@@ -1278,11 +1291,11 @@ class PerformanceEvaluation(IntroWebGraph, SystemOfEquationsMethod, Periodicity)
             .to_edge(UP)
         )
 
-        self.play(FadeIn(title, shift=UP * 0.3))
-
         # design icons
         # maybe it's better that nipun adds them in post rather than
         # putting them here
+        self.play(FadeIn(title, shift=UP * 0.3))
+        self.wait()
 
     def massive_system_of_equations(self):
         frame = self.camera.frame
@@ -1291,13 +1304,35 @@ class PerformanceEvaluation(IntroWebGraph, SystemOfEquationsMethod, Periodicity)
         equations = (
             self.get_balance_equations(markov_ch)
             .scale(0.4)
-            .move_to(frame.get_corner(UL), aligned_edge=UL)
+            .next_to(frame.get_corner(UL), aligned_edge=UL, buff=1)
+            .shift(DOWN)
+        )
+        self.play(LaggedStartMap(FadeIn, equations[0]), run_time=5)
+        self.wait()
+        self.play(
+            equations.animate.next_to(frame.get_corner(UL), aligned_edge=DL, buff=1),
+            run_time=10,
         )
 
-        self.add(equations)
+    def massive_eigen_system(self):
+        frame = self.camera.frame
+        markov_ch = self.create_big_markov_chain(50)
 
-    def lots_of_eigen_values(self):
-        pass
+        big_eig_system = (
+            self.create_big_eig_system(markov_ch)
+            .scale(3)
+            .next_to(frame.get_corner(UL), aligned_edge=UL, buff=1, coor_mask=[0, 1, 0])
+            .shift(DOWN)
+        )
+
+        self.play(LaggedStartMap(FadeIn, big_eig_system, lag_ratio=0.4))
+        self.wait()
+        self.play(
+            big_eig_system.animate.next_to(
+                frame.get_top(), aligned_edge=DOWN, buff=1, coor_mask=[0, 1, 0]
+            ),
+            run_time=10,
+        )
 
     def brute_force_benchmark(self):
 
@@ -1366,7 +1401,22 @@ class PerformanceEvaluation(IntroWebGraph, SystemOfEquationsMethod, Periodicity)
             .set_stroke(width=0)
             .set_opacity(0.4)
         )
-        axes_vg = VGroup(bg_axes, axes).to_corner(UR, buff=0.5)
+
+        distance_label = (
+            Text("Distance", font=REDUCIBLE_MONO)
+            .scale(0.2)
+            .next_to(axes.y_axis, UP, aligned_edge=RIGHT, buff=0.1)
+            .set_stroke(width=4, background=True)
+        )
+        iterations_label = (
+            Text("Iterations", font=REDUCIBLE_MONO)
+            .scale(0.2)
+            .next_to(axes.x_axis, DOWN, buff=0.1)
+            .set_stroke(width=4, background=True)
+        )
+        axes_vg = VGroup(bg_axes, axes, distance_label, iterations_label).to_corner(
+            UR, buff=0.5
+        )
 
         tolerance_line = (
             axes.get_horizontal_line(axes.c2p(num_steps, tolerance), line_func=Line)
@@ -1381,7 +1431,6 @@ class PerformanceEvaluation(IntroWebGraph, SystemOfEquationsMethod, Periodicity)
         )
 
         line_chunks = []
-        did_change = False
         for i in range(1, num_steps):
             transition_animations = markov_ch_sim.get_instant_transition_animations()
 
@@ -1410,44 +1459,6 @@ class PerformanceEvaluation(IntroWebGraph, SystemOfEquationsMethod, Periodicity)
                     run_time=run_time,
                 )
 
-            if current_distance <= tolerance * 2 and not did_change:
-                axes_precise = (
-                    Axes(
-                        x_range=[i, num_steps],
-                        y_range=[0, tolerance * 2],
-                        y_axis_config={
-                            "numbers_to_exclude": np.arange(0.1, 1.05, 0.1),
-                            "stroke_width": 1,
-                        },
-                        x_axis_config={
-                            "numbers_to_exclude": range(num_steps + 1),
-                            "stroke_width": 1,
-                        },
-                        tips=False,
-                        x_length=3,
-                        y_length=2,
-                        axis_config={"include_numbers": False, "include_ticks": False},
-                    )
-                    .set_stroke(width=8, background=True)
-                    .move_to(axes)
-                )
-                tolerance_line_precise = (
-                    axes.get_horizontal_line(
-                        axes_precise.c2p(num_steps, tolerance), line_func=Line
-                    )
-                    .set_color(REDUCIBLE_PURPLE)
-                    .set_stroke(width=2)
-                )
-
-                self.play(
-                    Transform(axes, axes_precise),
-                    Transform(tolerance_line, tolerance_line_precise),
-                    *[FadeOut(line) for line in line_chunks],
-                    run_time=0.7,
-                )
-                axes = axes_precise
-                did_change = True
-
             last_distance = current_distance
 
         self.wait()
@@ -1466,13 +1477,12 @@ class PerformanceEvaluation(IntroWebGraph, SystemOfEquationsMethod, Periodicity)
             .set_stroke(width=2)
         )
 
-    def create_big_markov_chain(self, size: int) -> MarkovChain:
+    def create_big_markov_chain(self, size: int, density: int = 10) -> MarkovChain:
         tuples = []
         for i in range(size):
             random_edges = np.random.choice(
                 list(range(size)),
-                size=size // 2,
-                # size=np.random.randint(int(size * 0.1), int(size * 0.9)),
+                size=density + np.random.randint(-5, 5),
             )
             for r in random_edges:
                 tuples.append((i, r))
@@ -1480,3 +1490,15 @@ class PerformanceEvaluation(IntroWebGraph, SystemOfEquationsMethod, Periodicity)
         tuples = list(filter(lambda x: x[0] != x[1], tuples))
 
         return MarkovChain(size, tuples)
+
+    def create_big_eig_system(self, markov_chain: MarkovChain):
+        n = len(markov_chain.get_states())
+
+        lambdas_and_eigs = VGroup(
+            *[
+                MathTex(r"\lambda_{" + str(l) + r"} \ \vec{v}_{" + str(l) + "}")
+                for l in range(n)
+            ],
+        ).arrange(DOWN, buff=0.6)
+
+        return VGroup(lambdas_and_eigs).arrange(RIGHT, buff=0.8, aligned_edge=UP)
