@@ -1,19 +1,19 @@
 import sys
-
-from typing import Iterable
-
 from math import dist
+from typing import Iterable
 
 sys.path.insert(1, "common/")
 from fractions import Fraction
-
 
 from manim import *
 
 config["assets_dir"] = "assets"
 
-from markov_chain import *
 from reducible_colors import *
+
+
+from markov_chain import *
+from classes import RVariable, RDecimalNumber
 
 
 class TransitionMatrix(MovingCameraScene):
@@ -950,5 +950,555 @@ class SystemOfEquationsMethod(BruteForceMethod):
             tex_strings.append(full_equation_tex)
 
         tex_strings = "\\\\".join(tex_strings)
-        print(tex_strings)
         return MathTex(tex_strings)
+
+
+class EigenvalueMethod(MovingCameraScene):
+    def construct(self):
+        pi = MathTex(r"\pi").scale(5).shift(DOWN * 0.5)
+        pi_times_P = (
+            MathTex(r"\pi P", substrings_to_isolate="P")
+            .scale(5)
+            .move_to(pi, aligned_edge=DOWN)
+        )
+        stationary_dist = (
+            MathTex(r"\pi = \pi P", substrings_to_isolate="P")
+            .scale(5)
+            .move_to(pi, aligned_edge=DOWN)
+        )
+
+        self.play(FadeIn(pi, scale=0.8))
+        self.wait()
+        self.play(TransformMatchingShapes(pi, pi_times_P))
+        self.wait()
+        self.play(TransformMatchingShapes(pi_times_P, stationary_dist))
+
+        self.play(FadeOut(stationary_dist))
+
+        ########################### Going back to fundamentals...
+
+        purple_plane = NumberPlane(
+            x_range=[-10, 10],
+            y_range=[-10, 10],
+            background_line_style={
+                "stroke_color": REDUCIBLE_VIOLET,
+                "stroke_width": 3,
+                # "stroke_opacity": 0.5,
+            },
+            faded_line_style={
+                "stroke_color": REDUCIBLE_PURPLE,
+                "stroke_opacity": 0.5,
+            },
+            # faded_line_ratio=4,
+            axis_config={"stroke_color": REDUCIBLE_PURPLE, "stroke_width": 0},
+        )
+
+        static_plane = NumberPlane(
+            background_line_style={
+                "stroke_color": REDUCIBLE_PURPLE,
+            },
+            faded_line_style={
+                "stroke_color": REDUCIBLE_PURPLE,
+            },
+            axis_config={"stroke_color": REDUCIBLE_PURPLE, "stroke_opacity": 0},
+        ).set_opacity(0.6)
+
+        trans_matrix = [
+            [2, 1],
+            [1, 2],
+        ]
+        e_vals, e_vecs = np.linalg.eig(trans_matrix)
+        print(e_vecs)
+        print(e_vals)
+        scaled_vector = Vector([1, 1], max_tip_length_to_length_ratio=0.17).set_color(
+            REDUCIBLE_YELLOW
+        )
+        distorted_vector = Vector([1, 0]).set_color(REDUCIBLE_YELLOW)
+
+        self.play(FadeIn(static_plane), FadeIn(purple_plane))
+        self.wait()
+        self.play(Write(distorted_vector))
+
+        self.play(
+            ApplyMatrix(trans_matrix, purple_plane),
+            self.apply_matrix_to_vector(trans_matrix, distorted_vector),
+            run_time=1.5,
+        )
+        self.wait()
+
+        trans_matrix_mob = (
+            self.matrix_to_mob(trans_matrix, has_background_color=False)
+            .set_stroke(width=10, background=True)
+            .scale(0.7)
+            .to_corner(UL, buff=1)
+        )
+        self.play(FadeIn(trans_matrix_mob))
+
+        self.wait()
+        self.play(
+            FadeOut(distorted_vector),
+            ApplyMatrix(np.linalg.inv(trans_matrix), purple_plane),
+            run_time=1,
+        )
+        self.wait()
+        self.play(FadeIn(scaled_vector))
+        self.play(
+            ApplyMatrix(trans_matrix, purple_plane),
+            self.apply_matrix_to_vector(trans_matrix, scaled_vector),
+            run_time=1,
+        )
+        self.wait()
+        eig_vector = Vector(direction=e_vecs[0]).set_color(REDUCIBLE_YELLOW)
+        self.play(
+            FadeOut(scaled_vector),
+            ApplyMatrix(np.linalg.inv(trans_matrix), purple_plane),
+            run_time=1,
+        )
+        self.wait()
+
+        self.play(FadeIn(eig_vector))
+        self.play(
+            ApplyMatrix(trans_matrix, purple_plane),
+            self.apply_matrix_to_vector(trans_matrix, eig_vector),
+            run_time=1,
+        )
+
+        self.play(FadeOut(trans_matrix_mob))
+
+        m = MathTex("M ")
+
+        lambdas = VGroup(
+            *[MathTex(f"\lambda_{n}") for n in range(4)],
+            MathTex(r"\vdots"),
+            MathTex(r"\lambda_n"),
+        ).arrange(DOWN, buff=0.2)
+
+        p_brace = Brace(lambdas, LEFT)
+
+        eig_vectors = (
+            VGroup(
+                *[MathTex(r"\vec{v}_{" + str(n) + "}") for n in range(4)],
+                MathTex(r"\vdots"),
+                MathTex(r"\vec{v}_n"),
+            )
+            .arrange(DOWN, buff=0.2)
+            .next_to(lambdas, RIGHT, buff=0.5)
+        )
+
+        m_with_eigs = (
+            VGroup(m, p_brace, lambdas, eig_vectors)
+            .set_stroke(width=8, background=True)
+            .arrange(RIGHT, buff=0.5)
+            .to_corner(UL, buff=0.7)
+        )
+        surr_rect_math = (
+            SurroundingRectangle(m_with_eigs)
+            .set_stroke(width=0)
+            .set_color(BLACK)
+            .set_opacity(0.5)
+        )
+        self.play(
+            FadeIn(surr_rect_math),
+            FadeIn(m_with_eigs),
+        )
+
+        self.play(FadeIn(scaled_vector))
+        self.wait()
+
+        eig_val_1 = (
+            MathTex(r"\lambda_{0} = 1")
+            .set_stroke(width=8, background=True)
+            .next_to(eig_vector.get_end(), RIGHT, buff=0.3)
+        )
+        eig_val_3 = (
+            MathTex(r"\lambda_{1} = 3")
+            .set_stroke(width=8, background=True)
+            .next_to(scaled_vector.get_end(), RIGHT, buff=0.3)
+        )
+        self.play(FadeIn(eig_val_1), FadeIn(eig_val_3))
+
+        self.wait()
+
+        ############# So, with that in mind,
+        markov_ch = MarkovChain(
+            4,
+            edges=[
+                (0, 1),
+                # (1, 0),
+                (1, 2),
+                (2, 1),
+                (2, 0),
+                (2, 3),
+                (0, 3),
+                # (3, 1),
+                (3, 2),
+            ],
+        )
+
+        markov_ch_mob = MarkovChainGraph(
+            markov_ch,
+            curved_edge_config={"radius": 2},
+            straight_edge_config={"max_tip_length_to_length_ratio": 0.06},
+            layout_scale=2,
+            layout="circular",
+        ).shift(RIGHT * 4 + DOWN * 0.7)
+
+        p = MathTex("P")
+
+        # the stationary dists are eigvecs with eigval 1 from the P.T
+        eig_vals_P, eig_vecs_P = np.linalg.eig(markov_ch.get_transition_matrix().T)
+        eig_vecs_P = eig_vecs_P.T.astype(float)
+        eig_vals_P = eig_vals_P.astype(float)
+        print()
+        print()
+        print()
+        print(eig_vecs_P)
+        print()
+        print(eig_vals_P)
+        print()
+        # print(np.sum(eig_vecs_P, axis=1))
+
+        lambdas_with_value = VGroup(
+            *[
+                MathTex(f"\lambda_{n} &= {v:.1f}")
+                for n, v in zip(range(len(markov_ch.get_states())), eig_vals_P)
+            ],
+        ).arrange(DOWN, buff=0.2, aligned_edge=LEFT)
+
+        pi_vectors_example = (
+            VGroup(
+                *[
+                    MathTex(r"\vec{\pi}_{" + str(n) + "}")
+                    for n in range(len(markov_ch.get_states()))
+                ],
+            )
+            .arrange(DOWN, buff=0.2)
+            .next_to(lambdas, RIGHT, buff=0.5)
+        )
+
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
+        self.wait()
+
+        p_brace = Brace(lambdas_with_value, LEFT)
+
+        p_with_eigs = (
+            VGroup(p.scale(1.4), p_brace, lambdas_with_value, pi_vectors_example)
+            .set_stroke(width=8, background=True)
+            .arrange(RIGHT, buff=0.5)
+            .to_corner(UL, buff=0.7)
+        )
+
+        labels = markov_ch_mob.get_transition_labels()
+
+        self.play(
+            FadeIn(p_with_eigs, shift=UP * 0.3),
+            Write(markov_ch_mob),
+        )
+        self.play(FadeIn(labels))
+        self.wait()
+
+        eig_index = np.ravel(np.argwhere(eig_vals_P.round(1) == 1.0))[0]
+
+        underline_eig_1 = Underline(lambdas_with_value[eig_index]).set_color(
+            REDUCIBLE_YELLOW
+        )
+        self.play(Succession(Create(underline_eig_1), FadeOut(underline_eig_1)))
+        self.wait()
+
+        stationary_pi = MathTex(r"\vec{\pi}_" + str(eig_index) + " = ")
+        stationary_dist = self.vector_to_mob(eig_vecs_P[eig_index]).scale(0.3)
+
+        vertices_down = VGroup(
+            *[s.copy().scale(0.5) for s in markov_ch_mob.vertices.values()]
+        ).arrange(DOWN, buff=0.13)
+
+        stationary_distribution = (
+            VGroup(stationary_pi, vertices_down, stationary_dist)
+            .arrange(RIGHT, buff=0.15)
+            .next_to(p_with_eigs, DOWN, buff=2)
+        ).scale(2)
+
+        stationary_dist_normalized = (
+            self.vector_to_mob(
+                [e / sum(eig_vecs_P[eig_index]) for e in eig_vecs_P[eig_index]]
+            )
+            .scale_to_fit_height(stationary_dist.height)
+            .move_to(stationary_dist)
+        )
+
+        self.play(FadeIn(stationary_distribution, shift=RIGHT * 0.4))
+        self.wait()
+        self.play(Transform(stationary_dist, stationary_dist_normalized))
+
+    def apply_matrix_to_vector(self, matrix: np.ndarray, mob_vector: Vector):
+        vector = mob_vector.get_vector()[:2]
+        trans_vector = np.dot(matrix, vector)
+
+        return mob_vector.animate.put_start_and_end_on(
+            mob_vector.start, [trans_vector[0], trans_vector[1], 0]
+        )
+
+    def matrix_to_mob(self, matrix: np.ndarray, has_background_color=False):
+        str_repr = [[f"{a:.2f}" for a in row] for row in matrix]
+        return Matrix(
+            str_repr,
+            left_bracket="[",
+            right_bracket="]",
+            element_to_mobject=Text,
+            include_background_rectangle=has_background_color,
+            element_to_mobject_config={"font": REDUCIBLE_MONO},
+            h_buff=2.3,
+            v_buff=1.3,
+        )
+
+    def vector_to_mob(self, vector: Iterable):
+        str_repr = [[f"{a:.2f}"] for a in vector]
+
+        return Matrix(
+            str_repr,
+            left_bracket="[",
+            right_bracket="]",
+            element_to_mobject=Text,
+            element_to_mobject_config={"font": REDUCIBLE_MONO},
+            h_buff=2.3,
+            v_buff=1.3,
+        )
+
+
+class PerformanceEvaluation(IntroWebGraph, SystemOfEquationsMethod, Periodicity):
+    def construct(self):
+
+        self.intro_pip()
+        self.wait()
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
+
+        self.massive_system_of_equations()
+        self.wait()
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
+
+        self.massive_eigen_system()
+        self.wait()
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
+
+        self.brute_force_benchmark()
+        self.wait()
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
+
+    def intro_pip(self):
+        title = (
+            Text("Which method will perform best?", font=REDUCIBLE_FONT, weight=BOLD)
+            .scale(0.8)
+            .to_edge(UP)
+        )
+
+        # design icons
+        # maybe it's better that nipun adds them in post rather than
+        # putting them here
+        self.play(FadeIn(title, shift=UP * 0.3))
+        self.wait()
+
+    def massive_system_of_equations(self):
+        frame = self.camera.frame
+        markov_ch = self.create_big_markov_chain(50)
+
+        equations = (
+            self.get_balance_equations(markov_ch)
+            .scale(0.4)
+            .next_to(frame.get_corner(UL), aligned_edge=UL, buff=1)
+            .shift(DOWN)
+        )
+        self.play(LaggedStartMap(FadeIn, equations[0]), run_time=5)
+        self.wait()
+        self.play(
+            equations.animate.next_to(frame.get_corner(UL), aligned_edge=DL, buff=1),
+            run_time=10,
+        )
+
+    def massive_eigen_system(self):
+        frame = self.camera.frame
+        markov_ch = self.create_big_markov_chain(50)
+
+        big_eig_system = (
+            self.create_big_eig_system(markov_ch)
+            .scale(3)
+            .next_to(frame.get_corner(UL), aligned_edge=UL, buff=1, coor_mask=[0, 1, 0])
+            .shift(DOWN)
+        )
+
+        self.play(LaggedStartMap(FadeIn, big_eig_system, lag_ratio=0.4))
+        self.wait()
+        self.play(
+            big_eig_system.animate.next_to(
+                frame.get_top(), aligned_edge=DOWN, buff=1, coor_mask=[0, 1, 0]
+            ),
+            run_time=10,
+        )
+
+    def brute_force_benchmark(self):
+
+        markov_ch, markov_ch_mob = self.get_web_graph()
+        # markov_ch = MarkovChain(
+        #     4,
+        #     edges=[
+        #         (2, 0),
+        #         (2, 3),
+        #         (0, 3),
+        #         (3, 1),
+        #         (2, 1),
+        #         (1, 2),
+        #     ],
+        #     dist=[0.2, 0.5, 0.2, 0.1],
+        # )
+
+        # markov_ch_mob = MarkovChainGraph(
+        #     markov_ch,
+        #     curved_edge_config={"radius": 2, "tip_length": 0.1},
+        #     straight_edge_config={"max_tip_length_to_length_ratio": 0.08},
+        #     layout="circular",
+        # )
+
+        markov_ch_sim = MarkovChainSimulator(markov_ch, markov_ch_mob, num_users=100)
+        users = markov_ch_sim.get_users()
+
+        self.play(
+            LaggedStart(*[FadeIn(u) for u in users]),
+            run_time=0.5,
+        )
+
+        last_dist = markov_ch_sim.get_user_dist().values()
+
+        # first iteration
+        transition_map = markov_ch_sim.get_lagged_smooth_transition_animations()
+
+        current_dist = markov_ch_sim.get_user_dist().values()
+
+        last_distance = dist(current_dist, last_dist)
+        tolerance = 0.001
+
+        print(f"{last_distance = }")
+
+        num_steps = 100
+        axes = Axes(
+            x_range=[0, num_steps],
+            y_range=[0, last_distance],
+            y_axis_config={
+                "numbers_to_exclude": np.arange(0.1, 1.05, 0.1),
+                "stroke_width": 1,
+            },
+            x_axis_config={
+                "numbers_to_exclude": range(num_steps + 1),
+                "stroke_width": 1,
+            },
+            tips=False,
+            x_length=3,
+            y_length=2,
+            axis_config={"include_numbers": False, "include_ticks": False},
+        ).set_stroke(width=8, background=True)
+
+        bg_axes = (
+            SurroundingRectangle(axes)
+            .set_color(BLACK)
+            .set_stroke(width=0)
+            .set_opacity(0.4)
+        )
+
+        distance_label = (
+            Text("Distance", font=REDUCIBLE_MONO)
+            .scale(0.2)
+            .next_to(axes.y_axis, UP, aligned_edge=RIGHT, buff=0.1)
+            .set_stroke(width=4, background=True)
+        )
+        iterations_label = (
+            Text("Iterations", font=REDUCIBLE_MONO)
+            .scale(0.2)
+            .next_to(axes.x_axis, DOWN, buff=0.1)
+            .set_stroke(width=4, background=True)
+        )
+        axes_vg = VGroup(bg_axes, axes, distance_label, iterations_label).to_corner(
+            UR, buff=0.5
+        )
+
+        tolerance_line = (
+            axes.get_horizontal_line(axes.c2p(num_steps, tolerance), line_func=Line)
+            .set_color(REDUCIBLE_PURPLE)
+            .set_stroke(width=2)
+        )
+
+        self.play(
+            *[LaggedStart(*transition_map[i]) for i in markov_ch.get_states()],
+            FadeIn(axes_vg),
+            Write(tolerance_line),
+        )
+
+        line_chunks = []
+        for i in range(1, num_steps):
+            transition_animations = markov_ch_sim.get_instant_transition_animations()
+
+            last_dist = current_dist
+            current_dist = markov_ch_sim.get_user_dist().values()
+
+            current_distance = dist(current_dist, last_dist)
+            new_line_chunk = self.next_iteration_line(
+                axes, i, current_distance, last_distance
+            )
+            line_chunks.append(new_line_chunk)
+
+            run_time = 0.8 if i < 6 else 1 / i
+
+            if i < 6:
+                self.play(
+                    *transition_animations,
+                    Write(new_line_chunk),
+                    run_time=run_time,
+                )
+
+            else:
+                self.play(
+                    *transition_animations,
+                    Write(new_line_chunk),
+                    run_time=run_time,
+                )
+
+            last_distance = current_distance
+
+        self.wait()
+
+    # utils
+    def next_iteration_line(
+        self, axes: Axes, iteration: int, curr_distance: float, last_distance: float
+    ):
+
+        last_distance_p2c = axes.c2p(iteration - 1, last_distance)
+        curr_distance_p2c = axes.c2p(iteration, curr_distance)
+
+        return (
+            Line(last_distance_p2c, curr_distance_p2c)
+            .set_color(REDUCIBLE_YELLOW)
+            .set_stroke(width=2)
+        )
+
+    def create_big_markov_chain(self, size: int, density: int = 10) -> MarkovChain:
+        tuples = []
+        for i in range(size):
+            random_edges = np.random.choice(
+                list(range(size)),
+                size=density + np.random.randint(-5, 5),
+            )
+            for r in random_edges:
+                tuples.append((i, r))
+
+        tuples = list(filter(lambda x: x[0] != x[1], tuples))
+
+        return MarkovChain(size, tuples)
+
+    def create_big_eig_system(self, markov_chain: MarkovChain):
+        n = len(markov_chain.get_states())
+
+        lambdas_and_eigs = VGroup(
+            *[
+                MathTex(r"\lambda_{" + str(l) + r"} \ \vec{v}_{" + str(l) + "}")
+                for l in range(n)
+            ],
+        ).arrange(DOWN, buff=0.6)
+
+        return VGroup(lambdas_and_eigs).arrange(RIGHT, buff=0.8, aligned_edge=UP)
