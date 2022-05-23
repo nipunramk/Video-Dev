@@ -16,7 +16,7 @@ from markov_chain import *
 from classes import RVariable, RDecimalNumber
 
 
-class TransitionMatrix(MovingCameraScene):
+class TransitionMatrixCorrected3(MovingCameraScene):
     def construct(self):
         frame = self.camera.frame
         markov_ch = MarkovChain(
@@ -40,6 +40,8 @@ class TransitionMatrix(MovingCameraScene):
             curved_edge_config={"radius": 2},
             layout_scale=2.6,
         )
+
+        markov_ch_mob.clear_updaters()
 
         markov_ch_sim = MarkovChainSimulator(markov_ch, markov_ch_mob, num_users=50)
         users = markov_ch_sim.get_users()
@@ -120,7 +122,7 @@ class TransitionMatrix(MovingCameraScene):
             state = markov_ch_mob.vertices[s]
             label_direction = normalize(state.get_center() - markov_ch_mob.get_center())
             pi_dists.append(
-                MathTex(f"\pi({s})")
+                MathTex(f"\pi_n({s})")
                 .scale(0.6)
                 .next_to(state, label_direction, buff=0.1)
             )
@@ -143,7 +145,7 @@ class TransitionMatrix(MovingCameraScene):
             VGroup(pi_next_0, brace, dot_prod_mob)
             .arrange(RIGHT, buff=0.1)
             .move_to(frame.get_left(), aligned_edge=LEFT)
-            .shift(RIGHT * 0.5)
+            .shift(RIGHT * 1)
         )
         plus_signs = (
             VGroup(*[Tex("+").scale(0.7) for _ in range(4)])
@@ -183,80 +185,80 @@ class TransitionMatrix(MovingCameraScene):
 
         full_equation = VGroup(equation_explanation, plus_signs)
 
-        ##### camera pans down for explanation
-        self.play(frame.animate.shift(DOWN * 7), run_time=1.5)
-
+        self.play(
+            full_equation.animate.shift(UP * 2)
+        )
         self.wait()
 
-        math_notation_title = (
-            Text("Some bits of mathematical notation", font=REDUCIBLE_FONT, weight=BOLD)
-            .scale(0.5)
-            .move_to(frame.get_corner(UL), aligned_edge=UL)
-            .shift(DR * 0.5)
-        )
-        self.play(FadeIn(math_notation_title, shift=UP * 0.3), FadeOut(full_equation))
+        ##### camera pans down for explanation
+        # self.play(frame.animate.shift(DOWN * 7), run_time=1.5)
+
+        # self.wait()
+
+        # math_notation_title = (
+        #     Text("Some bits of mathematical notation", font=REDUCIBLE_FONT, weight=BOLD)
+        #     .scale(0.5)
+        #     .move_to(frame.get_corner(UL), aligned_edge=UL)
+        #     .shift(DR * 0.5)
+        # )
+        # self.play(FadeIn(math_notation_title, shift=UP * 0.3), FadeOut(full_equation))
 
         dist_definition = (
             MathTex(
                 # r"\vec{\pi_n} = [\pi_n(0), \pi_n(1), \pi_n(2), \pi_n(3), \pi_n(4) ]",
                 r"\vec{\pi}_n = \begin{bmatrix} \pi_n(0) & \pi_n(1) & \pi_n(2) & \pi_n(3) & \pi_n(4) \end{bmatrix}",
             )
-            .scale(0.7)
-            .move_to(frame.get_center())
+            .scale(0.6)
+            .next_to(full_equation, DOWN, buff=1, aligned_edge=LEFT)
         )
-
-        self.play(FadeIn(dist_definition, shift=UP * 0.3))
-        self.wait()
-
-        self.play(dist_definition.animate.shift(UP * 2))
-        self.wait()
 
         trans_column_def = (
             MathTex(
                 r"\vec{P}_{i,0} = \begin{bmatrix} P(0,0) \\ P(1,0) \\ P(2,0) \\ P(3,0) \\ P(4,0) \end{bmatrix}"
             )
-            .scale(0.8)
-            .move_to(frame.get_center())
+            .scale(0.5)
+            .next_to(dist_definition, DOWN, aligned_edge=LEFT)
         )
-        self.play(FadeIn(trans_column_def, shift=UP * 0.3))
-
-        self.wait()
         self.play(
-            trans_column_def.animate.scale(0.7).next_to(
-                dist_definition, DOWN, buff=0.5, coor_mask=[0, 1, 0]
-            )
+            FadeIn(dist_definition, shift=UP * 0.3),
+            FadeIn(trans_column_def, shift=UP * 0.3)
         )
+
         self.wait()
         next_dist_def = (
             MathTex(r"\vec{\pi}_{n+1}(0) = \vec{\pi}_n \cdot \vec{P}_{i,0}}")
-            .scale(1.4)
-            .move_to(frame.get_center())
-            .shift(DOWN * 1.8)
+            .scale(1)
+            .next_to(trans_column_def, DOWN, aligned_edge=LEFT)
         )
-        self.play(FadeIn(next_dist_def, shift=UP * 0.3))
+        self.play(
+            FadeIn(next_dist_def, shift=UP * 0.3)
+        )
 
         self.wait()
-        #### camera frame comes back
-        self.play(
-            frame.animate.shift(UP * 7),
-            markov_ch_mob.vertices[1].animate.set_stroke(opacity=1),
-            markov_ch_mob.vertices[1].animate.set_opacity(0.5),
-            markov_ch_mob._labels[1].animate.set_opacity(1),
-            markov_ch_mob.edges[(2, 1)].animate.set_opacity(1),
-            markov_ch_mob.edges[(1, 2)].animate.set_opacity(1),
-            markov_ch_mob.edges[(4, 1)].animate.set_opacity(1),
-            markov_ch_mob.edges[(3, 4)].animate.set_opacity(1),
-            markov_ch_mob.edges[(2, 3)].animate.set_opacity(1),
-            markov_ch_mob.edges[(0, 3)].animate.set_opacity(1),
-            markov_ch_mob.edges[(0, 2)].animate.set_opacity(1),
-            run_time=1.5,
-        )
+        # #### camera frame comes back
+        # self.play(
+        #     frame.animate.shift(UP * 7),
+        #     markov_ch_mob.vertices[1].animate.set_stroke(opacity=1),
+        #     markov_ch_mob.vertices[1].animate.set_opacity(0.5),
+        #     markov_ch_mob._labels[1].animate.set_opacity(1),
+        #     markov_ch_mob.edges[(2, 1)].animate.set_opacity(1),
+        #     markov_ch_mob.edges[(1, 2)].animate.set_opacity(1),
+        #     markov_ch_mob.edges[(4, 1)].animate.set_opacity(1),
+        #     markov_ch_mob.edges[(3, 4)].animate.set_opacity(1),
+        #     markov_ch_mob.edges[(2, 3)].animate.set_opacity(1),
+        #     markov_ch_mob.edges[(0, 3)].animate.set_opacity(1),
+        #     markov_ch_mob.edges[(0, 2)].animate.set_opacity(1),
+        #     run_time=1.5,
+        # )
 
         self.play(
             FadeOut(dist_definition),
             FadeOut(trans_column_def),
             FadeOut(next_dist_def),
-            FadeOut(math_notation_title),
+            FadeOut(full_equation),
+            *[arr.animate.set_opacity(1) for arr in markov_ch_mob.edges.values()],
+            markov_ch_mob.vertices[1][0].animate.set_stroke(opacity=1).set_fill(opacity=0.5),
+            markov_ch_mob.vertices[1][1].animate.set_fill(opacity=1),
         )
 
         self.wait()
@@ -275,8 +277,6 @@ class TransitionMatrix(MovingCameraScene):
             .scale(1.3)
             .next_to(trans_matrix_mob, DOWN, buff=0.5)
         )
-        self.play(FadeIn(dot_product_def, shift=UP * 0.3))
-        self.wait()
 
         # first iteration
         surr_rect = SurroundingRectangle(
@@ -299,19 +299,26 @@ class TransitionMatrix(MovingCameraScene):
                 markov_ch_mob.labels[t].animate.set_opacity(0.4)
                 for t in not_relevant_labels_tuples
             ],
+            *[
+                markov_ch_mob.edges[t].animate.set_opacity(1)
+                for t in [(0, 3), (0, 2)]
+            ],
             *[arr.animate.set_opacity(0.3) for arr in not_relevant_arrows],
         )
         self.wait()
 
         for s in markov_ch.get_states()[1:]:
-            self.play(
-                *[l.animate.set_opacity(1) for l in not_relevant_labels],
-                *[arr.animate.set_opacity(1) for arr in not_relevant_arrows],
-            )
+            # self.play(
+            #     *[l.animate.set_opacity(1) for l in not_relevant_labels],
+            #     *[arr.animate.set_opacity(1) for arr in not_relevant_arrows],
+            # )
 
             not_relevant_labels_tuples = list(
                 filter(lambda x: x[0] != s, markov_ch_mob.labels.keys())
             )
+            
+            relevant_tuples = list(filter(lambda x: x[0] == s, markov_ch_mob.labels.keys()))
+            
             not_relevant_labels = [
                 markov_ch_mob.labels[t] for t in not_relevant_labels_tuples
             ]
@@ -319,15 +326,25 @@ class TransitionMatrix(MovingCameraScene):
                 markov_ch_mob.edges[t] for t in not_relevant_labels_tuples
             ]
 
-            print(not_relevant_labels)
+            relevant_arrows = [
+                markov_ch_mob.edges[t] for t in relevant_tuples
+            ]
+
+            print('Not relevant labels', not_relevant_labels)
+            print('Relevant labels', list(relevant_tuples))
 
             self.play(
                 surr_rect.animate.shift(DOWN * 0.44),
                 *[l.animate.set_opacity(0.2) for l in not_relevant_labels],
                 *[arr.animate.set_opacity(0.3) for arr in not_relevant_arrows],
+                *[arr.animate.set_opacity(1) for arr in relevant_arrows],
+                *[markov_ch_mob.labels[t].animate.set_opacity(1) for t in relevant_tuples],
             )
 
             self.wait()
+
+        self.play(FadeIn(dot_product_def, shift=UP * 0.3))
+        self.wait()
 
         self.play(
             *[l.animate.set_opacity(1) for l in not_relevant_labels],
@@ -354,7 +371,7 @@ class TransitionMatrix(MovingCameraScene):
             .shift(UP * 0.8)
         )
         stationary_dist_tex = (
-            MathTex("\pi = \pi P")
+            MathTex(r"\pi = \pi P")
             .scale_to_fit_width(stationary_dist_annotation.width - 2)
             .next_to(stationary_dist_annotation, DOWN, buff=0.8)
         )
@@ -377,7 +394,7 @@ class TransitionMatrix(MovingCameraScene):
         # accelerate the simulation so
         # we only show the stationary distribution
         # [markov_ch_sim.transition() for _ in range(10)]
-        for i in range(15):
+        for i in range(25):
             transition_map = markov_ch_sim.get_lagged_smooth_transition_animations()
             count_labels, count_transforms = self.update_count_labels(
                 count_labels, markov_ch_mob, markov_ch_sim, use_dist=True
@@ -407,25 +424,25 @@ class TransitionMatrix(MovingCameraScene):
 
         question_1 = (
             Text(
-                "→ Is there a stationary distribution?",
+                "→ Is there a unique stationary distribution?",
                 font=REDUCIBLE_FONT,
                 weight=BOLD,
             )
-            .scale(0.6)
-            .next_to(markov_ch_mob, LEFT, buff=1.5)
-            .shift(UP * 2)
+            .scale(0.5)
+            .next_to(markov_ch_mob, LEFT, buff=1.3)
+            .shift(UP * 0.5)
         )
 
         question_2 = (
             MarkupText(
                 """
-                → Does every initial distribution
-                converge to the stationary one?
+                → Does every initial distribution converge
+                to the stationary one?
                 """,
                 font=REDUCIBLE_FONT,
                 weight=BOLD,
             )
-            .scale(0.6)
+            .scale(0.5)
             .next_to(question_1, DOWN, buff=1, aligned_edge=LEFT)
         )
 
@@ -433,6 +450,11 @@ class TransitionMatrix(MovingCameraScene):
         self.wait()
         self.play(Write(question_2))
 
+        self.wait()
+
+        self.play(
+            question_1.animate.set_opacity(0.5)
+        )
         self.wait()
 
     def focus_on(self, mobject, buff=2):
@@ -492,7 +514,7 @@ class TransitionMatrix(MovingCameraScene):
         return count_labels, transforms
 
 
-class BruteForceMethod(TransitionMatrix):
+class BruteForceMethod(TransitionMatrixCorrected3):
     def construct(self):
 
         frame = self.camera.frame
@@ -1265,7 +1287,7 @@ class EigenvalueMethod(MovingCameraScene):
         )
 
 
-class PerformanceEvaluation(IntroWebGraph, SystemOfEquationsMethod, Periodicity):
+class PerformanceEvaluationFull(IntroWebGraph, SystemOfEquationsMethod, Periodicity):
     def construct(self):
 
         self.intro_pip()
@@ -1350,6 +1372,8 @@ class PerformanceEvaluation(IntroWebGraph, SystemOfEquationsMethod, Periodicity)
         #     dist=[0.2, 0.5, 0.2, 0.1],
         # )
 
+
+
         # markov_ch_mob = MarkovChainGraph(
         #     markov_ch,
         #     curved_edge_config={"radius": 2, "tip_length": 0.1},
@@ -1357,10 +1381,11 @@ class PerformanceEvaluation(IntroWebGraph, SystemOfEquationsMethod, Periodicity)
         #     layout="circular",
         # )
 
-        markov_ch_sim = MarkovChainSimulator(markov_ch, markov_ch_mob, num_users=100)
+        markov_ch_sim = MarkovChainSimulator(markov_ch, markov_ch_mob, num_users=200)
         users = markov_ch_sim.get_users()
 
         self.play(
+            FadeIn(markov_ch_mob),
             LaggedStart(*[FadeIn(u) for u in users]),
             run_time=0.5,
         )
@@ -1399,7 +1424,7 @@ class PerformanceEvaluation(IntroWebGraph, SystemOfEquationsMethod, Periodicity)
             SurroundingRectangle(axes)
             .set_color(BLACK)
             .set_stroke(width=0)
-            .set_opacity(0.4)
+            .set_opacity(0.8)
         )
 
         distance_label = (
@@ -1432,6 +1457,7 @@ class PerformanceEvaluation(IntroWebGraph, SystemOfEquationsMethod, Periodicity)
 
         line_chunks = []
         for i in range(1, num_steps):
+            print('Jesus iteration:', i)
             transition_animations = markov_ch_sim.get_instant_transition_animations()
 
             last_dist = current_dist
@@ -1502,3 +1528,47 @@ class PerformanceEvaluation(IntroWebGraph, SystemOfEquationsMethod, Periodicity)
         ).arrange(DOWN, buff=0.6)
 
         return VGroup(lambdas_and_eigs).arrange(RIGHT, buff=0.8, aligned_edge=UP)
+
+class PerformanceText(Scene):
+    def construct(self):
+        scale = 0.7
+
+        screen_rect_1 = ScreenRectangle(height=2)
+        screen_rect_2 = ScreenRectangle(height=2)
+        screen_rect_3 = ScreenRectangle(height=2)
+
+        screen_rect_1.move_to(UP * 2.5 + LEFT * 3.5)
+        screen_rect_2.move_to(DOWN * 0 + LEFT * 3.5)
+        screen_rect_3.move_to(DOWN * 2.5 + LEFT * 3.5)
+
+        methods = VGroup(
+            Text("Brute Force", font=REDUCIBLE_FONT).scale(scale),
+            Text("System of Equations", font=REDUCIBLE_FONT).scale(scale),
+            Text("Eigenvalues/Eigenvectors", font=REDUCIBLE_FONT).scale(scale)
+        )
+
+        methods[0].move_to(UP * 2.5 + RIGHT * 2.5)
+        methods[1].move_to(UP * 0 + RIGHT * 2.5)
+        methods[2].move_to(DOWN * 2.5 + RIGHT * 2.5)
+
+        self.play(
+            FadeIn(methods),
+            # FadeIn(screen_rect_1),
+            # FadeIn(screen_rect_2),
+            # FadeIn(screen_rect_3)
+        )
+        self.wait()
+
+        dumb_efficient = Tex("``Dumb'' but efficient").scale(0.7)
+        dumb_efficient.next_to(methods[0], DOWN * 1.5)
+        direct_but_slow = Tex("Direct but slow").scale(0.7)
+        direct_but_slow.next_to(methods[1], DOWN * 1.5)
+        clever_but_slow = Tex("Clever but slow").scale(0.7)
+        clever_but_slow.next_to(methods[2], DOWN * 1.5)
+
+        self.play(
+            FadeIn(dumb_efficient),
+            FadeIn(direct_but_slow),
+            FadeIn(clever_but_slow)
+        )
+        self.wait()

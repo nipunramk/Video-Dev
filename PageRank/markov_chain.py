@@ -593,7 +593,7 @@ class IntroWebGraph(Scene):
         edges = []
         for u in graph_layout:
             for v in graph_layout:
-                if u != v and np.linalg.norm(graph_layout[v] - graph_layout[u]) < 0.9:
+                if u != v and np.linalg.norm(graph_layout[v] - graph_layout[u]) < 0.8:
                     if np.random.uniform() < 0.7:
                         edges.append((u, v))
         return edges
@@ -602,13 +602,15 @@ class IntroWebGraph(Scene):
 class UserSimulationWebGraph(IntroWebGraph):
     def construct(self):
         web_markov_chain, web_graph = self.get_web_graph()
+        self.add(web_graph)
+        self.wait()
         self.start_simulation(web_markov_chain, web_graph)
 
     def start_simulation(self, markov_chain, markov_chain_g):
         markov_chain_sim = MarkovChainSimulator(
             markov_chain,
             markov_chain_g,
-            num_users=2000,
+            num_users=3000,
             user_radius=0.01,
         )
         users = markov_chain_sim.get_users()
@@ -616,34 +618,36 @@ class UserSimulationWebGraph(IntroWebGraph):
         self.add(*users)
         self.wait()
 
-        num_steps = 10
-
-        # for _ in range(num_steps):
-        #     transforms = markov_chain_sim.get_instant_transition_animations()
-        #     self.play(
-        #         *transforms, rate_func=linear,
-        #     )
+        num_steps = 50
 
         for _ in range(num_steps):
-            transition_map = markov_chain_sim.get_lagged_smooth_transition_animations()
+            print('Nipun: iteration', _)
+            transforms = markov_chain_sim.get_instant_transition_animations()
             self.play(
-                *[
-                    LaggedStart(*transition_map[i], rate_func=linear)
-                    for i in markov_chain.get_states()
-                ],
-                rate_func=linear,
+                *transforms, rate_func=linear,
             )
+
+        # for _ in range(num_steps):
+        #     transition_map = markov_chain_sim.get_lagged_smooth_transition_animations()
+        #     self.play(
+        #         *[
+        #             LaggedStart(*transition_map[i], rate_func=linear)
+        #             for i in markov_chain.get_states()
+        #         ],
+        #         rate_func=linear,
+        #     )
 
 
 class MarkovChainPageRankTitleCard(Scene):
     def construct(self):
         title = Text("Markov Chains", font="CMU Serif", weight=BOLD).move_to(UP * 3.5)
+        title.set_stroke(BLACK, width=8, background=True, opacity=0.8)
         self.play(Write(title))
         self.wait()
 
         pagerank_title = Text("PageRank", font="CMU Serif", weight=BOLD).move_to(
             UP * 3.5
-        )
+        ).set_stroke(BLACK, width=8, background=True, opacity=0.8)
 
         self.play(ReplacementTransform(title, pagerank_title))
         self.wait()
@@ -652,7 +656,7 @@ class MarkovChainPageRankTitleCard(Scene):
 ### END INTRODUCTION.mp4 ###
 
 
-class MarkovChainIntro(Scene):
+class MarkovChainIntroEdited(Scene):
     def construct(self):
         markov_chain = MarkovChain(
             4,
@@ -662,6 +666,7 @@ class MarkovChainIntro(Scene):
         markov_chain_g = MarkovChainGraph(
             markov_chain, enable_curved_double_arrows=True
         )
+        markov_chain_g.clear_updaters()
         markov_chain_g.scale(1.2)
         markov_chain_t_labels = markov_chain_g.get_transition_labels()
 
@@ -691,7 +696,25 @@ class MarkovChainIntro(Scene):
         )
         self.wait()
 
-        self.discuss_markov_prop(markov_chain_g)
+        self.highlight_edges(markov_chain_g, [(1, 3), (1, 2), (1, 0)])
+        self.wait()
+
+        new_edges_to_labels = [[(1, 3), 0.2], [(1, 2), 0.7], [(1, 0), 0.1]]
+        new_labels = [self.get_label(markov_chain_g.edges[edge], prob).set_color(REDUCIBLE_YELLOW) for edge, prob in new_edges_to_labels]
+
+        self.play(
+            *[Transform(markov_chain_g.labels[edge], new_label) for edge, new_label in zip([(1, 3), (1, 2), (1, 0)], new_labels)]
+        )
+        self.wait()
+        # self.discuss_markov_prop(markov_chain_g)
+
+    def get_label(self, edge, prob, scale=0.3):
+        return (
+            Text(str(prob), font=REDUCIBLE_MONO)
+            .set_stroke(BLACK, width=8, background=True, opacity=0.8)
+            .scale(scale)
+            .move_to(edge.point_from_proportion(0.15))
+        )
 
     def highlight_states(self, markov_chain_g):
         highlight_animations = []
@@ -763,6 +786,35 @@ class MarkovChainIntro(Scene):
         self.wait()
 
         return transition_probs
+
+    def highlight_edges(self, markov_chain_g, edges_to_highlight):
+        highlight_animations = []
+        for edge in markov_chain_g.edges:
+            if edge in edges_to_highlight:
+                highlight_animations.extend(
+                    [
+                        markov_chain_g.edges[edge].animate.set_stroke(opacity=1),
+                        markov_chain_g.edges[edge]
+                        .tip.animate.set_stroke(opacity=1)
+                        .set_fill(opacity=1),
+                        markov_chain_g.labels[edge].animate.set_fill(
+                            color=REDUCIBLE_YELLOW, opacity=1
+                        ),
+                    ]
+                )
+            else:
+                highlight_animations.extend(
+                    [
+                        markov_chain_g.edges[edge].animate.set_stroke(opacity=0.3),
+                        markov_chain_g.edges[edge]
+                        .tip.animate.set_stroke(opacity=0.3)
+                        .set_fill(opacity=0.3),
+                        markov_chain_g.labels[edge].animate.set_fill(
+                            color=WHITE, opacity=0.3
+                        ),
+                    ]
+                )
+        self.play(*highlight_animations)
 
     def highlight_edge(self, markov_chain_g, edge_tuple):
         highlight_animations = []
@@ -1069,8 +1121,8 @@ class IntroStationaryDistribution(Scene):
         self.play(*[FadeIn(user) for user in users])
         self.wait()
 
-        num_steps = 50
-        stabilize_threshold = num_steps - 20
+        num_steps = 100
+        stabilize_threshold = num_steps - 10
         print("Count", markov_chain_sim.get_state_counts())
         print("Dist", markov_chain_sim.get_user_dist())
         count_labels = self.get_current_count_mobs(markov_chain_g, markov_chain_sim)
@@ -1147,7 +1199,7 @@ class StationaryDistPreview(Scene):
             "1. How to find stationary distributions?", font="CMU Serif"
         ).scale(0.5)
         point_2 = Text("2. When do they exist?", font="CMU Serif").scale(0.5)
-        point_3 = Text("3. How do we efficiently compute them?").scale(0.5)
+        point_3 = Text("3. How do we efficiently compute them?", font=REDUCIBLE_FONT).scale(0.5)
         points = VGroup(point_1, point_2, point_3).arrange(DOWN, aligned_edge=LEFT)
 
         text = VGroup(stationary_dist, points).arrange(DOWN)
@@ -1167,7 +1219,7 @@ class StationaryDistPreview(Scene):
         self.wait()
 
 
-class ModelingMarkovChains(Scene):
+class ModelingMarkovChainsLastFrame(Scene):
     def construct(self):
         markov_chain = MarkovChain(
             5,
@@ -1191,7 +1243,10 @@ class ModelingMarkovChains(Scene):
             layout_scale=2.6,
         ).scale(1)
 
-        self.play(FadeIn(markov_chain_g))
+        self.play(
+            Write(markov_chain_g),
+            run_time=2,
+        )
         self.wait()
 
         markov_chain_sim = MarkovChainSimulator(
@@ -1227,6 +1282,12 @@ class ModelingMarkovChains(Scene):
                 Transform(prob_dist_labels, new_prob_dist_labels),
             )
             self.wait()
+
+        self.play(
+            FadeOut(prob_dist_labels),
+            FadeOut(users[0])
+        )
+        self.wait()
 
     def simulate_steps(self, markov_chain, markov_chain_g, markov_chain_sim, users):
         num_steps = 10
@@ -1283,7 +1344,7 @@ class ModelingMarkovChains(Scene):
         self.play(FadeIn(definition))
         self.wait()
 
-        pi_vector = MathTex(r"\pi_n = ").scale(0.7)
+        pi_vector = MathTex(r"\vec{\pi}_n = ").scale(0.7)
         pi_row_vector = Matrix(
             [[r"\pi_n(0)", r"\pi_n(1)", r"\pi_n(2)", r"\pi_n(3)", r"\pi_n(4)"]],
             h_buff=1.7,
@@ -1297,12 +1358,12 @@ class ModelingMarkovChains(Scene):
         self.play(FadeIn(pi_row_vector))
         self.wait()
 
-        initial_def = MathTex(r"\pi_0 \sim \text{Uniform}").scale(0.7)
+        initial_def = MathTex(r"\vec{\pi}_0 \sim \text{Uniform}").scale(0.7)
         initial_def.next_to(pi_vector_definition, DOWN, aligned_edge=LEFT)
         self.play(Write(initial_def))
         self.wait()
 
-        precise_initial = MathTex(r"\pi_0 = ").scale(0.7)
+        precise_initial = MathTex(r"\vec{\pi}_0 = ").scale(0.7)
         precise_initial_vector = Matrix([[0.2] * 5]).scale(0.7)
         precise_initial_def = (
             VGroup(precise_initial, precise_initial_vector)
@@ -1527,6 +1588,24 @@ class Uniqueness(Scene):
         self.play(Write(conclusion[2]))
         self.wait()
 
+class ChallengeSeparated(Scene):
+    def construct(self):
+        challenge = Tex(
+            "Challenge: find an irreducible Markov chain \\\\",
+            "where stationary distribution does not converge."
+        ).scale(0.8)
+        challenge[1][-16:-1].set_color(REDUCIBLE_YELLOW)
+        challenge.move_to(DOWN * 3.3)
+        self.play(
+            FadeIn(challenge)
+        )
+        self.wait()
+
+        self.play(
+            FadeOut(challenge)
+        )
+        self.wait()
+
 class Periodicity(Scene):
     def construct(self):
         self.state_color_map = {
@@ -1590,16 +1669,6 @@ class Periodicity(Scene):
         )
 
         to_fade, markov_chain_g = self.show_convergence(new_markov_chain, 25, 1/15)
-        challenge = Tex(
-            "Challenge: find an irreducible Markov chain \\\\",
-            "where stationary distribution does not converge."
-        ).scale(0.8)
-        challenge[1][-16:-1].set_color(REDUCIBLE_YELLOW)
-        challenge.move_to(DOWN * 3.3)
-        self.play(
-            FadeIn(challenge)
-        )
-        self.wait()
 
         self.play(
             FadeOut(to_fade),
@@ -1642,7 +1711,6 @@ class Periodicity(Scene):
 
         self.play(
             markov_chain_group.animate.shift(UP * 2.5),
-            FadeOut(challenge)
         )
         self.wait()
 
@@ -2015,6 +2083,10 @@ class IntroduceBigTheorem1(Periodicity):
                 wait_time *= 0.8
 
         self.wait()
+
+        self.play(
+            *[mob.animate.fade(0.6) for mob in self.mobjects]
+        )
         return VGroup(axes, legend, VGroup(*list(state_to_line_segments.values())), VGroup(*users)), markov_chain_group
 
 
@@ -2156,6 +2228,33 @@ class IntroduceBigTheoremText(Scene):
         )
         self.wait()
 
+        how_to_calculate_it = Text("How to calculate the stationary distribution?", font=REDUCIBLE_FONT, weight=BOLD).scale(0.7).shift(DOWN * 3)
+
+        self.play(
+            Write(how_to_calculate_it)
+        )
+        self.wait()
+
+class PageRankExtraText(Scene):
+    def construct(self):
+        # problem = Text("How to rank states 0, 1 and 2?", font=REDUCIBLE_FONT).scale(0.8).move_to(DOWN * 3.3)
+
+        # self.play(
+        #     FadeIn(problem)
+        # )
+        # self.wait()
+
+        # self.clear()
+
+        # self.wait()
+
+        problem_2 = Text("How to rank states 2 and 3?", font=REDUCIBLE_FONT).scale(0.8).move_to(DOWN * 3.3)
+
+        self.play(
+            FadeIn(problem_2)
+        )
+        self.wait()
+
 class PageRank(IntroduceBigTheorem1):
     def construct(self):
         self.show_pagerank_cxn()
@@ -2187,6 +2286,10 @@ class PageRank(IntroduceBigTheorem1):
         )
         self.wait()
 
+        some_added_complexity = Text("(*) In practice, it's a bit more complicated", font=REDUCIBLE_FONT).scale(0.7)
+        self.add(some_added_complexity.move_to(DOWN * 3))
+        self.wait()
+
         self.clear()
 
         self.intro_issue()
@@ -2204,7 +2307,7 @@ class PageRank(IntroduceBigTheorem1):
         3: REDUCIBLE_CHARM,
         }
 
-        red_graph, reducible_markov_chain_g = self.make_convergence_scene(reducible_markov_chain, 25)
+        red_graph, reducible_markov_chain_g = self.make_convergence_scene(reducible_markov_chain, 25, explain_problem=True)
 
         problem = Text("How to rank states 0, 1 and 2?", font=REDUCIBLE_FONT).scale(0.8).move_to(DOWN * 3.3)
 
@@ -2227,7 +2330,7 @@ class PageRank(IntroduceBigTheorem1):
             [(0, 1), (1, 0), (2, 1), (3, 0), (2, 3), (3, 2)]
         )
 
-        periodic_graph, periodic_markov_chain_g = self.make_convergence_scene(periodic_markov_chain, 25, add_stroke=True, extra_stroke_states=[0, 2])
+        periodic_graph, periodic_markov_chain_g = self.make_convergence_scene(periodic_markov_chain, 25, add_stroke=True, extra_stroke_states=[0, 2], explain_cycle=True)
 
 
         problem = Text("How to rank states 2 and 3?", font=REDUCIBLE_FONT).scale(0.8).move_to(DOWN * 3.3)
@@ -2261,7 +2364,7 @@ class PageRank(IntroduceBigTheorem1):
 
         self.show_larger_reducible_markov_chain()
 
-    def make_convergence_scene(self, markov_chain, num_steps, short_wait_time=1/15, add_stroke=False, extra_stroke_states=None):
+    def make_convergence_scene(self, markov_chain, num_steps, short_wait_time=1/15, add_stroke=False, extra_stroke_states=None, explain_problem=False, explain_cycle=False):
         markov_chain_g = MarkovChainGraph(
             markov_chain,
             enable_curved_double_arrows=True,
@@ -2283,9 +2386,48 @@ class PageRank(IntroduceBigTheorem1):
         users = markov_chain_sim.get_users()
         self.play(
             FadeIn(markov_chain_group),
+        )
+        self.wait()
+        to_fade = []
+        if explain_problem:
+            arrow = Arrow(ORIGIN, UP * 1.5).set_color(GRAY)
+            no_out_going_links = Tex("No outgoing links").scale(0.7)
+            arrow.next_to(markov_chain_g.vertices[3], DOWN, buff=MED_SMALL_BUFF)
+            no_out_going_links.next_to(arrow, DOWN)
+
+            self.play(
+                Write(arrow),
+                FadeIn(no_out_going_links)
+            )
+            self.wait()
+            to_fade.extend([arrow, no_out_going_links])
+
+        if explain_cycle:
+            surround_rect = SurroundingRectangle(VGroup(markov_chain_g.vertices[0], markov_chain_g.vertices[1]), buff=SMALL_BUFF)
+            self.play(
+                Create(surround_rect)
+            )
+            cycle = Tex("Cycle").scale(0.7).next_to(surround_rect, UP)
+
+            self.play(
+                Write(cycle)
+            )
+            self.wait()
+
+            self.play(
+                FadeOut(cycle),
+                FadeOut(surround_rect),
+            )
+
+        self.play(
             *[FadeIn(u) for u in users]
         )
         self.wait()
+
+        if explain_problem:
+            self.play(
+                *[FadeOut(mob) for mob in to_fade]
+            )
 
         stationary_dist = markov_chain.get_true_stationary_dist()
 
@@ -2333,8 +2475,8 @@ class PageRank(IntroduceBigTheorem1):
         )
         self.wait()
         markov_chain_sim = MarkovChainSimulator(markov_chain, markov_chain_g, num_users=1)
-        user = markov_chain_sim.get_users()[0].scale(1.2)
-        sequence_of_states = [39, 52, 63, 74, 61, 60, 49, 62, 74, 73, 72] + [72] * 10
+        user = markov_chain_sim.get_users()[0].scale(1.8)
+        sequence_of_states = [39, 52, 63, 74, 61, 60, 49, 62, 74, 73, 72] + [72] * 4
         for i, state in enumerate(sequence_of_states):
             location = markov_chain_sim.poisson_distribution(markov_chain_g.vertices[state].get_center())
             user_location = np.array([location[0], location[1], 0])
@@ -2408,7 +2550,7 @@ class PageRank(IntroduceBigTheorem1):
 
 class PageRankSolution(Scene):
     def construct(self):
-        text = Text("Idea: randomly select a new state.", font=REDUCIBLE_FONT).scale(0.8).move_to(UP * 3.5)
+        text = Text("Idea: randomly select a new state", font=REDUCIBLE_FONT).scale(0.8).move_to(UP * 3.5)
         self.play(
             Write(text),
             run_time=2
@@ -2447,8 +2589,14 @@ class PageRankAlphaIntro(Scene):
         self.wait()
         self.play(
             Write(markov_chain_group),
+            run_time=2
+        )
+        self.wait()
+
+        self.play(
             Write(idea)
         )
+
         self.wait()
 
         self.play(
@@ -2546,7 +2694,8 @@ class PageRankAlphaIntro(Scene):
         self.wait()
 
         self.play(
-            *[mob.animate.set_fill(opacity=0.8).set_stroke(opacity=1) for mob in to_reduce_opacity[:3]],
+            *[mob[0].animate.set_fill(opacity=0.5).set_stroke(opacity=1) for mob in to_reduce_opacity[:3]],
+            *[mob[1].animate.set_fill(opacity=1) for mob in to_reduce_opacity[:3]],
             *[mob.animate.set_opacity(1) for mob in to_reduce_opacity[3:]],
             *[arrow[0].animate.set_stroke(opacity=1) for arrow in self_edges[1:]],
             *[arrow[1].animate.set_fill(opacity=1) for arrow in self_edges[1:]],
@@ -2620,7 +2769,7 @@ class PageRankAlphaIntro(Scene):
         p_matrix = Matrix(periodic_markov_chain.get_transition_matrix()).scale(0.8)
 
         p_matrix_group = VGroup(p_equals, p_matrix).arrange(RIGHT)
-        p_matrix_group.scale(0.8).move_to(RIGHT * 2.3)
+        p_matrix_group.scale(0.8).move_to(RIGHT * 2.1)
 
         self.play(
             FadeIn(p_matrix_group)
@@ -2631,7 +2780,7 @@ class PageRankAlphaIntro(Scene):
             p_matrix_group.animate.shift(UP * 1.5)
         )
 
-        p_hat_expr = MathTex(r"\hat{P} = (1 - \alpha) P + \frac{\alpha}{N} (N \cross N \text{ matrix of all 1`s)}").scale(0.7)
+        p_hat_expr = MathTex(r"\hat{P} = (1 - \alpha) P + \frac{\alpha}{N} (N \cross N \text{ matrix of all 1`s)}").scale(0.65)
         self.alpha = 0.15
         p_hat_matrix_value = periodic_markov_chain.get_transition_matrix() * (1 - self.alpha) + self.alpha * np.ones(4) * 1 / 4
         print(p_hat_matrix_value)
@@ -2717,7 +2866,7 @@ class PageRankRecap(Scene):
         self.wait()
         step_scale = 0.7
         step_one = Tex(r"1. Web Graph $\rightarrow$ Markov chain ($N$, $P$)").scale(step_scale)
-        step_two = Tex(r"2. Define $\hat{P} = \hat{P} = (1 - \alpha) P + \frac{\alpha}{N} (N \cross N \text{ matrix of all 1`s)}$").scale(step_scale)
+        step_two = Tex(r"2. Define $\hat{P} = (1 - \alpha) P + \frac{\alpha}{N} (N \cross N \text{ matrix of all 1`s)}$").scale(step_scale)
         step_three = Tex(r"3. Calculate $\pi$ from Markov chain $(N, \hat{P})$").scale(step_scale)
         step_four = Tex(r"4. Rank web pages according to $\pi$").scale(step_scale)
 
@@ -2737,7 +2886,7 @@ class PageRankRecap(Scene):
             self.wait()
 
 
-class EigenValueMethod(Scene):
+class EigenValueMethodFixed2(Scene):
     def construct(self):
         markov_chain = MarkovChain(
             3,
@@ -2787,12 +2936,14 @@ class EigenValueMethod(Scene):
 
         vector_scale = 0.7
 
-        pi_n_1_col_vec = pi_n_1_row_vec = Matrix(
+        pi_n_1_col_vec = Matrix(
             [[r"\pi_{n + 1}(0)"], [r"\pi_{n+1}(1)"], [r"\pi_{n + 1}(2)"]],
+            v_buff=1,
         ).scale(vector_scale)
 
-        pi_n_col_vec = pi_n_1_row_vec = Matrix(
+        pi_n_col_vec = Matrix(
             [[r"\pi_{n}(0)"], [r"\pi_{n}(1)"], [r"\pi_{n}(2)"]],
+            v_buff=1,
         ).scale(vector_scale)
 
         p_transpose_matrix = Matrix(
@@ -2801,7 +2952,8 @@ class EigenValueMethod(Scene):
             ["P(0, 1)", "P(1, 1)", "P(2, 1)"],
             ["P(0, 2)", "P(1, 2)", "P(2, 2)"],
             ],
-            h_buff=2
+            h_buff=2,
+            v_buff=1,
         ).scale(vector_scale)
 
         col_vec_equation = VGroup(pi_n_1_col_vec, equals.copy(), p_transpose_matrix, pi_n_col_vec).arrange(RIGHT)
@@ -2819,8 +2971,9 @@ class EigenValueMethod(Scene):
         )
         self.wait()
 
+
         self.play(
-            FadeIn(col_vec_equation)
+            FadeIn(col_vec_equation),
         )
         self.wait()
 
@@ -2832,7 +2985,29 @@ class EigenValueMethod(Scene):
         )
 
         self.play(
-            Write(transpose_transition_eq)
+            Write(transpose_transition_eq),
+        )
+        self.wait()
+
+        surround_rects = [
+        SurroundingRectangle(pi_n_1_row_vec[0], color=REDUCIBLE_VIOLET, buff=SMALL_BUFF),
+        SurroundingRectangle(pi_n_row_vec[0], color=REDUCIBLE_GREEN_LIGHTER, buff=SMALL_BUFF),
+        SurroundingRectangle(VGroup(*[p_matrix[0][i] for i in range(9) if i % 3 == 0]), color=REDUCIBLE_YELLOW, buff=SMALL_BUFF),
+        SurroundingRectangle(VGroup(*[p_matrix[0][i] for i in range(9) if i % 3 == 1]), color=REDUCIBLE_YELLOW, buff=SMALL_BUFF),
+        SurroundingRectangle(VGroup(*[p_matrix[0][i] for i in range(9) if i % 3 == 2]), color=REDUCIBLE_YELLOW, buff=SMALL_BUFF),
+        SurroundingRectangle(pi_n_1_col_vec[0], color=REDUCIBLE_VIOLET, buff=SMALL_BUFF),
+        SurroundingRectangle(pi_n_col_vec[0], color=REDUCIBLE_GREEN_LIGHTER, buff=SMALL_BUFF),
+        SurroundingRectangle(p_transpose_matrix[0][:3], color=REDUCIBLE_YELLOW, buff=SMALL_BUFF/1.5),
+        SurroundingRectangle(p_transpose_matrix[0][3:6], color=REDUCIBLE_YELLOW, buff=SMALL_BUFF/1.5),
+        SurroundingRectangle(p_transpose_matrix[0][6:9], color=REDUCIBLE_YELLOW, buff=SMALL_BUFF/1.5),
+        ]
+        self.play(
+            *[FadeIn(r) for i, r in enumerate(surround_rects) if i < 5]
+        )
+        self.wait()
+
+        self.play(
+            *[TransformFromCopy(surround_rects[i], surround_rects[i + 5]) for i in range(5)],
         )
         self.wait()
 
@@ -2840,6 +3015,7 @@ class EigenValueMethod(Scene):
             FadeOut(markov_chain_g),
             FadeOut(equation_transformation),
             FadeOut(transition_eq),
+            *[FadeOut(r) for r in surround_rects],
             transpose_transition_eq.animate.move_to(UP * 3.5)
         )
         self.wait()
@@ -2934,7 +3110,7 @@ class EigenValueMethod(Scene):
             )
             self.wait()
 
-        stationary_dist_def = MathTex(r"\tilde{\pi} = P^T \tilde{\pi}").move_to(transpose_transition_eq.get_center())
+        stationary_dist_def = MathTex(r"\pi = P^T \pi").move_to(transpose_transition_eq.get_center())
 
         self.play(
             ReplacementTransform(transpose_transition_eq, stationary_dist_def)
@@ -3040,7 +3216,7 @@ class EigenValueMethod(Scene):
 
         self.wait()
 
-        conclusion = Tex(r"$\tilde{\pi}$ is unique eigenvector corresponding to $\lambda = 1$ of $P^T$").scale(0.8)
+        conclusion = Tex(r"$\pi$ is unique eigenvector corresponding to $\lambda = 1$ of $P^T$").scale(0.8)
         conclusion.move_to(DOWN * 3.3)
 
         self.play(
@@ -3119,6 +3295,8 @@ class EigenValueMethod(Scene):
         eig_vals_P, eig_vecs_P = np.linalg.eig(markov_ch.get_transition_matrix().T)
         eig_vecs_P = eig_vecs_P.T.astype(float)
         eig_vals_P = eig_vals_P.astype(float)
+        # floating point issue
+        eig_vals_P[3] = 0.0
         print(eig_vecs_P)
         print(eig_vals_P)
 
@@ -3174,8 +3352,6 @@ class EigenValueMethod(Scene):
             REDUCIBLE_YELLOW
         )
 
-
-
         stationary_pi = MathTex(r"\vec{v}_" + str(eig_index) + " = ")
         stationary_dist = self.vector_to_mob(eig_vecs_P[eig_index]).scale(0.3)
 
@@ -3211,7 +3387,7 @@ class EigenValueMethod(Scene):
         self.play(FadeIn(stationary_distribution, shift=RIGHT * 0.4))
         self.wait()
 
-        new_stationary_pi = MathTex(r"\tilde{\pi} =").move_to(stationary_pi.get_center()).scale(1.5)
+        new_stationary_pi = MathTex(r"\pi =").move_to(stationary_pi.get_center()).scale(1.5)
 
         self.play(
             Transform(stationary_dist, stationary_dist_normalized),
@@ -3252,3 +3428,85 @@ class EigenValueMethod(Scene):
             h_buff=2.3,
             v_buff=1.3,
         )
+
+class EigenvalFinalScene(Scene):
+    def construct(self):
+        screen_rect = ScreenRectangle(height=5).shift(UP * 0.5)
+        long_term = Tex(r"Long term behavior of system $\Leftrightarrow$ eigenvalues/eigenvectors").scale(0.8)
+
+        long_term.next_to(screen_rect, DOWN)
+
+        self.add(screen_rect)
+        self.wait()
+
+        self.play(
+            FadeIn(long_term)
+        )
+        self.wait()
+
+class Patreons(Scene):
+    def construct(self):
+        thanks = Tex("Special Thanks to These Patreons").scale(1.2)
+        patreons = ["Burt Humburg", "Winston Durand", r"Adam D\v{r}ínek", "kerrytazi",  "Andreas", "Matt Q"]
+        patreon_text = VGroup(thanks, VGroup(*[Tex(name).scale(0.9) for name in patreons]).arrange_in_grid(rows=3, buff=(0.75, 0.25)))
+        patreon_text.arrange(DOWN)
+        patreon_text.to_edge(DOWN)
+
+        self.play(
+            Write(patreon_text[0])
+        )
+        self.play(
+            *[Write(text) for text in patreon_text[1]]
+        )
+        self.wait()
+
+
+class BeforeAfterComparison(Scene):
+    def construct(self):
+        bar_names = ["AltaVista", "Excite", "Lycos", "Yahoo!", "Infoseek"]
+        bar_values = [26, 14, 13, 9, 5]
+        bar_title = Text("Search Engine Usage in 1997", font=REDUCIBLE_FONT, weight=BOLD).scale(0.7)
+        y_axis_label = Text("Usage (%)", font=REDUCIBLE_FONT).scale(0.6)
+
+        chart = BarChart(
+            values=bar_values,
+            bar_names=bar_names,
+            bar_colors=[REDUCIBLE_YELLOW, REDUCIBLE_VIOLET, REDUCIBLE_GREEN_LIGHTER, REDUCIBLE_PURPLE, REDUCIBLE_GREEN_DARKER],
+            y_range=[0, 100, 25],
+            y_length=1.8,
+            x_length=8,
+            x_axis_config={"font_size": 36},
+        ).move_to(UP * 1.8)
+        y_axis_label.next_to(chart, LEFT).shift(UP * SMALL_BUFF * 4)
+        bar_title.next_to(chart, UP)
+
+        self.play(
+            FadeIn(chart),
+            FadeIn(bar_title),
+            FadeIn(y_axis_label)
+        )
+
+        bottom_title = Text("Search Engine Usage in 2022", font=REDUCIBLE_FONT, weight=BOLD).scale(0.7)
+        bottom_chart = BarChart(
+            values=[92, 3, 1.3, 1.2, 0.87],
+            bar_names=["Google", "Bing", "Yahoo", "Baidu", "Yandex"],
+            bar_colors=[REDUCIBLE_YELLOW, REDUCIBLE_VIOLET, REDUCIBLE_GREEN_LIGHTER, REDUCIBLE_PURPLE, REDUCIBLE_GREEN_DARKER],
+            y_range=[0, 100, 25],
+            y_length=2,
+            x_length=8,
+            x_axis_config={"font_size": 36},
+        ).move_to(DOWN * 2)
+        bottom_y_axis_label = y_axis_label.copy().next_to(bottom_chart, LEFT).shift(UP * SMALL_BUFF * 4)
+        bottom_title.next_to(bottom_chart, UP)
+
+        self.play(
+            FadeIn(bottom_chart),
+            FadeIn(bottom_title),
+            FadeIn(bottom_y_axis_label),
+        )
+        self.wait()
+
+
+
+
+
