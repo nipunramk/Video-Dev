@@ -62,6 +62,14 @@ class TSPAssumptions(Scene):
         self.play(
             arrow_up.animate.move_to(all_edges[(2, 7)].end).shift(DOWN * 0.4),
             arrow_down.animate.move_to(all_edges[(2, 7)].start).shift(UP * 0.4),
+            ShowPassingFlash(all_edges[(2, 7)].copy().set_color(REDUCIBLE_YELLOW)),
+            ShowPassingFlash(
+                all_edges[(2, 7)]
+                .copy()
+                .flip(RIGHT)
+                .flip(DOWN)
+                .set_color(REDUCIBLE_YELLOW)
+            ),
         )
 
         self.play(FadeOut(arrow_up), FadeOut(arrow_down))
@@ -83,11 +91,15 @@ class TSPAssumptions(Scene):
         self.wait()
 
         self.play(
-            graph.animate.shift(UP),
-            dist_label.animate.shift(UP),
+            # graph.animate.shift(UP),
+            # dist_label.animate.shift(UP),
             FadeOut(title),
-            *[l.animate.shift(UP) for l in all_edges.values()],
+            # *[l.animate.shift(UP) for l in all_edges.values()],
         )
+
+        full_graph = VGroup(*graph.vertices.values(), *all_edges.values(), dist_label)
+
+        self.play(full_graph.animate.move_to(LEFT * 3))
 
         # triangle inequality
         triangle_edges = [(2, 3), (2, 7), (3, 7)]
@@ -100,7 +112,6 @@ class TSPAssumptions(Scene):
         ]
 
         self.play(*[FadeIn(l) for l in triangle_labels], *triangle_ineq_edges_focus)
-        self.play(*[mob.animate.shift(LEFT * 3) for mob in self.mobjects])
 
         self.wait()
         less_than = Text("always less than", font=REDUCIBLE_FONT, weight=BOLD).scale(
