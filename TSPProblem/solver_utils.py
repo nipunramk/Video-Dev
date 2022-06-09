@@ -50,7 +50,7 @@ def get_cost_from_permutation(dist_matrix, permutation):
 
 def get_exact_tsp_solution(dist_matrix):
     from python_tsp.exact import solve_tsp_dynamic_programming
-    permutation, distance = solve_tsp_dynamic_programming(distance_matrix)
+    permutation, distance = solve_tsp_dynamic_programming(dist_matrix)
     return permutation, distance
 
 def get_edges_from_tour(tour):
