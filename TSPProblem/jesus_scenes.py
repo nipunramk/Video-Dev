@@ -6,6 +6,8 @@ from functions import *
 from classes import *
 from solver_utils import *
 
+np.random.seed(1)
+
 
 class TSPAssumptions(Scene):
     def construct(self):
@@ -106,80 +108,102 @@ class TSPAssumptions(Scene):
             t: graph.get_dist_label(e, graph.dist_matrix[t]).set_opacity(0)
             for t, e in all_edges.items()
         }
-        for _ in range(3):
-            self.show_triangle_inequality(graph, all_edges, all_labels)
-        # triangle_edges = [(2, 3), (2, 7), (3, 7)]
-        # triangle_ineq_edges_focus = self.focus_on_edges(
-        #     edges_to_focus_on=triangle_edges, all_edges=all_edges
-        # )
-        # triangle_labels = [
-        #     graph.get_dist_label(all_edges[e], graph.dist_matrix[e])
-        #     for e in triangle_edges
-        # ]
 
-        # self.play(*[FadeIn(l) for l in triangle_labels], *triangle_ineq_edges_focus)
+        for i in range(3):
+            triang_vertices = sorted(
+                np.random.choice(list(graph.vertices.keys()), size=3, replace=False)
+            )
+            start_node = triang_vertices[0]
+            middle_node = triang_vertices[1]
+            end_node = triang_vertices[2]
 
-        # self.wait()
-        # less_than = Text("always less than", font=REDUCIBLE_FONT, weight=BOLD).scale(
-        #     0.7
-        # )
+            triangle_edges = [
+                (start_node, end_node),
+                (start_node, middle_node),
+                (middle_node, end_node),
+            ]
+            triangle_ineq_edges_focus = self.focus_on_edges(triangle_edges, all_edges)
+            labels_to_focus = self.focus_on_labels(triangle_edges, all_labels)
+            vertices_to_focus = self.focus_on_vertices(triang_vertices, graph.vertices)
 
-        # arrow_text = Text("→", font=REDUCIBLE_FONT, weight=BOLD)
+            less_than = Text(
+                "always less than", font=REDUCIBLE_FONT, weight=BOLD
+            ).scale(0.7)
 
-        # direct_path = VGroup(
-        #     graph.vertices[3].copy(), arrow_text.copy(), graph.vertices[7].copy()
-        # ).arrange(RIGHT, buff=0.2)
+            arrow_text = Text("→", font=REDUCIBLE_FONT, weight=BOLD)
 
-        # indirect_path = VGroup(
-        #     graph.vertices[3].copy(),
-        #     arrow_text.copy(),
-        #     graph.vertices[2].copy(),
-        #     arrow_text.copy(),
-        #     graph.vertices[7].copy(),
-        # ).arrange(RIGHT, buff=0.2)
+            direct_path = VGroup(
+                graph.vertices[start_node].copy().set_stroke(REDUCIBLE_PURPLE),
+                arrow_text.copy(),
+                graph.vertices[end_node].copy().set_stroke(REDUCIBLE_PURPLE),
+            ).arrange(RIGHT, buff=0.2)
 
-        # both_paths = (
-        #     VGroup(direct_path, less_than, indirect_path)
-        #     .arrange(DOWN, buff=0.5)
-        #     .shift(RIGHT * 3)
-        # )
+            indirect_path = VGroup(
+                graph.vertices[start_node].copy().set_stroke(REDUCIBLE_PURPLE),
+                arrow_text.copy(),
+                graph.vertices[middle_node].copy().set_stroke(REDUCIBLE_PURPLE),
+                arrow_text.copy(),
+                graph.vertices[end_node].copy().set_stroke(REDUCIBLE_PURPLE),
+            ).arrange(RIGHT, buff=0.2)
 
-        # self.play(
-        #     Succession(
-        #         AnimationGroup(
-        #             FadeIn(direct_path),
-        #             ShowPassingFlash(
-        #                 all_edges[(3, 7)]
-        #                 .copy()
-        #                 .set_stroke(width=6)
-        #                 .set_color(REDUCIBLE_YELLOW),
-        #                 time_width=0.4,
-        #             ),
-        #         ),
-        #         FadeIn(less_than),
-        #         AnimationGroup(
-        #             FadeIn(indirect_path),
-        #             Succession(
-        #                 ShowPassingFlash(
-        #                     all_edges[(2, 3)]
-        #                     .copy()
-        #                     .set_stroke(width=6)
-        #                     .flip(RIGHT)
-        #                     .flip(DOWN)
-        #                     .set_color(REDUCIBLE_YELLOW),
-        #                     time_width=0.6,
-        #                 ),
-        #                 ShowPassingFlash(
-        #                     all_edges[(2, 7)]
-        #                     .copy()
-        #                     .set_stroke(width=6)
-        #                     .set_color(REDUCIBLE_YELLOW),
-        #                     time_width=0.6,
-        #                 ),
-        #             ),
-        #         ),
-        #     ),
-        # )
+            both_paths = (
+                VGroup(direct_path, less_than, indirect_path)
+                .arrange(DOWN, buff=0.5)
+                .shift(RIGHT * 3)
+            )
+
+            if i == 0:
+                self.play(
+                    *labels_to_focus,
+                    *triangle_ineq_edges_focus,
+                    *vertices_to_focus,
+                    FadeIn(direct_path),
+                    FadeIn(less_than),
+                    FadeIn(indirect_path),
+                )
+            else:
+                self.play(
+                    *labels_to_focus,
+                    *triangle_ineq_edges_focus,
+                    *vertices_to_focus,
+                    FadeTransform(last_direct_path, direct_path),
+                    FadeTransform(last_indirect_path, indirect_path),
+                )
+
+            self.play(
+                Succession(
+                    AnimationGroup(
+                        ShowPassingFlash(
+                            all_edges[(start_node, end_node)]
+                            .copy()
+                            .set_stroke(width=6)
+                            .set_color(REDUCIBLE_YELLOW),
+                            time_width=0.4,
+                        ),
+                    ),
+                    AnimationGroup(
+                        Succession(
+                            ShowPassingFlash(
+                                all_edges[(start_node, middle_node)]
+                                .copy()
+                                .set_stroke(width=6)
+                                .set_color(REDUCIBLE_YELLOW),
+                                time_width=0.6,
+                            ),
+                            ShowPassingFlash(
+                                all_edges[(middle_node, end_node)]
+                                .copy()
+                                .set_stroke(width=6)
+                                .set_color(REDUCIBLE_YELLOW),
+                                time_width=0.6,
+                            ),
+                        ),
+                    ),
+                ),
+            )
+
+            last_direct_path = direct_path
+            last_indirect_path = indirect_path
 
     ### UTIL FUNCS
 
@@ -195,7 +219,19 @@ class TSPAssumptions(Scene):
 
         return edges_animations
 
-    def show_labels(self, labels_to_show, all_labels):
+    def focus_on_vertices(
+        self, edges_to_focus_on: Iterable[tuple], all_edges: Iterable[tuple]
+    ):
+        edges_animations = []
+        for t, e in all_edges.items():
+            if not t in edges_to_focus_on:
+                edges_animations.append(e.animate.set_stroke(REDUCIBLE_PURPLE))
+            else:
+                edges_animations.append(e.animate.set_stroke(REDUCIBLE_YELLOW))
+
+        return edges_animations
+
+    def focus_on_labels(self, labels_to_show, all_labels):
         labels_animations = []
         for t, e in all_labels.items():
             if not t in labels_to_show:
@@ -205,7 +241,13 @@ class TSPAssumptions(Scene):
 
         return labels_animations
 
-    def show_triangle_inequality(self, graph, all_edges, all_labels):
+    def show_triangle_inequality(
+        self,
+        i,
+        graph,
+        all_edges,
+        all_labels,
+    ):
         triang_vertices = sorted(
             np.random.choice(list(graph.vertices.keys()), size=3, replace=False)
         )
@@ -229,9 +271,6 @@ class TSPAssumptions(Scene):
             for e in triangle_edges
         ]
 
-        self.play(*labels_to_focus, *triangle_ineq_edges_focus)
-
-        self.wait()
         less_than = Text("always less than", font=REDUCIBLE_FONT, weight=BOLD).scale(
             0.7
         )
@@ -258,10 +297,30 @@ class TSPAssumptions(Scene):
             .shift(RIGHT * 3)
         )
 
+        if i > 0:
+            last_direct_path = direct_path
+            last_indirect_path = indirect_path
+
+        print(i)
+        if i == 0:
+            self.play(
+                *labels_to_focus,
+                *triangle_ineq_edges_focus,
+                FadeIn(direct_path),
+                FadeIn(indirect_path),
+            )
+        else:
+
+            self.play(
+                *labels_to_focus,
+                *triangle_ineq_edges_focus,
+                Transform(last_direct_path, direct_path),
+                Transform(last_indirect_path, indirect_path),
+            )
+
         self.play(
             Succession(
                 AnimationGroup(
-                    FadeIn(direct_path),
                     ShowPassingFlash(
                         all_edges[(start_node, end_node)]
                         .copy()
@@ -272,7 +331,6 @@ class TSPAssumptions(Scene):
                 ),
                 FadeIn(less_than),
                 AnimationGroup(
-                    FadeIn(indirect_path),
                     Succession(
                         ShowPassingFlash(
                             all_edges[(start_node, middle_node)]
