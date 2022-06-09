@@ -6,15 +6,20 @@ from functions import *
 from classes import *
 from solver_utils import *
 
-np.random.seed(1)
+np.random.seed(2)
 
 
 class TSPAssumptions(MovingCameraScene):
     def construct(self):
-        # self.intro_PIP()
-        # self.play(*[FadeOut(mob) for mob in self.mobjects])
+
+        self.intro_PIP()
+        self.wait()
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
+        self.wait()
+
         self.present_TSP_graph()
-        # self.play(*[FadeOut(mob) for mob in self.mobjects])
+        self.wait()
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
 
     def intro_PIP(self):
         rect = ScreenRectangle(height=4)
@@ -104,9 +109,7 @@ class TSPAssumptions(MovingCameraScene):
         full_graph = VGroup(*graph.vertices.values(), *all_edges.values(), dist_label)
 
         self.play(
-            LaggedStart(
-                FadeOut(dist_label), full_graph.animate.move_to(LEFT * 3), lag_ratio=0.2
-            )
+            FadeOut(dist_label), full_graph.animate.move_to(LEFT * 3), run_time=0.7
         )
         self.wait()
 
