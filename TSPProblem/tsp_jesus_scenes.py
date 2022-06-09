@@ -9,7 +9,7 @@ from solver_utils import *
 np.random.seed(1)
 
 
-class TSPAssumptions(Scene):
+class TSPAssumptions(MovingCameraScene):
     def construct(self):
         # self.intro_PIP()
         # self.play(*[FadeOut(mob) for mob in self.mobjects])
@@ -21,6 +21,7 @@ class TSPAssumptions(Scene):
         self.play(Write(rect), run_time=2)
 
     def present_TSP_graph(self):
+        frame = self.camera.frame
 
         graph = TSPGraph(range(8))
 
@@ -98,10 +99,16 @@ class TSPAssumptions(Scene):
         self.play(
             FadeOut(title),
         )
+        self.wait()
 
         full_graph = VGroup(*graph.vertices.values(), *all_edges.values(), dist_label)
 
-        self.play(full_graph.animate.move_to(LEFT * 3), FadeOut(dist_label))
+        self.play(
+            LaggedStart(
+                FadeOut(dist_label), full_graph.animate.move_to(LEFT * 3), lag_ratio=0.2
+            )
+        )
+        self.wait()
 
         # triangle inequality
         all_labels = {
@@ -109,7 +116,14 @@ class TSPAssumptions(Scene):
             for t, e in all_edges.items()
         }
 
-        for i in range(3):
+        for i in range(10):
+            if i == 5:
+                triang_title = (
+                    Text("Triangle Inequality", font=REDUCIBLE_FONT, weight=BOLD)
+                    .scale(0.8)
+                    .move_to(frame.get_top())
+                )
+                self.play(FadeIn(triang_title), frame.animate.shift(UP * 0.8))
             triang_vertices = sorted(
                 np.random.choice(list(graph.vertices.keys()), size=3, replace=False)
             )
@@ -204,6 +218,7 @@ class TSPAssumptions(Scene):
 
             last_direct_path = direct_path
             last_indirect_path = indirect_path
+        # end for loop triangle inequality
 
     ### UTIL FUNCS
 
