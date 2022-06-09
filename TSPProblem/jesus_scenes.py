@@ -62,10 +62,13 @@ class TSPAssumptions(Scene):
         self.play(
             arrow_up.animate.move_to(all_edges[(2, 7)].end).shift(DOWN * 0.4),
             arrow_down.animate.move_to(all_edges[(2, 7)].start).shift(UP * 0.4),
-            ShowPassingFlash(all_edges[(2, 7)].copy().set_color(REDUCIBLE_YELLOW)),
+            ShowPassingFlash(
+                all_edges[(2, 7)].copy().set_stroke(width=6).set_color(REDUCIBLE_YELLOW)
+            ),
             ShowPassingFlash(
                 all_edges[(2, 7)]
                 .copy()
+                .set_stroke(width=6)
                 .flip(RIGHT)
                 .flip(DOWN)
                 .set_color(REDUCIBLE_YELLOW)
@@ -91,10 +94,7 @@ class TSPAssumptions(Scene):
         self.wait()
 
         self.play(
-            # graph.animate.shift(UP),
-            # dist_label.animate.shift(UP),
             FadeOut(title),
-            # *[l.animate.shift(UP) for l in all_edges.values()],
         )
 
         full_graph = VGroup(*graph.vertices.values(), *all_edges.values(), dist_label)
@@ -119,9 +119,11 @@ class TSPAssumptions(Scene):
         )
 
         arrow_text = Text("→", font=REDUCIBLE_FONT, weight=BOLD)
+
         direct_path = VGroup(
             graph.vertices[3].copy(), arrow_text.copy(), graph.vertices[7].copy()
         ).arrange(RIGHT, buff=0.2)
+
         indirect_path = VGroup(
             graph.vertices[3].copy(),
             arrow_text.copy(),
@@ -129,6 +131,7 @@ class TSPAssumptions(Scene):
             arrow_text.copy(),
             graph.vertices[7].copy(),
         ).arrange(RIGHT, buff=0.2)
+
         both_paths = (
             VGroup(direct_path, less_than, indirect_path)
             .arrange(DOWN, buff=0.5)
@@ -140,7 +143,10 @@ class TSPAssumptions(Scene):
                 AnimationGroup(
                     FadeIn(direct_path),
                     ShowPassingFlash(
-                        all_edges[(3, 7)].copy().set_color(REDUCIBLE_YELLOW),
+                        all_edges[(3, 7)]
+                        .copy()
+                        .set_stroke(width=6)
+                        .set_color(REDUCIBLE_YELLOW),
                         time_width=0.4,
                     ),
                 ),
@@ -151,13 +157,17 @@ class TSPAssumptions(Scene):
                         ShowPassingFlash(
                             all_edges[(2, 3)]
                             .copy()
+                            .set_stroke(width=6)
                             .flip(RIGHT)
                             .flip(DOWN)
                             .set_color(REDUCIBLE_YELLOW),
                             time_width=0.6,
                         ),
                         ShowPassingFlash(
-                            all_edges[(2, 7)].copy().set_color(REDUCIBLE_YELLOW),
+                            all_edges[(2, 7)]
+                            .copy()
+                            .set_stroke(width=6)
+                            .set_color(REDUCIBLE_YELLOW),
                             time_width=0.6,
                         ),
                     ),
