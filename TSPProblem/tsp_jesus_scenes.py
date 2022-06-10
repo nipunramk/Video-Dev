@@ -401,11 +401,11 @@ class BruteForce(TSPAssumptions):
         )
 
         for i, tour in enumerate(tour_perms):
-            # print(tour)
             tour_edges = get_edges_from_tour(tour)
-            # print(tour_edges)
+
             edges_animation = self.focus_on_edges(tour_edges, all_edges)
-            self.play(*edges_animation)
+            self.play(*edges_animation, run_time=0.7)
+
             curr_tour_cost = get_cost_from_permutation(graph.dist_matrix, tour_edges)
             curr_tour = (
                 VGroup(
@@ -421,4 +421,4 @@ class BruteForce(TSPAssumptions):
                 .next_to(curr_tour, DOWN, buff=0.2)
             )
 
-            self.play(FadeIn(curr_tour), FadeIn(cost_text))
+            self.play(FadeIn(curr_tour), FadeIn(cost_text), run_time=0.7)
