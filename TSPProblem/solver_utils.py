@@ -2,7 +2,7 @@ import numpy as np
 from manim import *
 
 
-def get_all_tour_permutations(N: int, start: int):
+def get_all_tour_permutations(N: int, start: int, max_cap: int = 1000):
     """
     @param: N, number of cities
     @param: start, starting city
@@ -12,7 +12,7 @@ def get_all_tour_permutations(N: int, start: int):
     seen_vertices = set()
 
     def generate_permutations(current, current_tour):
-        if len(current_tour) == N:
+        if len(current_tour) == N or len(tours) >= max_cap:
             tours.append(current_tour.copy())
             return
 
