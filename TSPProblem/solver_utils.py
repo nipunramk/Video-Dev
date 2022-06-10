@@ -5,6 +5,7 @@ def get_all_tour_permutations(N: int, start: int, max_cap: int = 1000):
     """
     @param: N, number of cities
     @param: start, starting city
+    @param: max_cap, maximum number of tours to return, defaults to 1000.
     @return: list of all possible unique tours from start to end
     """
     tours = []
@@ -26,7 +27,7 @@ def get_all_tour_permutations(N: int, start: int, max_cap: int = 1000):
 
     generate_permutations(start, [start])
 
-    set_all_tours = set([tuple(tour) for tour in tours])
+    # set_all_tours = set([tuple(tour) for tour in tours])
     # using a set significantly speeds up this section
     set_non_duplicate_tours = set()
     non_duplicate_tours = []

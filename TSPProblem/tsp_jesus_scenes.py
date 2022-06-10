@@ -1,3 +1,4 @@
+from pprint import pprint
 from typing import Iterable
 from manim import *
 from solving_tsp import TSPGraph
@@ -399,6 +400,7 @@ class BruteForce(TSPAssumptions):
             .arrange_in_grid(cols=4, buff=1.5, row_heights=np.repeat(0.9, 10))
             .shift(LEFT * 3 + UP * 0.2)
         )
+        permutations_mobs = VGroup()
 
         for i, tour in enumerate(tour_perms):
             tour_edges = get_edges_from_tour(tour)
@@ -420,5 +422,39 @@ class BruteForce(TSPAssumptions):
                 .scale(0.3)
                 .next_to(curr_tour, DOWN, buff=0.2)
             )
+            permutations_mobs.add(curr_tour, cost_text)
 
             self.play(FadeIn(curr_tour), FadeIn(cost_text), run_time=0.7)
+
+        self.wait()
+        self.play(
+            LaggedStart(
+                FadeOut(permutations_mobs),
+                *[FadeOut(e) for e in all_edges.values()],
+                graph.animate.move_to(ORIGIN),
+            )
+        )
+        self.wait()
+
+        ##################################33
+        # BIG EXAMPLE
+
+        big_cities = 12
+        big_graph = TSPGraph(
+            range(big_cities), label_scale=0.5, layout_scale=2.4, layout="circular"
+        )
+        all_edges_bg = big_graph.get_all_edges()
+
+        self.play(Transform(graph, big_graph))
+        graph = big_graph
+        self.play(LaggedStartMap(Write, all_edges_bg.values()))
+
+        all_tours = get_all_tour_permutations(big_cities, 0, 600)
+        edge_tuples_tours = [get_edges_from_tour(tour) for tour in all_tours]
+        pprint(len(all_tours))
+
+        for i, tour_edges in enumerate(edge_tuples_tours[:600]):
+            anims = self.focus_on_edges(tour_edges, all_edges_bg)
+            self.play(*anims, run_time=1 / (i + 1))
+
+        self.wait()
