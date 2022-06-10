@@ -32,11 +32,12 @@ class TSPGraph(Graph):
             "stroke_width": 3,
         },
         labels=True,
+        label_scale=0.6,
         **kwargs,
     ):
         edges = []
         if labels:
-            labels = {k: CustomLabel(str(k), scale=0.6) for k in vertices}
+            labels = {k: CustomLabel(str(k), scale=label_scale) for k in vertices}
             edge_config["buff"] = LabeledDot(list(labels.values())[0]).radius
         else:
             edge_config["buff"] = Dot().radius
