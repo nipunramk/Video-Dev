@@ -4,6 +4,7 @@ from solving_tsp import TSPGraph
 from reducible_colors import *
 from functions import *
 from classes import *
+from math import factorial
 from solver_utils import *
 
 np.random.seed(2)
@@ -229,6 +230,10 @@ class TSPAssumptions(MovingCameraScene):
         self, edges_to_focus_on: Iterable[tuple], all_edges: Iterable[tuple]
     ):
         edges_animations = []
+
+        edges_to_focus_on = list(
+            map(lambda t: (t[1], t[0]) if t[0] > t[1] else t, edges_to_focus_on)
+        )
         for t, e in all_edges.items():
             if not t in edges_to_focus_on:
                 edges_animations.append(e.animate.set_opacity(0.3))
@@ -370,6 +375,50 @@ class TSPAssumptions(MovingCameraScene):
         )
 
 
-class BruteForce(MovingCameraScene):
+class BruteForce(TSPAssumptions):
     def construct(self):
-        self.add(Circle())
+
+        cities = 5
+        graph = TSPGraph(range(cities))
+        all_edges = graph.get_all_edges()
+
+        tour_perms = get_all_tour_permutations(cities, 0)
+        print(tour_perms)
+
+        self.play(Write(graph))
+        self.play(LaggedStartMap(Write, all_edges.values()))
+        self.play(
+            graph.animate.shift(RIGHT * 4),
+            VGroup(*all_edges.values()).animate.shift(RIGHT * 4),
+            run_time=0.8,
+        )
+        self.wait()
+
+        empty_mobs = (
+            VGroup(*[Dot() for c in range(factorial(cities - 1) // 2)])
+            .arrange_in_grid(cols=4, buff=1.5, row_heights=np.repeat(0.9, 10))
+            .shift(LEFT * 3 + UP * 0.2)
+        )
+
+        for i, tour in enumerate(tour_perms):
+            # print(tour)
+            tour_edges = get_edges_from_tour(tour)
+            # print(tour_edges)
+            edges_animation = self.focus_on_edges(tour_edges, all_edges)
+            self.play(*edges_animation)
+            curr_tour_cost = get_cost_from_permutation(graph.dist_matrix, tour_edges)
+            curr_tour = (
+                VGroup(
+                    *[v.copy() for v in graph.vertices.values()],
+                    *[e.copy().set_stroke(width=2) for e in all_edges.values()],
+                )
+                .scale(0.3)
+                .move_to(empty_mobs[i])
+            )
+            cost_text = (
+                Text(f"{curr_tour_cost:.2f}", font=REDUCIBLE_MONO)
+                .scale(0.3)
+                .next_to(curr_tour, DOWN, buff=0.2)
+            )
+
+            self.play(FadeIn(curr_tour), FadeIn(cost_text))
