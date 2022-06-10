@@ -368,3 +368,8 @@ class TSPAssumptions(MovingCameraScene):
                 ),
             ),
         )
+
+
+class BruteForce(MovingCameraScene):
+    def construct(self):
+        self.add(Circle())
