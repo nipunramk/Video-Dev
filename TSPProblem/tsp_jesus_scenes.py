@@ -461,20 +461,35 @@ class BruteForce(TSPAssumptions):
         self.play(*[FadeOut(e) for e in all_edges_bg.values()])
         self.wait()
 
-        for _ in range(10):
+        for _ in range(3):
             random_indx = np.random.randint(0, big_cities)
             anims = self.focus_on_vertices(
                 [random_indx],
                 big_graph.vertices,
             )
             self.play(*anims, run_time=0.1)
+            self.wait()
 
-        # make sure every edge is at low opacity
-        for i in range(2):
+        last_node = np.random.randint(0, big_cities)
+        first_node = last_node
+        valid_nodes = list(range(big_cities))
+        valid_nodes.remove(last_node)
+        for i in range(big_cities):
+            if len(valid_nodes) == 0:
+                self.wait()
+                anims = self.focus_on_vertices(
+                    [last_node],
+                    big_graph.vertices,
+                )
+                self.play(*anims, run_time=0.1)
+                edge = big_graph.create_edge(last_node, first_node)
+                self.play(
+                    Write(edge),
+                )
+                break
             # start from random index
-            random_indx = np.random.randint(0, big_cities)
             anims = self.focus_on_vertices(
-                [random_indx],
+                [last_node],
                 big_graph.vertices,
             )
             self.play(*anims, run_time=0.1)
@@ -482,12 +497,23 @@ class BruteForce(TSPAssumptions):
             # create all edges from this index
 
             vertex_edges = {
-                (random_indx, v): big_graph.create_edge(random_indx, v).set_opacity(0.5)
+                (last_node, v): big_graph.create_edge(last_node, v).set_opacity(0.5)
                 for v in range(big_cities)
-                if v != random_indx
+                if v != last_node
             }
-            self.play(*[Write(e) for e in vertex_edges.values()])
 
-            # print(list(vertex_edges.keys()))
-            # random_edge = np.random.choice(list(vertex_edges.keys()))
-            # self.play(ShowPassingFlash(random_edge.copy().set_stroke(REDUCIBLE_YELLOW)))
+            next_node = np.random.choice(valid_nodes)
+            valid_nodes.remove(next_node)
+
+            print(vertex_edges)
+            edge = vertex_edges.pop((last_node, next_node))
+            self.play(*[Write(e) for e in vertex_edges.values()])
+            self.play(
+                ShowPassingFlash(
+                    edge.copy().set_stroke(REDUCIBLE_YELLOW, width=7, opacity=1)
+                ),
+                edge.animate.set_opacity(1),
+                *[e.animate.set_opacity(0) for e in vertex_edges.values()],
+            )
+
+            last_node = next_node
