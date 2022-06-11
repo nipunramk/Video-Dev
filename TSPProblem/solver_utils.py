@@ -1,7 +1,9 @@
 import numpy as np
 
 
-def get_all_tour_permutations(N: int, start: int, max_cap: int = 1000):
+def get_all_tour_permutations(
+    N: int, start: int, max_cap: int = 1000, return_duplicates=False
+):
     """
     @param: N, number of cities
     @param: start, starting city
@@ -27,7 +29,6 @@ def get_all_tour_permutations(N: int, start: int, max_cap: int = 1000):
 
     generate_permutations(start, [start])
 
-    # set_all_tours = set([tuple(tour) for tour in tours])
     # using a set significantly speeds up this section
     set_non_duplicate_tours = set()
     non_duplicate_tours = []
@@ -39,7 +40,16 @@ def get_all_tour_permutations(N: int, start: int, max_cap: int = 1000):
             set_non_duplicate_tours.add(tuple(tour))
             non_duplicate_tours.append(tour)
 
-    return non_duplicate_tours
+    if return_duplicates:
+        # return duplicates but grouped by symmetry
+        duplicate_tours = []
+        for tour in non_duplicate_tours:
+            symm_group = [tour, [tour[0], *tour[1:][::-1]]]
+            duplicate_tours.append(symm_group)
+
+        return duplicate_tours
+    else:
+        return non_duplicate_tours
 
 
 def get_neighbors(vertex, N):

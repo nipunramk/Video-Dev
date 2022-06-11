@@ -62,15 +62,15 @@ class TSPGraph(Graph):
         else:
             self.dist_matrix = dist_matrix
 
-    def get_all_edges(self):
+    def get_all_edges(self, edge_type: TipableVMobject = Line):
         edge_dict = {}
         for edge in itertools.combinations(self.vertices.keys(), 2):
             u, v = edge
-            edge_dict[edge] = self.create_edge(u, v)
+            edge_dict[edge] = self.create_edge(u, v, edge_type=edge_type)
         return edge_dict
 
-    def create_edge(self, u, v):
-        return Line(
+    def create_edge(self, u, v, edge_type: TipableVMobject = Line):
+        return edge_type(
             self.vertices[u].get_center(),
             self.vertices[v].get_center(),
             color=self.edge_config["color"],
@@ -78,7 +78,7 @@ class TSPGraph(Graph):
             buff=self.edge_config["buff"],
         )
 
-    def get_tour_edges(self, tour):
+    def get_tour_edges(self, tour, edge_type: TipableVMobject = Line):
         """
         @param: tour -- sequence of vertices where all vertices are part of the tour (no repetitions)
         """
@@ -86,7 +86,7 @@ class TSPGraph(Graph):
         edge_dict = {}
         for edge in edges:
             u, v = edge
-            edge_mob = self.create_edge(u, v)
+            edge_mob = self.create_edge(u, v, edge_type=edge_type)
             edge_dict[edge] = edge_mob
         return edge_dict
 
