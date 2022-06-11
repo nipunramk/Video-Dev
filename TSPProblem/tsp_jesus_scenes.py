@@ -7,6 +7,7 @@ from functions import *
 from classes import *
 from math import factorial
 from solver_utils import *
+from manim.mobject.geometry.tips import ArrowTriangleTip
 
 np.random.seed(2)
 
@@ -376,6 +377,26 @@ class TSPAssumptions(MovingCameraScene):
         )
 
 
+class CustomArrow(Arrow):
+    def __init__(
+        self,
+        *args,
+        stroke_width=6,
+        max_tip_length_to_length_ratio=0.25,
+        max_stroke_width_to_length_ratio=5,
+        **kwargs,
+    ):
+        super().__init__(
+            *args,
+            stroke_width=stroke_width,
+            stroke_color=REDUCIBLE_VIOLET,
+            max_tip_length_to_length_ratio=max_tip_length_to_length_ratio,
+            max_stroke_width_to_length_ratio=max_stroke_width_to_length_ratio,
+            **kwargs,
+        )
+        self.tip.scale(0.4).move_to(self.point_from_proportion(0.55))
+
+
 class BruteForce(TSPAssumptions):
     def construct(self):
 
@@ -384,7 +405,6 @@ class BruteForce(TSPAssumptions):
         all_edges = graph.get_all_edges()
 
         tour_perms = get_all_tour_permutations(cities, 0)
-        print(tour_perms)
 
         self.play(Write(graph))
         self.play(LaggedStartMap(Write, all_edges.values()))
@@ -461,6 +481,7 @@ class BruteForce(TSPAssumptions):
         self.play(*[FadeOut(e) for e in all_edges_bg.values()])
         self.wait()
 
+        # select random node to start
         for _ in range(3):
             random_indx = np.random.randint(0, big_cities)
             anims = self.focus_on_vertices(
@@ -470,32 +491,66 @@ class BruteForce(TSPAssumptions):
             self.play(*anims, run_time=0.1)
             self.wait()
 
+        # of cities left
+        cities_counter_label = Text(
+            "# of cities left: ", font=REDUCIBLE_FONT, weight=MEDIUM
+        ).scale(0.4)
+        cities_counter = Text(str(big_cities), font=REDUCIBLE_MONO, weight=BOLD).scale(
+            0.4
+        )
+        full_label = (
+            VGroup(cities_counter_label, cities_counter)
+            .arrange(RIGHT, buff=0.1, aligned_edge=UP)
+            .next_to(big_graph, RIGHT, aligned_edge=DOWN)
+        )
+
+        # start creating the loop step by step
         last_node = np.random.randint(0, big_cities)
         first_node = last_node
+
         valid_nodes = list(range(big_cities))
         valid_nodes.remove(last_node)
+
+        self.play(FadeIn(full_label, shift=UP * 0.3))
+
+        path_builder = VGroup()
+
         for i in range(big_cities):
             if len(valid_nodes) == 0:
-                self.wait()
+                # we finished, so we go back home and break out of the loop
+                new_counter = (
+                    Text(str(len(valid_nodes)), font=REDUCIBLE_MONO, weight=BOLD)
+                    .scale(0.4)
+                    .move_to(cities_counter)
+                )
                 anims = self.focus_on_vertices(
                     [last_node],
                     big_graph.vertices,
                 )
-                self.play(*anims, run_time=0.1)
+
+                self.play(Transform(cities_counter, new_counter), *anims, run_time=0.1)
+
                 edge = big_graph.create_edge(last_node, first_node)
+                path_builder.add(edge)
+                self.wait()
                 self.play(
                     Write(edge),
                 )
                 break
+
             # start from random index
             anims = self.focus_on_vertices(
                 [last_node],
                 big_graph.vertices,
             )
-            self.play(*anims, run_time=0.1)
+            new_counter = (
+                Text(str(len(valid_nodes)), font=REDUCIBLE_MONO, weight=BOLD)
+                .scale(0.4)
+                .move_to(cities_counter)
+            )
+            self.play(Transform(cities_counter, new_counter), *anims, run_time=0.1)
 
-            # create all edges from this index
-
+            # create all edges from this vertex
             vertex_edges = {
                 (last_node, v): big_graph.create_edge(last_node, v).set_opacity(0.5)
                 for v in range(big_cities)
@@ -505,8 +560,8 @@ class BruteForce(TSPAssumptions):
             next_node = np.random.choice(valid_nodes)
             valid_nodes.remove(next_node)
 
-            print(vertex_edges)
             edge = vertex_edges.pop((last_node, next_node))
+            path_builder.add(edge)
             self.play(*[Write(e) for e in vertex_edges.values()])
             self.play(
                 ShowPassingFlash(
@@ -517,3 +572,34 @@ class BruteForce(TSPAssumptions):
             )
 
             last_node = next_node
+
+        self.wait()
+
+        self.play(FadeOut(path_builder))
+
+        # go back to small example to show combinations
+        small_cities = 4
+        small_graph = TSPGraph(range(small_cities))
+
+        self.play(FadeOut(big_graph), FadeOut(full_label))
+
+        all_possible_tours = get_all_tour_permutations(
+            small_cities, 0, return_duplicates=True
+        )
+
+        empty_mobs = VGroup(
+            *[Dot() for a in range((factorial(small_cities - 1)))]
+        ).arrange_in_grid(
+            cols=3, row_heights=np.repeat(2.5, 3), col_widths=np.repeat(3.5, 3)
+        )
+        self.add(empty_mobs)
+        for i, tour in enumerate(all_possible_tours):
+            # tour is a list of two tours that are symmetric. bear that in mind!
+            graph = VGroup()
+            graph.add(*[v.copy() for v in small_graph.vertices.values()])
+
+            graph.add(
+                *list(small_graph.get_tour_edges(tour, edge_type=CustomArrow).values())
+            )
+            graph.move_to(empty_mobs[i])
+            self.play(FadeIn(graph))
