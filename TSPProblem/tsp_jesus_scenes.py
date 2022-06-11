@@ -244,11 +244,11 @@ class TSPAssumptions(MovingCameraScene):
         return edges_animations
 
     def focus_on_vertices(
-        self, edges_to_focus_on: Iterable[tuple], all_edges: Iterable[tuple]
+        self, vertices_to_focus_on: Iterable[int], all_vertices: Iterable[tuple]
     ):
         edges_animations = []
-        for t, e in all_edges.items():
-            if not t in edges_to_focus_on:
+        for t, e in all_vertices.items():
+            if not t in vertices_to_focus_on:
                 edges_animations.append(e.animate.set_stroke(REDUCIBLE_PURPLE))
             else:
                 edges_animations.append(e.animate.set_stroke(REDUCIBLE_YELLOW))
@@ -445,16 +445,49 @@ class BruteForce(TSPAssumptions):
         )
         all_edges_bg = big_graph.get_all_edges()
 
-        self.play(Transform(graph, big_graph))
-        graph = big_graph
+        self.play(FadeTransform(graph, big_graph))
         self.play(LaggedStartMap(Write, all_edges_bg.values()))
 
         all_tours = get_all_tour_permutations(big_cities, 0, 600)
         edge_tuples_tours = [get_edges_from_tour(tour) for tour in all_tours]
         pprint(len(all_tours))
 
-        for i, tour_edges in enumerate(edge_tuples_tours[:600]):
+        for i, tour_edges in enumerate(edge_tuples_tours[:10]):
             anims = self.focus_on_edges(tour_edges, all_edges_bg)
-            self.play(*anims, run_time=1 / (i + 1))
+            self.play(*anims, run_time=1 / (5 * i + 1))
 
         self.wait()
+
+        self.play(*[FadeOut(e) for e in all_edges_bg.values()])
+        self.wait()
+
+        for _ in range(10):
+            random_indx = np.random.randint(0, big_cities)
+            anims = self.focus_on_vertices(
+                [random_indx],
+                big_graph.vertices,
+            )
+            self.play(*anims, run_time=0.1)
+
+        # make sure every edge is at low opacity
+        for i in range(2):
+            # start from random index
+            random_indx = np.random.randint(0, big_cities)
+            anims = self.focus_on_vertices(
+                [random_indx],
+                big_graph.vertices,
+            )
+            self.play(*anims, run_time=0.1)
+
+            # create all edges from this index
+
+            vertex_edges = {
+                (random_indx, v): big_graph.create_edge(random_indx, v).set_opacity(0.5)
+                for v in range(big_cities)
+                if v != random_indx
+            }
+            self.play(*[Write(e) for e in vertex_edges.values()])
+
+            # print(list(vertex_edges.keys()))
+            # random_edge = np.random.choice(list(vertex_edges.keys()))
+            # self.play(ShowPassingFlash(random_edge.copy().set_stroke(REDUCIBLE_YELLOW)))
