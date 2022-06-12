@@ -11,8 +11,10 @@ from functions import *
 import itertools
 from solver_utils import *
 from typing import Hashable, Iterable
+from classes import CustomLabel
 
 np.random.seed(23)
+
 
 class TSPGraph(Graph):
     def __init__(
@@ -34,19 +36,26 @@ class TSPGraph(Graph):
     ):
         edges = []
         if labels:
-            labels = {
-                k: CustomLabel(str(k), scale=0.6) for k in vertices
-            }
+            labels = {k: CustomLabel(str(k), scale=0.6) for k in vertices}
             edge_config["buff"] = LabeledDot(list(labels.values())[0]).radius
         else:
             edge_config["buff"] = Dot().radius
         ### Manim bug where buff has no effect for some reason on standard lines
-        super().__init__(vertices, edges, vertex_config=vertex_config, edge_config=edge_config, labels=labels, **kwargs)
+        super().__init__(
+            vertices,
+            edges,
+            vertex_config=vertex_config,
+            edge_config=edge_config,
+            labels=labels,
+            **kwargs,
+        )
         self.edge_config = edge_config
         if dist_matrix is None:
             self.dist_matrix = np.zeros((len(vertices), len(vertices)))
             for u, v in itertools.combinations(vertices, 2):
-                distance = np.linalg.norm(self.vertices[u].get_center() - self.vertices[v].get_center())
+                distance = np.linalg.norm(
+                    self.vertices[u].get_center() - self.vertices[v].get_center()
+                )
                 self.dist_matrix[u][v] = np.round(distance, decimals=1)
                 self.dist_matrix[v][u] = np.round(distance, decimals=1)
         else:
@@ -96,17 +105,11 @@ class TSPGraph(Graph):
             .move_to(edge_mob.point_from_proportion(0.5))
         )
 
-class CustomLabel(Text):
-    def __init__(self, label, font="SF Mono", scale=1, weight=BOLD):
-        super().__init__(label, font=font, weight=weight)
-        self.scale(scale)
 
 class TSPTester(Scene):
     def construct(self):
         graph = TSPGraph([0, 1, 2, 3, 4, 5])
-        self.play(
-            FadeIn(graph)
-        )
+        self.play(FadeIn(graph))
         self.wait()
         print(graph.dist_matrix)
 
@@ -122,9 +125,7 @@ class TSPTester(Scene):
             self.remove(*tour_edges.values())
             # self.remove(*tour_dist_labels.values())
 
+
 class BruteForce(Scene):
     def construct(self):
         pass
-
-
-

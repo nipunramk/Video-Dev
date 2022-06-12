@@ -221,7 +221,8 @@ class RVariable(VMobject):
 
         super().__init__(**kwargs)
         self.add(self.label, self.value)
-        
+
+
 class Module(VGroup):
     def __init__(
         self,
@@ -247,12 +248,14 @@ class Module(VGroup):
         if isinstance(text, list):
             text_mob = VGroup()
             for string in text:
-                text = Text(str(string), weight=text_weight, font="CMU Serif").scale(text_scale)
+                text = Text(str(string), weight=text_weight, font="CMU Serif").scale(
+                    text_scale
+                )
                 text_mob.add(text)
             self.text = text_mob.arrange(DOWN, buff=SMALL_BUFF * 2)
         else:
             self.text = Text(str(text), weight=text_weight, font="CMU Serif").scale(
-            text_scale
+                text_scale
             )
         self.text.next_to(
             self.rect,
@@ -264,27 +267,38 @@ class Module(VGroup):
         super().__init__(self.rect, self.text, **kwargs)
         # super().arrange(ORIGIN)
 
+
 class Node:
-    def __init__(self, freq, key=''):
+    def __init__(self, freq, key=""):
         self.freq = freq
         self.key = key
         self.left = None
         self.right = None
+
     def __repr__(self):
-        return 'Node(freq={0}, key={1})'.format(self.freq, self.key)
+        return "Node(freq={0}, key={1})".format(self.freq, self.key)
+
     def __lt__(self, other):
         return self.freq < other.freq
+
     def __gt__(self, other):
         return self.freq > other.freq
 
-    def generate_mob(self, text_scale=0.6, radius=0.5, is_leaf=False, key_scale=None, key_color=PURE_BLUE):
+    def generate_mob(
+        self,
+        text_scale=0.6,
+        radius=0.5,
+        is_leaf=False,
+        key_scale=None,
+        key_color=PURE_BLUE,
+    ):
         # geometry is first, then text mobject
         # characters will be handled with separate geometry
         # nodes that are parents will have keys that concatenate the childs
         # since huffman trees are full binary trees, guaranteed to be not length 1
         if len(self.key) > 3 and not is_leaf:
             self.is_leaf = False
-            freq = Text(str(self.freq), font='SF Mono', weight=MEDIUM).scale(text_scale)
+            freq = Text(str(self.freq), font="SF Mono", weight=MEDIUM).scale(text_scale)
             node = Circle(radius=radius).set_color(REDUCIBLE_VIOLET)
             node.set_fill(color=REDUCIBLE_PURPLE_DARKER, opacity=1)
             freq.move_to(node.get_center())
@@ -295,11 +309,17 @@ class Node:
         self.is_leaf = True
         freq_box = Rectangle(height=0.5, width=1).set_color(REDUCIBLE_GREEN_LIGHTER)
         freq_box.set_fill(color=REDUCIBLE_GREEN_DARKER, opacity=1)
-        freq_interior = Text(str(self.freq), font='SF Mono', weight=MEDIUM).scale(text_scale - SMALL_BUFF)
+        freq_interior = Text(str(self.freq), font="SF Mono", weight=MEDIUM).scale(
+            text_scale - SMALL_BUFF
+        )
         freq_interior.move_to(freq_box.get_center())
         freq = VGroup(freq_box, freq_interior)
-        key_box = Rectangle(height=1, width=1).set_color(REDUCIBLE_VIOLET).set_fill(color=key_color, opacity=1)
-        key_interior = Text(self.key, font='SF Mono', weight=MEDIUM).scale(text_scale)
+        key_box = (
+            Rectangle(height=1, width=1)
+            .set_color(REDUCIBLE_VIOLET)
+            .set_fill(color=key_color, opacity=1)
+        )
+        key_interior = Text(self.key, font="SF Mono", weight=MEDIUM).scale(text_scale)
         if key_scale:
             key_interior.scale(key_scale)
         key_interior.move_to(key_box.get_center())
@@ -312,6 +332,7 @@ class Node:
             self.left = child
         else:
             self.right = child
+
 
 class ReducibleBarChart(BarChart):
     """
@@ -374,7 +395,9 @@ class ReducibleBarChart(BarChart):
         if self.label_y_axis:
             labels = VGroup()
             for tick, value in zip(ticks, values):
-                label = Text(str(np.round(value, 2)), font=self.chart_font, weight=MEDIUM)
+                label = Text(
+                    str(np.round(value, 2)), font=self.chart_font, weight=MEDIUM
+                )
                 label.height = self.y_axis_label_height
                 label.next_to(tick, LEFT, SMALL_BUFF)
                 labels.add(label)
@@ -406,3 +429,8 @@ class ReducibleBarChart(BarChart):
         self.bars = bars
         self.bar_labels = bar_labels
 
+
+class CustomLabel(Text):
+    def __init__(self, label, font=REDUCIBLE_MONO, scale=1, weight=BOLD):
+        super().__init__(label, font=font, weight=weight)
+        self.scale(scale)
