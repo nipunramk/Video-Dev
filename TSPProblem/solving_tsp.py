@@ -252,7 +252,7 @@ class NearestNeighbor(Scene):
         )
         self.wait()
 
-        nn_heuristic = Text("Nearest Neighbor Heuristic", font=REDUCIBLE_FONT, weight=BOLD)
+        nn_heuristic = Text("Nearest Neighbor (NN) Heuristic", font=REDUCIBLE_FONT, weight=BOLD)
         nn_heuristic.scale(0.8)
         nn_heuristic.move_to(DOWN * 2.5)
 
@@ -364,6 +364,7 @@ class NearestNeighbor(Scene):
     def show_many_large_graph_nn_solutions(self):
         NUM_VERTICES = 100
         num_iterations = 10
+        average_case = Tex(r"On average: $\frac{\text{NN Heuristic}}{\text{Held-Karp Lower Bound}} = 1.25$").scale(0.8).move_to(DOWN * 3.5)
         for _ in range(num_iterations):
             graph = TSPGraph(
                 list(range(NUM_VERTICES)),
@@ -374,8 +375,12 @@ class NearestNeighbor(Scene):
             print('NN cost', nn_cost)
             tour_edges = graph.get_tour_edges(tour)
             tour_edges_group = VGroup(*list(tour_edges.values()))
-            graph_with_tour_edges = VGroup(graph, tour_edges_group).scale(0.9)
+            graph_with_tour_edges = VGroup(graph, tour_edges_group).scale(0.8)
             self.add(graph_with_tour_edges)
+            if _ == 5:
+                self.play(
+                    FadeIn(average_case)
+                )
             self.wait()
             self.remove(graph_with_tour_edges)
 
