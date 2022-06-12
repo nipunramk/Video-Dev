@@ -11,8 +11,10 @@ from functions import *
 import itertools
 from solver_utils import *
 from typing import Hashable, Iterable
+from classes import CustomLabel
 
 np.random.seed(23)
+
 
 class TSPGraph(Graph):
     def __init__(
@@ -34,19 +36,26 @@ class TSPGraph(Graph):
     ):
         edges = []
         if labels:
-            labels = {
-                k: CustomLabel(str(k), scale=0.6) for k in vertices
-            }
+            labels = {k: CustomLabel(str(k), scale=0.6) for k in vertices}
             edge_config["buff"] = LabeledDot(list(labels.values())[0]).radius
         else:
             edge_config["buff"] = Dot().radius
         ### Manim bug where buff has no effect for some reason on standard lines
-        super().__init__(vertices, edges, vertex_config=vertex_config, edge_config=edge_config, labels=labels, **kwargs)
+        super().__init__(
+            vertices,
+            edges,
+            vertex_config=vertex_config,
+            edge_config=edge_config,
+            labels=labels,
+            **kwargs,
+        )
         self.edge_config = edge_config
         if dist_matrix is None:
             self.dist_matrix = np.zeros((len(vertices), len(vertices)))
             for u, v in itertools.combinations(vertices, 2):
-                distance = np.linalg.norm(self.vertices[u].get_center() - self.vertices[v].get_center())
+                distance = np.linalg.norm(
+                    self.vertices[u].get_center() - self.vertices[v].get_center()
+                )
                 self.dist_matrix[u][v] = distance
                 self.dist_matrix[v][u] = distance
         else:
@@ -103,17 +112,11 @@ class TSPGraph(Graph):
         edges = [(vertex, other) for other in get_neighbors(vertex, len(self.vertices))]
         return {edge: self.create_edge(edge[0], edge[1]) for edge in edges}
 
-class CustomLabel(Text):
-    def __init__(self, label, font="SF Mono", scale=1, weight=BOLD):
-        super().__init__(label, font=font, weight=weight)
-        self.scale(scale)
 
 class TSPTester(Scene):
     def construct(self):
         graph = TSPGraph([0, 1, 2, 3, 4, 5])
-        self.play(
-            FadeIn(graph)
-        )
+        self.play(FadeIn(graph))
         self.wait()
         print(graph.dist_matrix)
 
@@ -394,3 +397,4 @@ class NearestNeighbor(Scene):
             labels.add(label)
 
         return labels
+
