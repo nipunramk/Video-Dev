@@ -635,3 +635,12 @@ class BruteForce(TSPAssumptions):
         self.play(FadeOut(all_tours, shift=UP * 0.3))
 
         # show big number
+        twenty_factorial = Text(
+            f"(20 - 1)! / 2 = {factorial(20  - 1) // 2:,}".replace(",", " "),
+            font=REDUCIBLE_MONO,
+            weight=BOLD,
+        ).scale(0.7)
+
+        self.play(FadeIn(twenty_factorial[0:10]))
+        self.play(AddTextLetterByLetter(twenty_factorial[10:]))
+        self.wait()
