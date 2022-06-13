@@ -490,7 +490,7 @@ class BruteForce(TSPAssumptions):
         edge_tuples_tours = [get_edges_from_tour(tour) for tour in all_tours]
         pprint(len(all_tours))
 
-        for i, tour_edges in enumerate(edge_tuples_tours[:10]):
+        for i, tour_edges in enumerate(edge_tuples_tours[:200]):
             anims = self.focus_on_edges(tour_edges, all_edges_bg)
             self.play(*anims, run_time=1 / (5 * i + 1))
 
@@ -575,12 +575,12 @@ class BruteForce(TSPAssumptions):
                 if v != last_node
             }
 
+            self.play(*[Write(e) for e in vertex_edges.values()])
             next_node = np.random.choice(valid_nodes)
             valid_nodes.remove(next_node)
 
             edge = vertex_edges.pop((last_node, next_node))
             path_builder.add(edge)
-            self.play(*[Write(e) for e in vertex_edges.values()])
             self.play(
                 ShowPassingFlash(
                     edge.copy().set_stroke(REDUCIBLE_YELLOW, width=7, opacity=1)
