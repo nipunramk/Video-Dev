@@ -1,4 +1,5 @@
 import numpy as np
+from manim import *
 
 
 def get_all_tour_permutations(
@@ -94,3 +95,28 @@ def get_edges_from_tour(tour):
 
 def get_cost_from_edges(edges, dist_matrix):
     return sum([dist_matrix[u][v] for u, v in edges])
+
+def get_random_points_in_frame(N):
+    return [get_random_point_in_frame() for _ in range(N)]
+
+def get_random_point_in_frame():
+    x = np.random.uniform(-config.frame_x_radius + 2, config.frame_x_radius - 2)
+    y = np.random.uniform(-config.frame_y_radius + 0.5, config.frame_y_radius - 0.5)
+    return np.array([x, y, 0])
+
+def get_nearest_neighbor_solution(dist_matrix, start=0):
+    current = start
+    seen = set([current])
+    tour = [current]
+    unseen_nodes = set(list(range(dist_matrix.shape[0]))).difference(seen)
+    total_cost = 0
+    while len(unseen_nodes) > 0:
+        min_dist_vertex = min(unseen_nodes, key=lambda x: dist_matrix[current][x])
+        total_cost += dist_matrix[current][min_dist_vertex]
+        tour.append(min_dist_vertex)
+        current = min_dist_vertex
+        seen.add(current)
+        unseen_nodes = set(list(range(dist_matrix.shape[0]))).difference(seen)
+    # cost to go back to start
+    total_cost += dist_matrix[tour[-1]][tour[0]]
+    return tour, total_cost
