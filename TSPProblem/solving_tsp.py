@@ -119,6 +119,12 @@ class TSPGraph(Graph):
         return {edge: self.create_edge(edge[0], edge[1]) for edge in edges}
 
 
+class CustomLabel(Text):
+    def __init__(self, label, font="SF Mono", scale=1, weight=BOLD):
+        super().__init__(label, font=font, weight=weight)
+        self.scale(scale)
+
+
 class TSPTester(Scene):
     def construct(self):
         graph = TSPGraph([0, 1, 2, 3, 4, 5])
