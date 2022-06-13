@@ -57,8 +57,8 @@ class TSPGraph(Graph):
                 distance = np.linalg.norm(
                     self.vertices[u].get_center() - self.vertices[v].get_center()
                 )
-                self.dist_matrix[u][v] = np.round(distance, decimals=1)
-                self.dist_matrix[v][u] = np.round(distance, decimals=1)
+                self.dist_matrix[u][v] = distance
+                self.dist_matrix[v][u] = distance
         else:
             self.dist_matrix = dist_matrix
 
