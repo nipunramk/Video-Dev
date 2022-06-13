@@ -94,7 +94,12 @@ class TSPGraph(Graph):
         dist_label_dict = {}
         for edge in edge_dict:
             u, v = edge
-            dist_label = self.get_dist_label(edge_dict[edge], self.dist_matrix[u][v], scale=scale, num_decimal_places=num_decimal_places)
+            dist_label = self.get_dist_label(
+                edge_dict[edge],
+                self.dist_matrix[u][v],
+                scale=scale,
+                num_decimal_places=num_decimal_places,
+            )
             dist_label_dict[edge] = dist_label
         return dist_label_dict
 
@@ -133,35 +138,32 @@ class TSPTester(Scene):
             self.remove(*tour_edges.values())
             self.remove(*tour_dist_labels.values())
 
+
 class NearestNeighbor(Scene):
     def construct(self):
         NUM_VERTICES = 10
         layout = self.get_random_layout(NUM_VERTICES)
         # MANUAL ADJUSTMENTS FOR BETTER INSTRUCTIONAL EXAMPLE
         layout[7] = RIGHT * 3.5 + UP * 2
-        
+
         graph = TSPGraph(
             list(range(NUM_VERTICES)),
             layout=layout,
         )
-        self.play(
-            FadeIn(graph)
-        )
+        self.play(FadeIn(graph))
         self.wait()
-        
+
         graph_with_tour_edges = self.demo_nearest_neighbor(graph)
-        
+
         self.compare_nn_with_optimal(graph_with_tour_edges, graph)
 
         self.clear()
 
         self.show_many_large_graph_nn_solutions()
-    
+
     def demo_nearest_neighbor(self, graph):
         glowing_circle = get_glowing_surround_circle(graph.vertices[0])
-        self.play(
-            FadeIn(glowing_circle)
-        )
+        self.play(FadeIn(glowing_circle))
         self.wait()
 
         neighboring_edges = graph.get_neighboring_edges(0)
@@ -177,9 +179,7 @@ class NearestNeighbor(Scene):
         prev = tour[0]
         residual_edges = {}
         for vertex in tour[1:]:
-            self.play(
-                tour_edges[(prev, vertex)].animate.set_color(REDUCIBLE_YELLOW)
-            )
+            self.play(tour_edges[(prev, vertex)].animate.set_color(REDUCIBLE_YELLOW))
             self.wait()
             seen.add(vertex)
             new_glowing_circle = get_glowing_surround_circle(graph.vertices[vertex])
@@ -187,18 +187,32 @@ class NearestNeighbor(Scene):
             for key in new_neighboring_edges.copy():
                 if key[1] in seen and key[1] != vertex:
                     del new_neighboring_edges[key]
-            filtered_prev_edges = [edge_key for edge_key, edge in neighboring_edges.items() if edge_key != (prev, vertex) and edge_key != (vertex, prev)]
+            filtered_prev_edges = [
+                edge_key
+                for edge_key, edge in neighboring_edges.items()
+                if edge_key != (prev, vertex) and edge_key != (vertex, prev)
+            ]
             self.play(
                 FadeOut(glowing_circle),
                 FadeIn(new_glowing_circle),
-                *[FadeOut(neighboring_edges[edge_key]) for edge_key in filtered_prev_edges],
+                *[
+                    FadeOut(neighboring_edges[edge_key])
+                    for edge_key in filtered_prev_edges
+                ],
             )
             self.wait()
-            filtered_new_edges = [edge_key for edge_key, edge in new_neighboring_edges.items() if edge_key != (prev, vertex) and edge_key != (vertex, prev)]
+            filtered_new_edges = [
+                edge_key
+                for edge_key, edge in new_neighboring_edges.items()
+                if edge_key != (prev, vertex) and edge_key != (vertex, prev)
+            ]
 
             if len(filtered_new_edges) > 0:
                 self.play(
-                    *[FadeIn(new_neighboring_edges[edge_key]) for edge_key in filtered_new_edges]
+                    *[
+                        FadeIn(new_neighboring_edges[edge_key])
+                        for edge_key in filtered_new_edges
+                    ]
                 )
                 self.wait()
             residual_edges[(prev, vertex)] = neighboring_edges[(prev, vertex)]
@@ -221,54 +235,55 @@ class NearestNeighbor(Scene):
         return graph_with_tour_edges
 
     def compare_nn_with_optimal(self, graph_with_tour_edges, original_graph):
-        nn_tour, nn_cost = get_nearest_neighbor_solution(original_graph.get_dist_matrix())
-        optimal_tour, optimal_cost = get_exact_tsp_solution(original_graph.get_dist_matrix())
+        nn_tour, nn_cost = get_nearest_neighbor_solution(
+            original_graph.get_dist_matrix()
+        )
+        optimal_tour, optimal_cost = get_exact_tsp_solution(
+            original_graph.get_dist_matrix()
+        )
         optimal_graph = original_graph.copy()
         optimal_edges = optimal_graph.get_tour_edges(optimal_tour)
 
         shift_amount = 3.2
         scale = 0.6
-        self.play(
-            graph_with_tour_edges.animate.scale(scale).shift(LEFT * shift_amount)
-        )
+        self.play(graph_with_tour_edges.animate.scale(scale).shift(LEFT * shift_amount))
         self.wait()
 
         optimal_graph_tour = self.get_graph_tour_group(optimal_graph, optimal_edges)
         optimal_graph_tour.scale(scale).shift(RIGHT * shift_amount)
-        nn_text = self.get_distance_text(nn_cost).next_to(graph_with_tour_edges, UP, buff=1)
-        optimal_text = self.get_distance_text(optimal_cost).next_to(optimal_graph_tour, UP, buff=1)
-
-        self.play(
-            FadeIn(nn_text)
+        nn_text = self.get_distance_text(nn_cost).next_to(
+            graph_with_tour_edges, UP, buff=1
+        )
+        optimal_text = self.get_distance_text(optimal_cost).next_to(
+            optimal_graph_tour, UP, buff=1
         )
 
-        self.play(
-            FadeIn(optimal_graph_tour)
-        )
-        self.wait()        
+        self.play(FadeIn(nn_text))
 
+        self.play(FadeIn(optimal_graph_tour))
+        self.wait()
 
         self.play(
             FadeIn(optimal_text),
         )
         self.wait()
 
-        nn_heuristic = Text("Nearest Neighbor (NN) Heuristic", font=REDUCIBLE_FONT, weight=BOLD)
+        nn_heuristic = Text(
+            "Nearest Neighbor (NN) Heuristic", font=REDUCIBLE_FONT, weight=BOLD
+        )
         nn_heuristic.scale(0.8)
         nn_heuristic.move_to(DOWN * 2.5)
 
-        self.play(
-            Write(nn_heuristic)
-        )
+        self.play(Write(nn_heuristic))
         self.wait()
 
         surround_rect_0_2_3_5_original = SurroundingRectangle(
             VGroup(
                 *[
-                original_graph.vertices[0],
-                original_graph.vertices[2],
-                original_graph.vertices[3],
-                original_graph.vertices[5],
+                    original_graph.vertices[0],
+                    original_graph.vertices[2],
+                    original_graph.vertices[3],
+                    original_graph.vertices[5],
                 ]
             )
         ).set_color(REDUCIBLE_CHARM)
@@ -276,10 +291,10 @@ class NearestNeighbor(Scene):
         surround_rect_0_2_3_5_optimal = SurroundingRectangle(
             VGroup(
                 *[
-                optimal_graph.vertices[0], 
-                optimal_graph.vertices[2],
-                optimal_graph.vertices[3],
-                optimal_graph.vertices[5],
+                    optimal_graph.vertices[0],
+                    optimal_graph.vertices[2],
+                    optimal_graph.vertices[3],
+                    optimal_graph.vertices[5],
                 ]
             )
         ).set_color(REDUCIBLE_GREEN_LIGHTER)
@@ -287,10 +302,10 @@ class NearestNeighbor(Scene):
         surround_rect_1_4_6_8_original = SurroundingRectangle(
             VGroup(
                 *[
-                original_graph.vertices[1], 
-                original_graph.vertices[4],
-                original_graph.vertices[6],
-                original_graph.vertices[8],
+                    original_graph.vertices[1],
+                    original_graph.vertices[4],
+                    original_graph.vertices[6],
+                    original_graph.vertices[8],
                 ]
             )
         ).set_color(REDUCIBLE_CHARM)
@@ -298,10 +313,10 @@ class NearestNeighbor(Scene):
         surround_rect_1_4_6_8_optimal = SurroundingRectangle(
             VGroup(
                 *[
-                optimal_graph.vertices[1], 
-                optimal_graph.vertices[4],
-                optimal_graph.vertices[6],
-                optimal_graph.vertices[8],
+                    optimal_graph.vertices[1],
+                    optimal_graph.vertices[4],
+                    optimal_graph.vertices[6],
+                    optimal_graph.vertices[8],
                 ]
             )
         ).set_color(REDUCIBLE_GREEN_LIGHTER)
@@ -326,46 +341,52 @@ class NearestNeighbor(Scene):
         )
         self.wait()
 
-        how_to_compare = Text("How to measure effectiveness of heuristic approach?", font=REDUCIBLE_FONT).scale(0.6)
+        how_to_compare = Text(
+            "How to measure effectiveness of heuristic approach?", font=REDUCIBLE_FONT
+        ).scale(0.6)
 
         how_to_compare.next_to(nn_heuristic, DOWN)
 
-        self.play(
-            FadeIn(how_to_compare)
-        )
+        self.play(FadeIn(how_to_compare))
         self.wait()
 
-        self.play(
-            FadeOut(nn_heuristic),
-            FadeOut(how_to_compare)
+        self.play(FadeOut(nn_heuristic), FadeOut(how_to_compare))
+
+        approx_ratio = (
+            Tex(
+                r"Approximation ratio $(\alpha) = \frac{\text{heuristic solution}}{\text{optimal solution}}$"
+            )
+            .scale(0.8)
+            .move_to(DOWN * 2.5)
         )
 
-        approx_ratio = Tex(r"Approximation ratio $(\alpha) = \frac{\text{heuristic solution}}{\text{optimal solution}}$").scale(0.8).move_to(DOWN * 2.5)
-
-        self.play(
-            FadeIn(approx_ratio)
-        )
+        self.play(FadeIn(approx_ratio))
 
         self.wait()
 
-        example = Tex(r"E.g $\alpha = \frac{28.2}{27.0} \approx 1.044$", r"$\rightarrow$ 4.4\% above optimal").scale(0.7)
+        example = Tex(
+            r"E.g $\alpha = \frac{28.2}{27.0} \approx 1.044$",
+            r"$\rightarrow$ 4.4\% above optimal",
+        ).scale(0.7)
 
         example.next_to(approx_ratio, DOWN)
 
-        self.play(
-            Write(example[0])
-        )
+        self.play(Write(example[0]))
         self.wait()
 
-        self.play(
-            Write(example[1])
-        )
+        self.play(Write(example[1]))
         self.wait()
 
     def show_many_large_graph_nn_solutions(self):
         NUM_VERTICES = 100
         num_iterations = 10
-        average_case = Tex(r"On average: $\frac{\text{NN Heuristic}}{\text{Held-Karp Lower Bound}} = 1.25$").scale(0.8).move_to(DOWN * 3.5)
+        average_case = (
+            Tex(
+                r"On average: $\frac{\text{NN Heuristic}}{\text{Held-Karp Lower Bound}} = 1.25$"
+            )
+            .scale(0.8)
+            .move_to(DOWN * 3.5)
+        )
         for _ in range(num_iterations):
             graph = TSPGraph(
                 list(range(NUM_VERTICES)),
@@ -373,15 +394,13 @@ class NearestNeighbor(Scene):
                 layout=self.get_random_layout(NUM_VERTICES),
             )
             tour, nn_cost = get_nearest_neighbor_solution(graph.get_dist_matrix())
-            print('NN cost', nn_cost)
+            print("NN cost", nn_cost)
             tour_edges = graph.get_tour_edges(tour)
             tour_edges_group = VGroup(*list(tour_edges.values()))
             graph_with_tour_edges = VGroup(graph, tour_edges_group).scale(0.8)
             self.add(graph_with_tour_edges)
             if _ == 5:
-                self.play(
-                    FadeIn(average_case)
-                )
+                self.play(FadeIn(average_case))
             self.wait()
             self.remove(graph_with_tour_edges)
 
@@ -399,8 +418,9 @@ class NearestNeighbor(Scene):
     def label_vertices_for_debugging(self, graph):
         labels = VGroup()
         for v, v_mob in graph.vertices.items():
-            label = Text(str(v), font=REDUCIBLE_MONO).scale(0.2).move_to(v_mob.get_center())
+            label = (
+                Text(str(v), font=REDUCIBLE_MONO).scale(0.2).move_to(v_mob.get_center())
+            )
             labels.add(label)
 
         return labels
-
