@@ -377,24 +377,42 @@ class TSPAssumptions(MovingCameraScene):
         )
 
 
-class CustomArrow(Arrow):
+class CustomArrow(Line):
+    """
+    Custom arrow with tip in the middle instead of the end point
+    to represent direction but not mistake it with a directed graph.
+    """
+
     def __init__(
         self,
-        *args,
+        start=LEFT,
+        end=RIGHT,
         stroke_width=6,
-        max_tip_length_to_length_ratio=0.25,
-        max_stroke_width_to_length_ratio=5,
         **kwargs,
     ):
         super().__init__(
-            *args,
+            start=start,
+            end=end,
             stroke_width=stroke_width,
             stroke_color=REDUCIBLE_VIOLET,
-            max_tip_length_to_length_ratio=max_tip_length_to_length_ratio,
-            max_stroke_width_to_length_ratio=max_stroke_width_to_length_ratio,
             **kwargs,
         )
-        self.tip.scale(0.4).move_to(self.point_from_proportion(0.55))
+        self.add_tip()
+
+        self.tip.scale(0.7).move_to(self.point_from_proportion(0.25))
+
+    def add_tip(self, tip=None, tip_shape=None, tip_length=None, at_start=False):
+        """
+        Overridden method to remove the `reset_endpoints_based_on_tip call`
+        so the line actually reaches to the nodes in our particular case.
+        """
+        if tip is None:
+            tip = self.create_tip(tip_shape, tip_length, at_start)
+        else:
+            self.position_tip(tip, at_start)
+        self.asign_tip_attr(tip, at_start)
+        self.add(tip)
+        return self
 
 
 class BruteForce(TSPAssumptions):
@@ -587,19 +605,33 @@ class BruteForce(TSPAssumptions):
             small_cities, 0, return_duplicates=True
         )
 
-        empty_mobs = VGroup(
-            *[Dot() for a in range((factorial(small_cities - 1)))]
-        ).arrange_in_grid(
-            cols=3, row_heights=np.repeat(2.5, 3), col_widths=np.repeat(3.5, 3)
-        )
-        self.add(empty_mobs)
-        for i, tour in enumerate(all_possible_tours):
-            # tour is a list of two tours that are symmetric. bear that in mind!
-            graph = VGroup()
-            graph.add(*[v.copy() for v in small_graph.vertices.values()])
+        all_tours = VGroup()
+        for tour_symms in all_possible_tours:
+            # tour is a list of 2 tours that are symmetric. bear that in mind!
+            tour_pairs = VGroup()
 
-            graph.add(
-                *list(small_graph.get_tour_edges(tour, edge_type=CustomArrow).values())
-            )
-            graph.move_to(empty_mobs[i])
-            self.play(FadeIn(graph))
+            for tour in tour_symms:
+                graph = VGroup()
+                graph.add(*[v.copy() for v in small_graph.vertices.values()])
+
+                graph.add(
+                    *list(
+                        small_graph.get_tour_edges(tour, edge_type=CustomArrow).values()
+                    )
+                ).scale(0.6)
+                tour_pairs.add(graph)
+
+            all_tours.add(tour_pairs.arrange(DOWN, buff=0.3))
+
+        all_tours.arrange_in_grid(
+            rows=2, row_heights=np.repeat(2.5, 2), col_widths=np.repeat(3.5, 3)
+        )
+
+        self.play(*[FadeIn(t[0]) for t in all_tours])
+        self.wait()
+        self.play(*[FadeIn(t[1], shift=DOWN * 0.9) for t in all_tours])
+
+        self.wait()
+        self.play(FadeOut(all_tours, shift=UP * 0.3))
+
+        # show big number
