@@ -444,7 +444,7 @@ class BruteForce(TSPAssumptions):
             tour_edges = get_edges_from_tour(tour)
 
             edges_animation = self.focus_on_edges(tour_edges, all_edges)
-            self.play(*edges_animation, run_time=0.7)
+            self.play(*edges_animation, run_time=1 / (i + 1))
 
             curr_tour_cost = get_cost_from_permutation(graph.dist_matrix, tour_edges)
             curr_tour = (
@@ -462,7 +462,7 @@ class BruteForce(TSPAssumptions):
             )
             permutations_mobs.add(curr_tour, cost_text)
 
-            self.play(FadeIn(curr_tour), FadeIn(cost_text), run_time=0.7)
+            self.play(FadeIn(curr_tour), FadeIn(cost_text), run_time=1 / (i + 1))
 
         self.wait()
         self.play(
@@ -500,14 +500,13 @@ class BruteForce(TSPAssumptions):
         self.wait()
 
         # select random node to start
-        for _ in range(3):
+        for _ in range(10):
             random_indx = np.random.randint(0, big_cities)
             anims = self.focus_on_vertices(
                 [random_indx],
                 big_graph.vertices,
             )
             self.play(*anims, run_time=0.1)
-            self.wait()
 
         # of cities left
         cities_counter_label = Text(
@@ -523,7 +522,7 @@ class BruteForce(TSPAssumptions):
         )
 
         # start creating the loop step by step
-        last_node = np.random.randint(0, big_cities)
+        last_node = random_indx  # take the last one from the other animation
         first_node = last_node
 
         valid_nodes = list(range(big_cities))
@@ -633,6 +632,7 @@ class BruteForce(TSPAssumptions):
 
         self.wait()
         self.play(FadeOut(all_tours, shift=UP * 0.3))
+        self.wait()
 
         # show big number
         twenty_factorial = Text(
@@ -642,5 +642,6 @@ class BruteForce(TSPAssumptions):
         ).scale(0.7)
 
         self.play(FadeIn(twenty_factorial[0:10]))
+        self.wait()
         self.play(AddTextLetterByLetter(twenty_factorial[10:]))
         self.wait()
