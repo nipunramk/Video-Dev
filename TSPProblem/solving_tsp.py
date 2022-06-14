@@ -49,6 +49,10 @@ class TSPGraph(Graph):
             labels=labels,
             **kwargs,
         )
+        ### RED-103: Vertices should be the same size (even for larger labels)
+        for v in self.vertices:
+            if v >= 10:
+                self.vertices[v].scale_to_fit_height(self.vertices[0].height)
         self.edge_config = edge_config
         if dist_matrix is None:
             self.dist_matrix = np.zeros((len(vertices), len(vertices)))
@@ -115,22 +119,18 @@ class TSPGraph(Graph):
 
 class TSPTester(Scene):
     def construct(self):
-        graph = TSPGraph([0, 1, 2, 3, 4, 5])
-        self.play(FadeIn(graph))
+        big_graph = TSPGraph(range(12), layout_scale=2.4, layout="circular")
+        all_edges_bg = big_graph.get_all_edges()
+        self.play(
+            FadeIn(big_graph)
+        )
         self.wait()
-        print(graph.dist_matrix)
 
-        # all_edges = graph.get_all_edges()
+        self.play(
+            *[FadeIn(edge) for edge in all_edges_bg.values()]
+        )
+        self.wait()
 
-        all_tour_permutations = get_all_tour_permutations(len(graph.vertices), 0)
-        for tour in all_tour_permutations:
-            tour_edges = graph.get_tour_edges(tour)
-            tour_dist_labels = graph.get_tour_dist_labels(tour_edges)
-            self.add(*tour_edges.values())
-            self.add(*tour_dist_labels.values())
-            self.wait()
-            self.remove(*tour_edges.values())
-            self.remove(*tour_dist_labels.values())
 
 class NearestNeighbor(Scene):
     def construct(self):
