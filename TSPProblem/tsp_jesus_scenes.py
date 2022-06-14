@@ -956,3 +956,8 @@ class ProblemComplexity(TSPAssumptions):
             poly_tag.animate.set_opacity(0.3),
             factorial_tag.animate.set_opacity(0.3),
         )
+
+
+class TransitionOtherApproaches(Scene):
+    def construct(self):
+        pass
