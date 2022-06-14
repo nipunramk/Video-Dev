@@ -959,11 +959,12 @@ class ProblemComplexity(TSPAssumptions):
         )
 
 
-class TransitionOtherApproaches(Scene):
+class TransitionOtherApproaches(TSPAssumptions):
     def construct(self):
         bg = ImageMobject("america-map.png").scale_to_fit_height(config.frame_height)
         self.play(FadeIn(bg))
 
+        # specific coordinates that match the USA map
         coords = [
             [-3, 0, 0],
             [0.5, -2, 0],
@@ -984,15 +985,77 @@ class TransitionOtherApproaches(Scene):
             range(len(coords)),
             vertex_config={
                 "fill_opacity": 1,
-                "fill_color": REDUCIBLE_GREEN_LIGHTER,
-                "stroke_color": REDUCIBLE_GREEN_DARKER,
+                "fill_color": REDUCIBLE_VIOLET,
+                "stroke_color": REDUCIBLE_PURPLE_DARKER,
                 "stroke_width": 3,
             },
-            label_color=REDUCIBLE_GREEN_DARKER,
+            label_color=REDUCIBLE_PURPLE_DARKER,
+            label_scale=0.4,
             layout=self.get_specific_layout(*coords),
         )
-        self.play(FadeIn(graph))
+        [
+            self.play(FadeIn(v, scale=0.9), run_time=5 / config.frame_rate)
+            for v in graph.vertices.values()
+        ]
+
+        all_edges = graph.get_all_edges()
+        [e.set_stroke(REDUCIBLE_PURPLE_DARKER, opacity=0) for e in all_edges.values()]
+
+        tour_perms = get_all_tour_permutations(len(coords), 0, max_cap=600)
+        edges_perms = [get_edges_from_tour(t) for t in tour_perms]
+
+        cost_indicator = (
+            Text(
+                f"Distance: {get_cost_from_edges(edges_perms[0], graph.dist_matrix):.2f}",
+                font=REDUCIBLE_FONT,
+                t2f={
+                    f"{get_cost_from_edges(edges_perms[0], graph.dist_matrix):.2f}": REDUCIBLE_MONO
+                },
+                weight=BOLD,
+            )
+            .set_stroke(width=4, background=True)
+            .scale(0.4)
+            .to_corner(DL)
+        )
+
+        for i, tour_edges in enumerate(edges_perms[:10]):
+            cost = get_cost_from_edges(tour_edges, graph.dist_matrix)
+            new_cost_indicator = (
+                Text(
+                    f"Distance: {get_cost_from_edges(tour_edges, graph.dist_matrix):.2f}",
+                    font=REDUCIBLE_FONT,
+                    t2f={
+                        f"{get_cost_from_edges(tour_edges, graph.dist_matrix):.2f}": REDUCIBLE_MONO
+                    },
+                    weight=BOLD,
+                )
+                .set_stroke(width=4, background=True)
+                .scale(0.4)
+                .to_corner(DL)
+            )
+            anims = self.focus_on_edges(tour_edges, all_edges)
+            self.play(
+                *anims,
+                Transform(cost_indicator, new_cost_indicator),
+                run_time=1 / (5 * i + 1),
+            )
 
     def get_specific_layout(self, *coords):
         # dict with v number and coordinate
         return {v: coord for v, coord in enumerate(coords)}
+
+    def focus_on_edges(
+        self, edges_to_focus_on: Iterable[tuple], all_edges: Iterable[tuple]
+    ):
+        edges_animations = []
+
+        edges_to_focus_on = list(
+            map(lambda t: (t[1], t[0]) if t[0] > t[1] else t, edges_to_focus_on)
+        )
+        for t, e in all_edges.items():
+            if not t in edges_to_focus_on:
+                edges_animations.append(e.animate.set_opacity(0.1))
+            else:
+                edges_animations.append(e.animate.set_opacity(1))
+
+        return edges_animations
