@@ -96,13 +96,16 @@ def get_edges_from_tour(tour):
 def get_cost_from_edges(edges, dist_matrix):
     return sum([dist_matrix[u][v] for u, v in edges])
 
+
 def get_random_points_in_frame(N):
     return [get_random_point_in_frame() for _ in range(N)]
+
 
 def get_random_point_in_frame():
     x = np.random.uniform(-config.frame_x_radius + 2, config.frame_x_radius - 2)
     y = np.random.uniform(-config.frame_y_radius + 0.5, config.frame_y_radius - 0.5)
     return np.array([x, y, 0])
+
 
 def get_nearest_neighbor_solution(dist_matrix, start=0):
     current = start

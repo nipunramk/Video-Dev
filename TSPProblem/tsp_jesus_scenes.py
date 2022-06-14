@@ -8,6 +8,7 @@ from classes import *
 from math import factorial
 from solver_utils import *
 from manim.mobject.geometry.tips import ArrowTriangleTip
+from itertools import combinations, permutations
 
 np.random.seed(2)
 
@@ -258,6 +259,10 @@ class TSPAssumptions(MovingCameraScene):
 
     def focus_on_labels(self, labels_to_show, all_labels):
         labels_animations = []
+
+        labels_to_show = list(
+            map(lambda t: (t[1], t[0]) if t[0] > t[1] else t, labels_to_show)
+        )
         for t, e in all_labels.items():
             if not t in labels_to_show:
                 labels_animations.append(e.animate.set_opacity(0))
@@ -645,3 +650,122 @@ class BruteForce(TSPAssumptions):
         self.wait()
         self.play(AddTextLetterByLetter(twenty_factorial[10:]))
         self.wait()
+
+
+class ProblemComplexity(TSPAssumptions):
+    def construct(self):
+        cities = 3
+
+        graph = TSPGraph(range(cities)).shift(RIGHT * 3)
+        all_edges = graph.get_all_edges()
+
+        # make the whole graph a bit bigger
+        VGroup(graph, *all_edges.values()).scale(1.4)
+
+        all_labels = {
+            t: graph.get_dist_label(e, graph.dist_matrix[t])
+            for t, e in all_edges.items()
+        }
+
+        [e.set_opacity(0) for t, e in all_edges.items()]
+
+        self.play(LaggedStartMap(FadeIn, graph))
+
+        cities_list = list(range(1, cities))
+        start_city = 0
+
+        curr_tour_txt = Text("Current tour:", font=REDUCIBLE_FONT).scale(0.6)
+        best_subtour_txt = Text("Best subtour:", font=REDUCIBLE_FONT).scale(0.6)
+        curr_cost_txt = Text("Current cost:", font=REDUCIBLE_FONT).scale(0.6)
+        best_cost_txt = Text("Best cost:", font=REDUCIBLE_FONT).scale(0.6)
+
+        text_vg = (
+            VGroup(curr_tour_txt, curr_cost_txt, best_subtour_txt, best_cost_txt)
+            .arrange(DOWN, aligned_edge=LEFT, buff=0.3)
+            .to_edge(LEFT)
+        )
+
+        curr_tour_str = Text(f"", font=REDUCIBLE_MONO).next_to(curr_tour_txt)
+        best_tour_str = Text(f"", font=REDUCIBLE_MONO).next_to(best_subtour_txt)
+        curr_cost_str = Text(f"", font=REDUCIBLE_MONO).next_to(curr_cost_txt)
+        best_cost_str = Text(f"", font=REDUCIBLE_MONO).next_to(best_cost_txt)
+
+        explanation = Text("").next_to(text_vg, UP, buff=1, aligned_edge=LEFT)
+
+        self.play(FadeIn(text_vg))
+        for i in range(cities - 1):
+            costs = {}
+            internal_perms = list(permutations(cities_list, i + 1))
+
+            for sub_tour in internal_perms:
+                tour = [*sub_tour, start_city]
+
+                tour_edges = graph.get_tour_edges(tour)
+                tour_edge_tuples = get_edges_from_tour(tour)
+
+                curr_cost = get_cost_from_edges(tour_edge_tuples, graph.dist_matrix)
+
+                costs[tuple(tour)] = curr_cost
+
+                new_curr_tour = (
+                    Text(f"{tour}", font=REDUCIBLE_MONO)
+                    .scale(0.6)
+                    .next_to(curr_tour_txt)
+                )
+
+                new_curr_cost = (
+                    Text(f"{curr_cost:.2f}", font=REDUCIBLE_MONO)
+                    .scale(0.6)
+                    .next_to(curr_cost_txt)
+                )
+
+                new_explanation = (
+                    Text(
+                        f"Going from {tour[0]} to {tour[-1]} through {i} cities"
+                        if i != 1
+                        else f"Going from {tour[0]} to {tour[-1]} through {i} city",
+                        font=REDUCIBLE_FONT,
+                        t2f={
+                            str(tour[0]): REDUCIBLE_MONO,
+                            str(tour[-1]): REDUCIBLE_MONO,
+                            str(i): REDUCIBLE_MONO,
+                        },
+                    )
+                    .scale(0.6)
+                    .next_to(text_vg, UP, buff=1, aligned_edge=LEFT)
+                )
+
+                edges_anims = self.focus_on_edges(tour_edges, all_edges=all_edges)
+                labels_anims = self.focus_on_labels(tour_edge_tuples, all_labels)
+
+                self.play(
+                    *edges_anims,
+                    *labels_anims,
+                    Transform(curr_tour_str, new_curr_tour),
+                    Transform(curr_cost_str, new_curr_cost),
+                    Transform(explanation, new_explanation),
+                    run_time=0.5,
+                )
+
+            # find best subtour and display it
+            best_subtour = min(costs, key=lambda x: x[1])
+            best_cost = costs[best_subtour]
+
+            new_best_tour = (
+                Text(f"{tour}", font=REDUCIBLE_MONO)
+                .scale(0.6)
+                .next_to(best_subtour_txt)
+            )
+
+            new_best_cost = (
+                Text(f"{best_cost:.2f}", font=REDUCIBLE_MONO)
+                .scale(0.6)
+                .next_to(best_cost_txt)
+            )
+
+            self.play(
+                Transform(best_tour_str, new_best_tour),
+                Transform(best_cost_str, new_best_cost),
+            )
+
+            self.wait()
