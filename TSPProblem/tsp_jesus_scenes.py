@@ -656,7 +656,8 @@ class BruteForce(TSPAssumptions):
 class ProblemComplexity(TSPAssumptions):
     def construct(self):
         # self.dynamic_programming_simulation()
-        self.np_hard_problems()
+        # self.np_hard_problems()
+        self.plot_graphs()
 
     def dynamic_programming_simulation(self):
         cities = 4
@@ -816,6 +817,8 @@ class ProblemComplexity(TSPAssumptions):
         self.wait()
         self.play(*[FadeOut(m, scale=0.95) for m in self.mobjects])
 
+    def plot_graphs(self):
+
         # plot graphs
         eval_range = [0, 20]
         num_plane = Axes(
@@ -827,48 +830,121 @@ class ProblemComplexity(TSPAssumptions):
             axis_config={"include_ticks": False},
         ).to_corner(DL)
 
+        bold_template = TexTemplate()
+        bold_template.add_to_preamble(r"\usepackage{bm}")
+
         constant_plot = (
-            num_plane.plot(lambda x: 1, x_range=eval_range)
+            num_plane.plot(lambda x: 5, x_range=eval_range)
             .set_color(REDUCIBLE_BLUE)
-            .set_stroke(width=7)
+            .set_stroke(width=5)
+        )
+        constant_tag = (
+            Tex(r"$\bm{O(1)}$", tex_template=bold_template)
+            .set_color(REDUCIBLE_BLUE)
+            .scale(0.6)
+            .next_to(constant_plot, UP)
         )
 
         linear_plot = (
             num_plane.plot(lambda x: x, x_range=eval_range)
             .set_color(REDUCIBLE_PURPLE)
-            .set_stroke(width=7)
+            .set_stroke(width=5)
         )
+        linear_tag = (
+            Tex(r"$\bm{O(n)}$", tex_template=bold_template)
+            .set_color(REDUCIBLE_PURPLE)
+            .scale(0.6)
+            .next_to(linear_plot.point_from_proportion(0.7), UP)
+        )
+
         quad_plot = (
             num_plane.plot(lambda x: x ** 2, x_range=eval_range)
             .set_color(REDUCIBLE_VIOLET)
-            .set_stroke(width=7)
+            .set_stroke(width=5)
         )
+        quad_tag = (
+            Tex(r"$\bm{O(n^2)}$", tex_template=bold_template)
+            .set_color(REDUCIBLE_VIOLET)
+            .scale(0.6)
+            .next_to(quad_plot.point_from_proportion(0.5), RIGHT)
+        )
+
         poly_plot = (
             num_plane.plot(lambda x: 3 * x ** 2 + 2 * x, x_range=eval_range)
             .set_color(REDUCIBLE_YELLOW)
-            .set_stroke(width=7)
+            .set_stroke(width=5)
         )
+        poly_tag = (
+            Tex(r"$\bm{O(3n^2+2n)}$", tex_template=bold_template)
+            .set_color(REDUCIBLE_YELLOW)
+            .scale(0.6)
+            .next_to(poly_plot.point_from_proportion(0.25), RIGHT)
+        )
+
         exponential_plot = (
             num_plane.plot(lambda x: 2 ** x, x_range=[0, 10])
             .set_color(REDUCIBLE_ORANGE)
-            .set_stroke(width=7)
+            .set_stroke(width=5)
         )
+        exp_tag = (
+            Tex(r"$\bm{O(2^n)}$", tex_template=bold_template)
+            .set_color(REDUCIBLE_ORANGE)
+            .scale(0.6)
+            .next_to(exponential_plot.point_from_proportion(0.2), RIGHT)
+        )
+
         factorial_plot = (
             num_plane.plot(
                 lambda x: gamma(x) if x > 1 else x ** 2,
                 x_range=[0, 10],
             )
             .set_color(REDUCIBLE_CHARM)
-            .set_stroke(width=7)
+            .set_stroke(width=5)
         )
 
-        self.add(
-            num_plane.x_axis,
-            num_plane.y_axis,
-            factorial_plot,
-            exponential_plot,
-            poly_plot,
-            quad_plot,
-            linear_plot,
+        factorial_tag = (
+            Tex(r"$\bm{O(n!)}$", tex_template=bold_template)
+            .set_color(REDUCIBLE_CHARM)
+            .scale(0.6)
+            .next_to(factorial_plot.point_from_proportion(0.001), LEFT)
+        )
+
+        plots = [
             constant_plot,
+            linear_plot,
+            quad_plot,
+            poly_plot,
+            exponential_plot,
+            factorial_plot,
+        ]
+        tags = [
+            constant_tag,
+            linear_tag,
+            quad_tag,
+            poly_tag,
+            exp_tag,
+            factorial_tag,
+        ]
+        self.play(
+            Write(
+                num_plane.x_axis,
+            ),
+            Write(
+                num_plane.y_axis,
+            ),
+        )
+        self.play(LaggedStart(*[Write(p) for p in plots]))
+        self.play(*[FadeIn(t, scale=0.95) for t in tags])
+
+        self.play(
+            constant_plot.animate.set_stroke(opacity=0.3),
+            linear_plot.animate.set_stroke(opacity=0.3),
+            quad_plot.animate.set_stroke(opacity=0.3),
+            poly_plot.animate.set_stroke(opacity=0.3),
+            factorial_plot.animate.set_stroke(opacity=0.3),
+            constant_tag.animate.set_opacity(0.3),
+            linear_tag.animate.set_opacity(0.3),
+            quad_tag.animate.set_opacity(0.3),
+            poly_tag.animate.set_opacity(0.3),
+            factorial_tag.animate.set_opacity(0.3),
         )
