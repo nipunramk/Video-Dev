@@ -252,10 +252,14 @@ class Module(VGroup):
                     text_scale
                 )
                 text_mob.add(text)
-            self.text = text_mob.arrange(DOWN, buff=SMALL_BUFF * 2)
+            self.text = text_mob.arrange(DOWN, buff=SMALL_BUFF * 2).scale_to_fit_width(
+                self.rect.width - self.rect.width * 0.1
+            )
         else:
-            self.text = Text(str(text), weight=text_weight, font="CMU Serif").scale(
-                text_scale
+            self.text = (
+                Text(str(text), weight=text_weight, font="CMU Serif")
+                .scale_to_fit_width(self.rect.width - self.rect.width * 0.1)
+                .scale(text_scale)
             )
         self.text.next_to(
             self.rect,

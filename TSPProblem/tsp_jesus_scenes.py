@@ -654,7 +654,11 @@ class BruteForce(TSPAssumptions):
 
 class ProblemComplexity(TSPAssumptions):
     def construct(self):
-        cities = 3
+        # self.dynamic_programming_simulation()
+        self.np_hard_problems()
+
+    def dynamic_programming_simulation(self):
+        cities = 4
 
         graph = TSPGraph(range(cities)).shift(RIGHT * 3)
         all_edges = graph.get_all_edges()
@@ -701,9 +705,12 @@ class ProblemComplexity(TSPAssumptions):
                 tour = [*sub_tour, start_city]
 
                 tour_edges = graph.get_tour_edges(tour)
-                tour_edge_tuples = get_edges_from_tour(tour)
+
+                # remove the last one since we are talking about sub tours
+                tour_edge_tuples = get_edges_from_tour(tour)[:-1]
 
                 curr_cost = get_cost_from_edges(tour_edge_tuples, graph.dist_matrix)
+                print(tour_edge_tuples, curr_cost)
 
                 costs[tuple(tour)] = curr_cost
 
@@ -714,16 +721,15 @@ class ProblemComplexity(TSPAssumptions):
                 )
 
                 new_curr_cost = (
-                    Text(f"{curr_cost:.2f}", font=REDUCIBLE_MONO)
+                    Text(f"{np.round(curr_cost, 1)}", font=REDUCIBLE_MONO)
                     .scale(0.6)
                     .next_to(curr_cost_txt)
                 )
 
+                explanation_str = f"Going from {tour[0]} to {tour[-1]} through {i} {'cities' if i != 1 else 'city'}"
                 new_explanation = (
                     Text(
-                        f"Going from {tour[0]} to {tour[-1]} through {i} cities"
-                        if i != 1
-                        else f"Going from {tour[0]} to {tour[-1]} through {i} city",
+                        explanation_str,
                         font=REDUCIBLE_FONT,
                         t2f={
                             str(tour[0]): REDUCIBLE_MONO,
@@ -748,8 +754,8 @@ class ProblemComplexity(TSPAssumptions):
                 )
 
             # find best subtour and display it
-            best_subtour = min(costs, key=lambda x: x[1])
-            best_cost = costs[best_subtour]
+            best_subtour, best_cost = min(costs.items(), key=lambda x: x[1])
+            print(costs, best_subtour, best_cost)
 
             new_best_tour = (
                 Text(f"{tour}", font=REDUCIBLE_MONO)
@@ -758,7 +764,7 @@ class ProblemComplexity(TSPAssumptions):
             )
 
             new_best_cost = (
-                Text(f"{best_cost:.2f}", font=REDUCIBLE_MONO)
+                Text(f"{np.round(best_cost, 1)}", font=REDUCIBLE_MONO)
                 .scale(0.6)
                 .next_to(best_cost_txt)
             )
@@ -769,3 +775,36 @@ class ProblemComplexity(TSPAssumptions):
             )
 
             self.wait()
+
+    def np_hard_problems(self):
+        # explanation about NP problems
+        tsp_problem = (
+            Module(["Traveling Salesman", "Problem"], text_weight=BOLD)
+            .scale(0.8)
+            .shift(DOWN * 0.7)
+        )
+        np_hard_problems = Module(
+            "NP Hard Problems",
+            fill_color=REDUCIBLE_GREEN_DARKER,
+            stroke_color=REDUCIBLE_GREEN_LIGHTER,
+            width=12,
+            height=6,
+            text_weight=BOLD,
+            text_scale=0.8,
+            text_position=UP,
+        )
+        problems = [
+            "Integer Programming",
+            "Knapsack Problem",
+            "Bin Packing",
+            "Complete Coloring",
+        ]
+        modules = VGroup(*[Module(p, text_weight=BOLD).scale(0.6) for p in problems])
+        modules[0].move_to(tsp_problem).shift(LEFT * 2 + UP * 1.5)
+        modules[1].move_to(tsp_problem).shift(LEFT * 2 + DOWN * 1.2)
+        modules[2].move_to(tsp_problem).shift(RIGHT * 1.5 + UP * 1.2)
+        modules[3].move_to(tsp_problem).shift(RIGHT * 1.9 + DOWN * 1)
+
+        self.play(Write(np_hard_problems))
+        self.play(FadeIn(tsp_problem, scale=1.05))
+        self.play(FadeIn(modules, scale=1.05))
