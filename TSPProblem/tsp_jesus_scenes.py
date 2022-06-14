@@ -5,7 +5,8 @@ from solving_tsp import TSPGraph
 from reducible_colors import *
 from functions import *
 from classes import *
-from math import factorial
+from math import factorial, log10
+from scipy.special import gamma
 from solver_utils import *
 from manim.mobject.geometry.tips import ArrowTriangleTip
 from itertools import combinations, permutations
@@ -790,7 +791,7 @@ class ProblemComplexity(TSPAssumptions):
             width=12,
             height=6,
             text_weight=BOLD,
-            text_scale=0.8,
+            text_scale=0.6,
             text_position=UP,
         )
         problems = [
@@ -807,4 +808,67 @@ class ProblemComplexity(TSPAssumptions):
 
         self.play(Write(np_hard_problems))
         self.play(FadeIn(tsp_problem, scale=1.05))
-        self.play(FadeIn(modules, scale=1.05))
+
+        self.play(
+            LaggedStart(*[FadeIn(m, scale=1.05) for m in modules], lag_ratio=1),
+            run_time=5,
+        )
+        self.wait()
+        self.play(*[FadeOut(m, scale=0.95) for m in self.mobjects])
+
+        # plot graphs
+        eval_range = [0, 20]
+        num_plane = Axes(
+            x_range=eval_range,
+            y_range=[0, 400],
+            y_length=10,
+            x_length=15,
+            tips=False,
+            axis_config={"include_ticks": False},
+        ).to_corner(DL)
+
+        constant_plot = (
+            num_plane.plot(lambda x: 1, x_range=eval_range)
+            .set_color(REDUCIBLE_BLUE)
+            .set_stroke(width=7)
+        )
+
+        linear_plot = (
+            num_plane.plot(lambda x: x, x_range=eval_range)
+            .set_color(REDUCIBLE_PURPLE)
+            .set_stroke(width=7)
+        )
+        quad_plot = (
+            num_plane.plot(lambda x: x ** 2, x_range=eval_range)
+            .set_color(REDUCIBLE_VIOLET)
+            .set_stroke(width=7)
+        )
+        poly_plot = (
+            num_plane.plot(lambda x: 3 * x ** 2 + 2 * x, x_range=eval_range)
+            .set_color(REDUCIBLE_YELLOW)
+            .set_stroke(width=7)
+        )
+        exponential_plot = (
+            num_plane.plot(lambda x: 2 ** x, x_range=[0, 10])
+            .set_color(REDUCIBLE_ORANGE)
+            .set_stroke(width=7)
+        )
+        factorial_plot = (
+            num_plane.plot(
+                lambda x: gamma(x) if x > 1 else x ** 2,
+                x_range=[0, 10],
+            )
+            .set_color(REDUCIBLE_CHARM)
+            .set_stroke(width=7)
+        )
+
+        self.add(
+            num_plane.x_axis,
+            num_plane.y_axis,
+            factorial_plot,
+            exponential_plot,
+            poly_plot,
+            quad_plot,
+            linear_plot,
+            constant_plot,
+        )
