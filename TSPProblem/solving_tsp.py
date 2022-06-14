@@ -33,11 +33,15 @@ class TSPGraph(Graph):
         },
         labels=True,
         label_scale=0.6,
+        label_color=WHITE,
         **kwargs,
     ):
         edges = []
         if labels:
-            labels = {k: CustomLabel(str(k), scale=label_scale) for k in vertices}
+            labels = {
+                k: CustomLabel(str(k), scale=label_scale).set_color(label_color)
+                for k in vertices
+            }
             edge_config["buff"] = LabeledDot(list(labels.values())[0]).radius
         else:
             edge_config["buff"] = Dot().radius
@@ -133,16 +137,11 @@ class TSPTester(Scene):
     def construct(self):
         big_graph = TSPGraph(range(12), layout_scale=2.4, layout="circular")
         all_edges_bg = big_graph.get_all_edges()
-        self.play(
-            FadeIn(big_graph)
-        )
+        self.play(FadeIn(big_graph))
         self.wait()
 
-        self.play(
-            *[FadeIn(edge) for edge in all_edges_bg.values()]
-        )
+        self.play(*[FadeIn(edge) for edge in all_edges_bg.values()])
         self.wait()
-
 
 
 class NearestNeighbor(Scene):

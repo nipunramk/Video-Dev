@@ -12,6 +12,7 @@ from manim.mobject.geometry.tips import ArrowTriangleTip
 from itertools import combinations, permutations
 
 np.random.seed(2)
+config["assets_dir"] = "assets"
 
 
 class TSPAssumptions(MovingCameraScene):
@@ -960,4 +961,38 @@ class ProblemComplexity(TSPAssumptions):
 
 class TransitionOtherApproaches(Scene):
     def construct(self):
-        pass
+        bg = ImageMobject("america-map.png").scale_to_fit_height(config.frame_height)
+        self.play(FadeIn(bg))
+
+        coords = [
+            [-3, 0, 0],
+            [0.5, -2, 0],
+            [-5, -1, 0],
+            [0, 1, 0],
+            [1.7, 0, 0],
+            [3.8, -0.2, 0],
+            [5, -1, 0],
+            [-3, 3, 0],
+            [1, 3, 0],
+            [3.5, 1.6, 0],
+            [6, 1.5, 0],
+            [2.5, -1.5, 0],
+            [4, -1.5, 0],
+            [4.3, -3, 0],
+        ]
+        graph = TSPGraph(
+            range(len(coords)),
+            vertex_config={
+                "fill_opacity": 1,
+                "fill_color": REDUCIBLE_GREEN_LIGHTER,
+                "stroke_color": REDUCIBLE_GREEN_DARKER,
+                "stroke_width": 3,
+            },
+            label_color=REDUCIBLE_GREEN_DARKER,
+            layout=self.get_specific_layout(*coords),
+        )
+        self.play(FadeIn(graph))
+
+    def get_specific_layout(self, *coords):
+        # dict with v number and coordinate
+        return {v: coord for v, coord in enumerate(coords)}
