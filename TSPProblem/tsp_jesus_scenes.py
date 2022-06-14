@@ -655,9 +655,16 @@ class BruteForce(TSPAssumptions):
 
 class ProblemComplexity(TSPAssumptions):
     def construct(self):
-        # self.dynamic_programming_simulation()
-        # self.np_hard_problems()
+        self.dynamic_programming_simulation()
+        self.wait()
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
+
+        self.np_hard_problems()
+        self.wait()
+
         self.plot_graphs()
+        self.wait()
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
 
     def dynamic_programming_simulation(self):
         cities = 4
@@ -809,6 +816,7 @@ class ProblemComplexity(TSPAssumptions):
 
         self.play(Write(np_hard_problems))
         self.play(FadeIn(tsp_problem, scale=1.05))
+        self.wait()
 
         self.play(
             LaggedStart(*[FadeIn(m, scale=1.05) for m in modules], lag_ratio=1),
