@@ -491,7 +491,7 @@ class BruteForce(TSPAssumptions):
         pprint(len(all_tours))
 
         # change line here back to 200
-        for i, tour_edges in enumerate(edge_tuples_tours[:5]):
+        for i, tour_edges in enumerate(edge_tuples_tours[:200]):
             anims = self.focus_on_edges(tour_edges, all_edges_bg)
             self.play(*anims, run_time=1 / (5 * i + 1))
 
