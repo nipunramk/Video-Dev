@@ -1061,7 +1061,7 @@ class TransitionOtherApproaches(TSPAssumptions):
         self.play(FadeIn(bg))
         self.wait()
 
-        n = 350
+        n = 100
         graph = TSPGraph(
             range(n),
             vertex_config={
@@ -1079,32 +1079,32 @@ class TransitionOtherApproaches(TSPAssumptions):
             run_time=2,
         )
 
-        some_edges = graph.get_some_edges(
-            percentage=0.01, buff=graph.vertices[0].width / 2
-        )
-        print(
-            f"number of edges: {len(some_edges)}. theoretical maximum for {n} nodes: {factorial(n) // factorial(2) // factorial(n-2)}"
-        )
-        [e.set_stroke(REDUCIBLE_VIOLET, opacity=0) for e in some_edges.values()]
+        # some_edges = graph.get_some_edges(
+        #     percentage=0.01, buff=graph.vertices[0].width / 2
+        # )
+        # all_edges = graph.get_all_edges()
+        # print(
+        #     f"number of edges: {len(some_edges)}. theoretical maximum for {n} nodes: {factorial(n) // factorial(2) // factorial(n-2)}"
+        # )
+        # [e.set_stroke(REDUCIBLE_VIOLET, opacity=0) for e in all_edges.values()]
 
-        tour_perms = get_all_tour_permutations(n, 0, max_cap=600)
+        # tour_perms = get_all_tour_permutations(n, 0, max_cap=600)
 
-        edges_perms = [get_edges_from_tour(t) for t in tour_perms]
-        # np.random.shuffle(edges_perms)
+        # edges_perms = [get_edges_from_tour(t) for t in tour_perms]
 
-        cost_indicator = (
-            Text(
-                f"Distance: {get_cost_from_edges(edges_perms[0], graph.dist_matrix):.2f}",
-                font=REDUCIBLE_FONT,
-                t2f={
-                    f"{get_cost_from_edges(edges_perms[0], graph.dist_matrix):.2f}": REDUCIBLE_MONO
-                },
-                weight=BOLD,
-            )
-            .set_stroke(width=4, background=True)
-            .scale(0.4)
-            .to_corner(DL)
-        )
+        # cost_indicator = (
+        #     Text(
+        #         f"Distance: {get_cost_from_edges(edges_perms[0], graph.dist_matrix):.2f}",
+        #         font=REDUCIBLE_FONT,
+        #         t2f={
+        #             f"{get_cost_from_edges(edges_perms[0], graph.dist_matrix):.2f}": REDUCIBLE_MONO
+        #         },
+        #         weight=BOLD,
+        #     )
+        #     .set_stroke(width=4, background=True)
+        #     .scale(0.4)
+        #     .to_corner(DL)
+        # )
 
         # for i, tour_edges in enumerate(edges_perms[:10]):
         #     cost = get_cost_from_edges(tour_edges, graph.dist_matrix)
@@ -1129,8 +1129,8 @@ class TransitionOtherApproaches(TSPAssumptions):
 
         #     anims = self.focus_on_edges(
         #         tour_edges,
-        #         some_edges,
-        #         min_opacity=0.1,
+        #         all_edges,
+        #         min_opacity=0.01,
         #     )
 
         #     self.play(
@@ -1145,8 +1145,8 @@ class TransitionOtherApproaches(TSPAssumptions):
 
     def get_normal_dist_layout(self, N):
 
-        x_values = np.random.normal(-0.6, 1.3, size=N)
-        y_values = np.random.normal(1, 0.9, size=N)
+        x_values = np.random.normal(-0.3, 1.8, size=N)
+        y_values = np.random.normal(0, 0.7, size=N)
 
         return {
             v: (point[0], point[1], 0)
