@@ -4,6 +4,7 @@ from reducible_colors import *
 from typing import Iterable, List
 from manim.mobject.geometry.tips import ArrowTriangleFilledTip
 
+
 class Pixel(Square):
     def __init__(self, n, color_mode: str, outline=True):
         assert color_mode in ("RGB", "GRAY"), "Color modes are RGB and GRAY"
@@ -252,13 +253,15 @@ class Module(VGroup):
                     text_scale
                 )
                 text_mob.add(text)
-            self.text = text_mob.arrange(DOWN, buff=SMALL_BUFF * 2).scale_to_fit_width(
-                self.rect.width - self.rect.width * 0.1
+            self.text = (
+                text_mob.arrange(DOWN, buff=SMALL_BUFF * 2)
+                .scale_to_fit_width(self.rect.width - self.rect.width * 0.15)
+                .scale(text_scale)
             )
         else:
             self.text = (
                 Text(str(text), weight=text_weight, font="CMU Serif")
-                .scale_to_fit_width(self.rect.width - self.rect.width * 0.1)
+                .scale_to_fit_width(self.rect.width - self.rect.width * 0.15)
                 .scale(text_scale)
             )
         self.text.next_to(
@@ -438,6 +441,7 @@ class CustomLabel(Text):
     def __init__(self, label, font=REDUCIBLE_MONO, scale=1, weight=BOLD):
         super().__init__(label, font=font, weight=weight)
         self.scale(scale)
+
 
 class CustomCurvedArrow(CurvedArrow):
     def __init__(self, start, end, tip_length=0.15, **kwargs):
