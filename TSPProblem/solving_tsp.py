@@ -452,18 +452,20 @@ class LowerBoundTSP(NearestNeighbor):
         self.intro_1_tree(tsp_graph, mst_tree, mst_edge_dict)
 
     def present_lower_bound_idea(self):
-        heuristic_solution_mod = Module(["Heuristic", "Solution"])
+        heuristic_solution_mod = Module(["Heuristic", "Solution"], text_weight=BOLD)
 
         optimal_solution_mod = Module(
             ["Optimal", "Solution"],
             REDUCIBLE_GREEN_DARKER,
-            REDUCIBLE_GREEN_LIGHTER
+            REDUCIBLE_GREEN_LIGHTER, 
+            text_weight=BOLD,
         )
 
         lower_bound_mod = Module(
             ["Lower", "Bound"],
             REDUCIBLE_YELLOW_DARKER,
-            REDUCIBLE_YELLOW
+            REDUCIBLE_YELLOW, 
+            text_weight=BOLD,
         )
         left_geq = MathTex(r"\geq").scale(2)
         VGroup(heuristic_solution_mod, left_geq, optimal_solution_mod).arrange(RIGHT, buff=1)
