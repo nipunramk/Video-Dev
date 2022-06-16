@@ -749,16 +749,16 @@ class BruteForce(TSPAssumptions):
 
 class ProblemComplexity(TSPAssumptions):
     def construct(self):
-        self.dynamic_programming_simulation()
-        self.wait()
-        self.play(*[FadeOut(mob) for mob in self.mobjects])
+        # self.dynamic_programming_simulation()
+        # self.wait()
+        # self.play(*[FadeOut(mob) for mob in self.mobjects])
 
         self.np_hard_problems()
         self.wait()
 
-        self.plot_graphs()
-        self.wait()
-        self.play(*[FadeOut(mob) for mob in self.mobjects])
+        # self.plot_graphs()
+        # self.wait()
+        # self.play(*[FadeOut(mob) for mob in self.mobjects])
 
     def dynamic_programming_simulation(self):
         cities = 4
@@ -897,10 +897,10 @@ class ProblemComplexity(TSPAssumptions):
             text_position=UP,
         )
         problems = [
-            "Integer Programming",
-            "Knapsack Problem",
+            ["Integer", "Programming"],
+            ["Knapsack", "Problem"],
             "Bin Packing",
-            "Complete Coloring",
+            "Subset sum",
         ]
         modules = VGroup(*[Module(p, text_weight=BOLD).scale(0.6) for p in problems])
         modules[0].move_to(tsp_problem).shift(LEFT * 2 + UP * 1.5)
@@ -917,7 +917,7 @@ class ProblemComplexity(TSPAssumptions):
             run_time=5,
         )
         self.wait()
-        self.play(*[FadeOut(m, scale=0.95) for m in self.mobjects])
+        # self.play(*[FadeOut(m, scale=0.95) for m in self.mobjects])
 
     def plot_graphs(self):
 
@@ -937,24 +937,25 @@ class ProblemComplexity(TSPAssumptions):
 
         constant_plot = (
             num_plane.plot(lambda x: 5, x_range=eval_range)
-            .set_color(REDUCIBLE_BLUE)
+            .set_color(REDUCIBLE_GREEN)
             .set_stroke(width=5)
         )
         constant_tag = (
             Tex(r"$\bm{O(1)}$", tex_template=bold_template)
-            .set_color(REDUCIBLE_BLUE)
+            .set_color(REDUCIBLE_GREEN)
+            .set_stroke(width=5, background=True)
             .scale(0.6)
-            .next_to(constant_plot, UP)
+            .next_to(constant_plot, UP, buff=0.1)
         )
 
         linear_plot = (
             num_plane.plot(lambda x: x, x_range=eval_range)
-            .set_color(REDUCIBLE_PURPLE)
+            .set_color(REDUCIBLE_GREEN_LIGHTER)
             .set_stroke(width=5)
         )
         linear_tag = (
             Tex(r"$\bm{O(n)}$", tex_template=bold_template)
-            .set_color(REDUCIBLE_PURPLE)
+            .set_color(REDUCIBLE_GREEN_LIGHTER)
             .scale(0.6)
             .next_to(linear_plot.point_from_proportion(0.7), UP)
         )
@@ -1037,6 +1038,7 @@ class ProblemComplexity(TSPAssumptions):
         )
         self.play(LaggedStart(*[Write(p) for p in plots]))
         self.play(*[FadeIn(t, scale=0.95) for t in tags])
+        self.wait()
 
         self.play(
             constant_plot.animate.set_stroke(opacity=0.3),
