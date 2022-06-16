@@ -1079,65 +1079,62 @@ class TransitionOtherApproaches(TSPAssumptions):
             run_time=2,
         )
 
-        # some_edges = graph.get_some_edges(
-        #     percentage=0.01, buff=graph.vertices[0].width / 2
-        # )
+        some_edges = graph.get_some_edges(
+            percentage=0.01, buff=graph.vertices[0].width / 2
+        )
         # all_edges = graph.get_all_edges()
-        # print(
-        #     f"number of edges: {len(some_edges)}. theoretical maximum for {n} nodes: {factorial(n) // factorial(2) // factorial(n-2)}"
-        # )
-        # [e.set_stroke(REDUCIBLE_VIOLET, opacity=0) for e in all_edges.values()]
+        print(
+            f"number of edges: {len(some_edges)}. theoretical maximum for {n} nodes: {factorial(n) // factorial(2) // factorial(n-2)}"
+        )
+        [e.set_stroke(REDUCIBLE_VIOLET, opacity=0) for e in some_edges.values()]
 
-        # tour_perms = get_all_tour_permutations(n, 0, max_cap=600)
+        tour_perms = get_all_tour_permutations(n, 0, max_cap=600)
 
-        # edges_perms = [get_edges_from_tour(t) for t in tour_perms]
+        edges_perms = [get_edges_from_tour(t) for t in tour_perms]
 
-        # cost_indicator = (
-        #     Text(
-        #         f"Distance: {get_cost_from_edges(edges_perms[0], graph.dist_matrix):.2f}",
-        #         font=REDUCIBLE_FONT,
-        #         t2f={
-        #             f"{get_cost_from_edges(edges_perms[0], graph.dist_matrix):.2f}": REDUCIBLE_MONO
-        #         },
-        #         weight=BOLD,
-        #     )
-        #     .set_stroke(width=4, background=True)
-        #     .scale(0.4)
-        #     .to_corner(DL)
-        # )
+        cost_indicator = (
+            Text(
+                f"Distance: {get_cost_from_edges(edges_perms[0], graph.dist_matrix):.2f}",
+                font=REDUCIBLE_FONT,
+                t2f={
+                    f"{get_cost_from_edges(edges_perms[0], graph.dist_matrix):.2f}": REDUCIBLE_MONO
+                },
+                weight=BOLD,
+            )
+            .set_stroke(width=4, background=True)
+            .scale(0.4)
+            .to_corner(DL)
+        )
 
-        # for i, tour_edges in enumerate(edges_perms[:10]):
-        #     cost = get_cost_from_edges(tour_edges, graph.dist_matrix)
-        #     new_cost_indicator = (
-        #         Text(
-        #             f"Distance: {cost:.2f}",
-        #             font=REDUCIBLE_FONT,
-        #             t2f={f"{cost:.2f}": REDUCIBLE_MONO},
-        #             weight=BOLD,
-        #         )
-        #         .set_stroke(width=4, background=True)
-        #         .scale(0.4)
-        #         .to_corner(DL)
-        #     )
+        # TODO: right now, edges_perms is calculated synthetically, but some_edges
+        # will not hold every possible edge considered in edges_perms. The idea
+        # would be to dynamically add missing edges that we want to show as a path.
 
-        #     # set_focus = set(tour_edges)
-        #     # set_some = set(some_edges)
-        #     # diff = set_focus.difference(set_some)
-        #     # for edge in diff:
-        #     #     edge_mob = graph.create_edge(edge[0], edge[1])
-        #     #     some_edges[edge] = edge_mob
+        for i, tour_edges in enumerate(edges_perms[:10]):
+            cost = get_cost_from_edges(tour_edges, graph.dist_matrix)
+            new_cost_indicator = (
+                Text(
+                    f"Distance: {cost:.2f}",
+                    font=REDUCIBLE_FONT,
+                    t2f={f"{cost:.2f}": REDUCIBLE_MONO},
+                    weight=BOLD,
+                )
+                .set_stroke(width=4, background=True)
+                .scale(0.4)
+                .to_corner(DL)
+            )
 
-        #     anims = self.focus_on_edges(
-        #         tour_edges,
-        #         all_edges,
-        #         min_opacity=0.01,
-        #     )
+            anims = self.focus_on_edges(
+                tour_edges,
+                some_edges,
+                min_opacity=0.01,
+            )
 
-        #     self.play(
-        #         *anims,
-        #         Transform(cost_indicator, new_cost_indicator),
-        #         run_time=1 / (5 * i + 1),
-        #     )
+            self.play(
+                *anims,
+                Transform(cost_indicator, new_cost_indicator),
+                run_time=1 / (5 * i + 1),
+            )
 
     def get_specific_layout(self, *coords):
         # dict with v number and coordinate
