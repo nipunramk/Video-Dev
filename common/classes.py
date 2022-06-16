@@ -2,7 +2,7 @@ from manim import *
 from functions import *
 from reducible_colors import *
 from typing import Iterable, List
-
+from manim.mobject.geometry.tips import ArrowTriangleFilledTip
 
 class Pixel(Square):
     def __init__(self, n, color_mode: str, outline=True):
@@ -434,3 +434,27 @@ class CustomLabel(Text):
     def __init__(self, label, font=REDUCIBLE_MONO, scale=1, weight=BOLD):
         super().__init__(label, font=font, weight=weight)
         self.scale(scale)
+
+class CustomCurvedArrow(CurvedArrow):
+    def __init__(self, start, end, tip_length=0.15, **kwargs):
+        super().__init__(start, end, **kwargs)
+        self.pop_tips()
+        self.add_tip(
+            tip_shape=ArrowTriangleFilledTip,
+            tip_length=tip_length,
+            at_start=False,
+        )
+        self.tip.z_index = -100
+
+    def set_opacity(self, opacity, family=True):
+        return super().set_opacity(opacity, family)
+
+    @override_animate(set_opacity)
+    def _set_opacity_animation(self, opacity=1, anim_args=None):
+        if anim_args is None:
+            anim_args = {}
+
+        animate_stroke = self.animate.set_stroke(opacity=opacity)
+        animate_tip = self.tip.animate.set_opacity(opacity)
+
+        return AnimationGroup(*[animate_stroke, animate_tip])
