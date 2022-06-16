@@ -497,6 +497,7 @@ class BruteForce(TSPAssumptions):
         edge_tuples_tours = [get_edges_from_tour(tour) for tour in all_tours]
         pprint(len(all_tours))
 
+        # change line here back to 200
         for i, tour_edges in enumerate(edge_tuples_tours[:200]):
             anims = self.focus_on_edges(tour_edges, all_edges_bg)
             self.play(*anims, run_time=1 / (5 * i + 1))
@@ -539,6 +540,7 @@ class BruteForce(TSPAssumptions):
 
         path_builder = VGroup()
 
+        # change line here back to big_cities
         for i in range(big_cities):
             if len(valid_nodes) == 0:
                 # we finished, so we go back home and break out of the loop
@@ -599,13 +601,23 @@ class BruteForce(TSPAssumptions):
 
         self.wait()
 
-        self.play(FadeOut(path_builder))
+        n_minus_one_factorial = (
+            Text("(n - 1)!", font=REDUCIBLE_FONT, weight=BOLD)
+            .scale(1.2)
+            .set_stroke(width=10, background=True)
+        )
+        self.play(Write(n_minus_one_factorial, scale=0.95))
+        self.wait()
+        self.play(
+            FadeOut(path_builder),
+            FadeOut(n_minus_one_factorial, scale=0.95),
+            FadeOut(big_graph),
+            FadeOut(full_label, scale=0.95),
+        )
 
         # go back to small example to show combinations
         small_cities = 4
         small_graph = TSPGraph(range(small_cities))
-
-        self.play(FadeOut(big_graph), FadeOut(full_label))
 
         all_possible_tours = get_all_tour_permutations(
             small_cities, 0, return_duplicates=True
@@ -630,28 +642,110 @@ class BruteForce(TSPAssumptions):
             all_tours.add(tour_pairs.arrange(DOWN, buff=0.3))
 
         all_tours.arrange_in_grid(
-            rows=2, row_heights=np.repeat(2.5, 2), col_widths=np.repeat(3.5, 3)
-        )
+            cols=factorial(small_cities - 1) // 2,
+            row_heights=np.repeat(2.5, factorial(small_cities - 1) // 2),
+            col_widths=np.repeat(3.5, factorial(small_cities - 1) // 2),
+        ).scale_to_fit_width(config.frame_width - 4)
 
         self.play(*[FadeIn(t[0]) for t in all_tours])
         self.wait()
         self.play(*[FadeIn(t[1], shift=DOWN * 0.9) for t in all_tours])
 
+        surr_rect = SurroundingRectangle(
+            VGroup(all_tours[0]), color=REDUCIBLE_YELLOW, buff=0.3
+        )
+        annotation = (
+            Text("These two are the same", font=REDUCIBLE_FONT, weight=BOLD)
+            .next_to(surr_rect, UP, buff=0.2)
+            .scale_to_fit_width(surr_rect.width)
+            .set_color(REDUCIBLE_YELLOW)
+        )
+
+        def annotation_updater(mob):
+            mob.next_to(surr_rect, UP, buff=0.2)
+
+        annotation.add_updater(annotation_updater)
+
+        self.play(Write(surr_rect), Write(annotation))
+
+        self.play(
+            surr_rect.animate.move_to(all_tours[1]),
+        )
+        self.play(
+            surr_rect.animate.move_to(all_tours[2]),
+        )
         self.wait()
-        self.play(FadeOut(all_tours, shift=UP * 0.3))
+
+        self.play(
+            FadeOut(surr_rect),
+            FadeOut(annotation),
+            *[FadeOut(t[1], shift=DOWN * 0.9) for t in all_tours],
+        )
+
+        annotation_2 = (
+            Text(
+                "These correspond to half of the total",
+                font=REDUCIBLE_FONT,
+                weight=MEDIUM,
+            )
+            .scale(0.8)
+            .shift(DOWN)
+        )
+
+        bold_template = TexTemplate()
+        bold_template.add_to_preamble(r"\usepackage{bm}")
+        n_minus_one_factorial_over_two = (
+            Tex(r"$\bm{\frac{(n - 1)!}{2}}$", tex_template=bold_template)
+            .scale(1.8)
+            .next_to(annotation_2, DOWN, buff=0.5)
+        )
+
+        self.play(Write(annotation_2))
+        self.play(Write(n_minus_one_factorial_over_two))
+
+        self.wait()
+        self.play(
+            FadeOut(n_minus_one_factorial_over_two),
+            FadeOut(annotation_2),
+            *[FadeOut(t[0]) for t in all_tours],
+        )
         self.wait()
 
         # show big number
-        twenty_factorial = Text(
-            f"(20 - 1)! / 2 = {factorial(20  - 1) // 2:,}".replace(",", " "),
-            font=REDUCIBLE_MONO,
-            weight=BOLD,
-        ).scale(0.7)
+        np.random.seed(110)
+        random_graph = TSPGraph(
+            range(20),
+            layout="circular",
+        ).shift(UP * 0.7)
 
-        self.play(FadeIn(twenty_factorial[0:10]))
+        # scale down vertices
+        [v.scale(0.7) for v in random_graph.vertices.values()]
+
+        # recalculate edges
+        all_edges = random_graph.get_all_edges(buff=random_graph.vertices[0].width / 2)
+
+        # set edges opacity down
+        [e.set_opacity(0.3) for e in all_edges.values()]
+
+        twenty_factorial = (
+            Text(
+                f"(20 - 1)! / 2 = {factorial(20  - 1) // 2:,}".replace(",", " "),
+                font=REDUCIBLE_MONO,
+                weight=BOLD,
+            )
+            .scale(0.7)
+            .next_to(random_graph, DOWN, buff=1)
+        )
+
+        self.play(FadeIn(random_graph))
+        self.play(LaggedStartMap(Write, all_edges.values()))
+
+        self.play(AddTextLetterByLetter(twenty_factorial))
         self.wait()
-        self.play(AddTextLetterByLetter(twenty_factorial[10:]))
-        self.wait()
+
+    def get_random_layout(self, N):
+        random_points_in_frame = get_random_points_in_frame(N)
+        return {v: point for v, point in zip(range(N), random_points_in_frame)}
 
 
 class ProblemComplexity(TSPAssumptions):
