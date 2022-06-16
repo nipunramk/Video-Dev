@@ -673,7 +673,7 @@ class LowerBoundTSP(NearestNeighbor):
             for i, edge in enumerate(neighboring_edges):
                 if edge not in all_edges:
                     neighboring_edges[i] = (edge[1], edge[0])
-            neighboring_edges_mobs = [all_edges[edge] for edge in neighboring_edges]
+            neighboring_edges_mobs = [all_edges[edge].set_stroke(opacity=0.3) for edge in neighboring_edges]
             self.play(
                 *[Write(edge) for edge in neighboring_edges_mobs]
             )
@@ -688,7 +688,7 @@ class LowerBoundTSP(NearestNeighbor):
                 ),
             )
             self.play(
-                all_edges[best_neighbor_edge].animate.set_color(REDUCIBLE_YELLOW)
+                all_edges[best_neighbor_edge].animate.set_stroke(opacity=1, color=REDUCIBLE_YELLOW)
             )
             mst_edges.add(all_edges[best_neighbor_edge])
             mst_edge_dict[best_neighbor_edge] = all_edges[best_neighbor_edge]
@@ -772,7 +772,7 @@ class LowerBoundTSP(NearestNeighbor):
         )
         self.wait()
 
-        better_lower_bound = Text("Better Lower Bound", font=REDUCIBLE_FONT).scale_to_fit_height(mst_cost.height).move_to(mst_cost.get_center())
+        better_lower_bound = Text("Better Lower Bound", font=REDUCIBLE_FONT, weight=BOLD).scale_to_fit_height(mst_cost.height - SMALL_BUFF).move_to(mst_cost.get_center()).shift(UP * SMALL_BUFF)
         mst_vertices, mst_edges = mst_tree
         self.play(
             FadeIn(tsp_tour_edges[prev_edge]),
@@ -783,8 +783,8 @@ class LowerBoundTSP(NearestNeighbor):
         )
         self.wait()
 
-        step_1 = Tex(r"1. Remove any vertex $v$ and find MST").scale(0.7)
-        step_2 = Tex(r"2. Connect two shortest edges to $v$").scale(0.7)
+        step_1 = Tex(r"1. Remove any vertex $v$ and find MST").scale(0.6)
+        step_2 = Tex(r"2. Connect two shortest edges to $v$").scale(0.6)
         steps = VGroup(step_1, step_2).arrange(DOWN, aligned_edge=LEFT)
         steps.next_to(better_lower_bound, DOWN)
         self.play(
@@ -819,7 +819,7 @@ class LowerBoundTSP(NearestNeighbor):
         )
         self.wait()
 
-        new_result = Tex(r"1-tree cost $\leq$ TSP cost").scale(0.8)
+        new_result = Tex(r"1-tree cost $\leq$ TSP cost").scale(0.7)
         new_result.next_to(steps, DOWN)
         new_result[0][:6].set_color(REDUCIBLE_YELLOW)
         self.play(
@@ -893,8 +893,8 @@ class LowerBoundTSP(NearestNeighbor):
         best_cost_1_tree = Text(f"Largest 1-tree cost: {np.round(best_one_cost, 1)}", font=REDUCIBLE_MONO).scale(0.5)
         optimal_tsp_cost = Text(f"Optimal TSP cost: {np.round(optimal_cost, 1)}", font=REDUCIBLE_MONO).scale(0.5)
 
-        best_cost_1_tree.next_to(mst_tree, DOWN)
-        optimal_tsp_cost.next_to(tsp_graph, DOWN)
+        best_cost_1_tree.next_to(mst_tree, DOWN, buff=1)
+        optimal_tsp_cost.next_to(tsp_graph, DOWN, buff=1)
 
         self.play(
             FadeIn(best_cost_1_tree),
