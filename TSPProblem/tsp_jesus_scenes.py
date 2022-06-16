@@ -5,9 +5,11 @@ from solving_tsp import TSPGraph
 from reducible_colors import *
 from functions import *
 from classes import *
-from math import factorial
+from math import factorial, log10
+from scipy.special import gamma
 from solver_utils import *
 from manim.mobject.geometry.tips import ArrowTriangleTip
+from itertools import combinations, permutations
 
 np.random.seed(2)
 
@@ -258,6 +260,10 @@ class TSPAssumptions(MovingCameraScene):
 
     def focus_on_labels(self, labels_to_show, all_labels):
         labels_animations = []
+
+        labels_to_show = list(
+            map(lambda t: (t[1], t[0]) if t[0] > t[1] else t, labels_to_show)
+        )
         for t, e in all_labels.items():
             if not t in labels_to_show:
                 labels_animations.append(e.animate.set_opacity(0))
@@ -732,3 +738,308 @@ class BruteForce(TSPAssumptions):
     def get_random_layout(self, N):
         random_points_in_frame = get_random_points_in_frame(N)
         return {v: point for v, point in zip(range(N), random_points_in_frame)}
+
+
+class ProblemComplexity(TSPAssumptions):
+    def construct(self):
+        self.dynamic_programming_simulation()
+        self.wait()
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
+
+        self.np_hard_problems()
+        self.wait()
+
+        self.plot_graphs()
+        self.wait()
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
+
+    def dynamic_programming_simulation(self):
+        cities = 4
+
+        graph = TSPGraph(range(cities)).shift(RIGHT * 3)
+        all_edges = graph.get_all_edges()
+
+        # make the whole graph a bit bigger
+        VGroup(graph, *all_edges.values()).scale(1.4)
+
+        all_labels = {
+            t: graph.get_dist_label(e, graph.dist_matrix[t])
+            for t, e in all_edges.items()
+        }
+
+        [e.set_opacity(0) for t, e in all_edges.items()]
+
+        self.play(LaggedStartMap(FadeIn, graph))
+
+        cities_list = list(range(1, cities))
+        start_city = 0
+
+        curr_tour_txt = Text("Current tour:", font=REDUCIBLE_FONT).scale(0.6)
+        best_subtour_txt = Text("Best subtour:", font=REDUCIBLE_FONT).scale(0.6)
+        curr_cost_txt = Text("Current cost:", font=REDUCIBLE_FONT).scale(0.6)
+        best_cost_txt = Text("Best cost:", font=REDUCIBLE_FONT).scale(0.6)
+
+        text_vg = (
+            VGroup(curr_tour_txt, curr_cost_txt, best_subtour_txt, best_cost_txt)
+            .arrange(DOWN, aligned_edge=LEFT, buff=0.3)
+            .to_edge(LEFT)
+        )
+
+        curr_tour_str = Text(f"", font=REDUCIBLE_MONO).next_to(curr_tour_txt)
+        best_tour_str = Text(f"", font=REDUCIBLE_MONO).next_to(best_subtour_txt)
+        curr_cost_str = Text(f"", font=REDUCIBLE_MONO).next_to(curr_cost_txt)
+        best_cost_str = Text(f"", font=REDUCIBLE_MONO).next_to(best_cost_txt)
+
+        explanation = Text("").next_to(text_vg, UP, buff=1, aligned_edge=LEFT)
+
+        self.play(FadeIn(text_vg))
+        for i in range(cities - 1):
+            costs = {}
+            internal_perms = list(permutations(cities_list, i + 1))
+
+            for sub_tour in internal_perms:
+                tour = [*sub_tour, start_city]
+
+                tour_edges = graph.get_tour_edges(tour)
+
+                # remove the last one since we are talking about sub tours
+                tour_edge_tuples = get_edges_from_tour(tour)[:-1]
+
+                curr_cost = get_cost_from_edges(tour_edge_tuples, graph.dist_matrix)
+                print(tour_edge_tuples, curr_cost)
+
+                costs[tuple(tour)] = curr_cost
+
+                new_curr_tour = (
+                    Text(f"{tour}", font=REDUCIBLE_MONO)
+                    .scale(0.6)
+                    .next_to(curr_tour_txt)
+                )
+
+                new_curr_cost = (
+                    Text(f"{np.round(curr_cost, 1)}", font=REDUCIBLE_MONO)
+                    .scale(0.6)
+                    .next_to(curr_cost_txt)
+                )
+
+                explanation_str = f"Going from {tour[0]} to {tour[-1]} through {i} {'cities' if i != 1 else 'city'}"
+                new_explanation = (
+                    Text(
+                        explanation_str,
+                        font=REDUCIBLE_FONT,
+                        t2f={
+                            str(tour[0]): REDUCIBLE_MONO,
+                            str(tour[-1]): REDUCIBLE_MONO,
+                            str(i): REDUCIBLE_MONO,
+                        },
+                    )
+                    .scale(0.6)
+                    .next_to(text_vg, UP, buff=1, aligned_edge=LEFT)
+                )
+
+                edges_anims = self.focus_on_edges(tour_edges, all_edges=all_edges)
+                labels_anims = self.focus_on_labels(tour_edge_tuples, all_labels)
+
+                self.play(
+                    *edges_anims,
+                    *labels_anims,
+                    Transform(curr_tour_str, new_curr_tour),
+                    Transform(curr_cost_str, new_curr_cost),
+                    Transform(explanation, new_explanation),
+                    run_time=0.5,
+                )
+
+            # find best subtour and display it
+            best_subtour, best_cost = min(costs.items(), key=lambda x: x[1])
+            print(costs, best_subtour, best_cost)
+
+            new_best_tour = (
+                Text(f"{tour}", font=REDUCIBLE_MONO)
+                .scale(0.6)
+                .next_to(best_subtour_txt)
+            )
+
+            new_best_cost = (
+                Text(f"{np.round(best_cost, 1)}", font=REDUCIBLE_MONO)
+                .scale(0.6)
+                .next_to(best_cost_txt)
+            )
+
+            self.play(
+                Transform(best_tour_str, new_best_tour),
+                Transform(best_cost_str, new_best_cost),
+            )
+
+            self.wait()
+
+    def np_hard_problems(self):
+        # explanation about NP problems
+        tsp_problem = (
+            Module(["Traveling Salesman", "Problem"], text_weight=BOLD)
+            .scale(0.8)
+            .shift(DOWN * 0.7)
+        )
+        np_hard_problems = Module(
+            "NP Hard Problems",
+            fill_color=REDUCIBLE_GREEN_DARKER,
+            stroke_color=REDUCIBLE_GREEN_LIGHTER,
+            width=12,
+            height=6,
+            text_weight=BOLD,
+            text_scale=0.6,
+            text_position=UP,
+        )
+        problems = [
+            "Integer Programming",
+            "Knapsack Problem",
+            "Bin Packing",
+            "Complete Coloring",
+        ]
+        modules = VGroup(*[Module(p, text_weight=BOLD).scale(0.6) for p in problems])
+        modules[0].move_to(tsp_problem).shift(LEFT * 2 + UP * 1.5)
+        modules[1].move_to(tsp_problem).shift(LEFT * 2 + DOWN * 1.2)
+        modules[2].move_to(tsp_problem).shift(RIGHT * 1.5 + UP * 1.2)
+        modules[3].move_to(tsp_problem).shift(RIGHT * 1.9 + DOWN * 1)
+
+        self.play(Write(np_hard_problems))
+        self.play(FadeIn(tsp_problem, scale=1.05))
+        self.wait()
+
+        self.play(
+            LaggedStart(*[FadeIn(m, scale=1.05) for m in modules], lag_ratio=1),
+            run_time=5,
+        )
+        self.wait()
+        self.play(*[FadeOut(m, scale=0.95) for m in self.mobjects])
+
+    def plot_graphs(self):
+
+        # plot graphs
+        eval_range = [0, 20]
+        num_plane = Axes(
+            x_range=eval_range,
+            y_range=[0, 400],
+            y_length=10,
+            x_length=15,
+            tips=False,
+            axis_config={"include_ticks": False},
+        ).to_corner(DL)
+
+        bold_template = TexTemplate()
+        bold_template.add_to_preamble(r"\usepackage{bm}")
+
+        constant_plot = (
+            num_plane.plot(lambda x: 5, x_range=eval_range)
+            .set_color(REDUCIBLE_BLUE)
+            .set_stroke(width=5)
+        )
+        constant_tag = (
+            Tex(r"$\bm{O(1)}$", tex_template=bold_template)
+            .set_color(REDUCIBLE_BLUE)
+            .scale(0.6)
+            .next_to(constant_plot, UP)
+        )
+
+        linear_plot = (
+            num_plane.plot(lambda x: x, x_range=eval_range)
+            .set_color(REDUCIBLE_PURPLE)
+            .set_stroke(width=5)
+        )
+        linear_tag = (
+            Tex(r"$\bm{O(n)}$", tex_template=bold_template)
+            .set_color(REDUCIBLE_PURPLE)
+            .scale(0.6)
+            .next_to(linear_plot.point_from_proportion(0.7), UP)
+        )
+
+        quad_plot = (
+            num_plane.plot(lambda x: x ** 2, x_range=eval_range)
+            .set_color(REDUCIBLE_VIOLET)
+            .set_stroke(width=5)
+        )
+        quad_tag = (
+            Tex(r"$\bm{O(n^2)}$", tex_template=bold_template)
+            .set_color(REDUCIBLE_VIOLET)
+            .scale(0.6)
+            .next_to(quad_plot.point_from_proportion(0.5), RIGHT)
+        )
+
+        poly_plot = (
+            num_plane.plot(lambda x: 3 * x ** 2 + 2 * x, x_range=eval_range)
+            .set_color(REDUCIBLE_YELLOW)
+            .set_stroke(width=5)
+        )
+        poly_tag = (
+            Tex(r"$\bm{O(3n^2+2n)}$", tex_template=bold_template)
+            .set_color(REDUCIBLE_YELLOW)
+            .scale(0.6)
+            .next_to(poly_plot.point_from_proportion(0.25), RIGHT)
+        )
+
+        exponential_plot = (
+            num_plane.plot(lambda x: 2 ** x, x_range=[0, 10])
+            .set_color(REDUCIBLE_ORANGE)
+            .set_stroke(width=5)
+        )
+        exp_tag = (
+            Tex(r"$\bm{O(2^n)}$", tex_template=bold_template)
+            .set_color(REDUCIBLE_ORANGE)
+            .scale(0.6)
+            .next_to(exponential_plot.point_from_proportion(0.2), RIGHT)
+        )
+
+        factorial_plot = (
+            num_plane.plot(
+                lambda x: gamma(x) if x > 1 else x ** 2,
+                x_range=[0, 10],
+            )
+            .set_color(REDUCIBLE_CHARM)
+            .set_stroke(width=5)
+        )
+
+        factorial_tag = (
+            Tex(r"$\bm{O(n!)}$", tex_template=bold_template)
+            .set_color(REDUCIBLE_CHARM)
+            .scale(0.6)
+            .next_to(factorial_plot.point_from_proportion(0.001), LEFT)
+        )
+
+        plots = [
+            constant_plot,
+            linear_plot,
+            quad_plot,
+            poly_plot,
+            exponential_plot,
+            factorial_plot,
+        ]
+        tags = [
+            constant_tag,
+            linear_tag,
+            quad_tag,
+            poly_tag,
+            exp_tag,
+            factorial_tag,
+        ]
+        self.play(
+            Write(
+                num_plane.x_axis,
+            ),
+            Write(
+                num_plane.y_axis,
+            ),
+        )
+        self.play(LaggedStart(*[Write(p) for p in plots]))
+        self.play(*[FadeIn(t, scale=0.95) for t in tags])
+
+        self.play(
+            constant_plot.animate.set_stroke(opacity=0.3),
+            linear_plot.animate.set_stroke(opacity=0.3),
+            quad_plot.animate.set_stroke(opacity=0.3),
+            poly_plot.animate.set_stroke(opacity=0.3),
+            factorial_plot.animate.set_stroke(opacity=0.3),
+            constant_tag.animate.set_opacity(0.3),
+            linear_tag.animate.set_opacity(0.3),
+            quad_tag.animate.set_opacity(0.3),
+            poly_tag.animate.set_opacity(0.3),
+            factorial_tag.animate.set_opacity(0.3),
+        )
