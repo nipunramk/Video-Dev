@@ -749,16 +749,16 @@ class BruteForce(TSPAssumptions):
 
 class ProblemComplexity(TSPAssumptions):
     def construct(self):
-        # self.dynamic_programming_simulation()
-        # self.wait()
-        # self.play(*[FadeOut(mob) for mob in self.mobjects])
+        self.dynamic_programming_simulation()
+        self.wait()
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
 
         self.np_hard_problems()
         self.wait()
 
-        # self.plot_graphs()
-        # self.wait()
-        # self.play(*[FadeOut(mob) for mob in self.mobjects])
+        self.plot_graphs()
+        self.wait()
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
 
     def dynamic_programming_simulation(self):
         cities = 4
@@ -792,14 +792,44 @@ class ProblemComplexity(TSPAssumptions):
             .to_edge(LEFT)
         )
 
-        curr_tour_str = Text(f"", font=REDUCIBLE_MONO).next_to(curr_tour_txt)
-        best_tour_str = Text(f"", font=REDUCIBLE_MONO).next_to(best_subtour_txt)
-        curr_cost_str = Text(f"", font=REDUCIBLE_MONO).next_to(curr_cost_txt)
-        best_cost_str = Text(f"", font=REDUCIBLE_MONO).next_to(best_cost_txt)
+        curr_tour_str = (
+            Text(f"[]", font=REDUCIBLE_MONO).scale(0.5).next_to(curr_tour_txt)
+        )
+        curr_cost_str = (
+            Text(f"0", font=REDUCIBLE_MONO).scale(0.6).next_to(curr_cost_txt)
+        )
 
-        explanation = Text("").next_to(text_vg, UP, buff=1, aligned_edge=LEFT)
+        best_tour_str = (
+            Text(f"[]", font=REDUCIBLE_MONO).scale(0.5).next_to(best_subtour_txt)
+        )
+        best_cost_str = (
+            Text(f"0", font=REDUCIBLE_MONO).scale(0.6).next_to(best_cost_txt)
+        )
 
-        self.play(FadeIn(text_vg))
+        explanation = (
+            Text(
+                "Going from 0 to 0 through 0 cities",
+                font=REDUCIBLE_FONT,
+                t2f={"0": REDUCIBLE_MONO},
+            )
+            .scale(0.6)
+            .next_to(
+                text_vg,
+                UP,
+                buff=1,
+                aligned_edge=LEFT,
+            )
+        )
+
+        self.play(
+            FadeIn(text_vg),
+            FadeIn(curr_tour_str),
+            FadeIn(curr_cost_str),
+            FadeIn(best_tour_str),
+            FadeIn(best_cost_str),
+            FadeIn(explanation),
+        )
+        self.wait()
         for i in range(cities - 1):
             costs = {}
             internal_perms = list(permutations(cities_list, i + 1))
@@ -808,12 +838,12 @@ class ProblemComplexity(TSPAssumptions):
                 tour = [*sub_tour, start_city]
 
                 tour_edges = graph.get_tour_edges(tour)
+                tour_edges.popitem()
 
                 # remove the last one since we are talking about sub tours
                 tour_edge_tuples = get_edges_from_tour(tour)[:-1]
 
                 curr_cost = get_cost_from_edges(tour_edge_tuples, graph.dist_matrix)
-                print(tour_edge_tuples, curr_cost)
 
                 costs[tuple(tour)] = curr_cost
 
@@ -845,7 +875,9 @@ class ProblemComplexity(TSPAssumptions):
                 )
 
                 edges_anims = self.focus_on_edges(tour_edges, all_edges=all_edges)
-                labels_anims = self.focus_on_labels(tour_edge_tuples, all_labels)
+                labels_anims = self.focus_on_labels(
+                    tour_edge_tuples, all_labels=all_labels
+                )
 
                 self.play(
                     *edges_anims,
@@ -917,7 +949,7 @@ class ProblemComplexity(TSPAssumptions):
             run_time=5,
         )
         self.wait()
-        # self.play(*[FadeOut(m, scale=0.95) for m in self.mobjects])
+        self.play(*[FadeOut(m, scale=0.95) for m in self.mobjects])
 
     def plot_graphs(self):
 
