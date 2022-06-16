@@ -80,6 +80,32 @@ class TSPGraph(Graph):
             edge_dict[edge] = self.create_edge(u, v, edge_type=edge_type, buff=buff)
         return edge_dict
 
+    def get_some_edges(
+        self, percentage=0.7, edge_type: TipableVMobject = Line, buff=None
+    ):
+        """
+        Given a TSPGraph, generate a subset of all possible sets. Use percentage to control
+        the total amount from edges to return from the total. 0.7 will give 70% of the total edge count.
+        This is useful for insanely big graphs, where presenting only 30% of the total still gives the illusion
+        of scale but we don't have to calculate billions of edges.
+        """
+        edge_dict = {}
+        vertex_list = list(self.vertices.keys())
+
+        random_tuples = [
+            (u, v)
+            for u in vertex_list
+            for v in sorted(
+                np.random.choice(vertex_list, int(len(vertex_list) * percentage))
+            )
+            if v != u
+        ]
+
+        for t in random_tuples:
+            edge_dict[t] = self.create_edge(t[0], t[1], edge_type=edge_type, buff=buff)
+
+        return edge_dict
+
     def create_edge(self, u, v, edge_type: TipableVMobject = Line, buff=None):
         return edge_type(
             self.vertices[u].get_center(),

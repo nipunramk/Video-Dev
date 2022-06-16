@@ -1055,48 +1055,42 @@ class ProblemComplexity(TSPAssumptions):
 
 class TransitionOtherApproaches(TSPAssumptions):
     def construct(self):
-        bg = ImageMobject("america-map.png").scale_to_fit_height(config.frame_height)
+        bg = ImageMobject("usa-map-satellite.png").scale_to_fit_height(
+            config.frame_height
+        )
         self.play(FadeIn(bg))
+        self.wait()
 
-        # specific coordinates that match the USA map
-        coords = [
-            [-3, 0, 0],
-            [0.5, -2, 0],
-            [-5, -1, 0],
-            [0, 1, 0],
-            [1.7, 0, 0],
-            [3.8, -0.2, 0],
-            [5, -1, 0],
-            [-3, 3, 0],
-            [1, 3, 0],
-            [3.5, 1.6, 0],
-            [6, 1.5, 0],
-            [2.5, -1.5, 0],
-            [4, -1.5, 0],
-            [4.3, -3, 0],
-        ]
+        n = 350
         graph = TSPGraph(
-            range(len(coords)),
+            range(n),
             vertex_config={
                 "fill_opacity": 1,
                 "fill_color": REDUCIBLE_VIOLET,
                 "stroke_color": REDUCIBLE_PURPLE_DARKER,
                 "stroke_width": 3,
             },
-            label_color=REDUCIBLE_PURPLE_DARKER,
-            label_scale=0.4,
-            layout=self.get_specific_layout(*coords),
+            labels=False,
+            layout=self.get_normal_dist_layout(n),
         )
-        [
-            self.play(FadeIn(v, scale=0.9), run_time=5 / config.frame_rate)
-            for v in graph.vertices.values()
-        ]
+        [v.scale(0.6) for v in graph.vertices.values()]
+        self.play(
+            LaggedStart(*[FadeIn(v, scale=0.7) for v in graph.vertices.values()]),
+            run_time=2,
+        )
 
-        all_edges = graph.get_all_edges()
-        [e.set_stroke(REDUCIBLE_PURPLE_DARKER, opacity=0) for e in all_edges.values()]
+        some_edges = graph.get_some_edges(
+            percentage=0.01, buff=graph.vertices[0].width / 2
+        )
+        print(
+            f"number of edges: {len(some_edges)}. theoretical maximum for {n} nodes: {factorial(n) // factorial(2) // factorial(n-2)}"
+        )
+        [e.set_stroke(REDUCIBLE_VIOLET, opacity=0) for e in some_edges.values()]
 
-        tour_perms = get_all_tour_permutations(len(coords), 0, max_cap=600)
+        tour_perms = get_all_tour_permutations(n, 0, max_cap=600)
+
         edges_perms = [get_edges_from_tour(t) for t in tour_perms]
+        # np.random.shuffle(edges_perms)
 
         cost_indicator = (
             Text(
@@ -1112,34 +1106,58 @@ class TransitionOtherApproaches(TSPAssumptions):
             .to_corner(DL)
         )
 
-        for i, tour_edges in enumerate(edges_perms[:10]):
-            cost = get_cost_from_edges(tour_edges, graph.dist_matrix)
-            new_cost_indicator = (
-                Text(
-                    f"Distance: {get_cost_from_edges(tour_edges, graph.dist_matrix):.2f}",
-                    font=REDUCIBLE_FONT,
-                    t2f={
-                        f"{get_cost_from_edges(tour_edges, graph.dist_matrix):.2f}": REDUCIBLE_MONO
-                    },
-                    weight=BOLD,
-                )
-                .set_stroke(width=4, background=True)
-                .scale(0.4)
-                .to_corner(DL)
-            )
-            anims = self.focus_on_edges(tour_edges, all_edges)
-            self.play(
-                *anims,
-                Transform(cost_indicator, new_cost_indicator),
-                run_time=1 / (5 * i + 1),
-            )
+        # for i, tour_edges in enumerate(edges_perms[:10]):
+        #     cost = get_cost_from_edges(tour_edges, graph.dist_matrix)
+        #     new_cost_indicator = (
+        #         Text(
+        #             f"Distance: {cost:.2f}",
+        #             font=REDUCIBLE_FONT,
+        #             t2f={f"{cost:.2f}": REDUCIBLE_MONO},
+        #             weight=BOLD,
+        #         )
+        #         .set_stroke(width=4, background=True)
+        #         .scale(0.4)
+        #         .to_corner(DL)
+        #     )
+
+        #     # set_focus = set(tour_edges)
+        #     # set_some = set(some_edges)
+        #     # diff = set_focus.difference(set_some)
+        #     # for edge in diff:
+        #     #     edge_mob = graph.create_edge(edge[0], edge[1])
+        #     #     some_edges[edge] = edge_mob
+
+        #     anims = self.focus_on_edges(
+        #         tour_edges,
+        #         some_edges,
+        #         min_opacity=0.1,
+        #     )
+
+        #     self.play(
+        #         *anims,
+        #         Transform(cost_indicator, new_cost_indicator),
+        #         run_time=1 / (5 * i + 1),
+        #     )
 
     def get_specific_layout(self, *coords):
         # dict with v number and coordinate
         return {v: coord for v, coord in enumerate(coords)}
 
+    def get_normal_dist_layout(self, N):
+
+        x_values = np.random.normal(-0.6, 1.3, size=N)
+        y_values = np.random.normal(1, 0.9, size=N)
+
+        return {
+            v: (point[0], point[1], 0)
+            for v, point in enumerate(zip(x_values, y_values))
+        }
+
     def focus_on_edges(
-        self, edges_to_focus_on: Iterable[tuple], all_edges: Iterable[tuple]
+        self,
+        edges_to_focus_on: Iterable[tuple],
+        all_edges: Iterable[tuple],
+        min_opacity=0.1,
     ):
         edges_animations = []
 
@@ -1148,7 +1166,7 @@ class TransitionOtherApproaches(TSPAssumptions):
         )
         for t, e in all_edges.items():
             if not t in edges_to_focus_on:
-                edges_animations.append(e.animate.set_opacity(0.1))
+                edges_animations.append(e.animate.set_opacity(min_opacity))
             else:
                 edges_animations.append(e.animate.set_opacity(1))
 
