@@ -120,3 +120,68 @@ def get_nearest_neighbor_solution(dist_matrix, start=0):
     # cost to go back to start
     total_cost += dist_matrix[tour[-1]][tour[0]]
     return tour, total_cost
+
+def get_mst(dist_matrix, v_to_ignore=None):
+    # A utility function to find the vertex with
+    # minimum distance value, from the set of vertices
+    # not yet included in shortest path tree
+    vertices_to_consider = list(range(dist_matrix.shape[0]))
+    if v_to_ignore is not None:
+        vertices_to_consider.remove(v_to_ignore)
+
+    print('Vertices to consider', vertices_to_consider)
+
+    def min_key(key, mst_set):
+        # Initialize minim value
+        minim = float('inf')
+        for v in vertices_to_consider:
+            if key[v] < minim and mst_set[v] == False:
+                minim = key[v]
+                min_index = v
+ 
+        return min_index
+ 
+    # Key values used to pick minimum weight edge in cut
+    key = [float('inf')] * dist_matrix.shape[0]
+    parent = [None] * dist_matrix.shape[0] # Array to store constructed MST
+    # Make key 0 so that this vertex is picked as first vertex
+    key[vertices_to_consider[0]] = 0
+    mst_set = [False] * dist_matrix.shape[0]
+    parent[vertices_to_consider[0]] = -1 # First node is always the root of
+
+    for _ in range(len(vertices_to_consider)):
+
+        # Pick the minimum distance vertex from
+        # the set of vertices not yet processed.
+        # u is always equal to src in first iteration
+        u = min_key(key, mst_set)
+
+        # Put the minimum distance vertex in
+        # the shortest path tree
+        mst_set[u] = True
+
+        # Update dist value of the adjacent vertices
+        # of the picked vertex only if the current
+        # distance is greater than new distance and
+        # the vertex in not in the shortest path tree
+        for v in vertices_to_consider:
+            # dist_matrix[u][v] is non zero only for adjacent vertices of m
+            # mst_set[v] is false for vertices not yet included in MST
+            # Update the key only if dist_matrix[u][v] is smaller than key[v]
+            if dist_matrix[u][v] > 0 and mst_set[v] == False and key[v] > dist_matrix[u][v]:
+                key[v] = dist_matrix[u][v]
+                parent[v] = u
+    cost = 0
+    mst_edges = []
+    for i in range(1, len(vertices_to_consider)):
+        mst_edges.append((parent[vertices_to_consider[i]], vertices_to_consider[i]))
+        cost += dist_matrix[parent[vertices_to_consider[i]]][i]
+    return mst_edges, cost
+
+def get_1_tree(dist_matrix, v_to_ignore):
+    mst_edges, cost = get_mst(dist_matrix, v_to_ignore=v_to_ignore)
+    closest_vertices = sorted([v for v in range(dist_matrix.shape[0]) if v != v_to_ignore], key=lambda x: dist_matrix[x][v_to_ignore])
+    additional_edges = [(v_to_ignore, closest_vertices[0]), (v_to_ignore, closest_vertices[1])]
+    one_tree_edges = mst_edges + additional_edges
+    one_tree_cost = sum([dist_matrix[u][v] for u, v in one_tree_edges])
+    return mst_edges, cost, one_tree_edges, one_tree_cost
