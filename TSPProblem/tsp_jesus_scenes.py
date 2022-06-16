@@ -716,7 +716,14 @@ class BruteForce(TSPAssumptions):
             range(20),
             layout="circular",
         ).shift(UP * 0.7)
-        all_edges = random_graph.get_all_edges()
+
+        # scale down vertices
+        [v.scale(0.7) for v in random_graph.vertices.values()]
+
+        # recalculate edges
+        all_edges = random_graph.get_all_edges(buff=random_graph.vertices[0].width / 2)
+
+        # set edges opacity down
         [e.set_opacity(0.3) for e in all_edges.values()]
 
         twenty_factorial = (
