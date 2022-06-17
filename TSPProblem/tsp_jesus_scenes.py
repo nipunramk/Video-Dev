@@ -1055,86 +1055,121 @@ class ProblemComplexity(TSPAssumptions):
 
 class TransitionOtherApproaches(TSPAssumptions):
     def construct(self):
-        bg = ImageMobject("usa-map-satellite.png").scale_to_fit_height(
-            config.frame_height
+        bg = ImageMobject("usa-map-satellite-markers.png").scale_to_fit_width(
+            config.frame_width
         )
         self.play(FadeIn(bg))
         self.wait()
+        # self.add(
+        #     Axes(
+        #         axis_config={"include_numbers": True},
+        #         x_length=config.frame_width,
+        #         y_length=config.frame_height,
+        #         tips=False,
+        #     )
+        # )
 
-        n = 100
+        city_coords = [
+            (-5.95, 0.7, 0),  # SF
+            (-5.8, 0.55, 0),  # san jose
+            (-4.9, -0.45, 0),  # LA
+            (-4.6, -0.87, 0),  # San diego
+            (-3.35, -0.65, 0),  # phoenix
+            (0.45, -0.85, 0),  # dallas
+            (0, -1.8, 0),  # san antonio
+            (0.8, -1.75, 0),  # houston
+            (2.74, 2, 0),  # chicago
+            (6.1, 1.65, 0),  # new york
+            (5.85, 1.35, 0),  # philadelphia
+        ]
+        nodes_per_core = 20
         graph = TSPGraph(
-            range(n),
+            range(len(city_coords) * nodes_per_core),
             vertex_config={
                 "fill_opacity": 1,
-                "fill_color": REDUCIBLE_VIOLET,
+                "fill_color": REDUCIBLE_YELLOW,
                 "stroke_color": REDUCIBLE_PURPLE_DARKER,
-                "stroke_width": 3,
+                "stroke_width": 0,
             },
             labels=False,
-            layout=self.get_normal_dist_layout(n),
-        )
-        [v.scale(0.6) for v in graph.vertices.values()]
-        self.play(
-            LaggedStart(*[FadeIn(v, scale=0.7) for v in graph.vertices.values()]),
-            run_time=2,
+            layout=self.get_city_layout(
+                core_cities=city_coords, nodes_per_core=nodes_per_core
+            ),
         )
 
-        some_edges = graph.get_some_edges(
-            percentage=0.01, buff=graph.vertices[0].width / 2
-        )
-        # all_edges = graph.get_all_edges()
-        print(
-            f"number of edges: {len(some_edges)}. theoretical maximum for {n} nodes: {factorial(n) // factorial(2) // factorial(n-2)}"
-        )
-        [e.set_stroke(REDUCIBLE_VIOLET, opacity=0) for e in some_edges.values()]
+        # first len(city_coords) are actual cities, so we give them more relevance
+        [
+            v.scale(0.8)
+            .set_fill(REDUCIBLE_VIOLET)
+            .set_stroke(REDUCIBLE_PURPLE_DARKER, width=3)
+            for v in list(graph.vertices.values())[: len(city_coords)]
+        ]
 
-        tour_perms = get_all_tour_permutations(n, 0, max_cap=600)
+        # these are the tiny nodes around it
+        [v.scale(0.3) for v in list(graph.vertices.values())[len(city_coords) :]]
+        self.add_foreground_mobjects(*list(graph.vertices.values())[: len(city_coords)])
+        self.add(*graph.vertices.values())
+        # self.play(
+        #     LaggedStart(*[FadeIn(v, scale=0.7) for v in graph.vertices.values()]),
+        #     run_time=2,
+        # )
 
-        edges_perms = [get_edges_from_tour(t) for t in tour_perms]
+        # some_edges = graph.get_some_edges(
+        #     percentage=0.01, buff=graph.vertices[0].width / 2
+        # )
+        # # all_edges = graph.get_all_edges()
+        # print(
+        #     f"number of edges: {len(some_edges)}. theoretical maximum for {n} nodes: {factorial(n) // factorial(2) // factorial(n-2)}"
+        # )
+        # [e.set_stroke(REDUCIBLE_VIOLET, opacity=0) for e in some_edges.values()]
 
-        cost_indicator = (
-            Text(
-                f"Distance: {get_cost_from_edges(edges_perms[0], graph.dist_matrix):.2f}",
-                font=REDUCIBLE_FONT,
-                t2f={
-                    f"{get_cost_from_edges(edges_perms[0], graph.dist_matrix):.2f}": REDUCIBLE_MONO
-                },
-                weight=BOLD,
-            )
-            .set_stroke(width=4, background=True)
-            .scale(0.4)
-            .to_corner(DL)
-        )
+        # tour_perms = get_all_tour_permutations(n, 0, max_cap=600)
 
-        # TODO: right now, edges_perms is calculated synthetically, but some_edges
-        # will not hold every possible edge considered in edges_perms. The idea
-        # would be to dynamically add missing edges that we want to show as a path.
+        # edges_perms = [get_edges_from_tour(t) for t in tour_perms]
 
-        for i, tour_edges in enumerate(edges_perms[:10]):
-            cost = get_cost_from_edges(tour_edges, graph.dist_matrix)
-            new_cost_indicator = (
-                Text(
-                    f"Distance: {cost:.2f}",
-                    font=REDUCIBLE_FONT,
-                    t2f={f"{cost:.2f}": REDUCIBLE_MONO},
-                    weight=BOLD,
-                )
-                .set_stroke(width=4, background=True)
-                .scale(0.4)
-                .to_corner(DL)
-            )
+        # cost_indicator = (
+        #     Text(
+        #         f"Distance: {get_cost_from_edges(edges_perms[0], graph.dist_matrix):.2f}",
+        #         font=REDUCIBLE_FONT,
+        #         t2f={
+        #             f"{get_cost_from_edges(edges_perms[0], graph.dist_matrix):.2f}": REDUCIBLE_MONO
+        #         },
+        #         weight=BOLD,
+        #     )
+        #     .set_stroke(width=4, background=True)
+        #     .scale(0.4)
+        #     .to_corner(DL)
+        # )
 
-            anims = self.focus_on_edges(
-                tour_edges,
-                some_edges,
-                min_opacity=0.01,
-            )
+        # # TODO: right now, edges_perms is calculated synthetically, but some_edges
+        # # will not hold every possible edge considered in edges_perms. The idea
+        # # would be to dynamically add missing edges that we want to show as a path.
 
-            self.play(
-                *anims,
-                Transform(cost_indicator, new_cost_indicator),
-                run_time=1 / (5 * i + 1),
-            )
+        # for i, tour_edges in enumerate(edges_perms[:10]):
+        #     cost = get_cost_from_edges(tour_edges, graph.dist_matrix)
+        #     new_cost_indicator = (
+        #         Text(
+        #             f"Distance: {cost:.2f}",
+        #             font=REDUCIBLE_FONT,
+        #             t2f={f"{cost:.2f}": REDUCIBLE_MONO},
+        #             weight=BOLD,
+        #         )
+        #         .set_stroke(width=4, background=True)
+        #         .scale(0.4)
+        #         .to_corner(DL)
+        #     )
+
+        #     anims = self.focus_on_edges(
+        #         tour_edges,
+        #         some_edges,
+        #         min_opacity=0.01,
+        #     )
+
+        #     self.play(
+        #         *anims,
+        #         Transform(cost_indicator, new_cost_indicator),
+        #         run_time=1 / (5 * i + 1),
+        #     )
 
     def get_specific_layout(self, *coords):
         # dict with v number and coordinate
@@ -1149,6 +1184,20 @@ class TransitionOtherApproaches(TSPAssumptions):
             v: (point[0], point[1], 0)
             for v, point in enumerate(zip(x_values, y_values))
         }
+
+    def get_city_layout(self, core_cities: Iterable[tuple], nodes_per_core: int = 10):
+        v_dict = {v: coord for v, coord in enumerate(core_cities)}
+
+        # for each city, we are gona spread nodes_per_core more cities around it
+        index = len(core_cities)
+        for v in core_cities:
+            x_values = np.random.normal(v[0], 0.1, size=nodes_per_core)
+            y_values = np.random.normal(v[1], 0.1, size=nodes_per_core)
+            for x, y in zip(x_values, y_values):
+                v_dict[index] = (x, y, 0)
+                index += 1
+
+        return v_dict
 
     def focus_on_edges(
         self,
