@@ -1055,6 +1055,14 @@ class ProblemComplexity(TSPAssumptions):
 
 class TransitionOtherApproaches(TSPAssumptions):
     def construct(self):
+        print(
+            "> Hi, it's Jesús from the past! You are now rendering TransitionOtherApproaches. This scene is jam packed with mobs!"
+        )
+        print(
+            "> You are now rendering TransitionOtherApproaches. This scene is jam packed with mobs!"
+        )
+        print("> So you may want to consider disabling cache (--disable_caching)")
+        print("> Nevertheless, the scene will take a little while to render.")
         bg = ImageMobject("usa-map-satellite-markers.png").scale_to_fit_width(
             config.frame_width
         )
@@ -1142,7 +1150,7 @@ class TransitionOtherApproaches(TSPAssumptions):
         )
 
         # by changing the slice size you can create a longer or shorter example
-        for i, tour_edges in enumerate(edges_perms[:1]):
+        for i, tour_edges in enumerate(edges_perms[:100]):
 
             # the all_edges dict only stores the edges in ascending order
             tour_edges = list(
