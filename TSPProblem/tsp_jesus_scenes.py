@@ -1058,7 +1058,8 @@ class TransitionOtherApproaches(TSPAssumptions):
         bg = ImageMobject("usa-map-satellite-markers.png").scale_to_fit_width(
             config.frame_width
         )
-        self.play(FadeIn(bg))
+        dark_filter = ScreenRectangle(height=10).set_fill(BLACK, opacity=0.2)
+        self.play(FadeIn(bg), FadeIn(dark_filter))
         self.wait()
         # self.add(
         #     Axes(
@@ -1119,6 +1120,7 @@ class TransitionOtherApproaches(TSPAssumptions):
         all_edges = graph.get_all_edges(
             buff=graph.vertices[len(city_coords) + 1].width / 2
         )
+        [e.set_opacity(0) for e in all_edges.values()]
 
         tour_perms = get_all_tour_permutations(total_number_of_nodes, 0, max_cap=1)
         print(len(tour_perms))
@@ -1140,7 +1142,12 @@ class TransitionOtherApproaches(TSPAssumptions):
         )
 
         # by changing the slice size you can create a longer or shorter example
-        for i, tour_edges in enumerate(edges_perms[:100]):
+        for i, tour_edges in enumerate(edges_perms[:5]):
+
+            # the all_edges dict only stores the edges in ascending order
+            tour_edges = list(
+                map(lambda x: x if x[0] < x[1] else (x[1], x[0]), tour_edges)
+            )
             cost = get_cost_from_edges(tour_edges, graph.dist_matrix)
             new_cost_indicator = (
                 Text(
@@ -1156,7 +1163,7 @@ class TransitionOtherApproaches(TSPAssumptions):
 
             if i == 0:
                 anims = LaggedStart(
-                    *[Write(all_edges[e]) for e in tour_edges if e in all_edges.keys()]
+                    *[Write(all_edges[e].set_opacity(1)) for e in tour_edges]
                 )
                 self.play(
                     anims,
@@ -1168,7 +1175,6 @@ class TransitionOtherApproaches(TSPAssumptions):
                 anims = self.focus_on_edges(
                     tour_edges,
                     all_edges=all_edges,
-                    min_opacity=0.01,
                 )
 
                 self.play(
@@ -1176,6 +1182,37 @@ class TransitionOtherApproaches(TSPAssumptions):
                     Transform(cost_indicator, new_cost_indicator),
                     run_time=1 / (5 * i + 1),
                 )
+
+        print("Finished looping through tours")
+
+        self.wait()
+        # transition to nearest neighbour example
+
+        self.play(*[all_edges[e].animate.set_opacity(0) for e in tour_edges])
+        print("finished deleting edges")
+        self.wait()
+
+        nn_tour, nn_cost = get_nearest_neighbor_solution(graph.dist_matrix)
+        nn_edges = get_edges_from_tour(nn_tour)
+        nn_edges = list(map(lambda x: x if x[0] < x[1] else (x[1], x[0]), nn_edges))
+
+        nn_cost_indicator = (
+            Text(
+                f"Distance: {nn_cost:.2f}",
+                font=REDUCIBLE_FONT,
+                t2f={f"{nn_cost:.2f}": REDUCIBLE_MONO},
+                weight=BOLD,
+            )
+            .set_stroke(width=4, background=True)
+            .scale(0.6)
+            .to_corner(DL, buff=0.5)
+        )
+
+        self.play(
+            dark_filter.animate.set_opacity(0.4),
+            LaggedStart(*[all_edges[e].animate.set_opacity(1) for e in nn_edges]),
+            Transform(cost_indicator, nn_cost_indicator),
+        )
 
     def get_specific_layout(self, *coords):
         # dict with v number and coordinate
@@ -1209,7 +1246,7 @@ class TransitionOtherApproaches(TSPAssumptions):
         self,
         edges_to_focus_on: Iterable[tuple],
         all_edges: Iterable[tuple],
-        min_opacity=0.1,
+        min_opacity=0.0001,
     ):
         edges_animations = []
 
@@ -1218,7 +1255,7 @@ class TransitionOtherApproaches(TSPAssumptions):
         )
         for t, e in all_edges.items():
             if not t in edges_to_focus_on:
-                self.remove(e)
+                edges_animations.append(e.animate.set_opacity(min_opacity))
             else:
                 edges_animations.append(e.animate.set_opacity(1))
 
