@@ -1106,25 +1106,19 @@ class TransitionOtherApproaches(TSPAssumptions):
             for v in list(graph.vertices.values())[: len(city_coords)]
         ]
 
-        # these are the tiny nodes around it
+        # these are the tiny nodes around every city
         [v.scale(0.3) for v in list(graph.vertices.values())[len(city_coords) :]]
         self.add_foreground_mobjects(*list(graph.vertices.values())[: len(city_coords)])
-        # self.add(*graph.vertices.values())
+
         self.play(
             LaggedStart(*[FadeIn(v, scale=0.7) for v in graph.vertices.values()]),
             run_time=3,
         )
+        self.wait()
 
-        # some_edges = graph.get_some_edges(
-        #     percentage=0.01, buff=graph.vertices[0].width / 2
-        # )
         all_edges = graph.get_all_edges(
             buff=graph.vertices[len(city_coords) + 1].width / 2
         )
-        # print(
-        #     f"number of edges: {len(some_edges)}. theoretical maximum for {n} nodes: {factorial(n) // factorial(2) // factorial(n-2)}"
-        # )
-        # [e.set_stroke(REDUCIBLE_VIOLET, opacity=0) for e in some_edges.values()]
 
         tour_perms = get_all_tour_permutations(total_number_of_nodes, 0, max_cap=1)
         print(len(tour_perms))
@@ -1141,15 +1135,12 @@ class TransitionOtherApproaches(TSPAssumptions):
                 weight=BOLD,
             )
             .set_stroke(width=4, background=True)
-            .scale(0.4)
-            .to_corner(DL)
+            .scale(0.6)
+            .to_corner(DL, buff=0.5)
         )
 
-        # # TODO: right now, edges_perms is calculated synthetically, but some_edges
-        # # will not hold every possible edge considered in edges_perms. The idea
-        # # would be to dynamically add missing edges that we want to show as a path.
-
-        for i, tour_edges in enumerate(edges_perms[:300]):
+        # by changing the slice size you can create a longer or shorter example
+        for i, tour_edges in enumerate(edges_perms[:100]):
             cost = get_cost_from_edges(tour_edges, graph.dist_matrix)
             new_cost_indicator = (
                 Text(
@@ -1159,21 +1150,32 @@ class TransitionOtherApproaches(TSPAssumptions):
                     weight=BOLD,
                 )
                 .set_stroke(width=4, background=True)
-                .scale(0.4)
-                .to_corner(DL)
+                .scale(0.6)
+                .to_corner(DL, buff=0.5)
             )
 
-            anims = self.focus_on_edges(
-                tour_edges,
-                all_edges=all_edges,
-                min_opacity=0.01,
-            )
+            if i == 0:
+                anims = LaggedStart(
+                    *[Write(all_edges[e]) for e in tour_edges if e in all_edges.keys()]
+                )
+                self.play(
+                    anims,
+                    Transform(cost_indicator, new_cost_indicator),
+                    run_time=1 / (5 * i + 1),
+                )
 
-            self.play(
-                *anims,
-                Transform(cost_indicator, new_cost_indicator),
-                run_time=1 / (5 * i + 1),
-            )
+            else:
+                anims = self.focus_on_edges(
+                    tour_edges,
+                    all_edges=all_edges,
+                    min_opacity=0.01,
+                )
+
+                self.play(
+                    *anims,
+                    Transform(cost_indicator, new_cost_indicator),
+                    run_time=1 / (5 * i + 1),
+                )
 
     def get_specific_layout(self, *coords):
         # dict with v number and coordinate
