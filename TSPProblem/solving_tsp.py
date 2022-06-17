@@ -1160,3 +1160,181 @@ class LowerBoundTSP(NearestNeighbor):
             return edge_dict[edge]
         else:
             return edge_dict[(edge[1], edge[0])]
+
+
+class GreedyApproach(LowerBoundTSP):
+    def construct(self):
+        self.show_greedy_algorithm()
+
+    def show_greedy_algorithm(self):
+        np.random.seed(9)
+        NUM_VERTICES = 8
+        layout = self.get_random_layout(NUM_VERTICES)
+        layout[0] += UR * 0.2 + RIGHT * 0.3
+        graph = TSPGraph(list(range(NUM_VERTICES)), layout=layout).scale(0.8)
+
+        title = (
+            Text("Greedy Heuristic", font=REDUCIBLE_FONT, weight=BOLD)
+            .scale(0.8)
+            .move_to(UP * 3.5)
+        )
+
+        self.play(
+            LaggedStart(*[GrowFromCenter(v) for v in graph.vertices.values()]),
+            run_time=2,
+        )
+        self.wait()
+
+        all_edges = graph.get_all_edges(buff=graph.vertices[0].width / 2)
+
+        self.play(*[Write(edge.set_stroke(opacity=0.3)) for edge in all_edges.values()])
+        self.wait()
+
+        self.play(*[Unwrite(edge) for edge in all_edges.values()])
+        self.wait()
+
+        self.perform_algorithm(graph)
+
+    def perform_algorithm(self, graph):
+        all_edges = graph.get_all_edges(buff=graph.vertices[0].width / 2)
+        edges_sorted = sorted(
+            [edge for edge in all_edges],
+            key=lambda x: graph.get_dist_matrix()[x[0]][x[1]],
+        )
+        added_edges = []
+        for edge in edges_sorted:
+            degree_map = self.get_degree_map(graph, added_edges)
+            if len(added_edges) == len(graph.vertices) - 1:
+                degrees_sorted = sorted(
+                    list(degree_map.keys()), key=lambda x: degree_map[x]
+                )
+                final_edge = (degrees_sorted[0], degrees_sorted[1])
+                added_edges.append(final_edge)
+                edge_mob = all_edges[final_edge].set_stroke(color=REDUCIBLE_YELLOW)
+                self.play(Write(edge_mob))
+                self.wait()
+                break
+            u, v = edge
+            edge_mob = all_edges[edge].set_stroke(color=REDUCIBLE_YELLOW)
+            if degree_map[u] == 2 or degree_map[v] == 2:
+                self.play(Write(edge_mob.set_stroke(color=REDUCIBLE_CHARM)))
+                self.wait()
+                # show degree issue
+                if 3 in edge and 4 in edge:
+                    surround_rects = [
+                        SurroundingRectangle(graph.vertices[i]).set_color(
+                            REDUCIBLE_CHARM
+                        )
+                        for i in [3, 4]
+                    ]
+                    degree_comment = (
+                        Tex(r"Degree $>$ 2").scale(0.7).next_to(surround_rects[0], UP)
+                    )
+                    self.play(
+                        *[Write(rect) for rect in surround_rects],
+                        FadeIn(degree_comment),
+                    )
+                    self.wait()
+
+                    self.play(
+                        FadeOut(edge_mob),
+                        FadeOut(degree_comment),
+                        *[FadeOut(rect) for rect in surround_rects],
+                    )
+                    self.wait()
+                    continue
+
+                self.play(
+                    FadeOut(edge_mob),
+                )
+                self.wait()
+                continue
+
+            if self.is_connected(u, v, added_edges):
+                print(u, v, "is connected already, so would cause cycle")
+                # would create cycle
+                self.play(Write(edge_mob.set_stroke(color=REDUCIBLE_CHARM)))
+                self.wait()
+
+                surround_rect = SurroundingRectangle(
+                    VGroup(
+                        graph.vertices[0],
+                        graph.vertices[2],
+                        graph.vertices[4],
+                    )
+                ).set_color(REDUCIBLE_CHARM)
+
+                cycle = (
+                    Text("Cycle", font=REDUCIBLE_FONT)
+                    .scale(0.6)
+                    .next_to(surround_rect, UP)
+                )
+
+                self.play(Write(surround_rect), FadeIn(cycle))
+                self.wait()
+
+                self.play(FadeOut(edge_mob), FadeOut(surround_rect), FadeOut(cycle))
+                self.wait()
+                continue
+            added_edges.append(edge)
+            self.play(Write(edge_mob))
+            self.wait()
+
+    def get_degree_map(self, graph, edges):
+        v_to_degree = {v: 0 for v in graph.vertices}
+        for edge in edges:
+            u, v = edge
+            v_to_degree[u] = v_to_degree.get(u, 0) + 1
+            v_to_degree[v] = v_to_degree.get(v, 0) + 1
+        return v_to_degree
+
+    def is_connected(self, u, v, edges):
+        visited = set()
+
+        def dfs(u):
+            visited.add(u)
+            for v in self.get_neighbors(u, edges):
+                if v not in visited:
+                    dfs(v)
+
+        dfs(u)
+        print("visited", visited)
+        return v in visited
+
+    def get_neighbors(self, v, edges):
+        neighbors = []
+        for edge in edges:
+            if v not in edge:
+                continue
+            neighbors.append(edge[0] if edge[0] != v else edge[1])
+        return neighbors
+
+
+class GreedApproachExtraText(Scene):
+    def construct(self):
+        title = Text(
+            "Greedy Heuristic Approach", font=REDUCIBLE_FONT, weight=BOLD
+        ).scale(0.8)
+        title.move_to(UP * 3.5)
+        average_case = (
+            Tex(
+                r"On average: $\frac{\text{Greedy Heuristic}}{\text{1-Tree Lower Bound}} = 1.17$"
+            )
+            .scale(0.8)
+            .move_to(DOWN * 3.5)
+        )
+        self.play(Write(title))
+        self.wait()
+
+        self.play(FadeIn(average_case))
+        self.wait()
+
+        self.clear()
+
+        screen_rect_left = ScreenRectangle(height=3)
+        screen_rect_right = ScreenRectangle(height=3)
+        screen_rects = VGroup(screen_rect_left, screen_rect_right).arrange(
+            RIGHT, buff=1
+        )
+        self.play(FadeIn(screen_rects))
+        self.wait()
