@@ -1142,7 +1142,7 @@ class TransitionOtherApproaches(TSPAssumptions):
         )
 
         # by changing the slice size you can create a longer or shorter example
-        for i, tour_edges in enumerate(edges_perms[:5]):
+        for i, tour_edges in enumerate(edges_perms[:1]):
 
             # the all_edges dict only stores the edges in ascending order
             tour_edges = list(
@@ -1208,10 +1208,23 @@ class TransitionOtherApproaches(TSPAssumptions):
             .to_corner(DL, buff=0.5)
         )
 
+        frame: Mobject = self.camera.frame
+        good_enough_txt = (
+            Text(
+                'Can we find a "good enough" tour quickly?',
+                font=REDUCIBLE_FONT,
+                weight=BOLD,
+            )
+            .scale_to_fit_width(graph.width - 2)
+            .move_to(frame.get_top())
+        )
         self.play(
-            dark_filter.animate.set_opacity(0.4),
+            frame.animate.shift(OUT * 0.5 + UP * 0.8),
+            dark_filter.animate.set_opacity(1),
             LaggedStart(*[all_edges[e].animate.set_opacity(1) for e in nn_edges]),
-            Transform(cost_indicator, nn_cost_indicator),
+            FadeIn(good_enough_txt, scale=0.95),
+            run_time=2
+            # Transform(cost_indicator, nn_cost_indicator),
         )
 
     def get_specific_layout(self, *coords):
