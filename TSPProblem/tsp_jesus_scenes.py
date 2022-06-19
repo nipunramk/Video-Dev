@@ -1056,7 +1056,7 @@ class ProblemComplexity(TSPAssumptions):
 class TransitionOtherApproaches(TSPAssumptions):
     def construct(self):
         print(
-            "> Hi, it's Jesús from the past! You are now rendering TransitionOtherApproaches. This scene is jam packed with mobs!"
+            "> Hi, it's Jesús from the past! You are now rendering TransitionOtherApproaches."
         )
         print(
             "> You are now rendering TransitionOtherApproaches. This scene is jam packed with mobs!"
@@ -1082,6 +1082,11 @@ class TransitionOtherApproaches(TSPAssumptions):
             (-5.95, 0.7, 0),  # SF
             (-5.8, 0.55, 0),  # san jose
             (-4.9, -0.45, 0),  # LA
+            (0.45, 0.85, 0),  # Atlanta
+            (-0.35, -0.35, 0),  # Miami
+            (-4.35, 1.75, 0),  # Miami
+            (-1.75, 1.35, 0),  # Denver
+            (3.5, -0.5, 0),  # Atlanta
             (-4.6, -0.87, 0),  # San diego
             (-3.35, -0.65, 0),  # phoenix
             (0.45, -0.85, 0),  # dallas
@@ -1093,6 +1098,7 @@ class TransitionOtherApproaches(TSPAssumptions):
         ]
         nodes_per_core = 10
         total_number_of_nodes = len(city_coords) * nodes_per_core
+        print(f"{total_number_of_nodes = }")
         graph = TSPGraph(
             range(total_number_of_nodes),
             vertex_config={
@@ -1130,7 +1136,8 @@ class TransitionOtherApproaches(TSPAssumptions):
         )
         [e.set_opacity(0) for e in all_edges.values()]
 
-        tour_perms = get_all_tour_permutations(total_number_of_nodes, 0, max_cap=1)
+        tour_perms = get_all_tour_permutations(total_number_of_nodes, 0, max_cap=100)
+        np.random.shuffle(tour_perms)
         print(len(tour_perms))
 
         edges_perms = [get_edges_from_tour(t) for t in tour_perms]
@@ -1150,8 +1157,8 @@ class TransitionOtherApproaches(TSPAssumptions):
         )
 
         # by changing the slice size you can create a longer or shorter example
-        for i, tour_edges in enumerate(edges_perms[:100]):
-
+        for i, tour_edges in enumerate(edges_perms[:50]):
+            print(i, tour_edges)
             # the all_edges dict only stores the edges in ascending order
             tour_edges = list(
                 map(lambda x: x if x[0] < x[1] else (x[1], x[0]), tour_edges)
@@ -1274,10 +1281,23 @@ class TransitionOtherApproaches(TSPAssumptions):
         edges_to_focus_on = list(
             map(lambda t: (t[1], t[0]) if t[0] > t[1] else t, edges_to_focus_on)
         )
-        for t, e in all_edges.items():
-            if not t in edges_to_focus_on:
-                edges_animations.append(e.animate.set_opacity(min_opacity))
-            else:
-                edges_animations.append(e.animate.set_opacity(1))
+
+        last_animation_edges = filter(
+            lambda e: e[1].stroke_opacity > 0 or e[1].fill_opacity > 0,
+            all_edges.items(),
+        )
+        edges_animations.extend(
+            [
+                all_edges[t].animate.set_opacity(min_opacity)
+                for t, e in last_animation_edges
+            ]
+        )
+
+        this_animation_edges = filter(
+            lambda e: e[0] in edges_to_focus_on, all_edges.items()
+        )
+        edges_animations.extend(
+            [all_edges[t].animate.set_opacity(1) for t, e in this_animation_edges]
+        )
 
         return edges_animations
