@@ -1055,14 +1055,7 @@ class ProblemComplexity(TSPAssumptions):
 
 class TransitionOtherApproaches(TSPAssumptions):
     def construct(self):
-        print(
-            "> Hi, it's Jesús from the past! You are now rendering TransitionOtherApproaches."
-        )
-        print(
-            "> You are now rendering TransitionOtherApproaches. This scene is jam packed with mobs!"
-        )
-        print("> So you may want to consider disabling cache (--disable_caching)")
-        print("> Nevertheless, the scene will take a little while to render.")
+
         bg = ImageMobject("usa-map-satellite-markers.png").scale_to_fit_width(
             config.frame_width
         )
@@ -1112,6 +1105,7 @@ class TransitionOtherApproaches(TSPAssumptions):
                 core_cities=city_coords, nodes_per_core=nodes_per_core
             ),
         )
+        print(f"> Finished building graph with {total_number_of_nodes} nodes")
 
         # first len(city_coords) are actual cities, so we give them more relevance
         [
@@ -1134,13 +1128,22 @@ class TransitionOtherApproaches(TSPAssumptions):
         all_edges = graph.get_all_edges(
             buff=graph.vertices[len(city_coords) + 1].width / 2
         )
+        print(f"> Finished getting all {len(all_edges)} edges")
         [e.set_opacity(0) for e in all_edges.values()]
 
-        tour_perms = get_all_tour_permutations(total_number_of_nodes, 0, max_cap=100)
-        np.random.shuffle(tour_perms)
-        print(len(tour_perms))
+        # generate all possible tours (until max cap) and try and get a good variety of tours
+        tour_perms = []
+        for i in range(len(city_coords)):
+            tour_perms.extend(
+                get_all_tour_permutations(total_number_of_nodes, i, max_cap=20)
+            )
 
-        edges_perms = [get_edges_from_tour(t) for t in tour_perms]
+        tour_perms = filter(lambda t: len(t) == total_number_of_nodes, tour_perms)
+
+        # randomizing a bit more
+        edges_perms = [swap_random(get_edges_from_tour(t)) for t in tour_perms]
+
+        print(f"> Finished calculating all {len(edges_perms)} tuples from every tour")
 
         cost_indicator = (
             Text(
@@ -1153,12 +1156,11 @@ class TransitionOtherApproaches(TSPAssumptions):
             )
             .set_stroke(width=4, background=True)
             .scale(0.6)
-            .to_corner(DL, buff=0.5)
+            .next_to(graph, DOWN, buff=0.5, aligned_edge=LEFT)
         )
 
         # by changing the slice size you can create a longer or shorter example
-        for i, tour_edges in enumerate(edges_perms[:50]):
-            print(i, tour_edges)
+        for i, tour_edges in enumerate(edges_perms):
             # the all_edges dict only stores the edges in ascending order
             tour_edges = list(
                 map(lambda x: x if x[0] < x[1] else (x[1], x[0]), tour_edges)
@@ -1173,7 +1175,7 @@ class TransitionOtherApproaches(TSPAssumptions):
                 )
                 .set_stroke(width=4, background=True)
                 .scale(0.6)
-                .to_corner(DL, buff=0.5)
+                .next_to(graph, DOWN, buff=0.5, aligned_edge=LEFT)
             )
 
             if i == 0:
@@ -1220,7 +1222,7 @@ class TransitionOtherApproaches(TSPAssumptions):
             )
             .set_stroke(width=4, background=True)
             .scale(0.6)
-            .to_corner(DL, buff=0.5)
+            .next_to(graph, DOWN, buff=0.5, aligned_edge=LEFT)
         )
 
         frame: Mobject = self.camera.frame
@@ -1237,11 +1239,13 @@ class TransitionOtherApproaches(TSPAssumptions):
             frame.animate.shift(OUT * 0.5 + UP * 0.8),
             dark_filter.animate.set_opacity(1),
             LaggedStart(*[all_edges[e].animate.set_opacity(1) for e in nn_edges]),
+            FadeTransform(cost_indicator, nn_cost_indicator),
             FadeIn(good_enough_txt, scale=0.95),
             run_time=2
             # Transform(cost_indicator, nn_cost_indicator),
         )
 
+    ############################ UTIL FUNCTIONS
     def get_specific_layout(self, *coords):
         # dict with v number and coordinate
         return {v: coord for v, coord in enumerate(coords)}
