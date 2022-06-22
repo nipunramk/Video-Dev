@@ -1305,3 +1305,8 @@ class TransitionOtherApproaches(TSPAssumptions):
         )
 
         return edges_animations
+
+
+class SimulatedAnnealing(Scene):
+    def construct(self):
+        pass
