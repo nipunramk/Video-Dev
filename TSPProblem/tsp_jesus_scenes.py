@@ -1307,6 +1307,131 @@ class TransitionOtherApproaches(TSPAssumptions):
         return edges_animations
 
 
-class SimulatedAnnealing(Scene):
+class SimulatedAnnealing(BruteForce, TransitionOtherApproaches):
     def construct(self):
-        pass
+        N = 30
+        graph = TSPGraph(
+            range(N),
+            layout="spring",
+            layout_config={"k": 9, "iterations": 10},
+            layout_scale=5,
+        ).scale(0.6)
+
+        self.add_foreground_mobjects(graph)
+        all_edges = graph.get_all_edges(buff=graph.vertices[0].width / 2)
+        [e.set_opacity(0) for e in all_edges.values()]
+
+        self.play(LaggedStart(*[FadeIn(v) for v in graph.vertices.values()]))
+
+        nn_tour, nn_cost = get_nearest_neighbor_solution(graph.dist_matrix, start=0)
+        nn_edges = get_edges_from_tour(nn_tour)
+
+        cost_indicator = (
+            Text(
+                f"Distance: {nn_cost:.2f}",
+                font=REDUCIBLE_FONT,
+                t2f={f"{nn_cost:.2f}": REDUCIBLE_MONO},
+                weight=BOLD,
+            )
+            .set_stroke(width=4, background=True)
+            .scale(0.6)
+            .next_to(graph, DOWN, buff=0.5)
+        )
+
+        self.play(
+            LaggedStart(*self.focus_on_edges(nn_edges, all_edges)),
+            FadeIn(cost_indicator),
+        )
+
+        (
+            edges_animations,
+            cost_animation,
+            last_tour,
+            cost_mob,
+        ) = self.iterate_two_opt_animation(
+            29,
+            18,
+            graph=graph,
+            all_edges=all_edges,
+            last_tour=nn_tour,
+            cost_indicator=cost_indicator,
+        )
+        self.play(*edges_animations, cost_animation)
+
+        (
+            edges_animations,
+            cost_animation,
+            last_tour,
+            cost_mob,
+        ) = self.iterate_two_opt_animation(
+            5,
+            1,
+            graph=graph,
+            all_edges=all_edges,
+            last_tour=last_tour,
+            cost_indicator=cost_mob,
+        )
+        self.play(*edges_animations, cost_animation)
+
+        # two_opt_tour = two_opt_swap(nn_tour, 29, 18)
+        # print(nn_tour)
+        # print(two_opt_tour)
+        # two_opt_edges = get_edges_from_tour(two_opt_tour)
+        # two_opt_cost = get_cost_from_edges(two_opt_edges, graph.dist_matrix)
+
+        # two_opt_cost_indicator = (
+        #     Text(
+        #         f"Distance: {two_opt_cost:.2f}",
+        #         font=REDUCIBLE_FONT,
+        #         t2f={f"{two_opt_cost:.2f}": REDUCIBLE_MONO},
+        #         weight=BOLD,
+        #     )
+        #     .set_stroke(width=4, background=True)
+        #     .scale(0.6)
+        #     .next_to(graph, DOWN, buff=0.5)
+        # )
+
+        # self.play(
+        #     *self.focus_on_edges(two_opt_edges, all_edges),
+        #     Transform(cost_indicator, two_opt_cost_indicator),
+        #     run_time=0.7,
+        # )
+        # self.wait()
+
+        # two_opt_tour(list(range(10)), 1, 5)
+
+    def iterate_two_opt_animation(
+        self,
+        v1,
+        v2,
+        graph,
+        all_edges,
+        last_tour,
+        cost_indicator,
+    ):
+        two_opt_tour = two_opt_swap(last_tour, 29, 18)
+
+        two_opt_edges = get_edges_from_tour(two_opt_tour)
+        two_opt_cost = get_cost_from_edges(two_opt_edges, graph.dist_matrix)
+
+        two_opt_cost_indicator = (
+            Text(
+                f"Distance: {two_opt_cost:.2f}",
+                font=REDUCIBLE_FONT,
+                t2f={f"{two_opt_cost:.2f}": REDUCIBLE_MONO},
+                weight=BOLD,
+            )
+            .set_stroke(width=4, background=True)
+            .scale(0.6)
+            .next_to(graph, DOWN, buff=0.5)
+        )
+
+        focus_edges_animations = self.focus_on_edges(two_opt_edges, all_edges)
+        cost_indicator_animation = Transform(cost_indicator, two_opt_cost_indicator)
+
+        return (
+            focus_edges_animations,
+            cost_indicator_animation,
+            two_opt_tour,
+            two_opt_cost_indicator,
+        )
