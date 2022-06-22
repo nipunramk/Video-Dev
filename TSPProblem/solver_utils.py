@@ -1,5 +1,7 @@
-import numpy as np
 from manim import *
+import networkx as nx
+import numpy as np
+import itertools as it
 
 def get_all_tour_permutations(N: int, start: int):
     """
@@ -100,8 +102,6 @@ def get_mst(dist_matrix, v_to_ignore=None):
     if v_to_ignore is not None:
         vertices_to_consider.remove(v_to_ignore)
 
-    print('Vertices to consider', vertices_to_consider)
-
     def min_key(key, mst_set):
         # Initialize minim value
         minim = float('inf')
@@ -156,3 +156,86 @@ def get_1_tree(dist_matrix, v_to_ignore):
     one_tree_edges = mst_edges + additional_edges
     one_tree_cost = sum([dist_matrix[u][v] for u, v in one_tree_edges])
     return mst_edges, cost, one_tree_edges, one_tree_cost
+
+def christofides(dist_matrix):
+    mst_edges, cost = get_mst(dist_matrix)
+    
+    degree_map = get_degrees_for_all_vertices(mst_edges, dist_matrix)
+    # match vertices that have odd degree
+    vertices_to_match = [v for v in degree_map if degree_map[v] % 2 == 1]
+    min_weight_matching = get_min_weight_perfect_matching(vertices_to_match, dist_matrix)
+    tour_edges, tour_cost = get_best_hamiltonian_tour(dist_matrix, mst_edges, min_weight_matching)    
+    return tour_edges, tour_cost
+
+def get_degrees_for_all_vertices(edges, dist_matrix):
+    v_to_degree = {v: 0 for v in range(dist_matrix.shape[0])}
+    for edge in edges:
+        u, v = edge
+        v_to_degree[u] = v_to_degree.get(u, 0) + 1
+        v_to_degree[v] = v_to_degree.get(v, 0) + 1
+    return v_to_degree
+
+def get_min_weight_perfect_matching(vertices_to_match, dist_matrix):
+    edges_with_weight = []
+    for u in vertices_to_match:
+        for v in vertices_to_match:
+            if v > u:
+                # negate weight so we get min-weight matching
+                edges_with_weight.append((u, v, -dist_matrix[u][v]))
+    nx_graph = nx.Graph()
+    nx_graph.add_weighted_edges_from(edges_with_weight)
+    return nx.max_weight_matching(nx_graph, maxcardinality=True)
+
+def get_multigraph(mst_edges, min_weight_matching):
+    print('MST edges', mst_edges)
+    print('Matching edges', min_weight_matching)
+    return nx.MultiGraph(incoming_graph_data=mst_edges + list(min_weight_matching))
+
+def get_best_hamiltonian_tour(dist_matrix, mst_edges, min_weight_matching, start=0):
+    best_tour = None
+    best_tour_cost = float('inf')
+    for start in range(dist_matrix.shape[0]):
+        eulerian_tour = get_eulerian_tour(mst_edges, min_weight_matching, start=start)
+        hamiltonian_tour = get_hamiltonian_tour_from_eulerian(eulerian_tour)
+        tour_edges = get_edges_from_tour(hamiltonian_tour)
+        tour_cost = get_cost_from_edges(tour_edges, dist_matrix)
+        print(f'Tour cost with start {start}: {tour_cost}')
+        if tour_cost < best_tour_cost:
+            best_tour_cost = tour_cost
+            best_tour = tour_edges
+
+    return best_tour, best_tour_cost
+
+def get_eulerian_tour(mst_edges, min_weight_matching, start=0):
+    multigraph = get_multigraph(mst_edges, min_weight_matching)
+    return list(nx.eulerian_circuit(multigraph, source=start))
+
+def get_hamiltonian_tour_from_eulerian(eulerian_tour):
+    visited = set()
+    hamiltonian_tour = []
+    for u, v in eulerian_tour:
+        if u not in visited:
+            hamiltonian_tour.append(u)
+            visited.add(u)
+        if v not in visited:
+            hamiltonian_tour.append(v)
+            visited.add(v)
+    return hamiltonian_tour
+
+def get_all_perfect_matchings(vertices_to_match):
+    if len(vertices_to_match) == 0:
+        return []
+    if len(vertices_to_match) == 2:
+        return [[(vertices_to_match[0], vertices_to_match[1])]]
+    all_perfect_matches = []
+    encountered_matches = set()
+    for first_match in it.combinations(vertices_to_match, 2):
+        remaining_vertcies_to_match = [v for v in vertices_to_match if v != first_match[0] and v != first_match[1]]
+        other_matches = get_all_perfect_matchings(remaining_vertcies_to_match)
+        current_perfect_match = [[first_match] + other_match for other_match in other_matches]
+        for match in current_perfect_match:
+            match.sort()
+            if tuple(match) not in encountered_matches:
+                encountered_matches.add(tuple(match))
+                all_perfect_matches.append(match)
+    return all_perfect_matches
