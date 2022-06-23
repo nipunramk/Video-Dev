@@ -163,6 +163,7 @@ class TSPGraph(Graph):
             edge_dict[edge] = edge_mob
         return edge_dict
 
+
 class TSPTester(Scene):
     def construct(self):
         big_graph = TSPGraph(range(12), layout_scale=2.4, layout="circular")
@@ -2038,7 +2039,6 @@ class Christofides(GreedyApproach):
             FadeIn(christofides_cost_text),
             FadeIn(optimal_cost_text),
         )
-        self.play(FadeIn(screen_rects))
         self.wait()
 
         self.clear()
@@ -2169,4 +2169,3 @@ class Christofides(GreedyApproach):
 
     def get_neighboring_edges(self, vertex, edges):
         return [edge for edge in edges if vertex in edge]
-
