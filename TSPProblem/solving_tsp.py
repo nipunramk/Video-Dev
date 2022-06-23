@@ -163,13 +163,6 @@ class TSPGraph(Graph):
             edge_dict[edge] = edge_mob
         return edge_dict
 
-
-class CustomLabel(Text):
-    def __init__(self, label, font="SF Mono", scale=1, weight=BOLD):
-        super().__init__(label, font=font, weight=weight)
-        self.scale(scale)
-
-
 class TSPTester(Scene):
     def construct(self):
         big_graph = TSPGraph(range(12), layout_scale=2.4, layout="circular")
@@ -424,7 +417,7 @@ class NearestNeighbor(Scene):
         num_iterations = 10
         average_case = (
             Tex(
-                r"On average: $\frac{\text{NN Heuristic}}{\text{Held-Karp Lower Bound}} = 1.25$"
+                r"On average: $\frac{\text{NN Heuristic}}{\text{1-Tree Lower Bound}} = 1.25$"
             )
             .scale(0.8)
             .move_to(DOWN * 3.5)
@@ -1104,6 +1097,7 @@ class LowerBoundTSP(NearestNeighbor):
                     for edge in one_tree_edges
                 ]
             )
+
             self.play(Transform(current_one_tree_edges, new_one_tree_edges))
             self.wait()
 
@@ -1368,3 +1362,811 @@ class GreedApproachExtraText(Scene):
         )
         self.play(FadeIn(screen_rects))
         self.wait()
+
+
+class Christofides(GreedyApproach):
+    def construct(self):
+        self.show_christofides()
+
+    def show_christofides(self):
+        (
+            left_graph,
+            mst_edges_mob,
+            right_graph,
+            tsp_edges_mob,
+            left_edges,
+            right_edges,
+            mst_edges,
+            tsp_tour_edges,
+        ) = self.mst_step()
+
+        (
+            vertices_to_match,
+            copied_matching_nodes,
+            surround_circle_highlights,
+        ) = self.odd_degree_step(
+            left_graph,
+            left_edges,
+            right_graph,
+            right_edges,
+            tsp_edges_mob,
+            mst_edges_mob,
+            mst_edges,
+            tsp_tour_edges,
+        )
+
+        (
+            left_perfect_matching_mob,
+            right_perfect_matching_mob,
+            perfect_match,
+        ) = self.min_weight_perfect_matching_step(
+            left_graph,
+            right_graph,
+            vertices_to_match,
+            copied_matching_nodes,
+            surround_circle_highlights,
+        )
+
+        self.eulerian_tour_step(
+            left_perfect_matching_mob,
+            right_perfect_matching_mob,
+            left_graph,
+            left_edges,
+            copied_matching_nodes,
+            perfect_match,
+            mst_edges,
+        )
+
+        self.summarize_christofides()
+
+    def mst_step(self):
+        mst_label = Text("MST", font=REDUCIBLE_FONT, weight=BOLD).scale(0.8)
+        tsp_label = Text("Optimal TSP", font=REDUCIBLE_FONT, weight=BOLD).scale(0.8)
+
+        (
+            left_graph,
+            mst_edges_mob,
+            right_graph,
+            tsp_edges_mob,
+            left_edges,
+            right_edges,
+            mst_edges,
+            tsp_tour_edges,
+        ) = self.get_mst_and_tsp_tour(10)
+        self.play(
+            *[GrowFromCenter(left_graph.vertices[v]) for v in left_graph.vertices],
+            *[GrowFromCenter(right_graph.vertices[v]) for v in right_graph.vertices],
+            *[GrowFromCenter(edge) for edge in mst_edges_mob],
+            *[GrowFromCenter(edge) for edge in tsp_edges_mob],
+        )
+        self.wait()
+
+        mst_label.next_to(left_graph, UP).to_edge(UP * 2)
+        tsp_label.next_to(right_graph, UP).to_edge(UP * 2)
+
+        self.play(
+            Write(mst_label),
+            Write(tsp_label),
+        )
+        self.wait()
+        long_right_arrow = MathTex(r"\Longrightarrow").move_to(
+            (mst_label.get_center() + tsp_label.get_center()) / 2
+        )
+        long_right_arrow.scale(1.5)
+        num_iterations = 5
+        NUM_VERTICES = 10
+        for i in range(0, num_iterations * 2, 2):
+            (
+                new_left_graph,
+                new_mst_edges_mob,
+                new_right_graph,
+                new_tsp_edges_mob,
+                left_edges,
+                right_edges,
+                mst_edges,
+                tsp_tour_edges,
+            ) = self.get_mst_and_tsp_tour(i, NUM_VERTICES=NUM_VERTICES)
+            self.play(
+                Transform(left_graph, new_left_graph),
+                Transform(right_graph, new_right_graph),
+                Transform(mst_edges_mob, new_mst_edges_mob),
+                Transform(tsp_edges_mob, new_tsp_edges_mob),
+            )
+            self.wait()
+
+            if i == 8:
+                self.play(Write(long_right_arrow))
+
+        (
+            new_left_graph,
+            new_mst_edges_mob,
+            new_right_graph,
+            new_tsp_edges_mob,
+            left_edges,
+            right_edges,
+            mst_edges,
+            tsp_tour_edges,
+        ) = self.get_mst_and_tsp_tour(6, NUM_VERTICES=13)
+
+        self.play(
+            FadeTransform(left_graph, new_left_graph),
+            FadeTransform(right_graph, new_right_graph),
+            FadeTransform(mst_edges_mob, new_mst_edges_mob),
+            FadeTransform(tsp_edges_mob, new_tsp_edges_mob),
+        )
+
+        self.play(FadeOut(mst_label), FadeOut(tsp_label), FadeOut(long_right_arrow))
+        self.wait()
+
+        return (
+            new_left_graph,
+            new_mst_edges_mob,
+            new_right_graph,
+            new_tsp_edges_mob,
+            left_edges,
+            right_edges,
+            mst_edges,
+            tsp_tour_edges,
+        )
+
+    def get_node_with_opacity(self, node, opacity=0.2):
+        fill_opacity = opacity
+        if opacity == 1:
+            fill_opacity = 0.5
+        node_copy = node.copy()
+        node_copy[0].set_fill(opacity=fill_opacity).set_stroke(opacity=opacity)
+        node_copy[1].set_fill(opacity=opacity)
+        return node_copy
+
+    def odd_degree_step(
+        self,
+        left_graph,
+        left_edges,
+        right_graph,
+        right_edges,
+        tsp_edges_mob,
+        mst_edges_mob,
+        mst_edges,
+        tsp_tour_edges,
+    ):
+        tsp_tour_edge_to_index = {edge: i for i, edge in enumerate(tsp_tour_edges)}
+        for v in right_graph.vertices:
+            neighboring_edges = self.get_neighboring_edges(v, tsp_tour_edges)
+            right_node_highlighted = self.get_node_with_opacity(
+                right_graph.vertices[v], opacity=1
+            )
+            other_nodes_indices = [i for i in right_graph.vertices if i != v]
+            self.play(
+                Transform(right_graph.vertices[v], right_node_highlighted),
+                *[
+                    tsp_edges_mob[tsp_tour_edge_to_index[edge]].animate.set_stroke(
+                        opacity=1
+                    )
+                    for edge in neighboring_edges
+                ],
+                *[
+                    tsp_edges_mob[tsp_tour_edge_to_index[edge]].animate.set_stroke(
+                        opacity=0.2
+                    )
+                    for edge in tsp_tour_edges
+                    if edge not in neighboring_edges
+                ],
+                *[
+                    Transform(
+                        right_graph.vertices[i],
+                        self.get_node_with_opacity(
+                            right_graph.vertices[i], opacity=0.2
+                        ),
+                    )
+                    for i in other_nodes_indices
+                ],
+            )
+            self.wait()
+
+        self.play(
+            *[
+                tsp_edges_mob[tsp_tour_edge_to_index[edge]].animate.set_stroke(
+                    opacity=1
+                )
+                for edge in tsp_tour_edges
+            ],
+            *[
+                Transform(
+                    right_graph.vertices[i],
+                    self.get_node_with_opacity(right_graph.vertices[i], opacity=1),
+                )
+                for i in other_nodes_indices
+            ],
+        )
+        self.wait()
+
+        degree_map = get_degrees_for_all_vertices(
+            mst_edges, left_graph.get_dist_matrix()
+        )
+        vertices_to_match = [v for v in degree_map if degree_map[v] % 2 == 1]
+        surround_circle_highlights = [
+            get_glowing_surround_circle(left_graph.vertices[v], color=REDUCIBLE_CHARM)
+            for v in vertices_to_match
+        ]
+
+        self.play(*[FadeIn(circle) for circle in surround_circle_highlights])
+        self.wait()
+        copied_matching_nodes = [
+            right_graph.vertices[v].copy() for v in vertices_to_match
+        ]
+        self.play(
+            FadeOut(right_graph),
+            FadeOut(tsp_edges_mob),
+            *[
+                TransformFromCopy(left_graph.vertices[v], copied_matching_nodes[i])
+                for i, v in enumerate(vertices_to_match)
+            ],
+        )
+        self.wait()
+        return vertices_to_match, copied_matching_nodes, surround_circle_highlights
+
+    def min_weight_perfect_matching_step(
+        self,
+        left_graph,
+        right_graph,
+        vertices_to_match,
+        copied_matching_nodes,
+        surround_circle_highlights,
+    ):
+        all_perfect_matches = get_all_perfect_matchings(vertices_to_match)
+        right_node_map = {
+            v: copied_matching_nodes[i] for i, v in enumerate(vertices_to_match)
+        }
+        left_perfect_matching_mob = self.get_perfect_matching_edges(
+            all_perfect_matches[0], left_graph.vertices
+        )
+        right_perfect_matching_mob = self.get_perfect_matching_edges(
+            all_perfect_matches[0], right_node_map
+        )
+        self.play(
+            FadeIn(left_perfect_matching_mob),
+            FadeIn(right_perfect_matching_mob),
+        )
+        self.wait()
+
+        minimum_weight_label = Text("Minimum Weight Cost: ", font=REDUCIBLE_MONO).scale(
+            0.4
+        )
+        best_cost = get_cost_from_edges(
+            all_perfect_matches[0], left_graph.get_dist_matrix()
+        )
+        minimum_weight_text = (
+            Text(str(np.round(best_cost, 2)), font=REDUCIBLE_MONO)
+            .scale(0.4)
+            .next_to(minimum_weight_label, RIGHT)
+        )
+        minimum_weight_label_and_cost = VGroup(
+            minimum_weight_label, minimum_weight_text
+        )
+        minimum_weight_label_and_cost.next_to(left_graph, DOWN).to_edge(DOWN * 2)
+
+        current_cost_label = Text("Perfect Matching Cost: ", font=REDUCIBLE_MONO).scale(
+            0.4
+        )
+        current_cost = get_cost_from_edges(
+            all_perfect_matches[0], left_graph.get_dist_matrix()
+        )
+        current_cost_text = (
+            Text(str(np.round(current_cost, 2)), font=REDUCIBLE_MONO)
+            .scale(0.4)
+            .next_to(current_cost_label, RIGHT)
+        )
+        current_cost_label_and_cost = VGroup(current_cost_label, current_cost_text)
+        current_cost_label_and_cost.next_to(right_graph, DOWN).to_edge(DOWN * 2)
+        self.play(
+            Write(minimum_weight_label_and_cost),
+            Write(current_cost_label_and_cost),
+        )
+        self.wait()
+
+        run_time = 1
+        best_index = None
+        import time
+
+        for i, perfect_matching in enumerate(all_perfect_matches):
+            start_time = time.time()
+            if i == 0:
+                continue
+            new_left_perfect_matching_mob = self.get_perfect_matching_edges(
+                perfect_matching, left_graph.vertices
+            )
+            new_right_perfect_matching_mob = self.get_perfect_matching_edges(
+                perfect_matching, right_node_map
+            )
+            current_cost = get_cost_from_edges(
+                perfect_matching, left_graph.get_dist_matrix()
+            )
+            new_current_cost_text = (
+                Text(str(np.round(current_cost, 2)), font=REDUCIBLE_MONO)
+                .scale(0.4)
+                .next_to(current_cost_label, RIGHT)
+            )
+            start_time = time.time()
+            if current_cost < best_cost:
+                best_cost = current_cost
+                best_index = i
+                new_min_weight_text = (
+                    Text(str(np.round(best_cost, 2)), font=REDUCIBLE_MONO)
+                    .scale(0.4)
+                    .next_to(minimum_weight_label, RIGHT)
+                )
+                self.play(
+                    Transform(left_perfect_matching_mob, new_left_perfect_matching_mob),
+                    Transform(
+                        right_perfect_matching_mob, new_right_perfect_matching_mob
+                    ),
+                    Transform(current_cost_text, new_current_cost_text),
+                    Transform(minimum_weight_text, new_min_weight_text),
+                    run_time=run_time,
+                )
+            else:
+                self.play(
+                    Transform(
+                        right_perfect_matching_mob, new_right_perfect_matching_mob
+                    ),
+                    Transform(current_cost_text, new_current_cost_text),
+                    run_time=run_time,
+                )
+
+            if i < 5:
+                self.wait()
+            # self.wait(wait_time)
+            run_time = run_time * 0.9
+
+        new_right_perfect_matching_mob = self.get_perfect_matching_edges(
+            all_perfect_matches[best_index], right_node_map
+        )
+        self.wait()
+        self.play(
+            Transform(right_perfect_matching_mob, new_right_perfect_matching_mob),
+            FadeOut(current_cost_label_and_cost),
+        )
+        self.wait()
+
+        self.play(
+            *[FadeOut(highlight) for highlight in surround_circle_highlights],
+            FadeOut(minimum_weight_label_and_cost),
+        )
+        self.wait()
+
+        return (
+            left_perfect_matching_mob,
+            right_perfect_matching_mob,
+            all_perfect_matches[best_index],
+        )
+
+    def get_perfect_matching_edges(self, perfect_matching, node_map):
+        perfect_matching_edges = VGroup()
+        for u, v in perfect_matching:
+            edge_mob = self.make_edge(node_map[u], node_map[v])
+            perfect_matching_edges.add(edge_mob)
+        return perfect_matching_edges
+
+    def make_edge(self, node1, node2, stroke_width=3, color=REDUCIBLE_GREEN_LIGHTER):
+        return Line(
+            node1.get_center(),
+            node2.get_center(),
+            buff=node1.width / 2,
+            stroke_width=stroke_width,
+        ).set_color(color)
+
+    def eulerian_tour_step(
+        self,
+        left_perfect_matching_mob,
+        right_perfect_matching_mob,
+        left_graph,
+        left_edges,
+        copied_matching_nodes,
+        perfect_matching,
+        mst_edges,
+    ):
+        mst_edges_mob = VGroup(*[self.get_edge(left_edges, edge) for edge in mst_edges])
+        multigraph = VGroup(left_graph, mst_edges_mob, left_perfect_matching_mob)
+
+        multigraph_title = (
+            Text(
+                "MST and Minimum Weight Perfect Matching MultiGraph",
+                font=REDUCIBLE_FONT,
+                weight=BOLD,
+            )
+            .scale(0.6)
+            .move_to(UP * 3.2)
+        )
+        self.play(
+            *[FadeOut(node) for node in copied_matching_nodes],
+            FadeOut(right_perfect_matching_mob),
+            multigraph.animate.scale(1.2).move_to(ORIGIN),
+            FadeIn(multigraph_title),
+        )
+        self.wait()
+
+        self.play(
+            *[
+                self.get_edge(left_edges, edge).animate.set_stroke(width=6)
+                for edge in mst_edges
+            ]
+        )
+        self.wait()
+
+        duplicate_edge_t_1 = Text("Duplicate Edge", font=REDUCIBLE_FONT).scale(0.4)
+        duplicate_edge_t_2 = duplicate_edge_t_1.copy()
+
+        left_arrow = Arrow(
+            ORIGIN, UL * 1.2, max_tip_length_to_length_ratio=0.15
+        ).set_color(REDUCIBLE_VIOLET)
+        right_arrow = Arrow(
+            ORIGIN, RIGHT * 1.5, max_tip_length_to_length_ratio=0.15
+        ).set_color(REDUCIBLE_VIOLET)
+
+        duplicate_edge_t_1.next_to(left_arrow, DR)
+        right_arrow_group = (
+            VGroup(duplicate_edge_t_1, right_arrow)
+            .arrange(RIGHT)
+            .next_to(self.get_edge(left_edges, (3, 6)), LEFT)
+        )
+        left_arrow_group = VGroup(left_arrow, duplicate_edge_t_2).next_to(
+            self.get_edge(left_edges, (9, 11)), DR, buff=SMALL_BUFF / 2
+        )
+
+        self.play(
+            FadeIn(right_arrow_group, direction=LEFT),
+            FadeIn(left_arrow_group, direction=RIGHT),
+        )
+        self.wait()
+
+        self.play(
+            FadeOut(right_arrow_group, direction=LEFT),
+            FadeOut(left_arrow_group, direction=RIGHT),
+        )
+        self.wait()
+
+        key_observation = (
+            Text("All vertices have even degree", font=REDUCIBLE_FONT)
+            .scale(0.5)
+            .move_to(DOWN * 3.2)
+        )
+
+        self.play(FadeIn(key_observation))
+        self.wait()
+
+        find_eulerian_text = (
+            Text("Find Eulerian Tour of Multigraph", font=REDUCIBLE_FONT, weight=BOLD)
+            .scale(0.6)
+            .move_to(multigraph_title.get_center())
+        )
+
+        self.play(
+            FadeTransform(multigraph_title, find_eulerian_text),
+            FadeOut(key_observation),
+        )
+        self.wait()
+
+        eulerian_tour = get_eulerian_tour(mst_edges, perfect_matching, start=0)
+        ordered_vertices_tex = self.get_tex_eulerian_tour(eulerian_tour).move_to(
+            DOWN * 2.9
+        )
+        self.play(FadeIn(ordered_vertices_tex))
+        self.wait()
+
+        eulerian_tour_edge_map = self.get_eulerian_tour_edges_map(
+            left_graph, eulerian_tour
+        )
+
+        for edge in eulerian_tour_edge_map:
+            self.play(
+                Create(eulerian_tour_edge_map[edge]),
+                Flash(eulerian_tour_edge_map[edge].copy()),
+            )
+
+        self.wait()
+
+        generate_tsp_tour_step = Text(
+            "Generate TSP Tour from Eulerian Tour", font=REDUCIBLE_FONT, weight=BOLD
+        ).scale(0.6)
+        generate_tsp_tour_step.move_to(find_eulerian_text.get_center())
+
+        self.play(
+            *[FadeOut(e) for e in eulerian_tour_edge_map.values()],
+            *[FadeOut(self.get_edge(left_edges, edge)) for edge in mst_edges],
+            FadeOut(left_perfect_matching_mob),
+            FadeTransform(find_eulerian_text, generate_tsp_tour_step),
+        )
+        self.wait()
+
+        self.hamiltonian_tour_step(
+            left_graph, eulerian_tour, ordered_vertices_tex, generate_tsp_tour_step
+        )
+
+    def get_ordered_vertices(self, eulerian_tour):
+        ordered_vertices = []
+        for u, v in eulerian_tour:
+            ordered_vertices.append(u)
+        ordered_vertices.append(v)
+        return ordered_vertices
+
+    def get_tex_eulerian_tour(self, eulerian_tour, scale=0.3):
+        ordered_vertices = self.get_ordered_vertices(eulerian_tour)
+        string = r" -> ".join([str(v) for v in ordered_vertices])
+        return Text(string, font=REDUCIBLE_MONO).scale(scale)
+
+    def hamiltonian_tour_step(
+        self, left_graph, eulerian_tour, ordered_vertices_tex, generate_tsp_tour_step
+    ):
+        tsp_tour = get_hamiltonian_tour_from_eulerian(eulerian_tour)
+        tsp_tour_edges = get_edges_from_tour(tsp_tour)
+        ordered_vertices = self.get_ordered_vertices(eulerian_tour)
+
+        tsp_tour_edges_mob = self.get_tsp_tour_edges_mob(left_graph, tsp_tour_edges)
+        index = 0
+        visited = set()
+
+        v_to_tex_end_index_map = {}
+        current_index = 1
+        for i, v in enumerate(ordered_vertices):
+            # 1 digit
+            if v // 10 == 0:
+                v_to_tex_end_index_map[i] = current_index
+            else:
+                current_index += 1
+                v_to_tex_end_index_map[i] = current_index
+
+            current_index += 3
+        tsp_tour_edges_index = 0
+        glowing_circles = VGroup()
+        visited = set()
+        crosses = []
+        for i, v in enumerate(ordered_vertices):
+            glowing_circle = get_glowing_surround_circle(left_graph.vertices[v])
+            if i == 0:
+                self.play(
+                    ordered_vertices_tex[: v_to_tex_end_index_map[i]].animate.set_fill(
+                        opacity=1
+                    ),
+                    ordered_vertices_tex[v_to_tex_end_index_map[i] :].animate.set_fill(
+                        opacity=0.5
+                    ),
+                    FadeIn(glowing_circle),
+                )
+                glowing_circles.add(glowing_circle)
+
+            elif v in visited and v != ordered_vertices[0]:
+                end_index = v_to_tex_end_index_map[i]
+                start_index = end_index - 1 - v // 10
+                cross = Cross(ordered_vertices_tex[start_index:end_index]).set_color(
+                    REDUCIBLE_CHARM
+                )
+                cross.set_stroke(width=2)
+                self.play(
+                    ordered_vertices_tex[: v_to_tex_end_index_map[i]].animate.set_fill(
+                        opacity=1
+                    ),
+                    ordered_vertices_tex[v_to_tex_end_index_map[i] :].animate.set_fill(
+                        opacity=0.5
+                    ),
+                )
+                self.play(
+                    Write(cross),
+                )
+                self.add_foreground_mobject(cross)
+                crosses.append(cross)
+            else:
+                if v != ordered_vertices[0]:
+                    self.play(
+                        ordered_vertices_tex[
+                            : v_to_tex_end_index_map[i]
+                        ].animate.set_fill(opacity=1),
+                        ordered_vertices_tex[
+                            v_to_tex_end_index_map[i] :
+                        ].animate.set_fill(opacity=0.5),
+                        Write(tsp_tour_edges_mob[tsp_tour_edges_index]),
+                        FadeIn(glowing_circle),
+                    )
+                    glowing_circles.add(glowing_circle)
+
+                else:
+                    self.play(
+                        ordered_vertices_tex[
+                            : v_to_tex_end_index_map[i]
+                        ].animate.set_fill(opacity=1),
+                        ordered_vertices_tex[
+                            v_to_tex_end_index_map[i] :
+                        ].animate.set_fill(opacity=0.5),
+                        Write(tsp_tour_edges_mob[tsp_tour_edges_index]),
+                    )
+                tsp_tour_edges_index += 1
+                visited.add(v)
+
+            self.wait()
+
+        tex_tsp_tour = self.get_tex_eulerian_tour(tsp_tour_edges, scale=0.32)
+        tex_tsp_tour_label = Text(
+            "TSP Tour: ", font=REDUCIBLE_MONO
+        ).scale_to_fit_height(tex_tsp_tour.height)
+        text_tsp_tour_with_label = VGroup(tex_tsp_tour_label, tex_tsp_tour).arrange(
+            RIGHT
+        )
+        text_tsp_tour_with_label.next_to(ordered_vertices_tex, DOWN)
+
+        self.play(
+            FadeOut(glowing_circles),
+            FadeIn(text_tsp_tour_with_label),
+        )
+        self.wait()
+
+        self.play(
+            FadeOut(ordered_vertices_tex),
+            FadeOut(text_tsp_tour_with_label),
+            FadeOut(generate_tsp_tour_step),
+            *[FadeOut(c) for c in crosses],
+        )
+        graph_with_tsp_tour = VGroup(left_graph, tsp_tour_edges_mob)
+        christofides_cost = get_cost_from_edges(
+            tsp_tour_edges, left_graph.get_dist_matrix()
+        )
+        self.play(graph_with_tsp_tour.animate.scale(0.8).move_to(LEFT * 3.5 + UP * 0.5))
+        right_graph = left_graph.copy().move_to(RIGHT * 3.5 + UP * 0.5)
+        optimal_tsp_tour, optimal_cost = get_exact_tsp_solution(
+            left_graph.get_dist_matrix()
+        )
+
+        right_graph_tsp_edges_mob = self.get_tsp_tour_edges_mob(
+            right_graph, get_edges_from_tour(optimal_tsp_tour)
+        )
+
+        self.play(
+            FadeIn(right_graph),
+            FadeIn(right_graph_tsp_edges_mob),
+        )
+        self.wait()
+        christofides_cost_text = Text(
+            f"Christofides tour cost: {np.round(christofides_cost, 2)}",
+            font=REDUCIBLE_MONO,
+        ).scale(0.5)
+        christofides_cost_text.next_to(left_graph, DOWN).to_edge(DOWN * 3)
+
+        optimal_cost_text = Text(
+            f"Optimal tour cost: {np.round(optimal_cost, 2)}", font=REDUCIBLE_MONO
+        ).scale(0.5)
+        optimal_cost_text.next_to(right_graph, DOWN).to_edge(DOWN * 3)
+
+        self.play(
+            FadeIn(christofides_cost_text),
+            FadeIn(optimal_cost_text),
+        )
+        self.play(FadeIn(screen_rects))
+        self.wait()
+
+        self.clear()
+
+    def summarize_christofides(self):
+
+        christofides_alg = (
+            Text("Christofides Algorithm", font=REDUCIBLE_FONT, weight=BOLD)
+            .scale(0.8)
+            .move_to(UP * 3.3)
+        )
+        screen_rect = ScreenRectangle(height=3).move_to(LEFT * 3 + UP * 0.5)
+
+        step_1 = Tex(r"1. Find MST $T$ of Graph")
+        step_2 = Tex(r"2. Isolate Set of Odd-Degree Vertices $S$")
+        step_3 = Tex(r"3. Find Min Weight Perfect Matching $M$ of $S$")
+        step_4 = Tex(r"4. Combine $T$ and $M$ into Multigraph $G$")
+        step_5 = Tex(r"5. Generate Eulerian Tour of $G$")
+        step_6 = Tex(r"6. Generate TSP Tour from Eulerian Tour")
+
+        steps = (
+            VGroup(*[step_1, step_2, step_3, step_4, step_5, step_6])
+            .scale(0.6)
+            .arrange(DOWN, aligned_edge=LEFT)
+        )
+        steps.move_to(RIGHT * 3.5 + UP * 0.5)
+
+        self.play(Write(christofides_alg))
+
+        on_average_perf = average_case = (
+            Tex(
+                r"On average: $\frac{\text{Christofides}}{\text{1-Tree Lower Bound}} = 1.1$"
+            )
+            .scale(0.8)
+            .move_to(DOWN * 3)
+        )
+        for i, step in enumerate(steps):
+            if i == 0:
+                self.play(FadeIn(screen_rect), FadeIn(step))
+            else:
+                self.play(FadeIn(step))
+            self.wait()
+
+        self.play(FadeIn(on_average_perf))
+        self.wait()
+
+        worst_case_perf = (
+            Tex(r"Worst case: $\frac{\text{Christofides}}{\text{Optimal TSP}} = 1.5$")
+            .scale(0.8)
+            .move_to(DOWN * 3 + RIGHT * 3.5)
+        )
+        self.play(on_average_perf.animate.shift(LEFT * 3.5), Write(worst_case_perf))
+        self.wait()
+
+    def get_eulerian_tour_edges_map(self, left_graph, eulerian_tour):
+        all_edges = {}
+        for edge in eulerian_tour:
+            u, v = edge
+            if (v, u) in all_edges:
+                all_edges[(u, v)] = self.make_edge(
+                    left_graph.vertices[u],
+                    left_graph.vertices[v],
+                    stroke_width=7,
+                    color=REDUCIBLE_PURPLE,
+                )
+            else:
+                all_edges[edge] = self.make_edge(
+                    left_graph.vertices[u],
+                    left_graph.vertices[v],
+                    stroke_width=7,
+                    color=REDUCIBLE_VIOLET,
+                )
+
+        return all_edges
+
+    def get_tsp_tour_edges_mob(
+        self, graph, tsp_tour_edges, stroke_width=3, color=REDUCIBLE_VIOLET
+    ):
+        return VGroup(
+            *[
+                self.make_edge(
+                    graph.vertices[u],
+                    graph.vertices[v],
+                    stroke_width=stroke_width,
+                    color=REDUCIBLE_VIOLET,
+                )
+                for u, v in tsp_tour_edges
+            ]
+        )
+
+    def get_mst_and_tsp_tour(self, seed, NUM_VERTICES=10):
+        np.random.seed(seed)
+        layout = self.get_random_layout(NUM_VERTICES)
+        left_graph = TSPGraph(list(range(NUM_VERTICES)), layout=layout).scale(0.55)
+        right_graph = left_graph.copy()
+
+        VGroup(left_graph, right_graph).arrange(RIGHT, buff=1.2)
+
+        left_edges = left_graph.get_all_edges(buff=left_graph.vertices[0].width / 2)
+        right_edges = right_graph.get_all_edges(buff=right_graph.vertices[0].width / 2)
+        mst_edges, mst_cost = get_mst(left_graph.get_dist_matrix())
+        tsp_tour, optimal_cost = get_exact_tsp_solution(right_graph.get_dist_matrix())
+        tsp_tour_edges = get_edges_from_tour(tsp_tour)
+        mst_edges_mob = VGroup(
+            *[
+                self.get_edge(left_edges, edge).set_color(REDUCIBLE_YELLOW)
+                for edge in mst_edges
+            ]
+        )
+        tsp_edges_mob = VGroup(
+            *[self.get_edge(right_edges, edge) for edge in tsp_tour_edges]
+        )
+
+        for i, edge in enumerate(tsp_tour_edges):
+            if edge in mst_edges or (edge[1], edge[0]) in mst_edges:
+                tsp_edges_mob[i].set_color(REDUCIBLE_YELLOW)
+
+        return (
+            left_graph,
+            mst_edges_mob,
+            right_graph,
+            tsp_edges_mob,
+            left_edges,
+            right_edges,
+            mst_edges,
+            tsp_tour_edges,
+        )
+
+    def get_neighboring_edges(self, vertex, edges):
+        return [edge for edge in edges if vertex in edge]
+
