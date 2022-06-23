@@ -1307,8 +1307,21 @@ class TransitionOtherApproaches(TSPAssumptions):
         return edges_animations
 
 
+class CustomLabel(Text):
+    def __init__(self, label, font=REDUCIBLE_MONO, scale=0.2, weight=MEDIUM):
+        super().__init__(label, font=font, weight=weight)
+        self.scale(scale)
+
+
 class SimulatedAnnealing(BruteForce, TransitionOtherApproaches):
     def construct(self):
+        # self.guided_example()
+        # self.wait()
+        # self.play(*[FadeOut(mob) for mob in self.mobjects])
+
+        self.show_temperature()
+
+    def guided_example(self):
         N = 30
         frame = self.camera.frame
         graph = TSPGraph(
@@ -1571,32 +1584,66 @@ class SimulatedAnnealing(BruteForce, TransitionOtherApproaches):
             FadeOut(annotation),
         )
 
-        # for i in range(2):
-        #     v1, v2 = np.random.choice(list(range(N)), replace=True, size=2)
-        #     (
-        #         new_tour,
-        #         focus_edges_animations,
-        #         cost_indicator_animation,
-        #     ) = iterate_two_opt_animation(v1, v2, last_tour)
-        #     new_cost = get_cost_from_edges(
-        #         get_edges_from_tour(new_tour), graph.dist_matrix
-        #     )
+    def show_temperature(self):
+        iterations = 100
+        axes = (
+            Axes(
+                x_range=[0, iterations, 10],
+                y_range=[0, 1, 0.25],
+                y_length=8,
+                tips=False,
+                axis_config={
+                    "include_numbers": True,
+                    "label_constructor": CustomLabel,
+                },
+            )
+            .scale(0.5)
+            .shift(UP * 1.3 + RIGHT * 0.5)
+        )
 
-        #     arrow = down_arrow if last_cost - new_cost > 0 else up_arrow
-        #     print(last_cost, new_cost, last_cost - new_cost)
+        temp_nl = NumberLine(
+            x_range=[0, 1],
+            include_numbers=True,
+            length=axes.x_axis.width,
+        ).next_to(axes.x_axis, DOWN, buff=1)
 
-        #     change = self.create_change_history_entry(v1, v2, new_cost).move_to(
-        #         change_history[i + 3], aligned_edge=LEFT
-        #     )
-        #     self.play(
-        #         *focus_edges_animations,
-        #         cost_indicator_animation,
-        #         FadeIn(change, shift=UP * 0.3),
-        #         FadeIn(arrow.copy().next_to(change, RIGHT, buff=0.3), shift=UP * 0.3),
-        #     )
+        T = ValueTracker(1)
 
-        #     last_tour = new_tour
-        #     last_cost = new_cost
+        temp_marker = (
+            Line(UP, UP * 1.3)
+            .set_stroke(width=5, color=REDUCIBLE_YELLOW)
+            .add_updater(lambda mob: mob.move_to(temp_nl.n2p(T.get_value())))
+        )
+
+        self.play(Write(axes), Write(temp_nl), Write(temp_marker))
+
+        last_temp = T.get_value()
+        for i in range(100):
+            v = T.get_value()
+
+            new_line_chunk = self.next_iteration_line(axes, i, v, last_temp)
+            self.play(
+                T.animate.set_value(1 / (1 * i + 1)),
+                Write(new_line_chunk),
+                run_time=(1 / (i + 1)),
+            )
+
+            last_temp = v
+
+    ############### UTILS
+
+    def next_iteration_line(
+        self, axes: Axes, iteration: int, curr_temp: float, last_temp: float
+    ):
+
+        last_distance_p2c = axes.c2p(iteration - 1, last_temp)
+        curr_distance_p2c = axes.c2p(iteration, curr_temp)
+
+        return (
+            Line(last_distance_p2c, curr_distance_p2c)
+            .set_color(REDUCIBLE_YELLOW)
+            .set_stroke(width=2)
+        )
 
     def create_change_history_entry(self, v1, v2, cost) -> Text:
         return Text(
