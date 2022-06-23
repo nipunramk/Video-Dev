@@ -1429,8 +1429,11 @@ class SimulatedAnnealing(BruteForce, TransitionOtherApproaches):
         self.play(
             *focus_edges_animations,
             cost_indicator_animation,
-            FadeIn(first_change, shift=UP * 0.3),
-            FadeIn(down_arrow.copy().next_to(first_change, RIGHT, buff=0.3)),
+            FadeIn(first_change, shift=DOWN * 0.3),
+            FadeIn(
+                down_arrow.copy().next_to(first_change, RIGHT, buff=0.3),
+                shift=DOWN * 0.3,
+            ),
         )
 
         (
@@ -1447,40 +1450,153 @@ class SimulatedAnnealing(BruteForce, TransitionOtherApproaches):
         self.play(
             *focus_edges_animations,
             cost_indicator_animation,
-            FadeIn(second_change, shift=UP * 0.3),
+            FadeIn(second_change, shift=DOWN * 0.3),
             FadeIn(
                 down_arrow.copy().next_to(second_change, RIGHT, buff=0.3),
+                shift=DOWN * 0.3,
             ),
         )
 
-        for i in range(2):
-            v1, v2 = np.random.choice(list(range(N)), replace=True, size=2)
-            (
-                new_tour,
-                focus_edges_animations,
-                cost_indicator_animation,
-            ) = iterate_two_opt_animation(v1, v2, last_tour)
-            new_cost = get_cost_from_edges(
-                get_edges_from_tour(new_tour), graph.dist_matrix
-            )
+        (
+            last_tour,
+            focus_edges_animations,
+            cost_indicator_animation,
+        ) = iterate_two_opt_animation(20, 5, last_tour)
+        last_cost = get_cost_from_edges(
+            get_edges_from_tour(last_tour), graph.dist_matrix
+        )
+        second_change = self.create_change_history_entry(20, 5, last_cost).move_to(
+            change_history[3], aligned_edge=LEFT
+        )
+        self.play(
+            *focus_edges_animations,
+            cost_indicator_animation,
+            FadeIn(second_change, shift=UP * 0.3),
+            FadeIn(
+                up_arrow.copy().next_to(second_change, RIGHT, buff=0.3),
+                shift=UP * 0.3,
+            ),
+        )
 
-            arrow = down_arrow if last_cost - new_cost > 0 else up_arrow
-            print(last_cost, new_cost, last_cost - new_cost)
+        # we have a worse solution, we have to decide whether to keep it or not!
+        T = 0.8
+        p_string = (
+            Tex(r"$p < " + f"{T:.2f}" + r"\Rightarrow \text{accept}$")
+            .scale(0.5)
+            .next_to(second_change, DOWN, aligned_edge=LEFT, buff=0.2)
+            .shift(RIGHT * 0.4)
+        )
+        p_random = (
+            Tex("$p = 0.54$")
+            .scale(0.5)
+            .next_to(p_string, DOWN, buff=0.2, aligned_edge=LEFT)
+        )
+        self.play(
+            FadeIn(p_string, shift=UP * 0.3),
+        )
+        self.play(
+            FadeIn(p_random, shift=UP * 0.3),
+        )
+        self.wait()
+        self.play(
+            FadeOut(p_string, shift=UP * 0.3),
+            FadeOut(p_random, shift=UP * 0.3),
+        )
 
-            change = self.create_change_history_entry(v1, v2, new_cost).move_to(
-                change_history[i + 3], aligned_edge=LEFT
-            )
-            self.play(
-                *focus_edges_animations,
-                cost_indicator_animation,
-                FadeIn(change, shift=UP * 0.3),
-                FadeIn(
-                    arrow.copy().next_to(change, RIGHT, buff=0.3),
-                ),
-            )
+        undo_tour = last_tour
+        # next example where we don't choose the worst
+        (
+            last_tour,
+            focus_edges_animations,
+            cost_indicator_animation,
+        ) = iterate_two_opt_animation(13, 3, last_tour)
+        last_cost = get_cost_from_edges(
+            get_edges_from_tour(last_tour), graph.dist_matrix
+        )
+        second_change = self.create_change_history_entry(13, 3, last_cost).move_to(
+            change_history[4], aligned_edge=LEFT
+        )
+        arrow_change = up_arrow.copy().next_to(second_change, RIGHT, buff=0.3)
+        self.play(
+            *focus_edges_animations,
+            cost_indicator_animation,
+            FadeIn(second_change, shift=UP * 0.3),
+            FadeIn(
+                arrow_change,
+                shift=UP * 0.3,
+            ),
+        )
 
-            last_tour = new_tour
-            last_cost = new_cost
+        T = 0.76
+        p_string = (
+            Tex(r"$p < " + f"{T:.2f}" + r"\Rightarrow \text{accept}$")
+            .scale(0.5)
+            .next_to(second_change, DOWN, aligned_edge=LEFT, buff=0.2)
+            .shift(RIGHT * 0.4)
+        )
+        p_random = (
+            Tex("$p = 0.81$")
+            .scale(0.5)
+            .next_to(p_string, DOWN, buff=0.2, aligned_edge=LEFT)
+        )
+        self.play(
+            FadeIn(p_string, shift=UP * 0.3),
+        )
+        self.play(
+            FadeIn(p_random, shift=UP * 0.3),
+        )
+        self.wait()
+
+        self.play(
+            FadeOut(p_string, shift=UP * 0.3),
+            FadeOut(p_random, shift=UP * 0.3),
+        )
+        annotation = (
+            Text(
+                "Undo last change\nand continue from there",
+                font=REDUCIBLE_FONT,
+                weight=BOLD,
+            )
+            .scale(0.35)
+            .next_to(second_change, DOWN, aligned_edge=LEFT, buff=0.2)
+            .shift(RIGHT * 0.4)
+        )
+        self.play(FadeIn(annotation))
+
+        undo_edges = get_edges_from_tour(undo_tour)
+        self.play(
+            *self.focus_on_edges(undo_edges, all_edges),
+            FadeOut(second_change),
+            FadeOut(arrow_change),
+            FadeOut(annotation),
+        )
+
+        # for i in range(2):
+        #     v1, v2 = np.random.choice(list(range(N)), replace=True, size=2)
+        #     (
+        #         new_tour,
+        #         focus_edges_animations,
+        #         cost_indicator_animation,
+        #     ) = iterate_two_opt_animation(v1, v2, last_tour)
+        #     new_cost = get_cost_from_edges(
+        #         get_edges_from_tour(new_tour), graph.dist_matrix
+        #     )
+
+        #     arrow = down_arrow if last_cost - new_cost > 0 else up_arrow
+        #     print(last_cost, new_cost, last_cost - new_cost)
+
+        #     change = self.create_change_history_entry(v1, v2, new_cost).move_to(
+        #         change_history[i + 3], aligned_edge=LEFT
+        #     )
+        #     self.play(
+        #         *focus_edges_animations,
+        #         cost_indicator_animation,
+        #         FadeIn(change, shift=UP * 0.3),
+        #         FadeIn(arrow.copy().next_to(change, RIGHT, buff=0.3), shift=UP * 0.3),
+        #     )
+
+        #     last_tour = new_tour
+        #     last_cost = new_cost
 
     def create_change_history_entry(self, v1, v2, cost) -> Text:
         return Text(
