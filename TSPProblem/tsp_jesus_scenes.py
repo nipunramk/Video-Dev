@@ -1656,6 +1656,7 @@ class SimulatedAnnealing(BruteForce, TransitionOtherApproaches):
         np.random.seed(100)
         N = 30
         iterations = 100
+        T = ValueTracker(1)
 
         graph = (
             TSPGraph(
@@ -1668,7 +1669,7 @@ class SimulatedAnnealing(BruteForce, TransitionOtherApproaches):
             .shift(LEFT * 3)
         )
 
-        axes = Axes(
+        axes_temp = Axes(
             x_range=[0, iterations, 10],
             y_range=[0, 1, 0.25],
             y_length=8,
@@ -1683,22 +1684,52 @@ class SimulatedAnnealing(BruteForce, TransitionOtherApproaches):
             Text("Temperature", font=REDUCIBLE_FONT, weight=BOLD)
             .scale(0.3)
             .rotate(90 * DEGREES)
-            .next_to(axes.y_axis, LEFT, buff=0.3)
+            .next_to(axes_temp.y_axis, LEFT, buff=0.3)
         )
         iterations_label = (
             Text("Iterations", font=REDUCIBLE_FONT, weight=BOLD)
             .scale(0.3)
-            .next_to(axes.x_axis, DOWN, buff=0.3)
+            .next_to(axes_temp.x_axis, DOWN, buff=0.3)
         )
 
-        axes = VGroup(axes, temp_label, iterations_label).next_to(
-            graph, RIGHT, aligned_edge=UP, buff=2
+        axes_vg = VGroup(axes_temp, temp_label, iterations_label).next_to(
+            graph, RIGHT, aligned_edge=UP, buff=1.7
         )
+
+        axes_cost = Axes(
+            x_range=[0, iterations, 10],
+            y_range=[0, 101, 10],
+            y_length=8,
+            tips=False,
+            axis_config={
+                # "include_numbers": True,
+                "label_constructor": CustomLabel,
+            },
+        ).scale(0.3)
+        axes_cost.y_axis.move_to(axes_temp.x_axis.ticks[-1], aligned_edge=DOWN)
+
+        cost_labels = VGroup(
+            *[
+                Text(str(i), font=REDUCIBLE_MONO, font_size=36)
+                .scale(0.3)
+                .next_to(axes_cost.y_axis.ticks[i // 10 - 1], RIGHT, buff=0.1)
+                for i in range(10, 101, 10)
+            ]
+        )
+        cost_y_label = (
+            Text("Cost", font=REDUCIBLE_FONT, weight=BOLD)
+            .scale(0.3)
+            .rotate(-90 * DEGREES)
+            .next_to(axes_cost.y_axis, RIGHT, buff=0.6)
+        )
+
+        self.add(axes_temp, axes_cost.y_axis, cost_labels, cost_y_label)
+        # customize axes_cost
 
         change_history = (
             VGroup(*[Dot() for a in range(5)])
             .arrange(DOWN, buff=0.5)
-            .next_to(axes[0].y_axis, DOWN, buff=1, aligned_edge=RIGHT)
+            .next_to(axes_temp.y_axis, DOWN, buff=1.3, aligned_edge=RIGHT)
         )
 
         # cost_hist_title = (
@@ -1725,7 +1756,7 @@ class SimulatedAnnealing(BruteForce, TransitionOtherApproaches):
                     weight=BOLD,
                 )
                 .set_stroke(width=4, background=True)
-                .scale(0.6)
+                .scale(0.4)
                 .next_to(graph, DOWN, buff=0.5)
             )
 
@@ -1753,7 +1784,7 @@ class SimulatedAnnealing(BruteForce, TransitionOtherApproaches):
                 weight=BOLD,
             )
             .set_stroke(width=4, background=True)
-            .scale(0.6)
+            .scale(0.4)
             .next_to(graph, DOWN, buff=0.5)
         )
 
@@ -1763,24 +1794,55 @@ class SimulatedAnnealing(BruteForce, TransitionOtherApproaches):
             run_time=3,
         )
 
-        self.play(Write(axes))
+        self.play(Write(axes_vg))
+        tick = SVGMobject("check.svg").scale(0.1).set_color(REDUCIBLE_GREEN_LIGHTER)
+        cross = Cross(stroke_color=REDUCIBLE_CHARM, stroke_width=2, scale_factor=0.1)
 
         # SIMULATION
 
         change_list = []
-        for i in range(10):
+        cost_list = [nn_cost]
+        last_temp = T.get_value()
+        last_tour = nn_tour
+        for i in range(6):
             v1, v2 = np.random.choice(range(N), size=2, replace=True)
+            v = T.get_value()
+
+            # will we accept a bad solution in case we run into one?
+            accept = np.random.random() < T.get_value()
+
+            new_temp_line_chunk = self.next_iteration_line(
+                axes_temp, i, T.get_value(), last_temp
+            ).set_stroke(width=4)
+
+            undo_tour = last_tour
             (
                 last_tour,
                 focus_edges_animations,
                 cost_indicator_animation,
             ) = iterate_two_opt_animation(v1, v2, nn_tour)
 
+            new_cost = get_cost_from_edges(
+                get_edges_from_tour(last_tour), graph.dist_matrix
+            )
+            new_cost_line_chunk = self.next_iteration_line(
+                axes_cost, i, cost_list[-1], new_cost
+            ).set_stroke(REDUCIBLE_PURPLE, width=4)
+
             next_change = self.create_change_history_entry(
                 v1,
                 v2,
-                get_cost_from_edges(get_edges_from_tour(last_tour), graph.dist_matrix),
-            ).move_to(change_history[0], aligned_edge=LEFT)
+                new_cost,
+                cost_list[-1],
+            )
+            cost_list.append(new_cost)
+
+            mark = tick.copy() if accept else cross.copy()
+            next_change = (
+                VGroup(next_change, mark)
+                .arrange(RIGHT, buff=0.3)
+                .move_to(change_history[0], aligned_edge=LEFT)
+            )
 
             change_list.append(next_change)
 
@@ -1804,7 +1866,29 @@ class SimulatedAnnealing(BruteForce, TransitionOtherApproaches):
                 update_list_anims.append(FadeOut(removed_element, shift=DOWN * 0.4))
                 update_list_anims.append(FadeIn(next_change, shift=RIGHT * 0.3))
 
-            self.play(*update_list_anims)
+            # if the last config is better than the previous one, we accept it right away
+            if cost_list[-1] < cost_list[-2]:
+                pass
+            # otherwise, we need to check if we should accept it
+            else:
+                if accept:
+                    # accept worse solution
+                    pass
+                else:
+                    # reject worse solution, undo last operation
+                    undo_edges = get_edges_from_tour(undo_tour)
+                    undo_cost = get_cost_from_edges(undo_edges, graph.dist_matrix)
+                    focus_edges_animations = self.focus_on_edges(undo_edges, all_edges)
+
+            self.play(
+                *update_list_anims,
+                *focus_edges_animations,
+                cost_indicator_animation,
+                Write(new_temp_line_chunk),
+                Write(new_cost_line_chunk),
+                T.animate.set_value(1 / (0.5 * i + 1)),
+            )
+            last_temp = v
 
     ############### UTILS
 
@@ -1821,10 +1905,12 @@ class SimulatedAnnealing(BruteForce, TransitionOtherApproaches):
             .set_stroke(width=2)
         )
 
-    def create_change_history_entry(self, v1, v2, cost) -> Text:
+    def create_change_history_entry(self, v1, v2, cost, last_cost) -> Text:
+        color = REDUCIBLE_CHARM if cost - last_cost > 0 else REDUCIBLE_GREEN_LIGHTER
         return Text(
             f"· Join {v1} with {v2}: {cost:.2f}",
             font=REDUCIBLE_FONT,
             t2f={f"{cost:.2f}": REDUCIBLE_MONO},
+            t2c={f"{cost:.2f}": color},
             weight=BOLD,
         ).scale(0.4)
