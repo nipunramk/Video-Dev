@@ -1696,23 +1696,37 @@ class SimulatedAnnealing(BruteForce, TransitionOtherApproaches):
             graph, RIGHT, aligned_edge=UP, buff=1.7
         )
 
-        axes_cost = Axes(
-            x_range=[0, iterations, 10],
-            y_range=[0, 101, 10],
-            y_length=8,
-            tips=False,
-            axis_config={
-                # "include_numbers": True,
-                "label_constructor": CustomLabel,
-            },
-        ).scale(0.3)
-        axes_cost.y_axis.move_to(axes_temp.x_axis.ticks[-1], aligned_edge=DOWN)
+        axes_cost = (
+            Axes(
+                x_range=[0, iterations, 10],
+                y_range=[0, 101, 10],
+                y_length=8,
+                tips=False,
+                axis_config={
+                    "include_numbers": True,
+                    "label_constructor": CustomLabel,
+                },
+            )
+            .scale(0.3)
+            .move_to(axes_temp)
+        )
+        # axes_cost.y_axis.move_to(axes_temp.x_axis.ticks[-1], aligned_edge=DOWN)
+        fake_y_axes_cost = (
+            NumberLine(
+                x_range=[10, 101, 10],
+                length=8,
+                rotation=90 * DEGREES,
+                label_direction=RIGHT,
+            )
+            .scale(0.3)
+            .move_to(axes_temp.x_axis.ticks[-1], aligned_edge=DOWN)
+        )
 
         cost_labels = VGroup(
             *[
                 Text(str(i), font=REDUCIBLE_MONO, font_size=36)
                 .scale(0.3)
-                .next_to(axes_cost.y_axis.ticks[i // 10 - 1], RIGHT, buff=0.1)
+                .next_to(fake_y_axes_cost.ticks[i // 10 - 1], RIGHT, buff=0.1)
                 for i in range(10, 101, 10)
             ]
         )
@@ -1720,10 +1734,15 @@ class SimulatedAnnealing(BruteForce, TransitionOtherApproaches):
             Text("Cost", font=REDUCIBLE_FONT, weight=BOLD)
             .scale(0.3)
             .rotate(-90 * DEGREES)
-            .next_to(axes_cost.y_axis, RIGHT, buff=0.6)
+            .next_to(fake_y_axes_cost, RIGHT, buff=0.6)
         )
 
-        self.add(axes_temp, axes_cost.y_axis, cost_labels, cost_y_label)
+        # self.add(
+        #     axes_temp,
+        #     fake_y_axes_cost,
+        #     cost_labels,
+        #     cost_y_label,
+        # )
         # customize axes_cost
 
         change_history = (
@@ -1732,17 +1751,19 @@ class SimulatedAnnealing(BruteForce, TransitionOtherApproaches):
             .next_to(axes_temp.y_axis, DOWN, buff=1.3, aligned_edge=RIGHT)
         )
 
-        # cost_hist_title = (
-        #     Text(
-        #         f"Cost history",
-        #         font=REDUCIBLE_FONT,
-        #         weight=BOLD,
-        #     )
-        #     .scale(0.7)
-        #     .next_to(change_history, UP, buff=0.7, aligned_edge=LEFT)
-        # )
+        cost_indicator_text = Text(
+            f"Path length:",
+            font=REDUCIBLE_FONT,
+            weight=BOLD,
+        ).scale(0.4)
 
-        def iterate_two_opt_animation(v1, v2, tour):
+        best_indicator_text = Text(
+            f"Best:",
+            font=REDUCIBLE_FONT,
+            weight=BOLD,
+        ).scale(0.4)
+
+        def iterate_two_opt_animation(v1, v2, tour, last_cost: Text):
             two_opt_tour = two_opt_swap(tour, v1, v2)
 
             two_opt_edges = get_edges_from_tour(two_opt_tour)
@@ -1750,21 +1771,30 @@ class SimulatedAnnealing(BruteForce, TransitionOtherApproaches):
 
             two_opt_cost_indicator = (
                 Text(
-                    f"Distance: {two_opt_cost:.2f}",
-                    font=REDUCIBLE_FONT,
-                    t2f={f"{two_opt_cost:.2f}": REDUCIBLE_MONO},
+                    f"{two_opt_cost:.2f}",
+                    font=REDUCIBLE_MONO,
                     weight=BOLD,
                 )
                 .set_stroke(width=4, background=True)
                 .scale(0.4)
-                .next_to(graph, DOWN, buff=0.5)
+                .next_to(cost_indicator_text, RIGHT, buff=0.3)
             )
 
             focus_edges_animations = self.focus_on_edges(two_opt_edges, all_edges)
-            cost_indicator_animation = Transform(cost_indicator, two_opt_cost_indicator)
+
+            direction = -np.sign(float(last_cost.text) - two_opt_cost)
+            cost_indicator_animations = [
+                FadeIn(two_opt_cost_indicator, shift=UP * direction * 0.3),
+                FadeOut(last_cost, shift=UP * direction * 0.3),
+            ]
             # self.play(*focus_edges_animations, cost_indicator_animation)
 
-            return two_opt_tour, focus_edges_animations, cost_indicator_animation
+            return (
+                two_opt_tour,
+                two_opt_cost_indicator,
+                focus_edges_animations,
+                cost_indicator_animations,
+            )
 
         self.add_foreground_mobjects(graph)
         all_edges = graph.get_all_edges(buff=graph.vertices[0].width / 2)
@@ -1776,25 +1806,42 @@ class SimulatedAnnealing(BruteForce, TransitionOtherApproaches):
         nn_edges = get_edges_from_tour(nn_tour)
         nn_edges = list(map(lambda t: (t[1], t[0]) if t[0] > t[1] else t, nn_edges))
 
-        cost_indicator = (
-            Text(
-                f"Distance: {nn_cost:.2f}",
-                font=REDUCIBLE_FONT,
-                t2f={f"{nn_cost:.2f}": REDUCIBLE_MONO},
-                weight=BOLD,
-            )
-            .set_stroke(width=4, background=True)
-            .scale(0.4)
-            .next_to(graph, DOWN, buff=0.5)
+        cost_indicator = Text(
+            f"{nn_cost:.2f}",
+            font=REDUCIBLE_MONO,
+            weight=BOLD,
+        ).scale(0.4)
+
+        best_cost_mob = Text(
+            f"{nn_cost:.2f}",
+            font=REDUCIBLE_MONO,
+            weight=BOLD,
+        ).scale(0.4)
+
+        VGroup(cost_indicator_text, cost_indicator).arrange(RIGHT, buff=0.3).next_to(
+            graph, DOWN, buff=0.5, aligned_edge=LEFT
+        )
+        VGroup(best_indicator_text, best_cost_mob).arrange(RIGHT, buff=0.3).next_to(
+            graph, DOWN, buff=0.5, aligned_edge=RIGHT
         )
 
         self.play(
             # *self.focus_on_edges(nn_edges, all_edges),
             LaggedStart(*[all_edges[t].animate.set_opacity(1) for t in nn_edges]),
+            FadeIn(cost_indicator),
+            FadeIn(cost_indicator_text),
+            FadeIn(best_indicator_text),
+            FadeIn(best_cost_mob),
             run_time=3,
         )
 
-        self.play(Write(axes_vg))
+        self.play(
+            Write(axes_vg),
+            # Write(axes_temp),
+            Write(fake_y_axes_cost),
+            Write(cost_labels),
+            Write(cost_y_label),
+        )
         tick = SVGMobject("check.svg").scale(0.1).set_color(REDUCIBLE_GREEN_LIGHTER)
         cross = Cross(stroke_color=REDUCIBLE_CHARM, stroke_width=2, scale_factor=0.1)
 
@@ -1803,41 +1850,73 @@ class SimulatedAnnealing(BruteForce, TransitionOtherApproaches):
         change_list = []
         cost_list = [nn_cost]
         last_temp = T.get_value()
+        last_cost_mob = cost_indicator
+
         last_tour = nn_tour
-        for i in range(6):
+        best_tour = nn_tour
+
+        best_cost = nn_cost
+
+        for i in range(20):
             v1, v2 = np.random.choice(range(N), size=2, replace=True)
             v = T.get_value()
-
-            # will we accept a bad solution in case we run into one?
-            accept = np.random.random() < T.get_value()
 
             new_temp_line_chunk = self.next_iteration_line(
                 axes_temp, i, T.get_value(), last_temp
             ).set_stroke(width=4)
 
-            undo_tour = last_tour
             (
                 last_tour,
+                last_cost_mob,
                 focus_edges_animations,
-                cost_indicator_animation,
-            ) = iterate_two_opt_animation(v1, v2, nn_tour)
+                cost_indicator_animations,
+            ) = iterate_two_opt_animation(v1, v2, nn_tour, last_cost_mob)
 
             new_cost = get_cost_from_edges(
                 get_edges_from_tour(last_tour), graph.dist_matrix
             )
-            new_cost_line_chunk = self.next_iteration_line(
-                axes_cost, i, cost_list[-1], new_cost
-            ).set_stroke(REDUCIBLE_PURPLE, width=4)
+            new_cost_line_chunk = (
+                self.next_iteration_line(axes_cost, i, cost_list[-1], new_cost)
+                .set_stroke(REDUCIBLE_PURPLE, width=4)
+                .flip()
+            )
+
+            is_new_cost_better = new_cost < best_cost
+            accept = np.random.random() < T.get_value()
+
+            if is_new_cost_better:
+                best_cost = new_cost
+                best_tour = last_tour
+
+                last_best_mob = best_cost_mob
+                best_cost_mob = (
+                    Text(
+                        f"{best_cost:.2f}",
+                        font=REDUCIBLE_MONO,
+                        weight=BOLD,
+                    )
+                    .scale(0.4)
+                    .next_to(best_indicator_text, RIGHT, buff=0.3)
+                )
+
+                cost_indicator_animations.extend(
+                    [
+                        FadeIn(best_cost_mob, shift=DOWN * 0.3),
+                        FadeOut(last_best_mob, shift=DOWN * 0.3),
+                    ]
+                )
+
+            undo_tour = best_tour
 
             next_change = self.create_change_history_entry(
                 v1,
                 v2,
                 new_cost,
-                cost_list[-1],
+                best_cost,
             )
             cost_list.append(new_cost)
 
-            mark = tick.copy() if accept else cross.copy()
+            mark = tick.copy() if accept or is_new_cost_better else cross.copy()
             next_change = (
                 VGroup(next_change, mark)
                 .arrange(RIGHT, buff=0.3)
@@ -1867,7 +1946,7 @@ class SimulatedAnnealing(BruteForce, TransitionOtherApproaches):
                 update_list_anims.append(FadeIn(next_change, shift=RIGHT * 0.3))
 
             # if the last config is better than the previous one, we accept it right away
-            if cost_list[-1] < cost_list[-2]:
+            if is_new_cost_better:
                 pass
             # otherwise, we need to check if we should accept it
             else:
@@ -1883,7 +1962,7 @@ class SimulatedAnnealing(BruteForce, TransitionOtherApproaches):
             self.play(
                 *update_list_anims,
                 *focus_edges_animations,
-                cost_indicator_animation,
+                *cost_indicator_animations,
                 Write(new_temp_line_chunk),
                 Write(new_cost_line_chunk),
                 T.animate.set_value(1 / (0.5 * i + 1)),
