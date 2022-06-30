@@ -793,14 +793,44 @@ class ProblemComplexity(TSPAssumptions):
             .to_edge(LEFT)
         )
 
-        curr_tour_str = Text(f"", font=REDUCIBLE_MONO).next_to(curr_tour_txt)
-        best_tour_str = Text(f"", font=REDUCIBLE_MONO).next_to(best_subtour_txt)
-        curr_cost_str = Text(f"", font=REDUCIBLE_MONO).next_to(curr_cost_txt)
-        best_cost_str = Text(f"", font=REDUCIBLE_MONO).next_to(best_cost_txt)
+        curr_tour_str = (
+            Text(f"[]", font=REDUCIBLE_MONO).scale(0.5).next_to(curr_tour_txt)
+        )
+        curr_cost_str = (
+            Text(f"0", font=REDUCIBLE_MONO).scale(0.6).next_to(curr_cost_txt)
+        )
 
-        explanation = Text("").next_to(text_vg, UP, buff=1, aligned_edge=LEFT)
+        best_tour_str = (
+            Text(f"[]", font=REDUCIBLE_MONO).scale(0.5).next_to(best_subtour_txt)
+        )
+        best_cost_str = (
+            Text(f"0", font=REDUCIBLE_MONO).scale(0.6).next_to(best_cost_txt)
+        )
 
-        self.play(FadeIn(text_vg))
+        explanation = (
+            Text(
+                "Going from 0 to 0 through 0 cities",
+                font=REDUCIBLE_FONT,
+                t2f={"0": REDUCIBLE_MONO},
+            )
+            .scale(0.6)
+            .next_to(
+                text_vg,
+                UP,
+                buff=1,
+                aligned_edge=LEFT,
+            )
+        )
+
+        self.play(
+            FadeIn(text_vg),
+            FadeIn(curr_tour_str),
+            FadeIn(curr_cost_str),
+            FadeIn(best_tour_str),
+            FadeIn(best_cost_str),
+            FadeIn(explanation),
+        )
+        self.wait()
         for i in range(cities - 1):
             costs = {}
             internal_perms = list(permutations(cities_list, i + 1))
@@ -809,12 +839,12 @@ class ProblemComplexity(TSPAssumptions):
                 tour = [*sub_tour, start_city]
 
                 tour_edges = graph.get_tour_edges(tour)
+                tour_edges.popitem()
 
                 # remove the last one since we are talking about sub tours
                 tour_edge_tuples = get_edges_from_tour(tour)[:-1]
 
                 curr_cost = get_cost_from_edges(tour_edge_tuples, graph.dist_matrix)
-                print(tour_edge_tuples, curr_cost)
 
                 costs[tuple(tour)] = curr_cost
 
@@ -846,7 +876,9 @@ class ProblemComplexity(TSPAssumptions):
                 )
 
                 edges_anims = self.focus_on_edges(tour_edges, all_edges=all_edges)
-                labels_anims = self.focus_on_labels(tour_edge_tuples, all_labels)
+                labels_anims = self.focus_on_labels(
+                    tour_edge_tuples, all_labels=all_labels
+                )
 
                 self.play(
                     *edges_anims,
@@ -898,10 +930,10 @@ class ProblemComplexity(TSPAssumptions):
             text_position=UP,
         )
         problems = [
-            "Integer Programming",
-            "Knapsack Problem",
+            ["Integer", "Programming"],
+            ["Knapsack", "Problem"],
             "Bin Packing",
-            "Complete Coloring",
+            "Subset sum",
         ]
         modules = VGroup(*[Module(p, text_weight=BOLD).scale(0.6) for p in problems])
         modules[0].move_to(tsp_problem).shift(LEFT * 2 + UP * 1.5)
@@ -938,24 +970,25 @@ class ProblemComplexity(TSPAssumptions):
 
         constant_plot = (
             num_plane.plot(lambda x: 5, x_range=eval_range)
-            .set_color(REDUCIBLE_BLUE)
+            .set_color(REDUCIBLE_GREEN)
             .set_stroke(width=5)
         )
         constant_tag = (
             Tex(r"$\bm{O(1)}$", tex_template=bold_template)
-            .set_color(REDUCIBLE_BLUE)
+            .set_color(REDUCIBLE_GREEN)
+            .set_stroke(width=5, background=True)
             .scale(0.6)
-            .next_to(constant_plot, UP)
+            .next_to(constant_plot, UP, buff=0.1)
         )
 
         linear_plot = (
             num_plane.plot(lambda x: x, x_range=eval_range)
-            .set_color(REDUCIBLE_PURPLE)
+            .set_color(REDUCIBLE_GREEN_LIGHTER)
             .set_stroke(width=5)
         )
         linear_tag = (
             Tex(r"$\bm{O(n)}$", tex_template=bold_template)
-            .set_color(REDUCIBLE_PURPLE)
+            .set_color(REDUCIBLE_GREEN_LIGHTER)
             .scale(0.6)
             .next_to(linear_plot.point_from_proportion(0.7), UP)
         )
@@ -1038,6 +1071,7 @@ class ProblemComplexity(TSPAssumptions):
         )
         self.play(LaggedStart(*[Write(p) for p in plots]))
         self.play(*[FadeIn(t, scale=0.95) for t in tags])
+        self.wait()
 
         self.play(
             constant_plot.animate.set_stroke(opacity=0.3),
