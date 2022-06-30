@@ -1315,8 +1315,7 @@ class CustomLabel(Text):
 
 class SimulatedAnnealing(BruteForce, TransitionOtherApproaches):
     def construct(self):
-        # bg = ImageMobject("bg-redu-hd.png")
-        # self.add(bg)
+
         # self.guided_example()
         # self.wait()
         # self.play(*[FadeOut(mob) for mob in self.mobjects])
@@ -1851,7 +1850,7 @@ class SimulatedAnnealing(BruteForce, TransitionOtherApproaches):
 
         best_cost = nn_cost
 
-        for i in range(1, 5):
+        for i in range(1, 100):
             v1, v2 = np.random.choice(range(N), size=2, replace=True)
             v = T.get_value()
 
@@ -1953,10 +1952,15 @@ class SimulatedAnnealing(BruteForce, TransitionOtherApproaches):
                     undo_cost = get_cost_from_edges(undo_edges, graph.dist_matrix)
                     focus_edges_animations = self.focus_on_edges(undo_edges, all_edges)
 
+            if i < 10:
+                edges_animations = self.focus_on_vertices([v1, v2], graph.vertices)
+            else:
+                edges_animations = self.focus_on_vertices([], graph.vertices)
             self.play(
                 *update_list_anims,
                 *focus_edges_animations,
                 *cost_indicator_animations,
+                *edges_animations,
                 Write(new_temp_line_chunk),
                 Write(new_cost_line_chunk),
                 T.animate.set_value(1 / (0.5 * i + 1)),
