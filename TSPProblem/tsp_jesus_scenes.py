@@ -1350,15 +1350,17 @@ class CustomLabel(Text):
 class SimulatedAnnealing(BruteForce, TransitionOtherApproaches):
     def construct(self):
 
-        self.guided_example()
-        self.wait()
-        self.play(*[FadeOut(mob) for mob in self.mobjects])
+        frame = self.camera.frame
+        # self.guided_example()
+        # self.wait()
+        # self.play(*[FadeOut(mob) for mob in self.mobjects])
+        # self.play(frame.animate.move_to(ORIGIN))
 
         self.show_temperature()
         self.wait()
-        self.play(*[FadeOut(mob) for mob in self.mobjects])
+        # self.play(*[FadeOut(mob) for mob in self.mobjects])
 
-        self.simulated_annealing()
+        # self.simulated_annealing()
 
     def guided_example(self):
         N = 30
@@ -1369,6 +1371,8 @@ class SimulatedAnnealing(BruteForce, TransitionOtherApproaches):
             layout_config={"k": 9, "iterations": 10},
             layout_scale=5,
         ).scale(0.6)
+
+        np.random.seed(101)
 
         self.add_foreground_mobjects(graph)
         all_edges = graph.get_all_edges(buff=graph.vertices[0].width / 2)
@@ -1531,6 +1535,7 @@ class SimulatedAnnealing(BruteForce, TransitionOtherApproaches):
                 shift=UP * 0.3,
             ),
         )
+        self.wait()
 
         # we have a worse solution, we have to decide whether to keep it or not!
         T = 0.8
@@ -1556,6 +1561,7 @@ class SimulatedAnnealing(BruteForce, TransitionOtherApproaches):
             FadeOut(p_string, shift=UP * 0.3),
             FadeOut(p_random, shift=UP * 0.3),
         )
+        self.wait()
 
         undo_tour = last_tour
         # next example where we don't choose the worst
@@ -1580,6 +1586,7 @@ class SimulatedAnnealing(BruteForce, TransitionOtherApproaches):
                 shift=UP * 0.3,
             ),
         )
+        self.wait()
 
         T = 0.76
         p_string = (
@@ -1639,7 +1646,7 @@ class SimulatedAnnealing(BruteForce, TransitionOtherApproaches):
                 },
             )
             .scale(0.5)
-            .shift(UP * 1.3)
+            .shift(UP)
         )
 
         temp_nl = NumberLine(
@@ -1647,6 +1654,19 @@ class SimulatedAnnealing(BruteForce, TransitionOtherApproaches):
             include_numbers=True,
             length=axes.x_axis.width,
         ).next_to(axes.x_axis, DOWN, buff=1)
+
+        temp_label = (
+            Text("Temperature", font=REDUCIBLE_FONT, weight=BOLD)
+            .scale(0.5)
+            .rotate(90 * DEGREES)
+            .next_to(axes.y_axis, LEFT, buff=0.2)
+        )
+
+        iterations_label = (
+            Text("Iterations", font=REDUCIBLE_FONT, weight=BOLD)
+            .scale(0.5)
+            .next_to(axes.x_axis, DOWN, buff=0.2)
+        )
 
         T = ValueTracker(1)
 
@@ -1666,23 +1686,58 @@ class SimulatedAnnealing(BruteForce, TransitionOtherApproaches):
             )
         )
 
-        self.play(Write(axes), Write(temp_nl), Write(temp_marker))
+        self.play(
+            Write(axes),
+            Write(temp_nl),
+            Write(temp_marker),
+            FadeIn(temp_label),
+            FadeIn(iterations_label),
+        )
         self.play(Write(filled_rect))
 
         last_temp = T.get_value()
-        for i in range(101):
+        last_plot = axes.plot(lambda x: 1 / x, x_range=[1, 1.001])
+        last_area = axes.get_area(last_plot, x_range=[1, 1.001]).set_fill(
+            REDUCIBLE_YELLOW, opacity=0.3
+        )
+        for i in range(1, 101):
             v = T.get_value()
 
+            new_plot = axes.plot(lambda x: 1 / x, x_range=[1, i])
+            new_area = (
+                axes.get_area(new_plot, x_range=[1, i])
+                .set_fill(REDUCIBLE_YELLOW, opacity=0.3)
+                .set_stroke(width=0)
+            )
             new_line_chunk = self.next_iteration_line(axes, i, v, last_temp).set_stroke(
                 width=4
             )
             self.play(
+                last_area.animate.become(new_area),
                 T.animate.set_value(1 / (1 * i + 1)),
                 Write(new_line_chunk),
                 run_time=(1 / (i + 1)),
             )
 
             last_temp = v
+
+        self.wait()
+
+        explore_annotation = (
+            Text("Explore a lot", font=REDUCIBLE_FONT, weight=BOLD)
+            .scale(0.4)
+            .next_to(new_plot.point_from_proportion(0.1), RIGHT, buff=0.4)
+        )
+
+        exploit_annotation = (
+            Text("Converge to local optima", font=REDUCIBLE_FONT, weight=BOLD)
+            .scale(0.3)
+            .next_to(new_plot.point_from_proportion(0.95), UP, buff=0.2)
+        )
+
+        self.play(FadeIn(explore_annotation))
+        self.wait()
+        self.play(FadeIn(exploit_annotation))
 
     def simulated_annealing(self):
         # DEFINITION AND SETUP
@@ -2017,8 +2072,13 @@ class SimulatedAnnealing(BruteForce, TransitionOtherApproaches):
             .set_stroke(width=2)
         )
 
-    def create_change_history_entry(self, v1, v2, cost, last_cost) -> Text:
-        color = REDUCIBLE_CHARM if cost - last_cost > 0 else REDUCIBLE_GREEN_LIGHTER
+    def create_change_history_entry(self, v1, v2, cost, last_cost=None) -> Text:
+
+        if last_cost:
+            color = REDUCIBLE_CHARM if cost - last_cost > 0 else REDUCIBLE_GREEN_LIGHTER
+        else:
+            color = WHITE
+
         return Text(
             f"· Join {v1} with {v2}: {cost:.2f}",
             font=REDUCIBLE_FONT,
