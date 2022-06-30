@@ -1351,16 +1351,16 @@ class SimulatedAnnealing(BruteForce, TransitionOtherApproaches):
     def construct(self):
 
         frame = self.camera.frame
-        # self.guided_example()
-        # self.wait()
-        # self.play(*[FadeOut(mob) for mob in self.mobjects])
-        # self.play(frame.animate.move_to(ORIGIN))
+        self.guided_example()
+        self.wait()
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
+        self.play(frame.animate.move_to(ORIGIN))
 
         self.show_temperature()
         self.wait()
-        # self.play(*[FadeOut(mob) for mob in self.mobjects])
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
 
-        # self.simulated_annealing()
+        self.simulated_annealing()
 
     def guided_example(self):
         N = 30
