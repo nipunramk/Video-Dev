@@ -1699,7 +1699,7 @@ class SimulatedAnnealing(BruteForce, TransitionOtherApproaches):
         axes_cost = (
             Axes(
                 x_range=[0, iterations, 10],
-                y_range=[0, 101, 10],
+                y_range=[30, 91, 10],
                 y_length=8,
                 tips=False,
                 axis_config={
@@ -1708,12 +1708,11 @@ class SimulatedAnnealing(BruteForce, TransitionOtherApproaches):
                 },
             )
             .scale(0.3)
-            .move_to(axes_temp)
+            .next_to(axes_temp, ORIGIN, aligned_edge=RIGHT)
         )
-        # axes_cost.y_axis.move_to(axes_temp.x_axis.ticks[-1], aligned_edge=DOWN)
         fake_y_axes_cost = (
             NumberLine(
-                x_range=[10, 101, 10],
+                x_range=[30, 91, 10],
                 length=8,
                 rotation=90 * DEGREES,
                 label_direction=RIGHT,
@@ -1724,10 +1723,14 @@ class SimulatedAnnealing(BruteForce, TransitionOtherApproaches):
 
         cost_labels = VGroup(
             *[
-                Text(str(i), font=REDUCIBLE_MONO, font_size=36)
+                Text(str(e), font=REDUCIBLE_MONO, font_size=36)
                 .scale(0.3)
-                .next_to(fake_y_axes_cost.ticks[i // 10 - 1], RIGHT, buff=0.1)
-                for i in range(10, 101, 10)
+                .next_to(
+                    fake_y_axes_cost.ticks[i],
+                    RIGHT,
+                    buff=0.1,
+                )
+                for i, e in enumerate(range(30, 91, 10))
             ]
         )
         cost_y_label = (
@@ -1736,14 +1739,6 @@ class SimulatedAnnealing(BruteForce, TransitionOtherApproaches):
             .rotate(-90 * DEGREES)
             .next_to(fake_y_axes_cost, RIGHT, buff=0.6)
         )
-
-        # self.add(
-        #     axes_temp,
-        #     fake_y_axes_cost,
-        #     cost_labels,
-        #     cost_y_label,
-        # )
-        # customize axes_cost
 
         change_history = (
             VGroup(*[Dot() for a in range(5)])
@@ -1837,7 +1832,6 @@ class SimulatedAnnealing(BruteForce, TransitionOtherApproaches):
 
         self.play(
             Write(axes_vg),
-            # Write(axes_temp),
             Write(fake_y_axes_cost),
             Write(cost_labels),
             Write(cost_y_label),
@@ -1857,7 +1851,7 @@ class SimulatedAnnealing(BruteForce, TransitionOtherApproaches):
 
         best_cost = nn_cost
 
-        for i in range(20):
+        for i in range(1, 5):
             v1, v2 = np.random.choice(range(N), size=2, replace=True)
             v = T.get_value()
 
@@ -1966,6 +1960,7 @@ class SimulatedAnnealing(BruteForce, TransitionOtherApproaches):
                 Write(new_temp_line_chunk),
                 Write(new_cost_line_chunk),
                 T.animate.set_value(1 / (0.5 * i + 1)),
+                run_time=1 / (0.15 * i + 1),
             )
             last_temp = v
 
