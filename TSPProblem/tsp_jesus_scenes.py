@@ -1316,13 +1316,13 @@ class CustomLabel(Text):
 class SimulatedAnnealing(BruteForce, TransitionOtherApproaches):
     def construct(self):
 
-        # self.guided_example()
-        # self.wait()
-        # self.play(*[FadeOut(mob) for mob in self.mobjects])
+        self.guided_example()
+        self.wait()
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
 
-        # self.show_temperature()
-        # self.wait()
-        # self.play(*[FadeOut(mob) for mob in self.mobjects])
+        self.show_temperature()
+        self.wait()
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
 
         self.simulated_annealing()
 
