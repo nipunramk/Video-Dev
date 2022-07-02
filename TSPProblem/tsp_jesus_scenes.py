@@ -1938,6 +1938,7 @@ class SimulatedAnnealing(BruteForce, TransitionOtherApproaches):
         best_tour = nn_tour
 
         best_cost = nn_cost
+        last_best_cost = best_cost
 
         for i in range(1, 100):
             v1, v2 = np.random.choice(range(N), size=2, replace=True)
@@ -1987,6 +1988,12 @@ class SimulatedAnnealing(BruteForce, TransitionOtherApproaches):
                         FadeOut(last_best_mob, shift=DOWN * 0.3),
                     ]
                 )
+
+            new_best_line_chunk = (
+                self.next_iteration_line(axes_cost, i, last_best_cost, best_cost)
+                .set_stroke(REDUCIBLE_GREEN, width=4)
+                .flip()
+            )
 
             undo_tour = best_tour
 
@@ -2052,10 +2059,12 @@ class SimulatedAnnealing(BruteForce, TransitionOtherApproaches):
                 *edges_animations,
                 Write(new_temp_line_chunk),
                 Write(new_cost_line_chunk),
+                Write(new_best_line_chunk),
                 T.animate.set_value(1 / (0.5 * i + 1)),
                 run_time=1 / (0.15 * i + 1),
             )
             last_temp = v
+            last_best_cost = best_cost
 
     ############### UTILS
 
