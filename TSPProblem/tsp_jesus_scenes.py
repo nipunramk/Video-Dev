@@ -1991,7 +1991,7 @@ class SimulatedAnnealing(BruteForce, TransitionOtherApproaches):
 
             new_best_line_chunk = (
                 self.next_iteration_line(axes_cost, i, last_best_cost, best_cost)
-                .set_stroke(REDUCIBLE_GREEN, width=4)
+                .set_stroke(REDUCIBLE_GREEN_LIGHTER, width=4)
                 .flip()
             )
 
