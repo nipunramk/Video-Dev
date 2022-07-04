@@ -2069,7 +2069,7 @@ class SimulatedAnnealing(BruteForce, TransitionOtherApproaches):
                 Write(new_temp_line_chunk),
                 Write(new_cost_line_chunk),
                 Write(new_best_line_chunk),
-                T.animate.set_value(1 / (0.5 * i + 1)),
+                T.animate.set_value(1 / (0.15 * i + 1)),
                 run_time=1 / (0.15 * i + 1),
             )
             last_temp = v
