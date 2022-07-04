@@ -2169,3 +2169,483 @@ class Christofides(GreedyApproach):
 
     def get_neighboring_edges(self, vertex, edges):
         return [edge for edge in edges if vertex in edge]
+
+
+class TourImprovement(Christofides):
+    def construct(self):
+        self.intro_idea()
+        self.clear()
+        self.show_random_swaps()
+        self.show_two_opt_switches()
+        self.k_opt_improvement()
+
+    def intro_idea(self):
+        NUM_VERTICES = 10
+        layout = self.get_random_layout(NUM_VERTICES)
+        input_graph = TSPGraph(list(range(NUM_VERTICES)), layout=layout).scale(0.45)
+
+        heuristic_solution_mod = Module(
+            ["Heuristic", "Solution"],
+            text_weight=BOLD,
+        )
+        heuristic_solution_mod.text.scale(0.8)
+        heuristic_solution_mod.scale(0.7)
+        output_graph = input_graph.copy()
+        tsp_tour_h, h_cost = christofides(output_graph.get_dist_matrix())
+
+        arrow_1 = Arrow(
+            LEFT * 1.5, ORIGIN, max_tip_length_to_length_ratio=0.15
+        ).set_color(GRAY)
+        arrow_2 = Arrow(
+            ORIGIN, RIGHT * 1.5, max_tip_length_to_length_ratio=0.15
+        ).set_color(GRAY)
+
+        tsp_tour_edges_mob = self.get_tsp_tour_edges_mob(output_graph, tsp_tour_h)
+        output_graph_with_edges = VGroup(output_graph, tsp_tour_edges_mob)
+
+        entire_group = (
+            VGroup(
+                input_graph,
+                arrow_1,
+                heuristic_solution_mod,
+                arrow_2,
+                output_graph_with_edges,
+            )
+            .arrange(RIGHT, buff=0.5)
+            .scale(0.8)
+        )
+
+        self.play(FadeIn(entire_group))
+        self.wait()
+
+        improve_question = (
+            Text("Can we improve this solution?", font=REDUCIBLE_FONT, weight=BOLD)
+            .scale(0.8)
+            .move_to(UP * 3.3)
+        )
+
+        self.play(Write(improve_question))
+
+        self.wait()
+
+        self.play(entire_group.animate.next_to(improve_question, DOWN, buff=1))
+        self.wait()
+
+        input_graph_ls = output_graph_with_edges.copy()
+
+        local_search_mod = Module(
+            ["Local", "Search"],
+            REDUCIBLE_GREEN_DARKER,
+            REDUCIBLE_GREEN_LIGHTER,
+            text_weight=BOLD,
+        )
+        local_search_mod.text.scale(0.6)
+        local_search_mod.scale(0.7)
+        output_graph_ls = input_graph.copy()
+        tsp_tour, cost = get_exact_tsp_solution(output_graph.get_dist_matrix())
+        tsp_tour_edges = get_edges_from_tour(tsp_tour)
+        arrow_3 = Arrow(
+            LEFT * 1.5, ORIGIN, max_tip_length_to_length_ratio=0.15
+        ).set_color(GRAY)
+        arrow_4 = Arrow(
+            ORIGIN, RIGHT * 1.5, max_tip_length_to_length_ratio=0.15
+        ).set_color(GRAY)
+
+        tsp_tour_edges_mob_opt = self.get_tsp_tour_edges_mob(
+            output_graph_ls, tsp_tour_edges
+        )
+        output_graph_with_edges_opt = VGroup(output_graph_ls, tsp_tour_edges_mob_opt)
+
+        entire_group_opt = (
+            VGroup(
+                input_graph_ls.scale(1.2),
+                arrow_3,
+                local_search_mod,
+                arrow_4,
+                output_graph_with_edges_opt.scale(1.2),
+            )
+            .arrange(RIGHT, buff=0.5)
+            .scale(0.8)
+        ).move_to(DOWN * 2.2)
+
+        self.play(FadeIn(entire_group_opt))
+        self.wait()
+        text_scale = 0.4
+        nn = Text("Nearest Neighbor", font=REDUCIBLE_FONT).scale(text_scale)
+        greedy = Text("Greedy", font=REDUCIBLE_FONT).scale(text_scale)
+        christofides_text = Text("Christofides", font=REDUCIBLE_FONT).scale(text_scale)
+
+        VGroup(nn, greedy).arrange(DOWN).next_to(heuristic_solution_mod, UP)
+        christofides_text.next_to(heuristic_solution_mod, DOWN)
+
+        random_swapping = (
+            Text("Random swapping", font=REDUCIBLE_FONT)
+            .scale(text_scale)
+            .next_to(local_search_mod, UP)
+        )
+        two_opt = Text("2-opt", font=REDUCIBLE_FONT).scale(text_scale)
+        three_opt = Text("3-opt", font=REDUCIBLE_FONT).scale(text_scale)
+        VGroup(two_opt, three_opt).arrange(DOWN).next_to(local_search_mod, DOWN)
+
+        self.play(FadeIn(random_swapping), FadeIn(two_opt), FadeIn(three_opt))
+        self.wait()
+
+        self.play(FadeIn(nn), FadeIn(greedy), FadeIn(christofides_text))
+        self.wait()
+
+    def show_random_swaps(self):
+        np.random.seed(9)
+        NUM_VERTICES = 10
+        layout = self.get_random_layout(NUM_VERTICES)
+        graph = (
+            TSPGraph(list(range(NUM_VERTICES)), layout=layout)
+            .scale(0.7)
+            .shift(UP * 0.5)
+        )
+        nn_tour, nn_cost = get_nearest_neighbor_solution(graph.get_dist_matrix())
+
+        nn_tour_edges = get_edges_from_tour(nn_tour)
+        nn_tour_edges_mob = self.get_tsp_tour_edges_mob(graph, nn_tour_edges)
+
+        self.play(
+            *[GrowFromCenter(v) for v in graph.vertices.values()],
+        )
+        self.wait()
+
+        self.play(LaggedStartMap(Write, nn_tour_edges_mob))
+        self.wait()
+
+        tsp_tour_text = self.get_tex_eulerian_tour(nn_tour_edges, scale=0.5)
+        cost = Text(
+            f"Nearest Neighbor Cost: {np.round(nn_cost, 2)}", font=REDUCIBLE_MONO
+        ).scale(0.4)
+
+        tsp_tour_text.to_edge(DOWN * 2)
+        cost.next_to(tsp_tour_text, DOWN)
+
+        self.play(FadeIn(tsp_tour_text), FadeIn(cost))
+        self.wait()
+
+        random_swapping = (
+            Text("Random Swapping", font=REDUCIBLE_FONT, weight=BOLD)
+            .scale(0.7)
+            .move_to(UP * 3.3)
+        )
+
+        self.play(Write(random_swapping))
+        self.wait()
+
+        nn_tour_swapped = nn_tour.copy()
+        nn_tour_swapped[5], nn_tour_swapped[-2] = (
+            nn_tour_swapped[-2],
+            nn_tour_swapped[5],
+        )
+        nn_tour_swapped_edges = get_edges_from_tour(nn_tour_swapped)
+        nn_tour_swapped_cost = get_cost_from_edges(
+            nn_tour_swapped_edges, graph.get_dist_matrix()
+        )
+
+        tex_v_7 = tsp_tour_text[5 * 3]
+        tex_v_6 = tsp_tour_text[8 * 3]
+        self.play(
+            tex_v_7.animate.set_color(REDUCIBLE_YELLOW),
+            tex_v_6.animate.set_color(REDUCIBLE_GREEN_LIGHTER),
+        )
+        self.wait()
+
+        print(nn_tour_edges)
+        print(nn_tour_swapped_edges)
+
+        nn_tour_edges_mob_swapped = self.get_tsp_tour_edges_mob(
+            graph, nn_tour_swapped_edges
+        )
+
+        self.play(
+            tex_v_7.animate.move_to(tex_v_6.get_center()),
+            tex_v_6.animate.move_to(tex_v_7.get_center()),
+            ReplacementTransform(nn_tour_edges_mob, nn_tour_edges_mob_swapped),
+        )
+        self.wait()
+
+        new_nn_cost = (
+            Text(
+                f"Nearest Neighbbor + Random Swap Cost: {np.round(nn_tour_swapped_cost, 2)}",
+                font=REDUCIBLE_MONO,
+            )
+            .scale(0.4)
+            .move_to(cost.get_center())
+        )
+
+        self.play(ReplacementTransform(cost, new_nn_cost))
+        self.wait()
+        self.clear()
+
+    def show_two_opt_switches(self):
+        title = (
+            Text("2-opt Improvement", font=REDUCIBLE_FONT, weight=BOLD)
+            .scale(0.7)
+            .move_to(UP * 3.3)
+        )
+        np.random.seed(13)
+        NUM_VERTICES = 10
+
+        layout = self.get_random_layout(NUM_VERTICES)
+        layout[3] += LEFT * 0.8
+        layout[5] += DOWN * 0.8
+        graph = TSPGraph(list(range(NUM_VERTICES)), layout=layout).scale(0.7)
+        all_edges = graph.get_all_edges(buff=graph.vertices[0].width / 2)
+
+        nn_tour, nn_cost = get_nearest_neighbor_solution(graph.get_dist_matrix())
+
+        nn_tour_edges = get_edges_from_tour(nn_tour)
+        nn_tour_edges_mob = self.get_tsp_tour_edges_mob(graph, nn_tour_edges)
+        tour_edges_to_line_map = self.get_tsp_tour_edges_map(graph, nn_tour_edges)
+
+        self.play(
+            *[GrowFromCenter(v) for v in graph.vertices.values()],
+        )
+        self.play(LaggedStartMap(Write, tour_edges_to_line_map.values()))
+        self.wait()
+
+        cost = (
+            Text(f"Nearest Neighbor Cost: {np.round(nn_cost, 2)}", font=REDUCIBLE_MONO)
+            .scale(0.4)
+            .to_edge(DOWN * 2)
+        )
+        self.play(FadeIn(cost))
+        self.wait()
+
+        self.play(Write(title))
+        self.wait()
+
+        current_cost = nn_cost
+        current_tour = nn_tour
+        current_tour_edges = nn_tour_edges
+        current_tour_map = tour_edges_to_line_map
+
+        improvement_cost = (
+            Text(
+                f"After 2-opt Improvement: {np.round(nn_cost, 2)}", font=REDUCIBLE_MONO
+            )
+            .scale(0.4)
+            .next_to(cost, DOWN)
+        )
+        self.play(FadeIn(improvement_cost))
+        self.wait()
+
+        for i in range(len(current_tour_edges) - 1):
+            for j in range(i + 1, len(current_tour_edges)):
+                e1, e2 = current_tour_edges[i], current_tour_edges[j]
+                new_e1, new_e2, new_tour = get_two_opt_new_edges(current_tour, e1, e2)
+                if new_e1 != e1 and new_e2 != e2:
+                    new_tour_edges = get_edges_from_tour(new_tour)
+                    new_tour_cost = get_cost_from_edges(
+                        new_tour_edges, graph.get_dist_matrix()
+                    )
+                    if new_tour_cost < current_cost:
+                        new_improvement_cost = (
+                            Text(
+                                f"After 2-opt Improvement: {np.round(new_tour_cost, 1)}",
+                                font=REDUCIBLE_MONO,
+                            )
+                            .scale(0.4)
+                            .move_to(improvement_cost.get_center())
+                        )
+
+                        current_cost = new_tour_cost
+                        new_edge_map = self.get_new_edge_map(
+                            current_tour_map, new_tour_edges, all_edges
+                        )
+                        surround_circle_highlights = [
+                            get_glowing_surround_circle(graph.vertices[v])
+                            for v in list(e1) + list(e2)
+                        ]
+
+                        current_e1_mob = self.get_edge(current_tour_map, e1)
+                        current_e2_mob = self.get_edge(current_tour_map, e2)
+                        self.play(
+                            current_e1_mob.animate.set_color(REDUCIBLE_YELLOW),
+                            current_e2_mob.animate.set_color(REDUCIBLE_YELLOW),
+                            *[FadeIn(c) for c in surround_circle_highlights],
+                        )
+                        self.wait()
+
+                        new_e1_mob = self.get_edge(new_edge_map, new_e1)
+                        new_e2_mob = self.get_edge(new_edge_map, new_e2)
+                        current_tour_edges = new_tour_edges
+                        current_tour = new_tour
+                        self.play(
+                            ReplacementTransform(current_e1_mob, new_e1_mob),
+                            ReplacementTransform(current_e2_mob, new_e2_mob),
+                            Transform(improvement_cost, new_improvement_cost),
+                        )
+                        self.wait()
+
+                        self.play(*[FadeOut(c) for c in surround_circle_highlights])
+                        self.wait()
+                        current_tour_map = new_edge_map
+
+        optimal_tour, optimal_cost = get_exact_tsp_solution(graph.get_dist_matrix())
+        print("Optimal tour and cost", optimal_tour, optimal_cost)
+
+        three_opt_edges = [(3, 6), (8, 7), (7, 0)]
+        new_three_opt_edges = [(3, 7), (7, 6), (8, 0)]
+        three_opt_v = [3, 6, 8, 7, 0]
+
+        new_title = (
+            Text("3-opt Improvement", font=REDUCIBLE_FONT, weight=BOLD)
+            .scale(0.7)
+            .move_to(UP * 3.3)
+        )
+
+        s_circles = [
+            get_glowing_surround_circle(graph.vertices[v]) for v in three_opt_v
+        ]
+        self.play(
+            *[FadeIn(c) for c in s_circles],
+            *[
+                self.get_edge(current_tour_map, edge).animate.set_color(
+                    REDUCIBLE_YELLOW
+                )
+                for edge in three_opt_edges
+            ],
+            Transform(title, new_title),
+        )
+        self.wait()
+
+        new_improvement_cost = (
+            Text(
+                f"After 3-opt Improvement: {np.round(optimal_cost, 1)}",
+                font=REDUCIBLE_MONO,
+            )
+            .scale(0.4)
+            .move_to(improvement_cost.get_center())
+        )
+
+        self.play(
+            *[
+                Transform(
+                    self.get_edge(current_tour_map, e1), self.get_edge(all_edges, e2)
+                )
+                for e1, e2 in zip(three_opt_edges, new_three_opt_edges)
+            ],
+            Transform(improvement_cost, new_improvement_cost),
+        )
+        self.wait()
+
+        self.play(
+            *[FadeOut(c) for c in s_circles],
+        )
+        self.wait()
+
+        self.clear()
+
+    def k_opt_improvement(self):
+        title = (
+            Text("k-opt Improvement", font=REDUCIBLE_FONT, weight=BOLD)
+            .scale(0.7)
+            .move_to(UP * 3.3)
+        )
+        definition = Tex(r"Replace $k$ edges of tour").scale(0.7).move_to(DOWN * 3.3)
+
+        NUM_VERTICES = 10
+        circular_graph = TSPGraph(
+            list(range(NUM_VERTICES)),
+            layout="circular",
+        )
+        optimal_tour, optimal_cost = get_exact_tsp_solution(
+            circular_graph.get_dist_matrix()
+        )
+        opt_tour_edges = get_edges_from_tour(optimal_tour)
+        opt_tour_edges_mob = self.get_tsp_tour_edges_mob(circular_graph, opt_tour_edges)
+        self.play(
+            Write(title),
+            FadeIn(circular_graph),
+            LaggedStartMap(GrowFromCenter, opt_tour_edges_mob),
+        )
+        self.wait()
+
+        x_1, x_2, y_1, y_2, z_1, z_2 = 3, 2, 0, 9, 6, 5
+        three_opt_v = [x_1, x_2, y_1, y_2, z_1, z_2]
+        three_opt_original = [(x_1, x_2), (y_1, y_2), (z_1, z_2)]
+        three_opt_1 = [(x_1, y_1), (x_2, z_1), (y_2, z_2)]
+        three_opt_2 = [(x_1, z_1), (x_2, y_2), (y_1, z_2)]
+        three_opt_3 = [(x_1, y_2), (x_2, z_2), (y_1, z_1)]
+        three_opt_4 = [(x_1, y_2), (x_2, z_1), (y_1, z_2)]
+
+        self.play(
+            FadeIn(definition),
+            opt_tour_edges_mob[opt_tour_edges.index((x_2, x_1))].animate.set_color(
+                REDUCIBLE_YELLOW
+            ),
+            opt_tour_edges_mob[opt_tour_edges.index((y_2, y_1))].animate.set_color(
+                REDUCIBLE_YELLOW
+            ),
+            opt_tour_edges_mob[opt_tour_edges.index((z_2, z_1))].animate.set_color(
+                REDUCIBLE_YELLOW
+            ),
+        )
+        self.wait()
+
+        graph_with_tour_edges = VGroup(circular_graph, opt_tour_edges_mob)
+
+        self.play(graph_with_tour_edges.animate.scale(0.6).shift(UP * 1.5))
+        self.wait()
+
+        opts = [three_opt_1, three_opt_2, three_opt_3, three_opt_4]
+        graphs_with_edges = []
+        for opt in opts:
+            graph = circular_graph.copy().scale(0.8)
+            three_opt_edges, indices = self.get_three_opt_edges(
+                opt_tour_edges, three_opt_original, opt
+            )
+            tour_edges_mob = self.get_tsp_tour_edges_mob(graph, three_opt_edges)
+            for i in indices:
+                tour_edges_mob[i].set_color(REDUCIBLE_YELLOW)
+            graphs_with_edges.append(VGroup(graph, tour_edges_mob))
+        graphs_with_edges_group = VGroup(*graphs_with_edges).arrange(RIGHT, buff=0.5)
+        graphs_with_edges_group.shift(DOWN * 1.5)
+        self.play(FadeIn(graphs_with_edges_group))
+        self.wait()
+
+    def get_three_opt_edges(self, original_tour_edges, three_opt_original, three_opt):
+        new_tour_edges = original_tour_edges.copy()
+        indices = []
+        for original, new in zip(three_opt_original, three_opt):
+            if original in original_tour_edges:
+                index = original_tour_edges.index(original)
+            else:
+                index = original_tour_edges.index((original[1], original[0]))
+            new_tour_edges[index] = new
+            indices.append(index)
+        return new_tour_edges, indices
+
+    def get_tsp_tour_edges_map(
+        self, graph, tsp_tour_edges, stroke_width=3, color=REDUCIBLE_VIOLET
+    ):
+        return {
+            (u, v): self.make_edge(
+                graph.vertices[u],
+                graph.vertices[v],
+                stroke_width=stroke_width,
+                color=REDUCIBLE_VIOLET,
+            )
+            for u, v in tsp_tour_edges
+        }
+
+    def get_new_edge_map(self, prev_edge_map, new_tour_edges, all_edges):
+        set_new_tour_edges = set(new_tour_edges)
+        new_edge_map = {}
+        for edge in prev_edge_map:
+            u, v = edge
+            if (u, v) in set_new_tour_edges:
+                new_edge_map[(u, v)] = prev_edge_map[(u, v)]
+            elif (v, u) in set_new_tour_edges:
+                new_edge_map[(v, u)] = prev_edge_map[(u, v)]
+
+        for edge in new_tour_edges:
+            u, v = edge
+            if (u, v) in new_edge_map or (v, u) in new_edge_map:
+                continue
+            new_edge_map[(u, v)] = self.get_edge(all_edges, (u, v))
+        return new_edge_map

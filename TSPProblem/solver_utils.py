@@ -233,15 +233,22 @@ def two_opt_swap(tour: list, v1: int, v2: int):
     v2 += 1
     reverse_tour = tour[v1:v2][::-1]
     return tour[:v1] + reverse_tour + tour[v2:]
+
+
 def christofides(dist_matrix):
     mst_edges, cost = get_mst(dist_matrix)
-    
+
     degree_map = get_degrees_for_all_vertices(mst_edges, dist_matrix)
     # match vertices that have odd degree
     vertices_to_match = [v for v in degree_map if degree_map[v] % 2 == 1]
-    min_weight_matching = get_min_weight_perfect_matching(vertices_to_match, dist_matrix)
-    tour_edges, tour_cost = get_best_hamiltonian_tour(dist_matrix, mst_edges, min_weight_matching)    
+    min_weight_matching = get_min_weight_perfect_matching(
+        vertices_to_match, dist_matrix
+    )
+    tour_edges, tour_cost = get_best_hamiltonian_tour(
+        dist_matrix, mst_edges, min_weight_matching
+    )
     return tour_edges, tour_cost
+
 
 def get_degrees_for_all_vertices(edges, dist_matrix):
     v_to_degree = {v: 0 for v in range(dist_matrix.shape[0])}
@@ -250,6 +257,7 @@ def get_degrees_for_all_vertices(edges, dist_matrix):
         v_to_degree[u] = v_to_degree.get(u, 0) + 1
         v_to_degree[v] = v_to_degree.get(v, 0) + 1
     return v_to_degree
+
 
 def get_min_weight_perfect_matching(vertices_to_match, dist_matrix):
     edges_with_weight = []
@@ -262,29 +270,33 @@ def get_min_weight_perfect_matching(vertices_to_match, dist_matrix):
     nx_graph.add_weighted_edges_from(edges_with_weight)
     return nx.max_weight_matching(nx_graph, maxcardinality=True)
 
+
 def get_multigraph(mst_edges, min_weight_matching):
-    print('MST edges', mst_edges)
-    print('Matching edges', min_weight_matching)
+    print("MST edges", mst_edges)
+    print("Matching edges", min_weight_matching)
     return nx.MultiGraph(incoming_graph_data=mst_edges + list(min_weight_matching))
+
 
 def get_best_hamiltonian_tour(dist_matrix, mst_edges, min_weight_matching, start=0):
     best_tour = None
-    best_tour_cost = float('inf')
+    best_tour_cost = float("inf")
     for start in range(dist_matrix.shape[0]):
         eulerian_tour = get_eulerian_tour(mst_edges, min_weight_matching, start=start)
         hamiltonian_tour = get_hamiltonian_tour_from_eulerian(eulerian_tour)
         tour_edges = get_edges_from_tour(hamiltonian_tour)
         tour_cost = get_cost_from_edges(tour_edges, dist_matrix)
-        print(f'Tour cost with start {start}: {tour_cost}')
+        print(f"Tour cost with start {start}: {tour_cost}")
         if tour_cost < best_tour_cost:
             best_tour_cost = tour_cost
             best_tour = tour_edges
 
     return best_tour, best_tour_cost
 
+
 def get_eulerian_tour(mst_edges, min_weight_matching, start=0):
     multigraph = get_multigraph(mst_edges, min_weight_matching)
     return list(nx.eulerian_circuit(multigraph, source=start))
+
 
 def get_hamiltonian_tour_from_eulerian(eulerian_tour):
     visited = set()
@@ -298,6 +310,7 @@ def get_hamiltonian_tour_from_eulerian(eulerian_tour):
             visited.add(v)
     return hamiltonian_tour
 
+
 def get_all_perfect_matchings(vertices_to_match):
     if len(vertices_to_match) == 0:
         return []
@@ -306,12 +319,39 @@ def get_all_perfect_matchings(vertices_to_match):
     all_perfect_matches = []
     encountered_matches = set()
     for first_match in it.combinations(vertices_to_match, 2):
-        remaining_vertcies_to_match = [v for v in vertices_to_match if v != first_match[0] and v != first_match[1]]
+        remaining_vertcies_to_match = [
+            v for v in vertices_to_match if v != first_match[0] and v != first_match[1]
+        ]
         other_matches = get_all_perfect_matchings(remaining_vertcies_to_match)
-        current_perfect_match = [[first_match] + other_match for other_match in other_matches]
+        current_perfect_match = [
+            [first_match] + other_match for other_match in other_matches
+        ]
         for match in current_perfect_match:
             match.sort()
             if tuple(match) not in encountered_matches:
                 encountered_matches.add(tuple(match))
                 all_perfect_matches.append(match)
     return all_perfect_matches
+
+
+def get_two_opt(tour, i, j):
+    """
+    @param: tour - represented as verticies
+    @param: i - index of first vertex
+    @param: j - index of second vertex
+    """
+    return tour[0 : i + 1] + tour[i + 1 : j + 1][::-1] + tour[j + 1 :]
+
+
+def get_two_opt_new_edges(tour, e1, e2):
+    u1, v1 = e1
+    u2, v2 = e2
+
+    if u1 in e2 or v1 in e2:
+        return e1, e2, tour
+
+    i, j = tour.index(u1), tour.index(u2)
+    new_tour = get_two_opt(tour, i, j)
+    new_e1 = (u1, new_tour[(i + 1) % len(tour)])
+    new_e2 = (v1, new_tour[(j + 1) % len(tour)])
+    return new_e1, new_e2, new_tour
