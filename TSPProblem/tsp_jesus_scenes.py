@@ -994,7 +994,7 @@ class ProblemComplexity(TSPAssumptions):
         )
 
         quad_plot = (
-            num_plane.plot(lambda x: x ** 2, x_range=eval_range)
+            num_plane.plot(lambda x: x**2, x_range=eval_range)
             .set_color(REDUCIBLE_VIOLET)
             .set_stroke(width=5)
         )
@@ -1006,7 +1006,7 @@ class ProblemComplexity(TSPAssumptions):
         )
 
         poly_plot = (
-            num_plane.plot(lambda x: 3 * x ** 2 + 2 * x, x_range=eval_range)
+            num_plane.plot(lambda x: 3 * x**2 + 2 * x, x_range=eval_range)
             .set_color(REDUCIBLE_YELLOW)
             .set_stroke(width=5)
         )
@@ -1018,7 +1018,7 @@ class ProblemComplexity(TSPAssumptions):
         )
 
         exponential_plot = (
-            num_plane.plot(lambda x: 2 ** x, x_range=[0, 10])
+            num_plane.plot(lambda x: 2**x, x_range=[0, 10])
             .set_color(REDUCIBLE_ORANGE)
             .set_stroke(width=5)
         )
@@ -1031,7 +1031,7 @@ class ProblemComplexity(TSPAssumptions):
 
         factorial_plot = (
             num_plane.plot(
-                lambda x: gamma(x) if x > 1 else x ** 2,
+                lambda x: gamma(x) if x > 1 else x**2,
                 x_range=[0, 10],
             )
             .set_color(REDUCIBLE_CHARM)
@@ -1350,15 +1350,15 @@ class CustomLabel(Text):
 class SimulatedAnnealing(BruteForce, TransitionOtherApproaches):
     def construct(self):
 
-        frame = self.camera.frame
-        self.guided_example()
-        self.wait()
-        self.play(*[FadeOut(mob) for mob in self.mobjects])
-        self.play(frame.animate.move_to(ORIGIN))
+        # frame = self.camera.frame
+        # self.guided_example()
+        # self.wait()
+        # self.play(*[FadeOut(mob) for mob in self.mobjects])
+        # self.play(frame.animate.move_to(ORIGIN))
 
-        self.show_temperature()
-        self.wait()
-        self.play(*[FadeOut(mob) for mob in self.mobjects])
+        # self.show_temperature()
+        # self.wait()
+        # self.play(*[FadeOut(mob) for mob in self.mobjects])
 
         self.simulated_annealing()
 
@@ -1942,6 +1942,11 @@ class SimulatedAnnealing(BruteForce, TransitionOtherApproaches):
 
         for i in range(1, 100):
             v1, v2 = np.random.choice(range(N), size=2, replace=True)
+            if i == 75:
+                v1, v2 = 25, 20
+            if i == 90:
+                v1, v2 = 6, 2
+
             v = T.get_value()
 
             new_temp_line_chunk = self.next_iteration_line(
@@ -2033,6 +2038,10 @@ class SimulatedAnnealing(BruteForce, TransitionOtherApproaches):
 
                 update_list_anims.append(FadeOut(removed_element, shift=DOWN * 0.4))
                 update_list_anims.append(FadeIn(next_change, shift=RIGHT * 0.3))
+
+            # by this point we already created the animation that changes from the last
+            # config to the next one. accepting just means doing nothing since it's
+            # already done. rejecting means undoing the last operation.
 
             # if the last config is better than the previous one, we accept it right away
             if is_new_cost_better:
