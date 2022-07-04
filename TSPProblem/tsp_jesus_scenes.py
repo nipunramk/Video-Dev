@@ -1350,15 +1350,15 @@ class CustomLabel(Text):
 class SimulatedAnnealing(BruteForce, TransitionOtherApproaches):
     def construct(self):
 
-        # frame = self.camera.frame
-        # self.guided_example()
-        # self.wait()
-        # self.play(*[FadeOut(mob) for mob in self.mobjects])
-        # self.play(frame.animate.move_to(ORIGIN))
+        frame = self.camera.frame
+        self.guided_example()
+        self.wait()
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
+        self.play(frame.animate.move_to(ORIGIN))
 
-        # self.show_temperature()
-        # self.wait()
-        # self.play(*[FadeOut(mob) for mob in self.mobjects])
+        self.show_temperature()
+        self.wait()
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
 
         self.simulated_annealing()
 
