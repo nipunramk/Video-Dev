@@ -466,3 +466,23 @@ class CustomCurvedArrow(CurvedArrow):
         animate_tip = self.tip.animate.set_opacity(opacity)
 
         return AnimationGroup(*[animate_stroke, animate_tip])
+
+
+class RCircularNode(VGroup):
+    def __init__(self, n=3, label_scale=1, **kwargs):
+        self.circle = (
+            Circle(color=REDUCIBLE_PURPLE)
+            .set_stroke(width=6)
+            .set_fill(REDUCIBLE_PURPLE_DARK_FILL, opacity=1)
+        )
+
+        self.text = (
+            Text(str(n), font=REDUCIBLE_MONO, weight=BOLD)
+            .set_stroke(BLACK, width=5, background=True)
+            .scale(label_scale)
+            .move_to(self.circle)
+        )
+        if n >= 10:
+            self.text.scale_to_fit_height(self.circle.height)
+
+        super().__init__(self.circle, self.text, **kwargs)

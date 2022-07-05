@@ -2104,3 +2104,54 @@ class SimulatedAnnealing(BruteForce, TransitionOtherApproaches):
             t2c={f"{cost:.2f}": color},
             weight=BOLD,
         ).scale(0.4)
+
+
+class TransitionTemplate(Scene):
+    def construct(self):
+        self.transition("Brute Force", 1, 5)
+
+    def transition(self, transition_name, index, total):
+        """
+        Create transitions easily.
+
+        - Transition name — string, self explanatory
+        - Index correspond to the position of this transition on the video
+        - Total corresponds to the total amount of transitions there will be
+
+        Total will generate a number of nodes and index will highlight that specific
+        node, showing the progress.
+        """
+        bg = ImageMobject("transition-bg.png").scale_to_fit_width(config.frame_width)
+        self.add(bg)
+        self.wait()
+
+        title = (
+            Text(transition_name, font=REDUCIBLE_FONT, weight=BOLD)
+            .set_stroke(BLACK, width=15, background=True)
+            .scale_to_fit_width(config.frame_width - 3)
+            .shift(UP)
+        )
+
+        nodes_and_arrows = VGroup()
+        for n in range(total):
+            if n == index:
+                node = RCircularNode(n, label_scale=1.6).scale(0.7)
+                node.circle.set_stroke(REDUCIBLE_YELLOW).set_fill(
+                    REDUCIBLE_YELLOW_DARKER
+                )
+                nodes_and_arrows.add(node)
+            else:
+                nodes_and_arrows.add(RCircularNode(n, label_scale=1.6).scale(0.7))
+
+            nodes_and_arrows.add(
+                Arrow(max_tip_length_to_length_ratio=0.2).set_color(REDUCIBLE_YELLOW)
+            )
+        nodes_and_arrows.remove(nodes_and_arrows[-1])
+
+        nodes_and_arrows.arrange(RIGHT, buff=0.5).scale_to_fit_width(
+            config.frame_width - 5
+        ).to_edge(DOWN, buff=1)
+
+        self.play(
+            FadeIn(title, shift=UP * 0.3), LaggedStartMap(FadeIn, nodes_and_arrows)
+        )
