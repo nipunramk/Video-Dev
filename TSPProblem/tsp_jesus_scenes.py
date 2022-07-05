@@ -2133,7 +2133,7 @@ class TransitionTemplate(Scene):
         )
 
         nodes_and_arrows = VGroup()
-        for n in range(total):
+        for n in range(1, total + 1):
             if n == index:
                 node = RCircularNode(n, label_scale=1.6).scale(0.7)
                 node.circle.set_stroke(REDUCIBLE_YELLOW).set_fill(
