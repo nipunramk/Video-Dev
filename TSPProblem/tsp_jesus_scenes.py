@@ -2164,3 +2164,112 @@ class TransitionTemplate(Scene):
         self.play(
             FadeIn(title, shift=UP * 0.3), LaggedStartMap(FadeIn, nodes_and_lines)
         )
+
+
+class Introduction(TransitionOtherApproaches):
+    def construct(self):
+
+        bg = ImageMobject("usa-map-satellite-markers.png").scale_to_fit_width(
+            config.frame_width
+        )
+        dark_filter = ScreenRectangle(height=10).set_fill(BLACK, opacity=0.2)
+        self.play(FadeIn(bg), FadeIn(dark_filter))
+        self.wait()
+
+        city_coords = [
+            (-5.95, 0.7, 0),  # SF
+            (-5.8, 0.55, 0),  # san jose
+            (-4.9, -0.45, 0),  # LA
+            (0.45, 0.85, 0),  # Atlanta
+            (-0.35, -0.35, 0),  # Miami
+            (-4.35, 1.75, 0),  # Miami
+            (-1.75, 1.35, 0),  # Denver
+            (3.5, -0.5, 0),  # Atlanta
+            (-4.6, -0.87, 0),  # San diego
+            (-3.35, -0.65, 0),  # phoenix
+            (0.45, -0.85, 0),  # dallas
+            (0, -1.8, 0),  # san antonio
+            (0.8, -1.75, 0),  # houston
+            (2.74, 2, 0),  # chicago
+            (6.1, 1.65, 0),  # new york
+            (5.85, 1.35, 0),  # philadelphia
+        ]
+
+        total_number_of_nodes = len(city_coords)
+
+        graph = TSPGraph(
+            range(total_number_of_nodes),
+            vertex_config={
+                "fill_opacity": 1,
+                "fill_color": REDUCIBLE_PURPLE_DARK_FILL,
+                "stroke_color": REDUCIBLE_VIOLET,
+                "stroke_width": 3,
+            },
+            labels=False,
+            layout=self.get_city_layout(core_cities=city_coords, nodes_per_core=0),
+        )
+        print(f"> Finished building graph with {total_number_of_nodes} nodes")
+
+        self.play(FadeIn(graph[0]))
+        sf_tag = (
+            Text("SF", font=REDUCIBLE_FONT, weight=BOLD)
+            .scale(0.4)
+            .next_to(graph[0], UP, buff=0.3)
+            .set_stroke(BLACK, width=5, background=True)
+        )
+
+        self.play(FadeIn(sf_tag, shift=UP * 0.3))
+        self.wait()
+        self.play(
+            FadeOut(sf_tag, shift=UP * 0.3),
+            LaggedStartMap(FadeIn, list(graph.vertices.values())[1:]),
+        )
+        self.wait()
+
+        all_edges = graph.get_all_edges(buff=graph.vertices[0].width / 2)
+        print(f"> Finished getting all {len(all_edges)} edges")
+        [e.set_opacity(0) for e in all_edges.values()]
+
+        # generate all possible tours (until max cap) and try and get a good variety of tours
+
+        all_tour_perms = get_all_tour_permutations(
+            total_number_of_nodes, 0, max_cap=1000
+        )
+
+        tour_perms = list(
+            filter(lambda t: len(t) == total_number_of_nodes, all_tour_perms)
+        )
+
+        print(f"tour perms length: {len(tour_perms)}")
+
+        # randomizing a bit more
+        edges_perms = [swap_random(get_edges_from_tour(t)) for t in tour_perms]
+
+        print(f"> Finished calculating all {len(edges_perms)} tuples from every tour")
+
+        # by changing the slice size you can create a longer or shorter example
+        for i, tour_edges in enumerate(edges_perms[:100]):
+            # the all_edges dict only stores the edges in ascending order
+            tour_edges = list(
+                map(lambda x: x if x[0] < x[1] else (x[1], x[0]), tour_edges)
+            )
+
+            if i == 0:
+                anims = LaggedStart(
+                    *[Write(all_edges[e].set_opacity(1)) for e in tour_edges]
+                )
+                self.play(
+                    anims,
+                    run_time=1 / (5 * i + 1),
+                )
+
+            else:
+                anims = self.focus_on_edges(
+                    tour_edges,
+                    all_edges=all_edges,
+                )
+
+                self.play(
+                    *anims,
+                    run_time=1 / (5 * i + 1),
+                )
