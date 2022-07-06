@@ -338,3 +338,7 @@ def get_two_opt_new_edges(tour, e1, e2):
     new_e1 = (u1, new_tour[(i + 1) % len(tour)])
     new_e2 = (v1, new_tour[(j + 1) % len(tour)])
     return new_e1, new_e2, new_tour
+
+
+def get_unvisited_neighbors(current_node, tour_so_far, N):
+    return [i for i in range(N) if i != current_node and i not in set(tour_so_far)]
