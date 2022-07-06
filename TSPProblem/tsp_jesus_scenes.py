@@ -2136,26 +2136,31 @@ class TransitionTemplate(Scene):
             .shift(UP)
         )
 
-        nodes_and_arrows = VGroup()
+        nodes_and_lines = VGroup()
         for n in range(1, total + 1):
             if n == index:
-                node = RCircularNode(n, label_scale=1.6).scale(0.7)
-                node.circle.set_stroke(REDUCIBLE_YELLOW).set_fill(
-                    REDUCIBLE_YELLOW_DARKER
+                node = (
+                    Circle()
+                    .scale(0.2)
+                    .set_stroke(REDUCIBLE_YELLOW)
+                    .set_fill(REDUCIBLE_YELLOW_DARKER, opacity=1)
                 )
-                nodes_and_arrows.add(node)
+                nodes_and_lines.add(node)
             else:
-                nodes_and_arrows.add(RCircularNode(n, label_scale=1.6).scale(0.7))
+                nodes_and_lines.add(
+                    Circle()
+                    .scale(0.2)
+                    .set_stroke(REDUCIBLE_PURPLE)
+                    .set_fill(REDUCIBLE_PURPLE_DARK_FILL, opacity=1)
+                )
 
-            nodes_and_arrows.add(
-                Arrow(max_tip_length_to_length_ratio=0.2).set_color(REDUCIBLE_YELLOW)
-            )
-        nodes_and_arrows.remove(nodes_and_arrows[-1])
+            nodes_and_lines.add(Line().set_color(REDUCIBLE_PURPLE))
+        nodes_and_lines.remove(nodes_and_lines[-1])
 
-        nodes_and_arrows.arrange(RIGHT, buff=0.5).scale_to_fit_width(
+        nodes_and_lines.arrange(RIGHT, buff=0.5).scale_to_fit_width(
             config.frame_width - 5
         ).to_edge(DOWN, buff=1)
 
         self.play(
-            FadeIn(title, shift=UP * 0.3), LaggedStartMap(FadeIn, nodes_and_arrows)
+            FadeIn(title, shift=UP * 0.3), LaggedStartMap(FadeIn, nodes_and_lines)
         )
