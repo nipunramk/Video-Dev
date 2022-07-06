@@ -17,12 +17,16 @@ config["assets_dir"] = "assets"
 
 class TSPAssumptions(MovingCameraScene):
     def construct(self):
+        bg = ImageMobject("bg-video.png").scale_to_fit_width(config.frame_width)
+        bg.add_updater(lambda mob: mob.move_to(self.camera.frame_center))
+        self.add(bg)
 
         self.intro_PIP()
         self.wait()
         self.play(*[FadeOut(mob) for mob in self.mobjects])
         self.wait()
 
+        self.add(bg)
         self.present_TSP_graph()
         self.wait()
         self.play(*[FadeOut(mob) for mob in self.mobjects])
@@ -125,7 +129,7 @@ class TSPAssumptions(MovingCameraScene):
             for t, e in all_edges.items()
         }
 
-        for i in range(10):
+        for i in range(8):
             if i == 5:
                 triang_title = (
                     Text("Triangle Inequality", font=REDUCIBLE_FONT, weight=BOLD)

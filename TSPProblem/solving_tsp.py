@@ -25,8 +25,8 @@ class TSPGraph(Graph):
         vertex_config={
             "stroke_color": REDUCIBLE_PURPLE,
             "stroke_width": 3,
-            "fill_color": REDUCIBLE_PURPLE,
-            "fill_opacity": 0.5,
+            "fill_color": REDUCIBLE_PURPLE_DARK_FILL,
+            "fill_opacity": 1,
         },
         edge_config={
             "color": REDUCIBLE_VIOLET,
