@@ -2215,6 +2215,8 @@ class Introduction(TransitionOtherApproaches):
         best_perm = [0, 1, 2, 8, 9, 4, 10, 11, 12, 7, 15, 14, 13, 3, 6, 5]
         print(f"Best tour calculated: {best_perm}")
 
+        nn_perm, nn_cost = get_nearest_neighbor_solution(graph.dist_matrix, 0)
+
         self.play(FadeIn(graph[0]))
         sf_tag = (
             Text("SF", font=REDUCIBLE_FONT, weight=BOLD)
@@ -2227,7 +2229,11 @@ class Introduction(TransitionOtherApproaches):
         self.wait()
         self.play(
             FadeOut(sf_tag, shift=UP * 0.3),
-            LaggedStartMap(FadeIn, list(graph.vertices.values())[1:]),
+            LaggedStart(
+                *[FadeIn(v, scale=0.95) for v in list(graph.vertices.values())[1:]],
+                lag_ratio=0.5,
+            ),
+            run_time=3,
         )
         self.wait()
 
@@ -2260,6 +2266,7 @@ class Introduction(TransitionOtherApproaches):
                 font_size=400,
             )
             .scale_to_fit_width(config.frame_width - 5)
+            .to_edge(DOWN)
             .set_stroke(width=8, background=True)
         )
 
@@ -2278,6 +2285,7 @@ class Introduction(TransitionOtherApproaches):
                     anims,
                     run_time=1 / (0.5 * i + 1),
                 )
+                self.wait()
 
             else:
                 anims = self.focus_on_edges(
@@ -2293,17 +2301,20 @@ class Introduction(TransitionOtherApproaches):
         best_edges = get_edges_from_tour(best_perm)
         best_edges = list(map(lambda e: (e[1], e[0]) if e[0] > e[1] else e, best_edges))
 
-        color_anims = [
-            all_edges[e].animate.set_color(REDUCIBLE_YELLOW) for e in best_edges
-        ]
+        nn_edges = get_edges_from_tour(nn_perm)
+        nn_edges = list(map(lambda e: (e[1], e[0]) if e[0] > e[1] else e, nn_edges))
+
+        frame = self.camera.frame
 
         self.wait()
-        frame = self.camera.frame
         self.play(
             FadeIn(tsp_title, scale=1.05),
-            frame.animate.scale(0.9),
-            *self.focus_on_edges(best_edges, all_edges),
-            dark_filter.animate.set_opacity(1),
-            run_time=4,
+            run_time=2,
         )
-        self.play(*color_anims)
+
+        self.wait()
+        self.play(frame.animate.scale(0.95), FadeOut(tsp_title))
+        self.play(*self.focus_on_edges(nn_edges, all_edges))
+
+        self.wait()
+        self.play(*self.focus_on_edges(best_edges, all_edges))
