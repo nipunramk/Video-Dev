@@ -2210,6 +2210,11 @@ class Introduction(TransitionOtherApproaches):
         )
         print(f"> Finished building graph with {total_number_of_nodes} nodes")
 
+        print(f"Calculating best tour")
+        # best_perm, best_cost = get_exact_tsp_solution(graph.dist_matrix)o
+        best_perm = [0, 1, 2, 8, 9, 4, 10, 11, 12, 7, 15, 14, 13, 3, 6, 5]
+        print(f"Best tour calculated: {best_perm}")
+
         self.play(FadeIn(graph[0]))
         sf_tag = (
             Text("SF", font=REDUCIBLE_FONT, weight=BOLD)
@@ -2247,8 +2252,19 @@ class Introduction(TransitionOtherApproaches):
 
         print(f"> Finished calculating all {len(edges_perms)} tuples from every tour")
 
+        tsp_title = (
+            Text(
+                "Traveling Salesman Problem",
+                font=REDUCIBLE_FONT,
+                weight=BOLD,
+                font_size=400,
+            )
+            .scale_to_fit_width(config.frame_width - 5)
+            .set_stroke(width=8, background=True)
+        )
+
         # by changing the slice size you can create a longer or shorter example
-        for i, tour_edges in enumerate(edges_perms[:100]):
+        for i, tour_edges in enumerate(edges_perms[:10]):
             # the all_edges dict only stores the edges in ascending order
             tour_edges = list(
                 map(lambda x: x if x[0] < x[1] else (x[1], x[0]), tour_edges)
@@ -2260,7 +2276,7 @@ class Introduction(TransitionOtherApproaches):
                 )
                 self.play(
                     anims,
-                    run_time=1 / (5 * i + 1),
+                    run_time=1 / (0.5 * i + 1),
                 )
 
             else:
@@ -2271,5 +2287,23 @@ class Introduction(TransitionOtherApproaches):
 
                 self.play(
                     *anims,
-                    run_time=1 / (5 * i + 1),
+                    run_time=1 / (0.5 * i + 1),
                 )
+
+        best_edges = get_edges_from_tour(best_perm)
+        best_edges = list(map(lambda e: (e[1], e[0]) if e[0] > e[1] else e, best_edges))
+
+        color_anims = [
+            all_edges[e].animate.set_color(REDUCIBLE_YELLOW) for e in best_edges
+        ]
+
+        self.wait()
+        frame = self.camera.frame
+        self.play(
+            FadeIn(tsp_title, scale=1.05),
+            frame.animate.scale(0.9),
+            *self.focus_on_edges(best_edges, all_edges),
+            dark_filter.animate.set_opacity(1),
+            run_time=4,
+        )
+        self.play(*color_anims)
