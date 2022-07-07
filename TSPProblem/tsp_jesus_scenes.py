@@ -2112,7 +2112,27 @@ class SimulatedAnnealing(BruteForce, TransitionOtherApproaches):
 
 class TransitionTemplate(Scene):
     def construct(self):
-        self.transition("Brute Force", 1, 5)
+        bg = ImageMobject("transition-bg.png").scale_to_fit_width(config.frame_width)
+        self.add(bg)
+        self.wait()
+
+        self.transition("Brute Force", 1, 6)
+        self.wait()
+
+        self.transition("Nearest Neighbor", 2, 6)
+        self.wait()
+
+        self.transition("Greedy Method", 3, 6)
+        self.wait()
+
+        self.transition("Christofides Method", 4, 6)
+        self.wait()
+
+        self.transition("Simulated Annealing", 5, 6)
+        self.wait()
+
+        self.transition("Ant Simulation", 6, 6)
+        self.wait()
 
     def transition(self, transition_name, index, total):
         """
@@ -2125,9 +2145,6 @@ class TransitionTemplate(Scene):
         Total will generate a number of nodes and index will highlight that specific
         node, showing the progress.
         """
-        bg = ImageMobject("transition-bg.png").scale_to_fit_width(config.frame_width)
-        self.add(bg)
-        self.wait()
 
         title = (
             Text(transition_name, font=REDUCIBLE_FONT, weight=BOLD)
@@ -2164,3 +2181,6 @@ class TransitionTemplate(Scene):
         self.play(
             FadeIn(title, shift=UP * 0.3), LaggedStartMap(FadeIn, nodes_and_lines)
         )
+
+        self.wait()
+        self.play(FadeOut(title), FadeOut(nodes_and_lines))
