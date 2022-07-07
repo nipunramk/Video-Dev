@@ -2169,30 +2169,37 @@ class TransitionTemplate(Scene):
 class Introduction(TransitionOtherApproaches):
     def construct(self):
 
-        bg = ImageMobject("usa-map-satellite-markers.png").scale_to_fit_width(
-            config.frame_width
-        )
+        bg = ImageMobject("usa-map-clean.png").scale_to_fit_width(config.frame_width)
         dark_filter = ScreenRectangle(height=10).set_fill(BLACK, opacity=0.2)
         self.play(FadeIn(bg), FadeIn(dark_filter))
         self.wait()
 
+        # self.add(
+        #     Axes(
+        #         axis_config={"include_numbers": True},
+        #         x_length=config.frame_width,
+        #         y_length=config.frame_height,
+        #         tips=False,
+        #     )
+        # )
+
         city_coords = [
-            (-5.95, 0.7, 0),  # SF
+            (-6.1, -0.25, 0),  # SF
             (-5.8, 0.55, 0),  # san jose
-            (-4.9, -0.45, 0),  # LA
+            (-4.999, -1.45, 0),  # LA
             (0.45, 0.85, 0),  # Atlanta
             (-0.35, -0.35, 0),  # Miami
             (-4.35, 1.75, 0),  # Miami
             (-1.75, 1.35, 0),  # Denver
             (3.5, -0.5, 0),  # Atlanta
-            (-4.6, -0.87, 0),  # San diego
-            (-3.35, -0.65, 0),  # phoenix
+            (-4.3, -0.77, 0),  # San diego
+            (-3.35, -1, 0),  # phoenix
             (0.45, -0.85, 0),  # dallas
-            (0, -1.8, 0),  # san antonio
-            (0.8, -1.75, 0),  # houston
-            (2.74, 2, 0),  # chicago
-            (6.1, 1.65, 0),  # new york
-            (5.85, 1.35, 0),  # philadelphia
+            (0.25, -1.8, 0),  # san antonio
+            (0.6, -2.65, 0),  # houston
+            (2.64, 1, 0),  # chicago
+            (6.5, 1, 0),  # new york
+            (5.85, 0.8, 0),  # philadelphia
         ]
 
         total_number_of_nodes = len(city_coords)
@@ -2211,8 +2218,8 @@ class Introduction(TransitionOtherApproaches):
         print(f"> Finished building graph with {total_number_of_nodes} nodes")
 
         print(f"Calculating best tour")
-        # best_perm, best_cost = get_exact_tsp_solution(graph.dist_matrix)o
-        best_perm = [0, 1, 2, 8, 9, 4, 10, 11, 12, 7, 15, 14, 13, 3, 6, 5]
+        # best_perm, best_cost = get_exact_tsp_solution(graph.dist_matrix)
+        best_perm = [0, 1, 5, 6, 3, 13, 14, 15, 7, 12, 11, 10, 4, 9, 8, 2]
         print(f"Best tour calculated: {best_perm}")
 
         nn_perm, nn_cost = get_nearest_neighbor_solution(graph.dist_matrix, 0)
@@ -2244,12 +2251,13 @@ class Introduction(TransitionOtherApproaches):
         # generate all possible tours (until max cap) and try and get a good variety of tours
 
         all_tour_perms = get_all_tour_permutations(
-            total_number_of_nodes, 0, max_cap=1000
+            total_number_of_nodes, 0, max_cap=10000
         )
 
         tour_perms = list(
             filter(lambda t: len(t) == total_number_of_nodes, all_tour_perms)
         )
+        np.random.shuffle(tour_perms)
 
         print(f"tour perms length: {len(tour_perms)}")
 
@@ -2271,7 +2279,11 @@ class Introduction(TransitionOtherApproaches):
         )
 
         # by changing the slice size you can create a longer or shorter example
-        for i, tour_edges in enumerate(edges_perms[:10]):
+        example_slice = edges_perms[:30]
+        example_slice.append(get_edges_from_tour(swap_random(nn_perm, 2)))
+        print(len(example_slice))
+
+        for i, tour_edges in enumerate(example_slice):
             # the all_edges dict only stores the edges in ascending order
             tour_edges = list(
                 map(lambda x: x if x[0] < x[1] else (x[1], x[0]), tour_edges)
