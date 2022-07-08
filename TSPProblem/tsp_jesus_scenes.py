@@ -17,12 +17,16 @@ config["assets_dir"] = "assets"
 
 class TSPAssumptions(MovingCameraScene):
     def construct(self):
+        bg = ImageMobject("bg-video.png").scale_to_fit_width(config.frame_width)
+        bg.add_updater(lambda mob: mob.move_to(self.camera.frame_center))
+        self.add(bg)
 
         self.intro_PIP()
         self.wait()
         self.play(*[FadeOut(mob) for mob in self.mobjects])
         self.wait()
 
+        self.add(bg)
         self.present_TSP_graph()
         self.wait()
         self.play(*[FadeOut(mob) for mob in self.mobjects])
@@ -125,7 +129,7 @@ class TSPAssumptions(MovingCameraScene):
             for t, e in all_edges.items()
         }
 
-        for i in range(10):
+        for i in range(8):
             if i == 5:
                 triang_title = (
                     Text("Triangle Inequality", font=REDUCIBLE_FONT, weight=BOLD)
@@ -994,7 +998,7 @@ class ProblemComplexity(TSPAssumptions):
         )
 
         quad_plot = (
-            num_plane.plot(lambda x: x ** 2, x_range=eval_range)
+            num_plane.plot(lambda x: x**2, x_range=eval_range)
             .set_color(REDUCIBLE_VIOLET)
             .set_stroke(width=5)
         )
@@ -1006,7 +1010,7 @@ class ProblemComplexity(TSPAssumptions):
         )
 
         poly_plot = (
-            num_plane.plot(lambda x: 3 * x ** 2 + 2 * x, x_range=eval_range)
+            num_plane.plot(lambda x: 3 * x**2 + 2 * x, x_range=eval_range)
             .set_color(REDUCIBLE_YELLOW)
             .set_stroke(width=5)
         )
@@ -1018,7 +1022,7 @@ class ProblemComplexity(TSPAssumptions):
         )
 
         exponential_plot = (
-            num_plane.plot(lambda x: 2 ** x, x_range=[0, 10])
+            num_plane.plot(lambda x: 2**x, x_range=[0, 10])
             .set_color(REDUCIBLE_ORANGE)
             .set_stroke(width=5)
         )
@@ -1031,7 +1035,7 @@ class ProblemComplexity(TSPAssumptions):
 
         factorial_plot = (
             num_plane.plot(
-                lambda x: gamma(x) if x > 1 else x ** 2,
+                lambda x: gamma(x) if x > 1 else x**2,
                 x_range=[0, 10],
             )
             .set_color(REDUCIBLE_CHARM)
@@ -1339,3 +1343,990 @@ class TransitionOtherApproaches(TSPAssumptions):
         )
 
         return edges_animations
+
+
+class CustomLabel(Text):
+    def __init__(self, label, font=REDUCIBLE_MONO, scale=0.2, weight=MEDIUM):
+        super().__init__(label, font=font, weight=weight)
+        self.scale(scale)
+
+
+class SimulatedAnnealing(BruteForce, TransitionOtherApproaches):
+    def construct(self):
+
+        frame = self.camera.frame
+        self.guided_example()
+        self.wait()
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
+        self.play(frame.animate.move_to(ORIGIN))
+
+        self.show_temperature()
+        self.wait()
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
+
+        self.simulated_annealing()
+
+    def guided_example(self):
+        N = 30
+        frame = self.camera.frame
+        graph = TSPGraph(
+            range(N),
+            layout="spring",
+            layout_config={"k": 9, "iterations": 10},
+            layout_scale=5,
+        ).scale(0.6)
+
+        np.random.seed(101)
+
+        self.add_foreground_mobjects(graph)
+        all_edges = graph.get_all_edges(buff=graph.vertices[0].width / 2)
+        [e.set_opacity(0) for e in all_edges.values()]
+
+        self.play(*[FadeIn(v) for v in graph.vertices.values()])
+
+        nn_tour, nn_cost = get_nearest_neighbor_solution(graph.dist_matrix, start=0)
+        nn_edges = get_edges_from_tour(nn_tour)
+        nn_edges = list(map(lambda t: (t[1], t[0]) if t[0] > t[1] else t, nn_edges))
+
+        cost_indicator = (
+            Text(
+                f"Distance: {nn_cost:.2f}",
+                font=REDUCIBLE_FONT,
+                t2f={f"{nn_cost:.2f}": REDUCIBLE_MONO},
+                weight=BOLD,
+            )
+            .set_stroke(width=4, background=True)
+            .scale(0.6)
+            .next_to(graph, DOWN, buff=0.5)
+        )
+
+        self.play(
+            # *self.focus_on_edges(nn_edges, all_edges),
+            LaggedStart(*[all_edges[t].animate.set_opacity(1) for t in nn_edges]),
+            FadeIn(cost_indicator),
+            run_time=3,
+        )
+        self.wait()
+        self.play(frame.animate.shift(RIGHT * 3))
+
+        change_history = (
+            VGroup(*[Dot() for a in range(5)])
+            .arrange(DOWN, buff=0.5)
+            .next_to(graph, RIGHT, buff=1)
+        )
+
+        cost_hist_title = (
+            Text(
+                f"Cost history",
+                font=REDUCIBLE_FONT,
+                weight=BOLD,
+            )
+            .scale(0.7)
+            .next_to(change_history, UP, buff=0.7, aligned_edge=LEFT)
+        )
+        self.play(FadeIn(cost_hist_title))
+
+        nn_change = (
+            Text(
+                f"· NN tour: {nn_cost:.2f}",
+                font=REDUCIBLE_FONT,
+                t2f={f"{nn_cost:.2f}": REDUCIBLE_MONO},
+                weight=BOLD,
+            )
+            .scale(0.4)
+            .move_to(change_history[0], aligned_edge=LEFT)
+        )
+        up_arrow = (
+            Text("↑", font=REDUCIBLE_MONO)
+            .set_color(REDUCIBLE_CHARM)
+            .scale_to_fit_height(nn_change.height)
+            .scale(1.4)
+        )
+        down_arrow = (
+            Text("↓", font=REDUCIBLE_MONO)
+            .set_color(REDUCIBLE_GREEN)
+            .scale_to_fit_height(nn_change.height)
+            .scale(1.4)
+        )
+
+        self.play(FadeIn(nn_change, shift=UP * 0.3))
+        self.wait()
+
+        def iterate_two_opt_animation(v1, v2, tour):
+            two_opt_tour = two_opt_swap(tour, v1, v2)
+
+            two_opt_edges = get_edges_from_tour(two_opt_tour)
+            two_opt_cost = get_cost_from_edges(two_opt_edges, graph.dist_matrix)
+
+            two_opt_cost_indicator = (
+                Text(
+                    f"Distance: {two_opt_cost:.2f}",
+                    font=REDUCIBLE_FONT,
+                    t2f={f"{two_opt_cost:.2f}": REDUCIBLE_MONO},
+                    weight=BOLD,
+                )
+                .set_stroke(width=4, background=True)
+                .scale(0.6)
+                .next_to(graph, DOWN, buff=0.5)
+            )
+
+            focus_edges_animations = self.focus_on_edges(two_opt_edges, all_edges)
+            cost_indicator_animation = Transform(cost_indicator, two_opt_cost_indicator)
+            # self.play(*focus_edges_animations, cost_indicator_animation)
+
+            return two_opt_tour, focus_edges_animations, cost_indicator_animation
+
+        (
+            last_tour,
+            focus_edges_animations,
+            cost_indicator_animation,
+        ) = iterate_two_opt_animation(29, 18, nn_tour)
+
+        first_change = self.create_change_history_entry(
+            29,
+            18,
+            get_cost_from_edges(get_edges_from_tour(last_tour), graph.dist_matrix),
+        ).move_to(change_history[1], aligned_edge=LEFT)
+
+        self.play(
+            *focus_edges_animations,
+            cost_indicator_animation,
+            FadeIn(first_change, shift=DOWN * 0.3),
+            FadeIn(
+                down_arrow.copy().next_to(first_change, RIGHT, buff=0.3),
+                shift=DOWN * 0.3,
+            ),
+        )
+
+        (
+            last_tour,
+            focus_edges_animations,
+            cost_indicator_animation,
+        ) = iterate_two_opt_animation(5, 1, last_tour)
+        last_cost = get_cost_from_edges(
+            get_edges_from_tour(last_tour), graph.dist_matrix
+        )
+        second_change = self.create_change_history_entry(5, 1, last_cost).move_to(
+            change_history[2], aligned_edge=LEFT
+        )
+        self.play(
+            *focus_edges_animations,
+            cost_indicator_animation,
+            FadeIn(second_change, shift=DOWN * 0.3),
+            FadeIn(
+                down_arrow.copy().next_to(second_change, RIGHT, buff=0.3),
+                shift=DOWN * 0.3,
+            ),
+        )
+
+        (
+            last_tour,
+            focus_edges_animations,
+            cost_indicator_animation,
+        ) = iterate_two_opt_animation(20, 5, last_tour)
+        last_cost = get_cost_from_edges(
+            get_edges_from_tour(last_tour), graph.dist_matrix
+        )
+        second_change = self.create_change_history_entry(20, 5, last_cost).move_to(
+            change_history[3], aligned_edge=LEFT
+        )
+        self.play(
+            *focus_edges_animations,
+            cost_indicator_animation,
+            FadeIn(second_change, shift=UP * 0.3),
+            FadeIn(
+                up_arrow.copy().next_to(second_change, RIGHT, buff=0.3),
+                shift=UP * 0.3,
+            ),
+        )
+        self.wait()
+
+        # we have a worse solution, we have to decide whether to keep it or not!
+        T = 0.8
+        p_string = (
+            Tex(r"$p < " + f"{T:.2f}" + r"\Rightarrow \text{accept}$")
+            .scale(0.5)
+            .next_to(second_change, DOWN, aligned_edge=LEFT, buff=0.2)
+            .shift(RIGHT * 0.4)
+        )
+        p_random = (
+            Tex("$p = 0.54$")
+            .scale(0.5)
+            .next_to(p_string, DOWN, buff=0.2, aligned_edge=LEFT)
+        )
+        self.play(
+            FadeIn(p_string, shift=UP * 0.3),
+        )
+        self.play(
+            FadeIn(p_random, shift=UP * 0.3),
+        )
+        self.wait()
+        self.play(
+            FadeOut(p_string, shift=UP * 0.3),
+            FadeOut(p_random, shift=UP * 0.3),
+        )
+        self.wait()
+
+        undo_tour = last_tour
+        # next example where we don't choose the worst
+        (
+            last_tour,
+            focus_edges_animations,
+            cost_indicator_animation,
+        ) = iterate_two_opt_animation(13, 3, last_tour)
+        last_cost = get_cost_from_edges(
+            get_edges_from_tour(last_tour), graph.dist_matrix
+        )
+        second_change = self.create_change_history_entry(13, 3, last_cost).move_to(
+            change_history[4], aligned_edge=LEFT
+        )
+        arrow_change = up_arrow.copy().next_to(second_change, RIGHT, buff=0.3)
+        self.play(
+            *focus_edges_animations,
+            cost_indicator_animation,
+            FadeIn(second_change, shift=UP * 0.3),
+            FadeIn(
+                arrow_change,
+                shift=UP * 0.3,
+            ),
+        )
+        self.wait()
+
+        T = 0.76
+        p_string = (
+            Tex(r"$p < " + f"{T:.2f}" + r"\Rightarrow \text{accept}$")
+            .scale(0.5)
+            .next_to(second_change, DOWN, aligned_edge=LEFT, buff=0.2)
+            .shift(RIGHT * 0.4)
+        )
+        p_random = (
+            Tex("$p = 0.81$")
+            .scale(0.5)
+            .next_to(p_string, DOWN, buff=0.2, aligned_edge=LEFT)
+        )
+        self.play(
+            FadeIn(p_string, shift=UP * 0.3),
+        )
+        self.play(
+            FadeIn(p_random, shift=UP * 0.3),
+        )
+        self.wait()
+
+        self.play(
+            FadeOut(p_string, shift=UP * 0.3),
+            FadeOut(p_random, shift=UP * 0.3),
+        )
+        annotation = (
+            Text(
+                "Undo last change\nand continue from there",
+                font=REDUCIBLE_FONT,
+                weight=BOLD,
+            )
+            .scale(0.35)
+            .next_to(second_change, DOWN, aligned_edge=LEFT, buff=0.2)
+            .shift(RIGHT * 0.4)
+        )
+        self.play(FadeIn(annotation))
+
+        undo_edges = get_edges_from_tour(undo_tour)
+        self.play(
+            *self.focus_on_edges(undo_edges, all_edges),
+            FadeOut(second_change),
+            FadeOut(arrow_change),
+            FadeOut(annotation),
+        )
+
+    def show_temperature(self):
+        iterations = 100
+        axes = (
+            Axes(
+                x_range=[0, iterations, 10],
+                y_range=[0, 1, 0.25],
+                y_length=8,
+                tips=False,
+                axis_config={
+                    "include_numbers": True,
+                    "label_constructor": CustomLabel,
+                },
+            )
+            .scale(0.5)
+            .shift(UP)
+        )
+
+        temp_nl = NumberLine(
+            x_range=[0, 1],
+            include_numbers=True,
+            length=axes.x_axis.width,
+        ).next_to(axes.x_axis, DOWN, buff=1)
+
+        temp_label = (
+            Text("Temperature", font=REDUCIBLE_FONT, weight=BOLD)
+            .scale(0.5)
+            .rotate(90 * DEGREES)
+            .next_to(axes.y_axis, LEFT, buff=0.2)
+        )
+
+        iterations_label = (
+            Text("Iterations", font=REDUCIBLE_FONT, weight=BOLD)
+            .scale(0.5)
+            .next_to(axes.x_axis, DOWN, buff=0.2)
+        )
+
+        T = ValueTracker(1)
+
+        temp_marker = (
+            Line(UP, UP * 1.3)
+            .set_stroke(width=5, color=REDUCIBLE_YELLOW)
+            .add_updater(lambda mob: mob.move_to(temp_nl.n2p(T.get_value())))
+        )
+        filled_rect = (
+            Line(temp_nl.n2p(0), temp_marker.get_center())
+            .set_stroke(width=10)
+            .set_color(REDUCIBLE_VIOLET)
+        )
+        filled_rect.add_updater(
+            lambda mob: mob.put_start_and_end_on(
+                temp_nl.n2p(0), temp_marker.get_center()
+            )
+        )
+
+        self.play(
+            Write(axes),
+            Write(temp_nl),
+            Write(temp_marker),
+            FadeIn(temp_label),
+            FadeIn(iterations_label),
+        )
+        self.play(Write(filled_rect))
+
+        last_temp = T.get_value()
+        last_plot = axes.plot(lambda x: 1 / x, x_range=[1, 1.001])
+        last_area = axes.get_area(last_plot, x_range=[1, 1.001]).set_fill(
+            REDUCIBLE_YELLOW, opacity=0.3
+        )
+        for i in range(1, 101):
+            v = T.get_value()
+
+            new_plot = axes.plot(lambda x: 1 / x, x_range=[1, i])
+            new_area = (
+                axes.get_area(new_plot, x_range=[1, i])
+                .set_fill(REDUCIBLE_YELLOW, opacity=0.3)
+                .set_stroke(width=0)
+            )
+            new_line_chunk = self.next_iteration_line(axes, i, v, last_temp).set_stroke(
+                width=4
+            )
+            self.play(
+                last_area.animate.become(new_area),
+                T.animate.set_value(1 / (1 * i + 1)),
+                Write(new_line_chunk),
+                run_time=(1 / (i + 1)),
+            )
+
+            last_temp = v
+
+        self.wait()
+
+        explore_annotation = (
+            Text("Explore a lot", font=REDUCIBLE_FONT, weight=BOLD)
+            .scale(0.4)
+            .next_to(new_plot.point_from_proportion(0.1), RIGHT, buff=0.4)
+        )
+
+        exploit_annotation = (
+            Text("Converge to local optima", font=REDUCIBLE_FONT, weight=BOLD)
+            .scale(0.3)
+            .next_to(new_plot.point_from_proportion(0.95), UP, buff=0.2)
+        )
+
+        self.play(FadeIn(explore_annotation))
+        self.wait()
+        self.play(FadeIn(exploit_annotation))
+
+    def simulated_annealing(self):
+        # DEFINITION AND SETUP
+        np.random.seed(100)
+        N = 30
+        iterations = 100
+        T = ValueTracker(1)
+
+        graph = (
+            TSPGraph(
+                range(N),
+                layout="spring",
+                layout_config={"k": 9, "iterations": 10},
+                layout_scale=5,
+            )
+            .scale(0.6)
+            .shift(LEFT * 3)
+        )
+
+        axes_temp = Axes(
+            x_range=[0, iterations, 10],
+            y_range=[0, 1, 0.25],
+            y_length=8,
+            tips=False,
+            axis_config={
+                "include_numbers": True,
+                "label_constructor": CustomLabel,
+            },
+        ).scale(0.3)
+
+        temp_label = (
+            Text("Temperature", font=REDUCIBLE_FONT, weight=BOLD)
+            .scale(0.3)
+            .rotate(90 * DEGREES)
+            .next_to(axes_temp.y_axis, LEFT, buff=0.3)
+        )
+        iterations_label = (
+            Text("Iterations", font=REDUCIBLE_FONT, weight=BOLD)
+            .scale(0.3)
+            .next_to(axes_temp.x_axis, DOWN, buff=0.3)
+        )
+
+        axes_vg = VGroup(axes_temp, temp_label, iterations_label).next_to(
+            graph, RIGHT, aligned_edge=UP, buff=1.7
+        )
+
+        axes_cost = (
+            Axes(
+                x_range=[0, iterations, 10],
+                y_range=[30, 91, 10],
+                y_length=8,
+                tips=False,
+                axis_config={
+                    "include_numbers": True,
+                    "label_constructor": CustomLabel,
+                },
+            )
+            .scale(0.3)
+            .next_to(axes_temp, ORIGIN, aligned_edge=RIGHT)
+        )
+        fake_y_axes_cost = (
+            NumberLine(
+                x_range=[30, 91, 10],
+                length=8,
+                rotation=90 * DEGREES,
+                label_direction=RIGHT,
+            )
+            .scale(0.3)
+            .move_to(axes_temp.x_axis.ticks[-1], aligned_edge=DOWN)
+        )
+
+        cost_labels = VGroup(
+            *[
+                Text(str(e), font=REDUCIBLE_MONO, font_size=36)
+                .scale(0.3)
+                .next_to(
+                    fake_y_axes_cost.ticks[i],
+                    RIGHT,
+                    buff=0.1,
+                )
+                for i, e in enumerate(range(30, 91, 10))
+            ]
+        )
+        cost_y_label = (
+            Text("Cost", font=REDUCIBLE_FONT, weight=BOLD)
+            .scale(0.3)
+            .rotate(-90 * DEGREES)
+            .next_to(fake_y_axes_cost, RIGHT, buff=0.6)
+        )
+
+        change_history = (
+            VGroup(*[Dot() for a in range(5)])
+            .arrange(DOWN, buff=0.5)
+            .next_to(axes_temp.y_axis, DOWN, buff=1.3, aligned_edge=RIGHT)
+        )
+
+        cost_indicator_text = Text(
+            f"Path length:",
+            font=REDUCIBLE_FONT,
+            weight=BOLD,
+        ).scale(0.4)
+
+        best_indicator_text = Text(
+            f"Best:",
+            font=REDUCIBLE_FONT,
+            weight=BOLD,
+        ).scale(0.4)
+
+        def iterate_two_opt_animation(v1, v2, tour, last_cost: Text):
+            two_opt_tour = two_opt_swap(tour, v1, v2)
+
+            two_opt_edges = get_edges_from_tour(two_opt_tour)
+            two_opt_cost = get_cost_from_edges(two_opt_edges, graph.dist_matrix)
+
+            two_opt_cost_indicator = (
+                Text(
+                    f"{two_opt_cost:.2f}",
+                    font=REDUCIBLE_MONO,
+                    weight=BOLD,
+                )
+                .set_stroke(width=4, background=True)
+                .scale(0.4)
+                .next_to(cost_indicator_text, RIGHT, buff=0.3)
+            )
+
+            focus_edges_animations = self.focus_on_edges(two_opt_edges, all_edges)
+
+            direction = -np.sign(float(last_cost.text) - two_opt_cost)
+            cost_indicator_animations = [
+                FadeIn(two_opt_cost_indicator, shift=UP * direction * 0.3),
+                FadeOut(last_cost, shift=UP * direction * 0.3),
+            ]
+            # self.play(*focus_edges_animations, cost_indicator_animation)
+
+            return (
+                two_opt_tour,
+                two_opt_cost_indicator,
+                focus_edges_animations,
+                cost_indicator_animations,
+            )
+
+        self.add_foreground_mobjects(graph)
+        all_edges = graph.get_all_edges(buff=graph.vertices[0].width / 2)
+        [e.set_opacity(0) for e in all_edges.values()]
+
+        self.play(*[FadeIn(v) for v in graph.vertices.values()])
+
+        nn_tour, nn_cost = get_nearest_neighbor_solution(graph.dist_matrix, start=0)
+        nn_edges = get_edges_from_tour(nn_tour)
+        nn_edges = list(map(lambda t: (t[1], t[0]) if t[0] > t[1] else t, nn_edges))
+
+        cost_indicator = Text(
+            f"{nn_cost:.2f}",
+            font=REDUCIBLE_MONO,
+            weight=BOLD,
+        ).scale(0.4)
+
+        best_cost_mob = Text(
+            f"{nn_cost:.2f}",
+            font=REDUCIBLE_MONO,
+            weight=BOLD,
+        ).scale(0.4)
+
+        VGroup(cost_indicator_text, cost_indicator).arrange(RIGHT, buff=0.3).next_to(
+            graph, DOWN, buff=0.5, aligned_edge=LEFT
+        )
+        VGroup(best_indicator_text, best_cost_mob).arrange(RIGHT, buff=0.3).next_to(
+            graph, DOWN, buff=0.5, aligned_edge=RIGHT
+        )
+
+        self.play(
+            # *self.focus_on_edges(nn_edges, all_edges),
+            LaggedStart(*[all_edges[t].animate.set_opacity(1) for t in nn_edges]),
+            FadeIn(cost_indicator),
+            FadeIn(cost_indicator_text),
+            FadeIn(best_indicator_text),
+            FadeIn(best_cost_mob),
+            run_time=3,
+        )
+
+        self.play(
+            Write(axes_vg),
+            Write(fake_y_axes_cost),
+            Write(cost_labels),
+            Write(cost_y_label),
+        )
+        tick = SVGMobject("check.svg").scale(0.1).set_color(REDUCIBLE_GREEN_LIGHTER)
+        cross = Cross(stroke_color=REDUCIBLE_CHARM, stroke_width=2, scale_factor=0.1)
+
+        # SIMULATION
+
+        change_list = []
+        cost_list = [nn_cost]
+        last_temp = T.get_value()
+        last_cost_mob = cost_indicator
+
+        last_tour = nn_tour
+        best_tour = nn_tour
+
+        best_cost = nn_cost
+        last_best_cost = best_cost
+
+        for i in range(1, 100):
+            v1, v2 = np.random.choice(range(N), size=2, replace=True)
+            if i == 75:
+                v1, v2 = 25, 20
+            if i == 90:
+                v1, v2 = 6, 2
+
+            v = T.get_value()
+
+            new_temp_line_chunk = self.next_iteration_line(
+                axes_temp, i, T.get_value(), last_temp
+            ).set_stroke(width=4)
+
+            (
+                last_tour,
+                last_cost_mob,
+                focus_edges_animations,
+                cost_indicator_animations,
+            ) = iterate_two_opt_animation(v1, v2, nn_tour, last_cost_mob)
+
+            new_cost = get_cost_from_edges(
+                get_edges_from_tour(last_tour), graph.dist_matrix
+            )
+            new_cost_line_chunk = (
+                self.next_iteration_line(axes_cost, i, cost_list[-1], new_cost)
+                .set_stroke(REDUCIBLE_PURPLE, width=4)
+                .flip()
+            )
+
+            is_new_cost_better = new_cost < best_cost
+            accept = np.random.random() < T.get_value()
+
+            if is_new_cost_better:
+                best_cost = new_cost
+                best_tour = last_tour
+
+                last_best_mob = best_cost_mob
+                best_cost_mob = (
+                    Text(
+                        f"{best_cost:.2f}",
+                        font=REDUCIBLE_MONO,
+                        weight=BOLD,
+                    )
+                    .scale(0.4)
+                    .next_to(best_indicator_text, RIGHT, buff=0.3)
+                )
+
+                cost_indicator_animations.extend(
+                    [
+                        FadeIn(best_cost_mob, shift=DOWN * 0.3),
+                        FadeOut(last_best_mob, shift=DOWN * 0.3),
+                    ]
+                )
+
+            new_best_line_chunk = (
+                self.next_iteration_line(axes_cost, i, last_best_cost, best_cost)
+                .set_stroke(REDUCIBLE_GREEN_LIGHTER, width=4)
+                .flip()
+            )
+
+            undo_tour = best_tour
+
+            next_change = self.create_change_history_entry(
+                v1,
+                v2,
+                new_cost,
+                best_cost,
+            )
+            cost_list.append(new_cost)
+
+            mark = tick.copy() if accept or is_new_cost_better else cross.copy()
+            next_change = (
+                VGroup(next_change, mark)
+                .arrange(RIGHT, buff=0.3)
+                .move_to(change_history[0], aligned_edge=LEFT)
+            )
+
+            change_list.append(next_change)
+
+            update_list_anims = []
+            if len(change_list) <= len(change_history):
+                update_list_anims = [
+                    c.animate.move_to(change_history[i], aligned_edge=LEFT)
+                    for i, c in enumerate(change_list[::-1])
+                ]
+                update_list_anims.append(FadeIn(next_change, shift=RIGHT * 0.3))
+
+            # change_list will only have 1 element more than change_history
+            elif len(change_list) > len(change_history):
+                removed_element = change_list.pop(0)
+
+                update_list_anims = [
+                    c.animate.move_to(change_history[i], aligned_edge=LEFT)
+                    for i, c in enumerate(change_list[::-1])
+                ]
+
+                update_list_anims.append(FadeOut(removed_element, shift=DOWN * 0.4))
+                update_list_anims.append(FadeIn(next_change, shift=RIGHT * 0.3))
+
+            # by this point we already created the animation that changes from the last
+            # config to the next one. accepting just means doing nothing since it's
+            # already done. rejecting means undoing the last operation.
+
+            # if the last config is better than the previous one, we accept it right away
+            if is_new_cost_better:
+                pass
+            # otherwise, we need to check if we should accept it
+            else:
+                if accept:
+                    # accept worse solution
+                    pass
+                else:
+                    # reject worse solution, undo last operation
+                    undo_edges = get_edges_from_tour(undo_tour)
+                    undo_cost = get_cost_from_edges(undo_edges, graph.dist_matrix)
+                    focus_edges_animations = self.focus_on_edges(undo_edges, all_edges)
+
+            if i < 10:
+                edges_animations = self.focus_on_vertices([v1, v2], graph.vertices)
+            else:
+                edges_animations = self.focus_on_vertices([], graph.vertices)
+            self.play(
+                *update_list_anims,
+                *focus_edges_animations,
+                *cost_indicator_animations,
+                *edges_animations,
+                Write(new_temp_line_chunk),
+                Write(new_cost_line_chunk),
+                Write(new_best_line_chunk),
+                T.animate.set_value(1 / (0.15 * i + 1)),
+                run_time=1 / (0.15 * i + 1),
+            )
+            last_temp = v
+            last_best_cost = best_cost
+
+    ############### UTILS
+
+    def next_iteration_line(
+        self, axes: Axes, iteration: int, curr_temp: float, last_temp: float
+    ):
+
+        last_distance_p2c = axes.c2p(iteration - 1, last_temp)
+        curr_distance_p2c = axes.c2p(iteration, curr_temp)
+
+        return (
+            Line(last_distance_p2c, curr_distance_p2c)
+            .set_color(REDUCIBLE_YELLOW)
+            .set_stroke(width=2)
+        )
+
+    def create_change_history_entry(self, v1, v2, cost, last_cost=None) -> Text:
+
+        if last_cost:
+            color = REDUCIBLE_CHARM if cost - last_cost > 0 else REDUCIBLE_GREEN_LIGHTER
+        else:
+            color = WHITE
+
+        return Text(
+            f"· Join {v1} with {v2}: {cost:.2f}",
+            font=REDUCIBLE_FONT,
+            t2f={f"{cost:.2f}": REDUCIBLE_MONO},
+            t2c={f"{cost:.2f}": color},
+            weight=BOLD,
+        ).scale(0.4)
+
+
+class TransitionTemplate(Scene):
+    def construct(self):
+        self.transition("Brute Force", 1, 5)
+
+    def transition(self, transition_name, index, total):
+        """
+        Create transitions easily.
+
+        - Transition name — string, self explanatory
+        - Index correspond to the position of this transition on the video
+        - Total corresponds to the total amount of transitions there will be
+
+        Total will generate a number of nodes and index will highlight that specific
+        node, showing the progress.
+        """
+        bg = ImageMobject("transition-bg.png").scale_to_fit_width(config.frame_width)
+        self.add(bg)
+        self.wait()
+
+        title = (
+            Text(transition_name, font=REDUCIBLE_FONT, weight=BOLD)
+            .set_stroke(BLACK, width=15, background=True)
+            .scale_to_fit_width(config.frame_width - 3)
+            .shift(UP)
+        )
+
+        nodes_and_lines = VGroup()
+        for n in range(1, total + 1):
+            if n == index:
+                node = (
+                    Circle()
+                    .scale(0.2)
+                    .set_stroke(REDUCIBLE_YELLOW)
+                    .set_fill(REDUCIBLE_YELLOW_DARKER, opacity=1)
+                )
+                nodes_and_lines.add(node)
+            else:
+                nodes_and_lines.add(
+                    Circle()
+                    .scale(0.2)
+                    .set_stroke(REDUCIBLE_PURPLE)
+                    .set_fill(REDUCIBLE_PURPLE_DARK_FILL, opacity=1)
+                )
+
+            nodes_and_lines.add(Line().set_color(REDUCIBLE_PURPLE))
+        nodes_and_lines.remove(nodes_and_lines[-1])
+
+        nodes_and_lines.arrange(RIGHT, buff=0.5).scale_to_fit_width(
+            config.frame_width - 5
+        ).to_edge(DOWN, buff=1)
+
+        self.play(
+            FadeIn(title, shift=UP * 0.3), LaggedStartMap(FadeIn, nodes_and_lines)
+        )
+
+
+class Introduction(TransitionOtherApproaches):
+    def construct(self):
+
+        bg = ImageMobject("usa-map-clean.png").scale_to_fit_width(config.frame_width)
+        dark_filter = ScreenRectangle(height=10).set_fill(BLACK, opacity=0.2)
+        self.play(FadeIn(bg), FadeIn(dark_filter))
+        self.wait()
+
+        # self.add(
+        #     Axes(
+        #         axis_config={"include_numbers": True},
+        #         x_length=config.frame_width,
+        #         y_length=config.frame_height,
+        #         tips=False,
+        #     )
+        # )
+
+        city_coords = [
+            (-6.1, -0.25, 0),  # SF
+            (-5.8, 0.55, 0),  # san jose
+            (-4.999, -1.45, 0),  # LA
+            (0.45, 0.85, 0),  # Atlanta
+            (-0.35, -0.35, 0),  # Miami
+            (-4.35, 1.75, 0),  # Miami
+            (-1.75, 1.35, 0),  # Denver
+            (3.5, -0.5, 0),  # Atlanta
+            (-4.3, -0.77, 0),  # San diego
+            (-3.35, -1, 0),  # phoenix
+            (0.45, -0.85, 0),  # dallas
+            (0.25, -1.8, 0),  # san antonio
+            (0.6, -2.65, 0),  # houston
+            (2.64, 1, 0),  # chicago
+            (6.5, 1, 0),  # new york
+            (5.85, 0.8, 0),  # philadelphia
+        ]
+
+        total_number_of_nodes = len(city_coords)
+
+        graph = TSPGraph(
+            range(total_number_of_nodes),
+            vertex_config={
+                "fill_opacity": 1,
+                "fill_color": REDUCIBLE_PURPLE_DARK_FILL,
+                "stroke_color": REDUCIBLE_VIOLET,
+                "stroke_width": 3,
+            },
+            labels=False,
+            layout=self.get_city_layout(core_cities=city_coords, nodes_per_core=0),
+        )
+        print(f"> Finished building graph with {total_number_of_nodes} nodes")
+
+        print(f"Calculating best tour")
+        # best_perm, best_cost = get_exact_tsp_solution(graph.dist_matrix)
+        best_perm = [0, 1, 5, 6, 3, 13, 14, 15, 7, 12, 11, 10, 4, 9, 8, 2]
+        print(f"Best tour calculated: {best_perm}")
+
+        nn_perm, nn_cost = get_nearest_neighbor_solution(graph.dist_matrix, 0)
+
+        self.play(FadeIn(graph[0]))
+        sf_tag = (
+            Text("SF", font=REDUCIBLE_FONT, weight=BOLD)
+            .scale(0.4)
+            .next_to(graph[0], UP, buff=0.3)
+            .set_stroke(BLACK, width=5, background=True)
+        )
+
+        self.play(FadeIn(sf_tag, shift=UP * 0.3))
+        self.wait()
+        self.play(
+            FadeOut(sf_tag, shift=UP * 0.3),
+            LaggedStart(
+                *[FadeIn(v, scale=0.95) for v in list(graph.vertices.values())[1:]],
+                lag_ratio=0.5,
+            ),
+            run_time=3,
+        )
+        self.wait()
+
+        all_edges = graph.get_all_edges(buff=graph.vertices[0].width / 2)
+        print(f"> Finished getting all {len(all_edges)} edges")
+        [e.set_opacity(0) for e in all_edges.values()]
+
+        # generate all possible tours (until max cap) and try and get a good variety of tours
+
+        all_tour_perms = get_all_tour_permutations(
+            total_number_of_nodes, 0, max_cap=10000
+        )
+
+        tour_perms = list(
+            filter(lambda t: len(t) == total_number_of_nodes, all_tour_perms)
+        )
+        np.random.shuffle(tour_perms)
+
+        print(f"tour perms length: {len(tour_perms)}")
+
+        # randomizing a bit more
+        edges_perms = [swap_random(get_edges_from_tour(t)) for t in tour_perms]
+
+        print(f"> Finished calculating all {len(edges_perms)} tuples from every tour")
+
+        tsp_title = (
+            Text(
+                "Traveling Salesman Problem",
+                font=REDUCIBLE_FONT,
+                weight=BOLD,
+                font_size=400,
+            )
+            .scale_to_fit_width(config.frame_width - 5)
+            .to_edge(DOWN)
+            .set_stroke(width=8, background=True)
+        )
+
+        # by changing the slice size you can create a longer or shorter example
+        example_slice = edges_perms[:30]
+        example_slice.append(get_edges_from_tour(swap_random(nn_perm, 2)))
+        print(len(example_slice))
+
+        for i, tour_edges in enumerate(example_slice):
+            # the all_edges dict only stores the edges in ascending order
+            tour_edges = list(
+                map(lambda x: x if x[0] < x[1] else (x[1], x[0]), tour_edges)
+            )
+
+            if i == 0:
+                anims = LaggedStart(
+                    *[Write(all_edges[e].set_opacity(1)) for e in tour_edges]
+                )
+                self.play(
+                    anims,
+                    run_time=1 / (0.5 * i + 1),
+                )
+                self.wait()
+
+            else:
+                anims = self.focus_on_edges(
+                    tour_edges,
+                    all_edges=all_edges,
+                )
+
+                self.play(
+                    *anims,
+                    run_time=1 / (0.5 * i + 1),
+                )
+
+        best_edges = get_edges_from_tour(best_perm)
+        best_edges = list(map(lambda e: (e[1], e[0]) if e[0] > e[1] else e, best_edges))
+
+        nn_edges = get_edges_from_tour(nn_perm)
+        nn_edges = list(map(lambda e: (e[1], e[0]) if e[0] > e[1] else e, nn_edges))
+
+        frame = self.camera.frame
+
+        self.wait()
+        self.play(
+            FadeIn(tsp_title, scale=1.05),
+            run_time=2,
+        )
+
+        self.wait()
+        self.play(frame.animate.scale(0.95), FadeOut(tsp_title))
+        self.play(*self.focus_on_edges(nn_edges, all_edges))
+
+        self.wait()
+        self.play(*self.focus_on_edges(best_edges, all_edges))

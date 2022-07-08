@@ -218,6 +218,23 @@ def get_1_tree(dist_matrix, v_to_ignore):
     return mst_edges, cost, one_tree_edges, one_tree_cost
 
 
+def two_opt_swap(tour: list, v1: int, v2: int):
+    """
+    v1 and v2 are the first vertices of the edges you wish to swap when traversing through the route
+    """
+
+    v1 = tour.index(v1)
+    v2 = tour.index(v2)
+
+    if v1 > v2:
+        v1, v2 = v2, v1
+
+    v1 += 1
+    v2 += 1
+    reverse_tour = tour[v1:v2][::-1]
+    return tour[:v1] + reverse_tour + tour[v2:]
+
+
 def christofides(dist_matrix):
     mst_edges, cost = get_mst(dist_matrix)
 
