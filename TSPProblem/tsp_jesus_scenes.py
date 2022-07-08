@@ -2184,3 +2184,168 @@ class TransitionTemplate(Scene):
 
         self.wait()
         self.play(FadeOut(title), FadeOut(nodes_and_lines))
+
+class Introduction(TransitionOtherApproaches):
+    def construct(self):
+
+        bg = ImageMobject("usa-map-clean.png").scale_to_fit_width(config.frame_width)
+        dark_filter = ScreenRectangle(height=10).set_fill(BLACK, opacity=0.2)
+        self.play(FadeIn(bg), FadeIn(dark_filter))
+        self.wait()
+
+        # self.add(
+        #     Axes(
+        #         axis_config={"include_numbers": True},
+        #         x_length=config.frame_width,
+        #         y_length=config.frame_height,
+        #         tips=False,
+        #     )
+        # )
+
+        city_coords = [
+            (-6.1, -0.25, 0),  # SF
+            (-5.8, 0.55, 0),  # san jose
+            (-4.999, -1.45, 0),  # LA
+            (0.45, 0.85, 0),  # Atlanta
+            (-0.35, -0.35, 0),  # Miami
+            (-4.35, 1.75, 0),  # Miami
+            (-1.75, 1.35, 0),  # Denver
+            (3.5, -0.5, 0),  # Atlanta
+            (-4.3, -0.77, 0),  # San diego
+            (-3.35, -1, 0),  # phoenix
+            (0.45, -0.85, 0),  # dallas
+            (0.25, -1.8, 0),  # san antonio
+            (0.6, -2.65, 0),  # houston
+            (2.64, 1, 0),  # chicago
+            (6.5, 1, 0),  # new york
+            (5.85, 0.8, 0),  # philadelphia
+        ]
+
+        total_number_of_nodes = len(city_coords)
+
+        graph = TSPGraph(
+            range(total_number_of_nodes),
+            vertex_config={
+                "fill_opacity": 1,
+                "fill_color": REDUCIBLE_PURPLE_DARK_FILL,
+                "stroke_color": REDUCIBLE_VIOLET,
+                "stroke_width": 3,
+            },
+            labels=False,
+            layout=self.get_city_layout(core_cities=city_coords, nodes_per_core=0),
+        )
+        print(f"> Finished building graph with {total_number_of_nodes} nodes")
+
+        print(f"Calculating best tour")
+        # best_perm, best_cost = get_exact_tsp_solution(graph.dist_matrix)
+        best_perm = [0, 1, 5, 6, 3, 13, 14, 15, 7, 12, 11, 10, 4, 9, 8, 2]
+        print(f"Best tour calculated: {best_perm}")
+
+        nn_perm, nn_cost = get_nearest_neighbor_solution(graph.dist_matrix, 0)
+
+        self.play(FadeIn(graph[0]))
+        sf_tag = (
+            Text("SF", font=REDUCIBLE_FONT, weight=BOLD)
+            .scale(0.4)
+            .next_to(graph[0], UP, buff=0.3)
+            .set_stroke(BLACK, width=5, background=True)
+        )
+
+        self.play(FadeIn(sf_tag, shift=UP * 0.3))
+        self.wait()
+        self.play(
+            FadeOut(sf_tag, shift=UP * 0.3),
+            LaggedStart(
+                *[FadeIn(v, scale=0.95) for v in list(graph.vertices.values())[1:]],
+                lag_ratio=0.5,
+            ),
+            run_time=3,
+        )
+        self.wait()
+
+        all_edges = graph.get_all_edges(buff=graph.vertices[0].width / 2)
+        print(f"> Finished getting all {len(all_edges)} edges")
+        [e.set_opacity(0) for e in all_edges.values()]
+
+        # generate all possible tours (until max cap) and try and get a good variety of tours
+
+        all_tour_perms = get_all_tour_permutations(
+            total_number_of_nodes, 0, max_cap=10000
+        )
+
+        tour_perms = list(
+            filter(lambda t: len(t) == total_number_of_nodes, all_tour_perms)
+        )
+        np.random.shuffle(tour_perms)
+
+        print(f"tour perms length: {len(tour_perms)}")
+
+        # randomizing a bit more
+        edges_perms = [swap_random(get_edges_from_tour(t)) for t in tour_perms]
+
+        print(f"> Finished calculating all {len(edges_perms)} tuples from every tour")
+
+        tsp_title = (
+            Text(
+                "Traveling Salesman Problem",
+                font=REDUCIBLE_FONT,
+                weight=BOLD,
+                font_size=400,
+            )
+            .scale_to_fit_width(config.frame_width - 5)
+            .to_edge(DOWN)
+            .set_stroke(width=8, background=True)
+        )
+
+        # by changing the slice size you can create a longer or shorter example
+        example_slice = edges_perms[:30]
+        example_slice.append(get_edges_from_tour(swap_random(nn_perm, 2)))
+        print(len(example_slice))
+
+        for i, tour_edges in enumerate(example_slice):
+            # the all_edges dict only stores the edges in ascending order
+            tour_edges = list(
+                map(lambda x: x if x[0] < x[1] else (x[1], x[0]), tour_edges)
+            )
+
+            if i == 0:
+                anims = LaggedStart(
+                    *[Write(all_edges[e].set_opacity(1)) for e in tour_edges]
+                )
+                self.play(
+                    anims,
+                    run_time=1 / (0.5 * i + 1),
+                )
+                self.wait()
+
+            else:
+                anims = self.focus_on_edges(
+                    tour_edges,
+                    all_edges=all_edges,
+                )
+
+                self.play(
+                    *anims,
+                    run_time=1 / (0.5 * i + 1),
+                )
+
+        best_edges = get_edges_from_tour(best_perm)
+        best_edges = list(map(lambda e: (e[1], e[0]) if e[0] > e[1] else e, best_edges))
+
+        nn_edges = get_edges_from_tour(nn_perm)
+        nn_edges = list(map(lambda e: (e[1], e[0]) if e[0] > e[1] else e, nn_edges))
+
+        frame = self.camera.frame
+
+        self.wait()
+        self.play(
+            FadeIn(tsp_title, scale=1.05),
+            run_time=2,
+        )
+
+        self.wait()
+        self.play(frame.animate.scale(0.95), FadeOut(tsp_title))
+        self.play(*self.focus_on_edges(nn_edges, all_edges))
+
+        self.wait()
+        self.play(*self.focus_on_edges(best_edges, all_edges))

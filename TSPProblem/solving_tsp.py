@@ -16,6 +16,8 @@ from classes import *
 
 np.random.seed(23)
 
+config["assets_dir"] = "assets"
+
 
 class TSPGraph(Graph):
     def __init__(
@@ -151,9 +153,9 @@ class TSPGraph(Graph):
     def get_dist_matrix(self):
         return self.dist_matrix
 
-    def get_neighboring_edges(self, vertex):
+    def get_neighboring_edges(self, vertex, buff=None):
         edges = [(vertex, other) for other in get_neighbors(vertex, len(self.vertices))]
-        return {edge: self.create_edge(edge[0], edge[1]) for edge in edges}
+        return {edge: self.create_edge(edge[0], edge[1], buff=buff) for edge in edges}
 
     def get_edges_from_list(self, edges):
         edge_dict = {}
@@ -2123,7 +2125,7 @@ class Christofides(GreedyApproach):
                     graph.vertices[u],
                     graph.vertices[v],
                     stroke_width=stroke_width,
-                    color=REDUCIBLE_VIOLET,
+                    color=color,
                 )
                 for u, v in tsp_tour_edges
             ]
@@ -2649,3 +2651,1776 @@ class TourImprovement(Christofides):
                 continue
             new_edge_map[(u, v)] = self.get_edge(all_edges, (u, v))
         return new_edge_map
+
+
+class LocalMinima(TourImprovement):
+    def construct(self):
+        NUM_VERTICES = 6
+        all_tours = get_all_tour_permutations(NUM_VERTICES, 0)
+        np.random.shuffle(all_tours)
+        rows = 6
+        cols = len(all_tours) // rows
+        all_tour_costs = []
+        # layout = self.get_random_layout(NUM_VERTICES)
+        graph = self.get_graph(NUM_VERTICES)
+        all_graphs_with_tours = []
+        all_graphs_tour_edges = []
+        for tour in all_tours:
+            current_graph = graph.copy().scale(0.22)
+            tour_edges = get_edges_from_tour(tour)
+            all_tour_costs.append(
+                get_cost_from_edges(tour_edges, graph.get_dist_matrix())
+            )
+            all_graphs_tour_edges.append(tour_edges)
+            tour_edges_mob = self.get_tsp_tour_edges_mob(current_graph, tour_edges)
+            all_graphs_with_tours.append(VGroup(current_graph, tour_edges_mob))
+
+        all_graphs = VGroup(*all_graphs_with_tours).arrange_in_grid(rows=rows)
+        graph_v = VGroup(*list(graph.vertices.values()))
+        self.play(LaggedStartMap(GrowFromCenter, graph_v))
+        self.wait()
+        self.play(LaggedStart(FadeOut(graph_v), FadeIn(all_graphs)))
+        self.add_foreground_mobject(all_graphs)
+        self.wait()
+
+        heat_map_grid = self.get_heat_map(all_graphs, rows, cols, all_tour_costs)
+
+        self.play(FadeIn(heat_map_grid))
+        self.wait()
+        original_graphs = all_graphs.copy()
+        faded_graphs = [graph.copy().fade(0.7) for graph in all_graphs]
+        original_grids = heat_map_grid.copy()
+        faded_grids = [grid.copy().fade(0.7) for grid in heat_map_grid]
+        all_edge_diffs = self.get_all_graph_edge_diffs(all_tours)
+
+        self.perform_two_opt_switches(
+            10,
+            all_graphs,
+            heat_map_grid,
+            all_tour_costs,
+            all_edge_diffs,
+            original_graphs,
+            original_grids,
+            faded_graphs,
+            faded_grids,
+        )
+
+        self.perform_two_opt_switches(
+            23,
+            all_graphs,
+            heat_map_grid,
+            all_tour_costs,
+            all_edge_diffs,
+            original_graphs,
+            original_grids,
+            faded_graphs,
+            faded_grids,
+        )
+
+        graph_with_grid = VGroup(all_graphs, heat_map_grid)
+
+        self.play(graph_with_grid.animate.scale(0.8))
+        self.wait()
+
+        original_graphs = all_graphs.copy()
+        faded_graphs = [graph.copy().fade(0.7) for graph in all_graphs]
+        original_grids = heat_map_grid.copy()
+        faded_grids = [grid.copy().fade(0.7) for grid in heat_map_grid]
+
+        self.play(
+            *self.fade_graphs_and_grids(
+                all_graphs,
+                heat_map_grid,
+                [i for i in range(len(all_graphs)) if i not in [39, 44]],
+                faded_graphs,
+                faded_grids,
+            )
+        )
+        self.wait()
+
+        local_min_arrow = Arrow(
+            heat_map_grid[44].get_bottom() + DOWN * 1.5,
+            heat_map_grid[44].get_bottom(),
+            max_tip_length_to_length_ratio=0.15,
+            buff=SMALL_BUFF,
+        )
+        local_min_arrow.set_color(REDUCIBLE_YELLOW)
+        local_min_text = (
+            Text("Local Minimum", font=REDUCIBLE_FONT)
+            .scale(0.4)
+            .next_to(local_min_arrow, DOWN)
+        )
+
+        global_min_arrow = Arrow(
+            heat_map_grid[39].get_right() + RIGHT * 1.5,
+            heat_map_grid[39].get_right(),
+            max_tip_length_to_length_ratio=0.15,
+            buff=SMALL_BUFF,
+        )
+        global_min_arrow.set_color(REDUCIBLE_YELLOW)
+        global_min_text = (
+            VGroup(Text("Global").scale(0.4), Text("Minimum").scale(0.4))
+            .arrange(DOWN)
+            .next_to(global_min_arrow, UP)
+        )
+
+        self.add_foreground_mobjects(global_min_arrow, local_min_arrow)
+        self.play(
+            FadeIn(global_min_arrow),
+            FadeIn(local_min_arrow),
+            FadeIn(local_min_text),
+            FadeIn(global_min_text),
+        )
+        self.wait()
+
+        three_opt_text = Text("3-opt", font=REDUCIBLE_FONT).scale(0.4)
+        three_opt_arrow = Arrow(
+            heat_map_grid[44].get_right(),
+            heat_map_grid[39].get_left(),
+            max_tip_length_to_length_ratio=0.15,
+        )
+        three_opt_arrow.set_color(REDUCIBLE_YELLOW)
+        three_opt_text.set_stroke(width=5, color=BLACK, background=True).next_to(
+            three_opt_arrow, UP
+        ).shift(DOWN * 0.5)
+        self.add_foreground_mobjects(three_opt_arrow, three_opt_text)
+
+        self.play(FadeIn(three_opt_text), FadeIn(three_opt_arrow))
+        self.wait()
+
+        start_index = 44
+
+        neighboring_edges = [
+            edge
+            for edge in all_edge_diffs
+            if start_index in edge
+            and (all_edge_diffs[edge] == 2 or all_edge_diffs[edge] == 3)
+        ]
+        print("Neighboring edges", neighboring_edges)
+        print([(key, val) for key, val in all_edge_diffs.items() if start_index in key])
+        neighboring_vertices = []
+        for u, v in neighboring_edges:
+            if u == start_index:
+                neighboring_vertices.append(v)
+            else:
+                neighboring_vertices.append(u)
+
+        glowing_rect = get_glowing_surround_rect(heat_map_grid[start_index])
+        self.play(
+            FadeOut(three_opt_text),
+            FadeOut(three_opt_arrow),
+            FadeOut(global_min_arrow),
+            FadeOut(global_min_text),
+            FadeOut(local_min_text),
+            FadeOut(local_min_arrow),
+            FadeIn(glowing_rect),
+        )
+        self.wait()
+
+        neighborhood_comment = Text(
+            "2-opt AND 3-opt local search is expensive", font=REDUCIBLE_FONT
+        ).scale(0.7)
+        neighborhood_comment.next_to(heat_map_grid, DOWN)
+        print("Neighboring vertices", neighboring_vertices)
+        self.play(
+            *self.highlight_graphs_and_grids(
+                all_graphs,
+                heat_map_grid,
+                neighboring_vertices,
+                original_graphs,
+                original_grids,
+            ),
+            FadeIn(neighborhood_comment),
+        )
+        self.wait()
+
+        self.play(
+            FadeOut(neighborhood_comment),
+            FadeOut(glowing_rect),
+            *self.highlight_graphs_and_grids(
+                all_graphs,
+                heat_map_grid,
+                list(range(60)),
+                original_graphs,
+                original_grids,
+            ),
+        )
+        self.wait()
+
+        self.perform_two_opt_switches_special(
+            23,
+            all_graphs,
+            heat_map_grid,
+            all_tour_costs,
+            all_edge_diffs,
+            original_graphs,
+            original_grids,
+            faded_graphs,
+            faded_grids,
+        )
+
+    def perform_two_opt_switches(
+        self,
+        start_index,
+        all_graphs,
+        heat_map_grid,
+        all_tour_costs,
+        all_edge_diffs,
+        original_graphs,
+        original_grids,
+        faded_graphs,
+        faded_grids,
+    ):
+        visited_vertices = set([start_index])
+        iteration = 0
+        surround_rect = None
+        print("Start index", start_index)
+        arrows = VGroup()
+        visited_surround_rects = VGroup()
+        while not self.is_minima_found(start_index, all_tour_costs, all_edge_diffs):
+            (
+                neighboring_edges,
+                neighboring_vertices,
+            ) = self.get_neighboring_edges_and_verticies(start_index, all_edge_diffs)
+
+            if iteration == 0:
+                surround_rect = get_glowing_surround_rect(heat_map_grid[start_index])
+                self.play(FadeIn(surround_rect))
+                self.wait()
+
+            to_fade_vertices = [
+                i
+                for i in range(len(all_graphs))
+                if i not in visited_vertices and i not in neighboring_vertices
+            ]
+            # print(neighboring_vertices)
+            self.play(
+                *self.fade_graphs_and_grids(
+                    all_graphs,
+                    heat_map_grid,
+                    to_fade_vertices,
+                    faded_graphs,
+                    faded_grids,
+                )
+                + self.highlight_graphs_and_grids(
+                    all_graphs,
+                    heat_map_grid,
+                    neighboring_vertices,
+                    original_graphs,
+                    original_grids,
+                )
+            )
+            self.wait()
+            visited_surround_rect = SurroundingRectangle(
+                heat_map_grid[start_index], buff=0
+            ).set_stroke(width=3)
+            visited_surround_rects.add(visited_surround_rect)
+            start_index = min(neighboring_vertices, key=lambda x: all_tour_costs[x])
+            new_surround_rect = get_glowing_surround_rect(heat_map_grid[start_index])
+            arrow = Arrow(
+                surround_rect.get_center(),
+                new_surround_rect.get_center(),
+                color=REDUCIBLE_YELLOW,
+            )
+            self.add_foreground_mobject(arrow)
+            arrows.add(arrow)
+            self.play(
+                FadeOut(surround_rect),
+                FadeIn(new_surround_rect),
+                FadeIn(visited_surround_rect),
+                FadeIn(arrow),
+            )
+            self.wait()
+            surround_rect = new_surround_rect
+
+            visited_vertices.add(start_index)
+            iteration += 1
+        print("Ending index", start_index)
+        best_index = all_tour_costs.index(min(all_tour_costs))
+        if start_index != best_index:
+            print(
+                f"*** FOUND MISMATCH *** found_index: {start_index}, best_index: {best_index}"
+            )
+
+        (
+            neighboring_edges,
+            neighboring_vertices,
+        ) = self.get_neighboring_edges_and_verticies(start_index, all_edge_diffs)
+
+        to_fade_vertices = [
+            i
+            for i in range(len(all_graphs))
+            if i not in visited_vertices and i not in neighboring_vertices
+        ]
+
+        self.play(
+            *self.fade_graphs_and_grids(
+                all_graphs,
+                heat_map_grid,
+                to_fade_vertices,
+                faded_graphs,
+                faded_grids,
+            )
+            + self.highlight_graphs_and_grids(
+                all_graphs,
+                heat_map_grid,
+                neighboring_vertices,
+                original_graphs,
+                original_grids,
+            )
+        )
+        self.wait()
+        self.remove_foreground_mobjects(*[arrow for arrow in arrows])
+        self.play(
+            FadeOut(arrows),
+            FadeOut(visited_surround_rects),
+            FadeOut(new_surround_rect),
+            *self.highlight_graphs_and_grids(
+                all_graphs,
+                heat_map_grid,
+                to_fade_vertices,
+                original_graphs,
+                original_grids,
+            ),
+        )
+        self.wait()
+
+    def perform_two_opt_switches_special(
+        self,
+        start_index,
+        all_graphs,
+        heat_map_grid,
+        all_tour_costs,
+        all_edge_diffs,
+        original_graphs,
+        original_grids,
+        faded_graphs,
+        faded_grids,
+    ):
+        visited_vertices = set([start_index])
+        iteration = 0
+        surround_rect = None
+        print("Start index", start_index)
+        arrows = VGroup()
+        visited_surround_rects = VGroup()
+        rect_color = REDUCIBLE_YELLOW
+        special_arrow = None
+        while not self.is_minima_found(start_index, all_tour_costs, all_edge_diffs):
+            (
+                neighboring_edges,
+                neighboring_vertices,
+            ) = self.get_neighboring_edges_and_verticies(start_index, all_edge_diffs)
+
+            if iteration == 0:
+                surround_rect = get_glowing_surround_rect(heat_map_grid[start_index])
+                self.play(FadeIn(surround_rect))
+                self.wait()
+
+            to_fade_vertices = [
+                i
+                for i in range(len(all_graphs))
+                if i not in visited_vertices and i not in neighboring_vertices
+            ]
+            # print(neighboring_vertices)
+            self.play(
+                *self.fade_graphs_and_grids(
+                    all_graphs,
+                    heat_map_grid,
+                    to_fade_vertices,
+                    faded_graphs,
+                    faded_grids,
+                )
+                + self.highlight_graphs_and_grids(
+                    all_graphs,
+                    heat_map_grid,
+                    neighboring_vertices,
+                    original_graphs,
+                    original_grids,
+                )
+            )
+            self.wait()
+            visited_surround_rect = SurroundingRectangle(
+                heat_map_grid[start_index], buff=0, color=rect_color
+            ).set_stroke(width=3)
+            visited_surround_rects.add(visited_surround_rect)
+            start_index = min(neighboring_vertices, key=lambda x: all_tour_costs[x])
+            rect_color = REDUCIBLE_YELLOW
+            if iteration == 1:
+                special_arrow = VGroup()
+                special_arrow.add(
+                    Line(
+                        heat_map_grid[32].get_left(),
+                        heat_map_grid[32].get_left() + LEFT * 2.5,
+                    )
+                )
+                special_arrow.add(
+                    Line(
+                        special_arrow[-1].get_end(),
+                        special_arrow[-1].get_end() + UP * 4,
+                    )
+                )
+
+                special_arrow.add(
+                    Line(
+                        special_arrow[-1].get_end(),
+                        special_arrow[-1].get_end()[1] * UP
+                        + RIGHT * heat_map_grid[8].get_center()[0],
+                    )
+                )
+
+                special_arrow.add(
+                    Arrow(
+                        special_arrow[-1].get_end(), heat_map_grid[8].get_top(), buff=0
+                    )
+                )
+                special_arrow.set_color(REDUCIBLE_CHARM)
+
+                start_index = 8
+                rect_color = REDUCIBLE_CHARM
+                self.add_foreground_mobject(special_arrow)
+
+            new_surround_rect = get_glowing_surround_rect(
+                heat_map_grid[start_index], color=rect_color
+            )
+            arrow = Arrow(
+                surround_rect.get_center(),
+                new_surround_rect.get_center(),
+                color=REDUCIBLE_YELLOW,
+            )
+            arrows.add(arrow)
+            if iteration != 1:
+                self.play(
+                    FadeOut(surround_rect),
+                    FadeIn(new_surround_rect),
+                    FadeIn(visited_surround_rect),
+                    # Write(arrow),
+                )
+            else:
+                self.play(
+                    FadeOut(surround_rect),
+                    FadeIn(new_surround_rect),
+                    FadeIn(visited_surround_rect),
+                    FadeIn(special_arrow),
+                )
+            self.wait()
+            surround_rect = new_surround_rect
+
+            visited_vertices.add(start_index)
+            iteration += 1
+        print("Ending index", start_index)
+        best_index = all_tour_costs.index(min(all_tour_costs))
+        if start_index != best_index:
+            print(
+                f"*** FOUND MISMATCH *** found_index: {start_index}, best_index: {best_index}"
+            )
+
+        (
+            neighboring_edges,
+            neighboring_vertices,
+        ) = self.get_neighboring_edges_and_verticies(start_index, all_edge_diffs)
+
+        to_fade_vertices = [
+            i
+            for i in range(len(all_graphs))
+            if i not in visited_vertices and i not in neighboring_vertices
+        ]
+
+        self.play(
+            *self.fade_graphs_and_grids(
+                all_graphs,
+                heat_map_grid,
+                [0, 5, 12, 26, 41, 53, 56],
+                faded_graphs,
+                faded_grids,
+            )
+        )
+        self.wait()
+
+        result = Tex(
+            r"Sub-optimal Exploration $\rightarrow$ optimal solution",
+        ).scale(0.8)
+        result.next_to(heat_map_grid, DOWN)
+
+        self.play(FadeIn(result))
+        self.wait()
+
+        # self.play(
+        #     # FadeOut(arrows),
+        #     FadeOut(visited_surround_rects),
+        #     FadeOut(new_surround_rect),
+        #     FadeOut(special_arrow),
+        #     *self.highlight_graphs_and_grids(
+        #         all_graphs,
+        #         heat_map_grid,
+        #         list(range(60)),
+        #         original_graphs,
+        #         original_grids,
+        #     ),
+        # )
+        # self.wait()
+
+    def is_minima_found(self, start_index, all_tour_costs, all_edge_diffs):
+        (
+            neighboring_edges,
+            neighboring_vertices,
+        ) = self.get_neighboring_edges_and_verticies(start_index, all_edge_diffs)
+        current_cost = all_tour_costs[start_index]
+        return current_cost <= min([all_tour_costs[v] for v in neighboring_vertices])
+
+    def get_neighboring_edges_and_verticies(self, start_index, all_edge_diffs):
+        neighboring_edges = [
+            edge
+            for edge in all_edge_diffs
+            if start_index in edge and all_edge_diffs[edge] == 2
+        ]
+        neighboring_vertices = []
+        for u, v in neighboring_edges:
+            if u == start_index:
+                neighboring_vertices.append(v)
+            else:
+                neighboring_vertices.append(u)
+        return neighboring_edges, neighboring_vertices
+
+    def highlight_graphs_and_grids(
+        self, all_graphs, heat_map_grid, indices, original_graphs, original_grids
+    ):
+        animations = []
+        for i in indices:
+            animations.append(Transform(all_graphs[i], original_graphs[i]))
+            animations.append(Transform(heat_map_grid[i], original_grids[i]))
+        return animations
+
+    def fade_graphs_and_grids(
+        self, all_graphs, heat_map_grid, indices, faded_graphs, faded_grids
+    ):
+        animations = []
+        for i in indices:
+            animations.append(Transform(all_graphs[i], faded_graphs[i]))
+            animations.append(Transform(heat_map_grid[i], faded_grids[i]))
+        return animations
+
+    def get_two_opt_neighbors(self, all_edges_diff, index):
+        return [
+            edge
+            for edge in all_edge_diffs
+            if index in edge and all_edge_diffs[index] == 2
+        ]
+
+    def get_all_graph_edge_diffs(self, all_tours):
+        all_edge_diffs = {}
+        all_graphs_tour_edges = [get_edges_from_tour(tour) for tour in all_tours]
+        for i in range(len(all_tours) - 1):
+            for j in range(i + 1, len(all_tours)):
+                edge_diff = self.edge_diff(
+                    all_graphs_tour_edges[i], all_graphs_tour_edges[j]
+                )
+                all_edge_diffs[(i, j)] = edge_diff
+
+        return all_edge_diffs
+
+    def edge_diff(self, tour_edges_1, tour_edges_2):
+        edge_diff = 0
+        set_edges_2 = set(tour_edges_2)
+        for u, v in tour_edges_1:
+            if (u, v) in set_edges_2 or (v, u) in set_edges_2:
+                continue
+            edge_diff += 1
+        return edge_diff
+
+    def get_heat_map(self, all_graphs, rows, cols, all_tour_costs):
+        grid_cell_width = (all_graphs[1].get_center() - all_graphs[0].get_center())[0]
+        grid_cell_height = (all_graphs[cols].get_center() - all_graphs[0].get_center())[
+            1
+        ]
+        min_color = REDUCIBLE_GREEN_LIGHTER
+        max_color = REDUCIBLE_CHARM
+        max_cost = max(all_tour_costs)
+        min_cost = min(all_tour_costs)
+        grid = VGroup()
+        for i, graph in enumerate(all_graphs):
+            cost = all_tour_costs[i]
+            alpha = (cost - min_cost) / (max_cost - min_cost)
+            cell = BackgroundRectangle(
+                graph,
+                color=interpolate_color(min_color, max_color, alpha),
+                fill_opacity=0.5,
+                stroke_opacity=1,
+            )
+            cell.stretch_to_fit_height(grid_cell_height)
+            cell.stretch_to_fit_width(grid_cell_width)
+            cell.move_to(graph.get_center())
+            grid.add(cell)
+
+        return grid
+
+    def get_2d_index(self, index, rows, cols):
+        row_index = index // rows
+        col_index = index % cols
+        return row_index, col_index
+
+    def get_graph(self, NUM_VERTICES):
+        new_layout = {
+            0: LEFT * 0.8,
+            1: UP * 2 + LEFT * 2,
+            2: UP * 2 + RIGHT * 2,
+            3: RIGHT * 0.8,
+            4: RIGHT * 2 + DOWN * 2,
+            5: LEFT * 2 + DOWN * 2,
+        }
+        circular_graph = TSPGraph(list(range(NUM_VERTICES)), layout=new_layout)
+
+        MIN_NOISE, MAX_NOISE = -0.24, 0.24
+        for v in circular_graph.vertices:
+            noise_vec = np.array(
+                [
+                    np.random.uniform(MIN_NOISE, MAX_NOISE),
+                    np.random.uniform(MIN_NOISE, MAX_NOISE),
+                    0,
+                ]
+            )
+            new_layout[v] += noise_vec
+        return TSPGraph(list(range(NUM_VERTICES)), layout=new_layout)
+
+
+class Ant:
+    def __init__(self, alpha, beta, tsp_graph, pheromone_matrix):
+        self.alpha = alpha
+        self.beta = beta
+        self.tsp_graph = tsp_graph
+        self.cost_matrix = tsp_graph.get_dist_matrix()
+        self.pheromone_matrix = pheromone_matrix
+        self.num_nodes = self.cost_matrix.shape[0]
+        self.mob = Dot(radius=0.02, color=REDUCIBLE_YELLOW)
+
+    def get_mob(self):
+        return self.mob
+
+    def get_tour(self):
+        tour = [np.random.choice(list(range(self.num_nodes)))]
+        while len(tour) < self.num_nodes:
+            current = tour[-1]
+            neighbors = get_unvisited_neighbors(current, tour, self.num_nodes)
+            neighbor_distribution = self.calc_distribution(current, neighbors)
+            next_to_vist = np.random.choice(neighbors, p=neighbor_distribution)
+            tour.append(next_to_vist)
+        self.mob.move_to(self.tsp_graph.vertices[tour[0]].get_center())
+        return tour
+
+    def calc_distribution(self, current, neighbors):
+        cost_weights = [
+            (1 / self.cost_matrix[current][neighbor]) ** self.beta
+            for neighbor in neighbors
+        ]
+        pheromone_weights = [
+            (1 / self.pheromone_matrix[current][neighbor]) ** self.alpha
+            for neighbor in neighbors
+        ]
+        denominator = np.dot(cost_weights, pheromone_weights)
+        return [
+            cost_weight * pheromone_weight / denominator
+            for cost_weight, pheromone_weight in zip(cost_weights, pheromone_weights)
+        ]
+
+
+class AntColonySimulation:
+    def __init__(
+        self,
+        tsp_graph,
+        num_ants,
+        alpha=4,
+        beta=10,
+        evaporation_rate=0.5,
+        elitist_weight=1,
+    ):
+        self.tsp_graph = tsp_graph
+        self.cost_matrix = tsp_graph.get_dist_matrix()
+        self.alpha = alpha
+        self.beta = beta
+        self.pheromone_matrix = np.ones(self.cost_matrix.shape)
+        self.ants = [
+            Ant(alpha, beta, tsp_graph, self.pheromone_matrix) for _ in range(num_ants)
+        ]
+        self.evaporation_rate = evaporation_rate
+        self.best_tour = None
+        self.best_tour_edges = None
+        self.best_tour_cost = float("inf")
+        self.elitist_weight = elitist_weight
+
+    def update(self, elitist=False):
+        total_pheromones_added = np.zeros(self.cost_matrix.shape)
+        all_tours = []
+        for i, ant in enumerate(self.ants):
+            tour = ant.get_tour()
+            tour_edges = get_edges_from_tour(tour)
+            all_tours.append(tour)
+            tour_cost = get_cost_from_edges(tour_edges, self.cost_matrix)
+            # print(f"Ant {i}: tour: {tour}, tour cost: {tour_cost}")
+            if tour_cost < self.best_tour_cost:
+                self.best_tour_cost = tour_cost
+                self.best_tour = tour
+                self.best_tour_edges = tour_edges
+            for u, v in tour_edges:
+                total_pheromones_added[u][v] += 1 / tour_cost
+                total_pheromones_added[v][u] += 1 / tour_cost
+
+        self.pheromone_matrix = (
+            1 - self.evaporation_rate
+        ) * self.pheromone_matrix + total_pheromones_added
+        if elitist:
+            for i, j in self.best_tour_edges:
+                self.pheromone_matrix[i][j] += self.elitist_weight / self.best_tour_cost
+
+        for ant in self.ants:
+            ant.pheromone_matrix = self.pheromone_matrix
+        return all_tours
+
+
+class AntColonyExplanation(TourImprovement):
+    def construct(self):
+        np.random.seed(7)
+        NUM_VERTICES = 7
+        layout = self.get_random_layout(NUM_VERTICES)
+        left_graph = TSPGraph(list(range(NUM_VERTICES)), layout=layout)
+        left_graph.scale(0.55)
+
+        right_graph = left_graph.copy()
+        graphs = VGroup(left_graph, right_graph).arrange(RIGHT, buff=1.5).shift(UP * 2)
+        v_line = Line(UP * config.frame_height / 2, DOWN * config.frame_height / 2)
+        v_line.set_color(GRAY)
+        self.play(FadeIn(v_line), FadeIn(graphs))
+        self.wait()
+
+        (
+            left_to_fade,
+            right_to_fade,
+            bar_charts,
+            starting_circles,
+            left_edges,
+            right_edges,
+        ) = self.demo_weighted_strategy(graphs)
+
+        self.play(FadeOut(v_line))
+        self.wait()
+
+        self.play(
+            *[FadeOut(f) for f in left_to_fade + right_to_fade],
+        )
+        self.wait()
+
+        cost_equation = MathTex(
+            r"P(u, v) = \frac{D(u, v)^{-1}}{\sum_{j \in \text{adj}(u)} D(u, j)^{-1}}"
+        ).scale(0.8)
+        cost_equation.move_to(DOWN * 3.2)
+        self.play(FadeIn(cost_equation))
+        self.wait()
+
+        left_edges_map, right_edges_map = self.generate_tours(
+            graphs, bar_charts, starting_circles, left_edges, right_edges, cost_equation
+        )
+
+        centered_graph, reward_matrix_group, reward_matrix = self.show_reward_matrix(
+            graphs, left_edges_map, right_edges_map
+        )
+        reward_matrix_mob = reward_matrix_group[1]
+        animations = []
+        start = 0
+        neighboring_edges = centered_graph.get_neighboring_edges(
+            start, buff=centered_graph.vertices[0].width / 2
+        )
+        starting_glowing_circle = get_glowing_surround_circle(
+            centered_graph.vertices[start]
+        )
+        animations.append(FadeIn(starting_glowing_circle))
+        animations.append(LaggedStartMap(Write, neighboring_edges.values()))
+        self.play(*animations)
+        self.wait()
+
+        cost_equation = (
+            MathTex(
+                r"P(u, v) = \frac{D(u, v)^{-1}}{\sum_{j \in \text{adj}(u)} D(u, j)^{-1}}"
+            )
+            .scale(0.8)
+            .next_to(reward_matrix_group, RIGHT, buff=1)
+        )
+        self.play(FadeIn(cost_equation))
+        self.wait()
+
+        cost_equation_with_rewards = (
+            MathTex(
+                r"P(u, v) = \frac{D(u, v)^{-1} \cdot R(u, v)}{\sum_{j \in \text{adj}(u)} D(u, j)^{-1} \cdot R(u, j)}"
+            )
+            .scale(0.7)
+            .move_to(cost_equation.get_center())
+        )
+
+        self.play(FadeTransform(cost_equation, cost_equation_with_rewards))
+        self.wait()
+
+        self.play(
+            *[FadeOut(edge_mob) for edge_mob in neighboring_edges.values()],
+            FadeOut(starting_glowing_circle),
+        )
+        self.wait()
+        self.generate_tours_and_update_matrix(
+            centered_graph, reward_matrix_mob, reward_matrix, cost_equation_with_rewards
+        )
+
+    def generate_tours_and_update_matrix(
+        self, graph, reward_matrix_mob, reward_matrix, cost_equation
+    ):
+        tour, tour_edges = self.get_random_tour(graph, reward_matrix)
+        tour_cost = get_cost_from_edges(tour_edges, graph.get_dist_matrix())
+        tour_cost_text = (
+            Text(f"Tour cost: {np.round(tour_cost, 1)}", font=REDUCIBLE_MONO)
+            .scale(0.4)
+            .next_to(graph, UP)
+        )
+        tour_edges_mob = self.get_tsp_tour_edges_mob(graph, tour_edges)
+        for edge in tour_edges_mob:
+            self.play(Create(edge), rate_func=linear, run_time=0.5)
+        self.play(FadeIn(tour_cost_text))
+        self.wait()
+
+        reward_update_eq = Tex(
+            r"$R(u, v) \leftarrow R(u, v) + \frac{1}{\text{tour cost}}$ if $(u, v) \in$ tour"
+        ).scale(0.7)
+        reward_update_eq.next_to(cost_equation, DOWN)
+        self.play(
+            cost_equation.animate.shift(UP * 0.5),
+            FadeIn(reward_update_eq.shift(UP * 0.5)),
+        )
+        self.wait()
+
+        surround_rects, matrix_update_map = self.bulk_update_matrix(
+            graph.get_dist_matrix(),
+            reward_matrix,
+            reward_matrix_mob,
+            tour_edges,
+            tour_cost,
+            color=REDUCIBLE_VIOLET,
+        )
+
+        self.play(
+            *[Flash(rect, color=REDUCIBLE_VIOLET) for rect in surround_rects],
+            *[
+                Transform(reward_matrix_mob[0][index], matrix_update_map[index])
+                for index in matrix_update_map
+            ],
+        )
+        self.wait()
+
+        self.play(
+            FadeOut(tour_edges_mob),
+            FadeOut(tour_cost_text),
+        )
+
+        num_steps = 50
+        run_time = 1
+        for i in range(num_steps):
+            print("step", i)
+            tour, tour_edges = self.get_random_tour(graph, reward_matrix)
+            tour_cost = get_cost_from_edges(tour_edges, graph.get_dist_matrix())
+            tour_cost_text = (
+                Text(f"Tour cost: {np.round(tour_cost, 1)}", font=REDUCIBLE_MONO)
+                .scale(0.4)
+                .next_to(graph, UP)
+            )
+            tour_edges_mob = self.get_tsp_tour_edges_mob(graph, tour_edges)
+            if i < 5:
+                for edge in tour_edges_mob:
+                    self.play(Create(edge), rate_func=linear, run_time=0.5)
+                self.play(FadeIn(tour_cost_text))
+                self.wait()
+            else:
+                self.add(tour_edges_mob)
+                self.add(tour_cost_text)
+
+            surround_rects, matrix_update_map = self.bulk_update_matrix(
+                graph.get_dist_matrix(),
+                reward_matrix,
+                reward_matrix_mob,
+                tour_edges,
+                tour_cost,
+                color=REDUCIBLE_VIOLET,
+            )
+
+            self.play(
+                *[Flash(rect, color=REDUCIBLE_VIOLET) for rect in surround_rects],
+                *[
+                    Transform(reward_matrix_mob[0][index], matrix_update_map[index])
+                    for index in matrix_update_map
+                ],
+                run_time=run_time,
+            )
+            self.wait(run_time)
+            run_time = run_time * 0.9
+
+            if i < 5:
+                self.play(
+                    FadeOut(tour_edges_mob),
+                    FadeOut(tour_cost_text),
+                )
+            else:
+                self.remove(tour_edges_mob)
+                self.remove(tour_cost_text)
+
+        self.clear()
+
+    def get_random_tour(self, graph, reward_matrix):
+        start = np.random.choice(list(graph.vertices.keys()))
+        tour = [start]
+        tour_edges = []
+        visited = set([start])
+        while len(tour) < len(graph.vertices):
+            neighboring_v = get_neighbors(tour[-1], len(graph.vertices))
+            valid_v = [v for v in neighboring_v if v not in visited]
+            edge = self.get_next_edge(graph, tour[-1], valid_v, reward_matrix)
+            visited.add(edge[1])
+            tour.append(edge[1])
+            tour_edges.append(edge)
+
+        tour_edges.append((tour[-1], tour[0]))
+        return tour, tour_edges
+
+    def generate_tours(
+        self,
+        graphs,
+        bar_charts,
+        starting_circles,
+        left_edges,
+        right_edges,
+        cost_equation,
+    ):
+        left_color, right_color = REDUCIBLE_YELLOW, REDUCIBLE_GREEN_LIGHTER
+        left_graph, right_graph = graphs
+        left_bar_chart, right_bar_chart = bar_charts
+        left_tour = [0]
+        right_tour = [2]
+        left_visited = set(left_tour)
+        right_visited = set(right_tour)
+        new_left_bar_chart, new_right_bar_chart = None, None
+        left_edges_map = {}
+        right_edges_map = {}
+        reward_matrix = np.ones(left_graph.get_dist_matrix().shape)
+        while len(left_tour) < len(left_graph.vertices) and len(right_tour) < len(
+            right_graph.vertices
+        ):
+            left_neighboring_v = get_neighbors(left_tour[-1], len(left_graph.vertices))
+            right_neighboring_v = get_neighbors(
+                right_tour[-1], len(right_graph.vertices)
+            )
+            valid_left_v = [v for v in left_neighboring_v if v not in left_visited]
+            valid_right_v = [v for v in right_neighboring_v if v not in right_visited]
+            left_edge = self.get_next_edge(
+                left_graph, left_tour[-1], valid_left_v, reward_matrix
+            )
+            right_edge = self.get_next_edge(
+                right_graph, right_tour[-1], valid_right_v, reward_matrix
+            )
+            if len(left_tour) > 1:
+                left_edges = {
+                    (left_tour[-1], v): left_graph.create_edge(
+                        left_tour[-1], v, buff=left_graph.vertices[0].width / 2
+                    )
+                    for v in valid_left_v
+                }
+                right_edges = {
+                    (right_tour[-1], v): right_graph.create_edge(
+                        right_tour[-1], v, buff=right_graph.vertices[0].width / 2
+                    )
+                    for v in valid_right_v
+                }
+                self.play(
+                    LaggedStartMap(Write, list(left_edges.values())),
+                    LaggedStartMap(Write, list(right_edges.values())),
+                )
+                self.wait()
+
+                new_left_bar_chart = self.get_distribution_bar_chart(
+                    left_graph,
+                    left_tour[-1],
+                    valid_left_v,
+                    reward_matrix,
+                ).next_to(left_graph, DOWN)
+                new_right_bar_chart = self.get_distribution_bar_chart(
+                    right_graph,
+                    right_tour[-1],
+                    valid_right_v,
+                    reward_matrix,
+                ).next_to(right_graph, DOWN)
+
+                self.play(
+                    Transform(left_bar_chart, new_left_bar_chart),
+                    Transform(right_bar_chart, new_right_bar_chart),
+                )
+                self.wait()
+                # left_bar_chart = new_left_bar_chart
+                # right_bar_chart = new_right_bar_chart
+
+            self.play(
+                self.get_edge(left_edges, left_edge).animate.set_color(left_color),
+                self.get_edge(right_edges, right_edge).animate.set_color(right_color),
+            )
+            left_edges_map[left_edge] = self.get_edge(left_edges, left_edge)
+            right_edges_map[right_edge] = self.get_edge(right_edges, right_edge)
+            new_starting_circles = VGroup(
+                get_glowing_surround_circle(
+                    left_graph.vertices[left_edge[1]], color=left_color
+                ),
+                get_glowing_surround_circle(
+                    right_graph.vertices[right_edge[1]], color=right_color
+                ),
+            )
+            self.play(
+                FadeOut(starting_circles),
+                FadeIn(new_starting_circles),
+                *[
+                    FadeOut(edge_mob)
+                    for edge, edge_mob in left_edges.items()
+                    if edge != left_edge and edge != (left_edge[1], left_edge[0])
+                ],
+                *[
+                    FadeOut(edge_mob)
+                    for edge, edge_mob in right_edges.items()
+                    if edge != right_edge and edge != (right_edge[1], right_edge[0])
+                ],
+            )
+            self.wait()
+            left_visited.add(left_edge[1])
+            right_visited.add(right_edge[1])
+            left_tour.append(left_edge[1])
+            right_tour.append(right_edge[1])
+            starting_circles = new_starting_circles
+
+        final_left_edge = left_graph.create_edge(
+            left_tour[-1], left_tour[0], buff=left_graph.vertices[0].width / 2
+        ).set_color(left_color)
+        final_right_edge = right_graph.create_edge(
+            right_tour[-1],
+            right_tour[0],
+            buff=right_graph.vertices[0].width / 2,
+        ).set_color(right_color)
+
+        left_edges_map[(left_tour[-1], left_tour[0])] = final_left_edge
+        right_edges_map[(right_tour[-1], right_tour[0])] = final_right_edge
+
+        self.play(
+            Write(final_left_edge),
+            Write(final_right_edge),
+            FadeOut(left_bar_chart),
+            FadeOut(right_bar_chart),
+            FadeOut(cost_equation),
+            FadeOut(starting_circles),
+        )
+        self.wait()
+
+        return left_edges_map, right_edges_map
+
+    def show_reward_matrix(self, graphs, left_edges_map, right_edges_map):
+        self.NUM_DECIMAL_PLACES = 3
+        left_graph, right_graph = graphs
+        left_tour_edges = list(left_edges_map.keys())
+        right_tour_edges = list(right_edges_map.keys())
+        left_tour_cost = get_cost_from_edges(
+            left_tour_edges, left_graph.get_dist_matrix()
+        )
+        right_tour_cost = get_cost_from_edges(
+            right_tour_edges, right_graph.get_dist_matrix()
+        )
+        left_tour_cost_text = (
+            Text(f"Tour cost: {np.round(left_tour_cost, 1)}", font=REDUCIBLE_MONO)
+            .scale(0.4)
+            .next_to(left_graph, DOWN)
+        )
+        right_tour_cost_text = (
+            Text(f"Tour cost: {np.round(right_tour_cost, 1)}", font=REDUCIBLE_MONO)
+            .scale(0.4)
+            .next_to(right_graph, DOWN)
+        )
+        self.play(FadeIn(left_tour_cost_text), FadeIn(right_tour_cost_text))
+        self.wait()
+
+        question = (
+            Tex(
+                "Can we use these tour cost observations \\\\ to generate better tours by future salesman?"
+            )
+            .scale(0.8)
+            .next_to(graphs, DOWN, buff=1)
+        )
+
+        self.play(FadeIn(question))
+        self.wait()
+
+        self.play(FadeOut(question))
+        self.wait()
+
+        reward_matrix = np.ones(left_graph.get_dist_matrix().shape)
+        reward_matrix_mob = matrix_to_mob(reward_matrix, h_buff=2.6, v_buff=1.6).scale(
+            1
+        )
+        reward_matrix_label = Tex(r"Reward $(R) =$").scale(1)
+        reward_matrix_group = (
+            VGroup(reward_matrix_label, reward_matrix_mob)
+            .arrange(RIGHT)
+            .move_to(DOWN * 2)
+        )
+        self.play(FadeIn(reward_matrix_group))
+        self.wait()
+
+        reward_amount = MathTex(r"+ \frac{1}{30.0}").scale(0.7)
+        reward_amount.next_to(reward_matrix_label, DOWN, buff=0.5)
+
+        for i, edge in enumerate(left_tour_edges):
+            highlight_animations = self.highlight_edge(left_graph, left_edges_map, edge)
+            surround_rects = (
+                self.get_surrounded_rects_around_elements_and_update_rewards(
+                    left_graph.get_dist_matrix(),
+                    reward_matrix,
+                    reward_matrix_mob,
+                    [edge],
+                    left_tour_cost,
+                )
+            )
+            self.play(*highlight_animations)
+            self.wait()
+
+            if i == 0:
+                self.play(FadeIn(reward_amount))
+                self.wait()
+                self.play(
+                    left_tour_cost_text[-4:].animate.set_color(REDUCIBLE_YELLOW),
+                    reward_amount[0][-4:].animate.set_color(REDUCIBLE_YELLOW),
+                )
+
+            self.play(*[Create(rect) for rect in surround_rects])
+            self.wait()
+            dist_matrix = left_graph.get_dist_matrix()
+
+            one_d_index_1 = edge[0] * dist_matrix.shape[1] + edge[1]
+            one_d_index_2 = edge[1] * dist_matrix.shape[1] + edge[0]
+            new_reward_text_1 = Text(
+                "{:.3f}".format(
+                    np.round(reward_matrix[edge[0]][edge[1]], self.NUM_DECIMAL_PLACES)
+                ),
+                font=REDUCIBLE_MONO,
+            )
+            new_reward_text_1.scale_to_fit_height(
+                reward_matrix_mob[0][one_d_index_1].height
+            ).move_to(surround_rects[0].get_center())
+            new_reward_text_2 = new_reward_text_1.copy().move_to(
+                surround_rects[1].get_center()
+            )
+
+            self.play(
+                Transform(reward_matrix_mob[0][one_d_index_1], new_reward_text_1),
+                Transform(reward_matrix_mob[0][one_d_index_2], new_reward_text_2),
+                *[Flash(rect, color=REDUCIBLE_YELLOW) for rect in surround_rects],
+                *[FadeOut(rect) for rect in surround_rects],
+            )
+            self.wait()
+
+        self.play(
+            *self.restore_all_edges_and_vertices(left_graph, left_edges_map),
+            FadeOut(reward_amount),
+            left_tour_cost_text[-4:].animate.set_color(WHITE),
+        )
+
+        self.wait()
+
+        surround_rects, matrix_update_map = self.bulk_update_matrix(
+            dist_matrix,
+            reward_matrix,
+            reward_matrix_mob,
+            right_tour_edges,
+            right_tour_cost,
+            color=REDUCIBLE_GREEN_LIGHTER,
+        )
+
+        reward_amount = MathTex(r"+ \frac{1}{33.2}").scale(0.7)
+        reward_amount.next_to(reward_matrix_label, DOWN, buff=0.5)
+        reward_amount[0][-4:].set_color(REDUCIBLE_GREEN_LIGHTER),
+
+        self.play(
+            right_tour_cost_text[-4:].animate.set_color(REDUCIBLE_GREEN_LIGHTER),
+            FadeIn(reward_amount),
+        )
+        self.wait()
+
+        self.play(
+            *[Create(rect) for rect in surround_rects],
+        )
+        self.wait()
+
+        self.play(
+            *[Flash(rect, color=REDUCIBLE_GREEN_LIGHTER) for rect in surround_rects],
+            *[
+                Transform(reward_matrix_mob[0][index], matrix_update_map[index])
+                for index in matrix_update_map
+            ],
+            *[FadeOut(rect) for rect in surround_rects],
+        )
+        self.wait()
+
+        new_reward_matrix_label = Tex(r"$R =$").scale_to_fit_height(
+            reward_matrix_label.height
+        )
+        new_reward_matrix_group = VGroup(
+            new_reward_matrix_label, reward_matrix_mob.copy()
+        ).arrange(RIGHT)
+        new_reward_matrix_group.move_to(reward_matrix_group.get_center()).scale(
+            0.8
+        ).to_edge(LEFT * 2)
+
+        centered_graph = left_graph.copy().scale(1.1)
+        centered_graph.move_to(UP * 1.5)
+        self.play(
+            Transform(reward_matrix_group, new_reward_matrix_group),
+            FadeOut(left_tour_cost_text),
+            FadeOut(right_tour_cost_text),
+            FadeOut(graphs),
+            FadeOut(reward_amount),
+            *[FadeOut(edge_mob) for edge_mob in left_edges_map.values()],
+            *[FadeOut(edge_mob) for edge_mob in right_edges_map.values()],
+            FadeIn(centered_graph),
+        )
+        self.wait()
+        return centered_graph, reward_matrix_group, reward_matrix
+
+    def get_surrounded_rects_around_elements_and_update_rewards(
+        self,
+        dist_matrix,
+        reward_matrix,
+        reward_matrix_mob,
+        edges,
+        tour_cost,
+        color=REDUCIBLE_YELLOW,
+    ):
+        matrix_elements = reward_matrix_mob[0]
+        surround_rects = []
+        for edge in edges:
+            one_d_index_1 = edge[0] * dist_matrix.shape[1] + edge[1]
+            one_d_index_2 = edge[1] * dist_matrix.shape[1] + edge[0]
+            surround_rect_1 = SurroundingRectangle(
+                matrix_elements[one_d_index_1], buff=SMALL_BUFF, color=color
+            )
+            surround_rect_2 = SurroundingRectangle(
+                matrix_elements[one_d_index_2],
+                buff=SMALL_BUFF,
+                color=color,
+            )
+            reward_matrix[edge[0]][edge[1]] += 1 / tour_cost
+            reward_matrix[edge[1]][edge[0]] += 1 / tour_cost
+            surround_rects.extend([surround_rect_1, surround_rect_2])
+        return surround_rects
+
+    def bulk_update_matrix(
+        self,
+        dist_matrix,
+        reward_matrix,
+        reward_matrix_mob,
+        edges,
+        tour_cost,
+        color=REDUCIBLE_YELLOW,
+    ):
+        matrix_update_map = {}
+        matrix_elements = reward_matrix_mob[0]
+        surround_rects = []
+        for edge in edges:
+            one_d_index_1 = edge[0] * dist_matrix.shape[1] + edge[1]
+            one_d_index_2 = edge[1] * dist_matrix.shape[1] + edge[0]
+            surround_rect_1 = SurroundingRectangle(
+                matrix_elements[one_d_index_1], buff=SMALL_BUFF, color=color
+            )
+            surround_rect_2 = SurroundingRectangle(
+                matrix_elements[one_d_index_2],
+                buff=SMALL_BUFF,
+                color=color,
+            )
+            reward_matrix[edge[0]][edge[1]] += 1 / tour_cost
+            reward_matrix[edge[1]][edge[0]] += 1 / tour_cost
+            surround_rects.extend([surround_rect_1, surround_rect_2])
+            new_reward_text_1 = Text(
+                "{:.3f}".format(
+                    np.round(reward_matrix[edge[0]][edge[1]], self.NUM_DECIMAL_PLACES)
+                ),
+                font=REDUCIBLE_MONO,
+            )
+            new_reward_text_1.scale_to_fit_height(
+                reward_matrix_mob[0][one_d_index_1].height
+            ).move_to(surround_rect_1.get_center())
+            new_reward_text_2 = new_reward_text_1.copy().move_to(
+                surround_rect_2.get_center()
+            )
+            matrix_update_map[one_d_index_1] = new_reward_text_1
+            matrix_update_map[one_d_index_2] = new_reward_text_2
+
+        return surround_rects, matrix_update_map
+
+    def restore_all_edges_and_vertices(self, graph, tour_edges_dict):
+        animations = []
+        for edge in tour_edges_dict:
+            animations.append(
+                self.get_edge(tour_edges_dict, edge).animate.set_stroke(opacity=1)
+            )
+
+        for v in graph.vertices:
+            new_node = graph.vertices[v].copy()
+            new_node[0].set_fill(opacity=0.5).set_stroke(opacity=1)
+            new_node[1].set_fill(opacity=1)
+            animations.append(Transform(graph.vertices[v], new_node))
+
+        return animations
+
+    def highlight_edge(self, graph, tour_edges_dict, edge):
+        new_edge_mob = self.get_edge(tour_edges_dict, edge).copy()
+        new_edge_mob.set_stroke(opacity=1)
+        other_edge_mobs = [
+            self.get_edge(tour_edges_dict, e)
+            for e in tour_edges_dict
+            if e != edge and e != (edge[1], edge[0])
+        ]
+        new_other_edge_mobs = [
+            self.get_edge(tour_edges_dict, e).copy().set_stroke(opacity=0.2)
+            for e in tour_edges_dict
+            if e != edge and e != (edge[1], edge[0])
+        ]
+
+        highlighted_vertices = [
+            graph.vertices[edge[0]].copy(),
+            graph.vertices[edge[1]].copy(),
+        ]
+        for v in highlighted_vertices:
+            v[0].set_fill(opacity=0.5).set_stroke(opacity=1)
+            v[1].set_fill(opacity=1)
+
+        verticies_to_unhighlight = [v for v in graph.vertices if v not in edge]
+        unhighlighted_vertices = [
+            graph.vertices[v].copy() for v in verticies_to_unhighlight
+        ]
+        for v in unhighlighted_vertices:
+            v[0].set_fill(opacity=0.2).set_stroke(opacity=0.2)
+            v[1].set_fill(opacity=0.2)
+        animations = (
+            [Transform(self.get_edge(tour_edges_dict, edge), new_edge_mob)]
+            + [
+                Transform(old, new)
+                for old, new in zip(other_edge_mobs, new_other_edge_mobs)
+            ]
+            + [
+                Transform(graph.vertices[v], highlighted_vertices[i])
+                for i, v in enumerate(edge)
+            ]
+            + [
+                Transform(graph.vertices[v], unhighlighted_vertices[i])
+                for i, v in enumerate(verticies_to_unhighlight)
+            ]
+        )
+        return animations
+
+    def get_next_edge(self, graph, current, valid_neighbors_vertices, reward_matrix):
+        distribution = self.get_distribution(
+            graph, current, valid_neighbors_vertices, reward_matrix
+        )
+        next_vertex = np.random.choice(
+            list(distribution.keys()), p=list(distribution.values())
+        )
+        return (current, next_vertex)
+
+    def demo_weighted_strategy(self, graphs):
+        left_graph, right_graph = graphs
+        left_start, right_start = 0, 2
+        (
+            left_animations,
+            left_to_fade,
+            left_bar_chart,
+            left_circle,
+            left_edges,
+        ) = self.explain_strategy(left_graph, left_start)
+        (
+            right_animations,
+            right_to_fade,
+            right_bar_chart,
+            right_circle,
+            right_edges,
+        ) = self.explain_strategy(
+            right_graph, right_start, color=REDUCIBLE_GREEN_LIGHTER
+        )
+        for left_animation, right_animation in zip(left_animations, right_animations):
+            self.play(left_animation, right_animation)
+            self.wait()
+
+        return (
+            left_to_fade,
+            right_to_fade,
+            VGroup(left_bar_chart, right_bar_chart),
+            VGroup(left_circle, right_circle),
+            left_edges,
+            right_edges,
+        )
+
+    def explain_strategy(self, graph, start, color=REDUCIBLE_YELLOW):
+        reward_matrix = np.ones(graph.get_dist_matrix().shape)
+        animations = []
+        neighboring_edges = graph.get_neighboring_edges(
+            start, buff=graph.vertices[0].width / 2
+        )
+        starting_glowing_circle = get_glowing_surround_circle(
+            graph.vertices[start], color=color
+        )
+        animations.append(FadeIn(starting_glowing_circle))
+        animations.append(LaggedStartMap(Write, neighboring_edges.values()))
+
+        bar_chart = self.get_distribution_bar_chart(
+            graph, start, get_neighbors(start, len(graph.vertices)), reward_matrix
+        )
+        bar_chart.next_to(graph, DOWN)
+        animations.append(FadeIn(bar_chart))
+        highlight_rect = SurroundingRectangle(
+            VGroup(bar_chart.bars[0], bar_chart.x_axis.labels[0]),
+            buff=SMALL_BUFF,
+            color=REDUCIBLE_VIOLET,
+        )
+        animations.append(Create(highlight_rect))
+
+        to_fade = [highlight_rect]
+        return (
+            animations,
+            to_fade,
+            bar_chart,
+            starting_glowing_circle,
+            neighboring_edges,
+        )
+
+    def get_distribution_bar_chart(
+        self,
+        graph,
+        start,
+        valid_neighbors_vertices,
+        reward_matrix,
+        x_length=4.5,
+        y_length=2,
+    ):
+        distribution = self.get_distribution(
+            graph, start, valid_neighbors_vertices, reward_matrix
+        )
+        bar_colors = self.get_colors(len(valid_neighbors_vertices))
+        bar_chart_names = [r"$({0}, {1})$".format(start, n) for n in distribution]
+        # x_axis_label = Tex(r"Edge $(u, v)$").scale(0.7)
+        # y_axis_label = Tex(r"$P$(Edge)").scale(0.7)
+        bar_chart = BarChart(
+            list(distribution.values()),
+            bar_names=bar_chart_names,
+            bar_colors=bar_colors,
+            x_length=x_length,
+            y_length=y_length,
+            y_range=[0, 1, 0.2],
+            y_axis_config={"font_size": 24},
+        )
+        # x_axis_label.next_to(bar_chart, DOWN)
+        # y_axis_label.next_to(bar_chart, LEFT)
+        return bar_chart
+
+    def get_distribution(self, graph, start, valid_neighbors_vertices, reward_matrix):
+        weight_matrix = 1 / graph.get_dist_matrix() * reward_matrix
+        denominator = sum([weight_matrix[start][n] for n in valid_neighbors_vertices])
+        distribution = {
+            n: weight_matrix[start][n] / denominator for n in valid_neighbors_vertices
+        }
+        return dict(sorted(distribution.items(), key=lambda x: x[1], reverse=True))
+
+    def get_colors(self, size, max_color=REDUCIBLE_YELLOW, min_color=REDUCIBLE_PURPLE):
+        colors = []
+        for alpha in np.arange(0, 1, 1 / size):
+            colors.append(interpolate_color(max_color, min_color, alpha))
+        return colors
+
+
+class AntsDemonstrationSmall(AntColonyExplanation):
+    def construct(self):
+        title = Text("Ant Colony Optimization", font=REDUCIBLE_FONT, weight=BOLD).scale(
+            0.8
+        )
+        title.move_to(UP * 3.2)
+        np.random.seed(2)
+        NUM_VERTICES = 6
+        layout = {
+            0: LEFT * 4,
+            1: UL * 2 + LEFT * 0.5,
+            3: RIGHT * 4,
+            2: UP * 2 + RIGHT * 0.2,
+            4: DL * 1.8 + LEFT * 0.5,
+            5: DOWN * 2 + RIGHT * 0.5,
+        }
+        graph = TSPGraph(list(range(NUM_VERTICES)), layout=layout)
+        self.play(FadeIn(graph))
+        self.wait()
+
+        green_ant = SVGMobject("green_ant").scale(0.2)
+
+        yellow_ant = SVGMobject("yellow_ant").scale(0.2)
+        purple_ant = SVGMobject("purple_ant").scale(0.2)
+        yellow_purple_ant = SVGMobject("yellow_purple_ant").scale(0.2)
+        ants = [green_ant, yellow_ant, purple_ant, yellow_purple_ant]
+
+        self.generate_path_animations_for_ant(graph, green_ant)
+        self.generate_path_animations_for_ant(graph, yellow_ant, color=REDUCIBLE_YELLOW)
+        self.generate_path_animations_for_ant(graph, purple_ant, color=REDUCIBLE_VIOLET)
+        self.generate_path_animations_for_ant(graph, purple_ant, color=REDUCIBLE_PURPLE)
+
+    def generate_path_animations_for_ant(
+        self, graph, ant, color=REDUCIBLE_GREEN_LIGHTER
+    ):
+        tour = self.get_random_tour(len(graph.vertices))
+        print(tour)
+        tour_edges = get_edges_from_tour(tour)
+        tour_edges_mob = self.get_tsp_tour_edges_mob(graph, tour_edges)
+        dashed_lines_mob = VGroup(
+            *[
+                DashedLine(line.get_start(), line.get_end()).set_stroke(
+                    color=color, opacity=0.5
+                )
+                for line in tour_edges_mob
+            ]
+        )
+        starting_edge = tour_edges[0]
+        ant, current_orientation = self.get_ant_orientation_angle(
+            graph, starting_edge, ant
+        )
+        self.play(FadeIn(ant))
+        self.wait()
+
+        for i, tour_edge in enumerate(tour_edges):
+            next_vertex = tour_edge[1]
+
+            self.play(
+                ant.animate.move_to(graph.vertices[next_vertex].get_center()),
+                Create(dashed_lines_mob[i]),
+                rate_func=linear,
+            )
+            if i == len(tour_edges) - 1:
+                break
+            next_edge = tour_edges[i + 1]
+            rotated_ant, new_orientation = self.get_ant_orientation_angle(
+                graph, next_edge, ant, current_orientation=current_orientation
+            )
+            current_orientation = new_orientation
+            self.play(Transform(ant, rotated_ant))
+        self.wait()
+        self.play(FadeOut(ant))
+
+    def get_ant_orientation_angle(
+        self, graph, edge, ant, current_orientation=90, animate=False
+    ):
+        u, v = edge
+        unit_v = normalize(
+            graph.vertices[v].get_center() - graph.vertices[u].get_center()
+        )
+        orientation_angle_in_degrees = self.get_orientation_angle_in_degrees(unit_v)
+        print(edge, orientation_angle_in_degrees)
+        counter_clockwise_rotation_in_degrees = (
+            orientation_angle_in_degrees - current_orientation
+        )
+        print(
+            "Counter clockwise rotation",
+            counter_clockwise_rotation_in_degrees,
+            "degrees",
+        )
+        counter_clockwise_rotation_in_radians = (
+            counter_clockwise_rotation_in_degrees / 180 * np.pi
+        )
+
+        new_ant = ant.copy().rotate(counter_clockwise_rotation_in_radians)
+        new_ant.move_to(graph.vertices[edge[0]].get_center())
+        return new_ant, orientation_angle_in_degrees
+
+    def get_random_tour(self, N):
+        tour = [np.random.choice(list(range(N)))]
+        current = tour[0]
+        while len(tour) < N:
+            remaining_vertices = [v for v in get_neighbors(current, N) if v not in tour]
+            current = np.random.choice(remaining_vertices)
+            tour.append(current)
+        return tour
+
+    def get_orientation_angle_in_degrees(self, vec):
+        y, x = vec[1], vec[0]
+        rad = np.arctan2(y, x)
+        degrees = rad * 180 / np.pi
+        if degrees < 0:
+            degrees = 360 + degrees
+        return degrees
+
+
+class AntColonyOptimizationSteps(Scene):
+    def construct(self):
+        text_scale = 0.7
+        step_1 = Tex(r"1. Initialize $N$ ants and $R$ (matrix of 1's)").scale(
+            text_scale
+        )
+        step_2 = Tex(
+            r"2. $P(u, v) = \frac{D(u, v)^{-1} \cdot R(u, v)}{\sum_{j \in \text{adj}(u)} D(u, j)^{-1} \cdot R(u, j)}$"
+        ).scale(text_scale + SMALL_BUFF)
+        step_3 = Tex(r"3. Each ant generates a tour using probabilities").scale(
+            text_scale
+        )
+        step_4 = Tex(
+            r"4. $R(u, v) \leftarrow R(u, v) + \sum_{k=1}^{N} \frac{1}{C_k}$ if ant $k$ used edge $(u, v)$ in tour with cost $C_k$"
+        ).scale(text_scale)
+        step_5 = Tex(
+            r"5. Repeat (2) $-$ (4) and keep track of best tour cost $C^*$"
+        ).scale(text_scale)
+
+        steps = VGroup(step_1, step_2, step_3, step_4, step_5).arrange(
+            DOWN, aligned_edge=LEFT
+        )
+        steps.scale(0.9).to_edge(DOWN * 1)
+
+        for step in steps:
+            self.play(FadeIn(step))
+            self.wait()
+
+        updated_step_2 = (
+            Tex(
+                r"2. $P(u, v) = \frac{[ D(u, v)^{-1} ] ^{\alpha} \cdot [ R(u, v) ]^{\beta}}{\sum_{j \in \text{adj}(u)} [ D(u, j)^{-1} ] ^{\alpha} \cdot [ R(u, j) ] ^{\beta}}$"
+            )
+            .scale(text_scale + SMALL_BUFF)
+            .scale(0.9)
+        )
+        updated_step_2.move_to(step_2.get_center() + RIGHT * SMALL_BUFF * 3)
+        alpha_beta_explantion = (
+            Tex(r"($\alpha$ and $\beta$ are parameters we set)")
+            .scale_to_fit_height(step_1.height)
+            .next_to(updated_step_2, RIGHT)
+        )
+        self.play(FadeTransform(step_2, updated_step_2))
+        self.wait()
+
+        self.add(alpha_beta_explantion)
+        self.wait()
+
+        updated_step_4 = (
+            Tex(
+                r"4. $R(u, v) \leftarrow (1 - \rho) \cdot R(u, v) + \sum_{k=1}^{N} \frac{1}{C_k}$ if ant $k$ used edge $(u, v)$ in tour"
+            )
+            .scale(text_scale)
+            .scale(0.9)
+        )
+
+        updated_step_4.move_to(step_4.get_center() + LEFT * SMALL_BUFF * 3.5)
+        self.play(FadeTransform(step_4, updated_step_4))
+        self.wait()
+
+        rho_explanation = (
+            MathTex(r"(\rho \in [0, 1])")
+            .scale_to_fit_height(step_1.height)
+            .next_to(updated_step_4, RIGHT)
+        )
+
+        self.add(rho_explanation)
+        self.wait()
+
+
+class AntSimulation(TourImprovement):
+    def construct(self):
+        NUM_VERTICES = 12
+        layout = self.get_random_layout(NUM_VERTICES)
+        tsp_graph = TSPGraph(list(range(NUM_VERTICES)), layout=layout).scale(0.9)
+        self.add_foreground_mobject(tsp_graph)
+        self.play(FadeIn(tsp_graph))
+        self.wait()
+        alpha = 1
+        beta = 3
+        evaporation_rate = 0.2
+        elitist_weight = 1
+        NUM_STEPS_ACO = 50
+        NUM_ANTS = 100
+        ant_colony_sim = AntColonySimulation(
+            tsp_graph,
+            NUM_ANTS,
+            alpha=alpha,
+            beta=beta,
+            evaporation_rate=evaporation_rate,
+            elitist_weight=elitist_weight,
+        )
+        all_edges = None
+        tour_edges_mob = None
+        for step in range(NUM_STEPS_ACO):
+            print(f"***Iteration {step}***")
+            print(
+                f"*Best tour: {ant_colony_sim.best_tour} -- cost: {ant_colony_sim.best_tour_cost}*"
+            )
+            if ant_colony_sim.best_tour is not None:
+                tour_edges = get_edges_from_tour(ant_colony_sim.best_tour)
+                tour_edges_mob = self.get_tsp_tour_edges_mob(
+                    tsp_graph,
+                    tour_edges,
+                    color=REDUCIBLE_GREEN_LIGHTER,
+                    stroke_width=5,
+                )
+                self.add(tour_edges_mob)
+            all_tours = ant_colony_sim.update(elitist=True)
+            all_ant_animations = self.get_all_ant_movements(
+                ant_colony_sim.ants, all_tours, tsp_graph
+            )
+            if step == 0:
+                all_edges = self.highlight_edges_based_on_pheromone_weight(
+                    tsp_graph, ant_colony_sim.pheromone_matrix
+                )
+                self.play(FadeIn(all_edges))
+                self.wait()
+                self.play(*all_ant_animations, run_time=2, rate_func=linear)
+
+            else:
+                new_edges = self.highlight_edges_based_on_pheromone_weight(
+                    tsp_graph, ant_colony_sim.pheromone_matrix
+                )
+                self.play(
+                    *all_ant_animations + [all_edges.animate.become(new_edges)],
+                    run_time=3,
+                    rate_func=linear,
+                )
+            self.remove(tour_edges_mob)
+
+        optimal_tour, optimal_cost = get_exact_tsp_solution(tsp_graph.get_dist_matrix())
+
+        optimal_edges = get_edges_from_tour(optimal_tour)
+        # optimal_tour_edges_mob = self.get_tsp_tour_edges_mob(
+        #     tsp_graph, optimal_edges, color=REDUCIBLE_YELLOW, stroke_width=6
+        # )
+        # print(optimal_tour, optimal_cost)
+        # self.add(optimal_tour_edges_mob)
+        # self.wait()
+
+    def get_weight_matrix(self, ant_colony_sim):
+        cost_matrix = ant_colony_sim.cost_matrix
+        pheromone_matrix = ant_colony_sim.pheromone_matrix
+        alpha = ant_colony_sim.alpha
+        beta = ant_colony_sim.beta
+        weight_matrix = np.ones(cost_matrix.shape)
+        for i in range(cost_matrix.shape[0]):
+            for j in range(cost_matrix.shape[1]):
+                weight_matrix[i][j] = (
+                    pheromone_matrix[i][j] ** alpha * cost_matrix[i][j] ** beta
+                )
+        return weight_matrix
+
+    def highlight_edges_based_on_pheromone_weight(self, tsp_graph, pheromone_matrix):
+        all_edges = tsp_graph.get_all_edges()
+        for edge in all_edges:
+            u, v = edge
+            opacity = pheromone_matrix[u][v] / np.max(pheromone_matrix)
+            all_edges[edge].set_stroke(color=REDUCIBLE_VIOLET, opacity=opacity)
+        return VGroup(*all_edges.values())
+
+    def get_all_ant_movements(self, ants, all_tours, tsp_graph):
+        all_animations = []
+        for ant, tour in zip(ants, all_tours):
+            all_animations.append(self.get_tour_animations(ant, tour, tsp_graph))
+        return all_animations
+
+    def get_tour_animations(self, ant, tour, tsp_graph):
+        path = VGroup()
+        tour_centers = [tsp_graph.vertices[v].get_center() for v in tour]
+        tour_centers.append(tour_centers[0])
+        path.set_points_as_corners(*[tour_centers])
+        return MoveAlongPath(ant.get_mob(), path)
