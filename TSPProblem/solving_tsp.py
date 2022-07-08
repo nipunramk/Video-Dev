@@ -2649,3 +2649,707 @@ class TourImprovement(Christofides):
                 continue
             new_edge_map[(u, v)] = self.get_edge(all_edges, (u, v))
         return new_edge_map
+
+
+class LocalMinima(TourImprovement):
+    def construct(self):
+        NUM_VERTICES = 6
+        all_tours = get_all_tour_permutations(NUM_VERTICES, 0)
+        np.random.shuffle(all_tours)
+        rows = 6
+        cols = len(all_tours) // rows
+        all_tour_costs = []
+        # layout = self.get_random_layout(NUM_VERTICES)
+        graph = self.get_graph(NUM_VERTICES)
+        all_graphs_with_tours = []
+        all_graphs_tour_edges = []
+        for tour in all_tours:
+            current_graph = graph.copy().scale(0.22)
+            tour_edges = get_edges_from_tour(tour)
+            all_tour_costs.append(
+                get_cost_from_edges(tour_edges, graph.get_dist_matrix())
+            )
+            all_graphs_tour_edges.append(tour_edges)
+            tour_edges_mob = self.get_tsp_tour_edges_mob(current_graph, tour_edges)
+            all_graphs_with_tours.append(VGroup(current_graph, tour_edges_mob))
+
+        all_graphs = VGroup(*all_graphs_with_tours).arrange_in_grid(rows=rows)
+        graph_v = VGroup(*list(graph.vertices.values()))
+        self.play(LaggedStartMap(GrowFromCenter, graph_v))
+        self.wait()
+        self.play(LaggedStart(FadeOut(graph_v), FadeIn(all_graphs)))
+        self.add_foreground_mobject(all_graphs)
+        self.wait()
+
+        heat_map_grid = self.get_heat_map(all_graphs, rows, cols, all_tour_costs)
+
+        self.play(FadeIn(heat_map_grid))
+        self.wait()
+        original_graphs = all_graphs.copy()
+        faded_graphs = [graph.copy().fade(0.7) for graph in all_graphs]
+        original_grids = heat_map_grid.copy()
+        faded_grids = [grid.copy().fade(0.7) for grid in heat_map_grid]
+        all_edge_diffs = self.get_all_graph_edge_diffs(all_tours)
+
+        self.perform_two_opt_switches(
+            10,
+            all_graphs,
+            heat_map_grid,
+            all_tour_costs,
+            all_edge_diffs,
+            original_graphs,
+            original_grids,
+            faded_graphs,
+            faded_grids,
+        )
+
+        self.perform_two_opt_switches(
+            23,
+            all_graphs,
+            heat_map_grid,
+            all_tour_costs,
+            all_edge_diffs,
+            original_graphs,
+            original_grids,
+            faded_graphs,
+            faded_grids,
+        )
+
+        graph_with_grid = VGroup(all_graphs, heat_map_grid)
+
+        self.play(graph_with_grid.animate.scale(0.8))
+        self.wait()
+
+        original_graphs = all_graphs.copy()
+        faded_graphs = [graph.copy().fade(0.7) for graph in all_graphs]
+        original_grids = heat_map_grid.copy()
+        faded_grids = [grid.copy().fade(0.7) for grid in heat_map_grid]
+
+        self.play(
+            *self.fade_graphs_and_grids(
+                all_graphs,
+                heat_map_grid,
+                [i for i in range(len(all_graphs)) if i not in [39, 44]],
+                faded_graphs,
+                faded_grids,
+            )
+        )
+        self.wait()
+
+        local_min_arrow = Arrow(
+            heat_map_grid[44].get_bottom() + DOWN * 1.5,
+            heat_map_grid[44].get_bottom(),
+            max_tip_length_to_length_ratio=0.15,
+            buff=SMALL_BUFF,
+        )
+        local_min_arrow.set_color(REDUCIBLE_YELLOW)
+        local_min_text = (
+            Text("Local Minimum", font=REDUCIBLE_FONT)
+            .scale(0.4)
+            .next_to(local_min_arrow, DOWN)
+        )
+
+        global_min_arrow = Arrow(
+            heat_map_grid[39].get_right() + RIGHT * 1.5,
+            heat_map_grid[39].get_right(),
+            max_tip_length_to_length_ratio=0.15,
+            buff=SMALL_BUFF,
+        )
+        global_min_arrow.set_color(REDUCIBLE_YELLOW)
+        global_min_text = (
+            VGroup(Text("Global").scale(0.4), Text("Minimum").scale(0.4))
+            .arrange(DOWN)
+            .next_to(global_min_arrow, UP)
+        )
+
+        self.add_foreground_mobjects(global_min_arrow, local_min_arrow)
+        self.play(
+            FadeIn(global_min_arrow),
+            FadeIn(local_min_arrow),
+            FadeIn(local_min_text),
+            FadeIn(global_min_text),
+        )
+        self.wait()
+
+        three_opt_text = Text("3-opt", font=REDUCIBLE_FONT).scale(0.4)
+        three_opt_arrow = Arrow(
+            heat_map_grid[44].get_right(),
+            heat_map_grid[39].get_left(),
+            max_tip_length_to_length_ratio=0.15,
+        )
+        three_opt_arrow.set_color(REDUCIBLE_YELLOW)
+        three_opt_text.set_stroke(width=5, color=BLACK, background=True).next_to(
+            three_opt_arrow, UP
+        ).shift(DOWN * 0.5)
+        self.add_foreground_mobjects(three_opt_arrow, three_opt_text)
+
+        self.play(FadeIn(three_opt_text), FadeIn(three_opt_arrow))
+        self.wait()
+
+        start_index = 44
+
+        neighboring_edges = [
+            edge
+            for edge in all_edge_diffs
+            if start_index in edge
+            and (all_edge_diffs[edge] == 2 or all_edge_diffs[edge] == 3)
+        ]
+        print("Neighboring edges", neighboring_edges)
+        print([(key, val) for key, val in all_edge_diffs.items() if start_index in key])
+        neighboring_vertices = []
+        for u, v in neighboring_edges:
+            if u == start_index:
+                neighboring_vertices.append(v)
+            else:
+                neighboring_vertices.append(u)
+
+        glowing_rect = get_glowing_surround_rect(heat_map_grid[start_index])
+        self.play(
+            FadeOut(three_opt_text),
+            FadeOut(three_opt_arrow),
+            FadeOut(global_min_arrow),
+            FadeOut(global_min_text),
+            FadeOut(local_min_text),
+            FadeOut(local_min_arrow),
+            FadeIn(glowing_rect),
+        )
+        self.wait()
+
+        neighborhood_comment = Text(
+            "2-opt AND 3-opt local search is expensive", font=REDUCIBLE_FONT
+        ).scale(0.7)
+        neighborhood_comment.next_to(heat_map_grid, DOWN)
+        print("Neighboring vertices", neighboring_vertices)
+        self.play(
+            *self.highlight_graphs_and_grids(
+                all_graphs,
+                heat_map_grid,
+                neighboring_vertices,
+                original_graphs,
+                original_grids,
+            ),
+            FadeIn(neighborhood_comment),
+        )
+        self.wait()
+
+        self.play(
+            FadeOut(neighborhood_comment),
+            FadeOut(glowing_rect),
+            *self.highlight_graphs_and_grids(
+                all_graphs,
+                heat_map_grid,
+                list(range(60)),
+                original_graphs,
+                original_grids,
+            ),
+        )
+        self.wait()
+
+        self.perform_two_opt_switches_special(
+            23,
+            all_graphs,
+            heat_map_grid,
+            all_tour_costs,
+            all_edge_diffs,
+            original_graphs,
+            original_grids,
+            faded_graphs,
+            faded_grids,
+        )
+
+    def perform_two_opt_switches(
+        self,
+        start_index,
+        all_graphs,
+        heat_map_grid,
+        all_tour_costs,
+        all_edge_diffs,
+        original_graphs,
+        original_grids,
+        faded_graphs,
+        faded_grids,
+    ):
+        visited_vertices = set([start_index])
+        iteration = 0
+        surround_rect = None
+        print("Start index", start_index)
+        arrows = VGroup()
+        visited_surround_rects = VGroup()
+        while not self.is_minima_found(start_index, all_tour_costs, all_edge_diffs):
+            (
+                neighboring_edges,
+                neighboring_vertices,
+            ) = self.get_neighboring_edges_and_verticies(start_index, all_edge_diffs)
+
+            if iteration == 0:
+                surround_rect = get_glowing_surround_rect(heat_map_grid[start_index])
+                self.play(FadeIn(surround_rect))
+                self.wait()
+
+            to_fade_vertices = [
+                i
+                for i in range(len(all_graphs))
+                if i not in visited_vertices and i not in neighboring_vertices
+            ]
+            # print(neighboring_vertices)
+            self.play(
+                *self.fade_graphs_and_grids(
+                    all_graphs,
+                    heat_map_grid,
+                    to_fade_vertices,
+                    faded_graphs,
+                    faded_grids,
+                )
+                + self.highlight_graphs_and_grids(
+                    all_graphs,
+                    heat_map_grid,
+                    neighboring_vertices,
+                    original_graphs,
+                    original_grids,
+                )
+            )
+            self.wait()
+            visited_surround_rect = SurroundingRectangle(
+                heat_map_grid[start_index], buff=0
+            ).set_stroke(width=3)
+            visited_surround_rects.add(visited_surround_rect)
+            start_index = min(neighboring_vertices, key=lambda x: all_tour_costs[x])
+            new_surround_rect = get_glowing_surround_rect(heat_map_grid[start_index])
+            arrow = Arrow(
+                surround_rect.get_center(),
+                new_surround_rect.get_center(),
+                color=REDUCIBLE_YELLOW,
+            )
+            self.add_foreground_mobject(arrow)
+            arrows.add(arrow)
+            self.play(
+                FadeOut(surround_rect),
+                FadeIn(new_surround_rect),
+                FadeIn(visited_surround_rect),
+                FadeIn(arrow),
+            )
+            self.wait()
+            surround_rect = new_surround_rect
+
+            visited_vertices.add(start_index)
+            iteration += 1
+        print("Ending index", start_index)
+        best_index = all_tour_costs.index(min(all_tour_costs))
+        if start_index != best_index:
+            print(
+                f"*** FOUND MISMATCH *** found_index: {start_index}, best_index: {best_index}"
+            )
+
+        (
+            neighboring_edges,
+            neighboring_vertices,
+        ) = self.get_neighboring_edges_and_verticies(start_index, all_edge_diffs)
+
+        to_fade_vertices = [
+            i
+            for i in range(len(all_graphs))
+            if i not in visited_vertices and i not in neighboring_vertices
+        ]
+
+        self.play(
+            *self.fade_graphs_and_grids(
+                all_graphs,
+                heat_map_grid,
+                to_fade_vertices,
+                faded_graphs,
+                faded_grids,
+            )
+            + self.highlight_graphs_and_grids(
+                all_graphs,
+                heat_map_grid,
+                neighboring_vertices,
+                original_graphs,
+                original_grids,
+            )
+        )
+        self.wait()
+        self.remove_foreground_mobjects(*[arrow for arrow in arrows])
+        self.play(
+            FadeOut(arrows),
+            FadeOut(visited_surround_rects),
+            FadeOut(new_surround_rect),
+            *self.highlight_graphs_and_grids(
+                all_graphs,
+                heat_map_grid,
+                to_fade_vertices,
+                original_graphs,
+                original_grids,
+            ),
+        )
+        self.wait()
+
+    def perform_two_opt_switches_special(
+        self,
+        start_index,
+        all_graphs,
+        heat_map_grid,
+        all_tour_costs,
+        all_edge_diffs,
+        original_graphs,
+        original_grids,
+        faded_graphs,
+        faded_grids,
+    ):
+        visited_vertices = set([start_index])
+        iteration = 0
+        surround_rect = None
+        print("Start index", start_index)
+        arrows = VGroup()
+        visited_surround_rects = VGroup()
+        rect_color = REDUCIBLE_YELLOW
+        special_arrow = None
+        while not self.is_minima_found(start_index, all_tour_costs, all_edge_diffs):
+            (
+                neighboring_edges,
+                neighboring_vertices,
+            ) = self.get_neighboring_edges_and_verticies(start_index, all_edge_diffs)
+
+            if iteration == 0:
+                surround_rect = get_glowing_surround_rect(heat_map_grid[start_index])
+                self.play(FadeIn(surround_rect))
+                self.wait()
+
+            to_fade_vertices = [
+                i
+                for i in range(len(all_graphs))
+                if i not in visited_vertices and i not in neighboring_vertices
+            ]
+            # print(neighboring_vertices)
+            self.play(
+                *self.fade_graphs_and_grids(
+                    all_graphs,
+                    heat_map_grid,
+                    to_fade_vertices,
+                    faded_graphs,
+                    faded_grids,
+                )
+                + self.highlight_graphs_and_grids(
+                    all_graphs,
+                    heat_map_grid,
+                    neighboring_vertices,
+                    original_graphs,
+                    original_grids,
+                )
+            )
+            self.wait()
+            visited_surround_rect = SurroundingRectangle(
+                heat_map_grid[start_index], buff=0, color=rect_color
+            ).set_stroke(width=3)
+            visited_surround_rects.add(visited_surround_rect)
+            start_index = min(neighboring_vertices, key=lambda x: all_tour_costs[x])
+            rect_color = REDUCIBLE_YELLOW
+            if iteration == 1:
+                special_arrow = VGroup()
+                special_arrow.add(
+                    Line(
+                        heat_map_grid[32].get_left(),
+                        heat_map_grid[32].get_left() + LEFT * 2.5,
+                    )
+                )
+                special_arrow.add(
+                    Line(
+                        special_arrow[-1].get_end(),
+                        special_arrow[-1].get_end() + UP * 4,
+                    )
+                )
+
+                special_arrow.add(
+                    Line(
+                        special_arrow[-1].get_end(),
+                        special_arrow[-1].get_end()[1] * UP
+                        + RIGHT * heat_map_grid[8].get_center()[0],
+                    )
+                )
+
+                special_arrow.add(
+                    Arrow(
+                        special_arrow[-1].get_end(), heat_map_grid[8].get_top(), buff=0
+                    )
+                )
+                special_arrow.set_color(REDUCIBLE_CHARM)
+
+                start_index = 8
+                rect_color = REDUCIBLE_CHARM
+                self.add_foreground_mobject(special_arrow)
+
+            new_surround_rect = get_glowing_surround_rect(
+                heat_map_grid[start_index], color=rect_color
+            )
+            arrow = Arrow(
+                surround_rect.get_center(),
+                new_surround_rect.get_center(),
+                color=REDUCIBLE_YELLOW,
+            )
+            arrows.add(arrow)
+            if iteration != 1:
+                self.play(
+                    FadeOut(surround_rect),
+                    FadeIn(new_surround_rect),
+                    FadeIn(visited_surround_rect),
+                    # Write(arrow),
+                )
+            else:
+                self.play(
+                    FadeOut(surround_rect),
+                    FadeIn(new_surround_rect),
+                    FadeIn(visited_surround_rect),
+                    FadeIn(special_arrow),
+                )
+            self.wait()
+            surround_rect = new_surround_rect
+
+            visited_vertices.add(start_index)
+            iteration += 1
+        print("Ending index", start_index)
+        best_index = all_tour_costs.index(min(all_tour_costs))
+        if start_index != best_index:
+            print(
+                f"*** FOUND MISMATCH *** found_index: {start_index}, best_index: {best_index}"
+            )
+
+        (
+            neighboring_edges,
+            neighboring_vertices,
+        ) = self.get_neighboring_edges_and_verticies(start_index, all_edge_diffs)
+
+        to_fade_vertices = [
+            i
+            for i in range(len(all_graphs))
+            if i not in visited_vertices and i not in neighboring_vertices
+        ]
+
+        self.play(
+            *self.fade_graphs_and_grids(
+                all_graphs,
+                heat_map_grid,
+                [0, 5, 12, 26, 41, 53, 56],
+                faded_graphs,
+                faded_grids,
+            )
+        )
+        self.wait()
+
+        result = Tex(
+            r"Sub-optimal Exploration $\rightarrow$ optimal solution",
+        ).scale(0.8)
+        result.next_to(heat_map_grid, DOWN)
+
+        self.play(FadeIn(result))
+        self.wait()
+
+        # self.play(
+        #     # FadeOut(arrows),
+        #     FadeOut(visited_surround_rects),
+        #     FadeOut(new_surround_rect),
+        #     FadeOut(special_arrow),
+        #     *self.highlight_graphs_and_grids(
+        #         all_graphs,
+        #         heat_map_grid,
+        #         list(range(60)),
+        #         original_graphs,
+        #         original_grids,
+        #     ),
+        # )
+        # self.wait()
+
+    def is_minima_found(self, start_index, all_tour_costs, all_edge_diffs):
+        (
+            neighboring_edges,
+            neighboring_vertices,
+        ) = self.get_neighboring_edges_and_verticies(start_index, all_edge_diffs)
+        current_cost = all_tour_costs[start_index]
+        return current_cost <= min([all_tour_costs[v] for v in neighboring_vertices])
+
+    def get_neighboring_edges_and_verticies(self, start_index, all_edge_diffs):
+        neighboring_edges = [
+            edge
+            for edge in all_edge_diffs
+            if start_index in edge and all_edge_diffs[edge] == 2
+        ]
+        neighboring_vertices = []
+        for u, v in neighboring_edges:
+            if u == start_index:
+                neighboring_vertices.append(v)
+            else:
+                neighboring_vertices.append(u)
+        return neighboring_edges, neighboring_vertices
+
+    def highlight_graphs_and_grids(
+        self, all_graphs, heat_map_grid, indices, original_graphs, original_grids
+    ):
+        animations = []
+        for i in indices:
+            animations.append(Transform(all_graphs[i], original_graphs[i]))
+            animations.append(Transform(heat_map_grid[i], original_grids[i]))
+        return animations
+
+    def fade_graphs_and_grids(
+        self, all_graphs, heat_map_grid, indices, faded_graphs, faded_grids
+    ):
+        animations = []
+        for i in indices:
+            animations.append(Transform(all_graphs[i], faded_graphs[i]))
+            animations.append(Transform(heat_map_grid[i], faded_grids[i]))
+        return animations
+
+    def get_two_opt_neighbors(self, all_edges_diff, index):
+        return [
+            edge
+            for edge in all_edge_diffs
+            if index in edge and all_edge_diffs[index] == 2
+        ]
+
+    def get_all_graph_edge_diffs(self, all_tours):
+        all_edge_diffs = {}
+        all_graphs_tour_edges = [get_edges_from_tour(tour) for tour in all_tours]
+        for i in range(len(all_tours) - 1):
+            for j in range(i + 1, len(all_tours)):
+                edge_diff = self.edge_diff(
+                    all_graphs_tour_edges[i], all_graphs_tour_edges[j]
+                )
+                all_edge_diffs[(i, j)] = edge_diff
+
+        return all_edge_diffs
+
+    def edge_diff(self, tour_edges_1, tour_edges_2):
+        edge_diff = 0
+        set_edges_2 = set(tour_edges_2)
+        for u, v in tour_edges_1:
+            if (u, v) in set_edges_2 or (v, u) in set_edges_2:
+                continue
+            edge_diff += 1
+        return edge_diff
+
+    def get_heat_map(self, all_graphs, rows, cols, all_tour_costs):
+        grid_cell_width = (all_graphs[1].get_center() - all_graphs[0].get_center())[0]
+        grid_cell_height = (all_graphs[cols].get_center() - all_graphs[0].get_center())[
+            1
+        ]
+        min_color = REDUCIBLE_GREEN_LIGHTER
+        max_color = REDUCIBLE_CHARM
+        max_cost = max(all_tour_costs)
+        min_cost = min(all_tour_costs)
+        grid = VGroup()
+        for i, graph in enumerate(all_graphs):
+            cost = all_tour_costs[i]
+            alpha = (cost - min_cost) / (max_cost - min_cost)
+            cell = BackgroundRectangle(
+                graph,
+                color=interpolate_color(min_color, max_color, alpha),
+                fill_opacity=0.5,
+                stroke_opacity=1,
+            )
+            cell.stretch_to_fit_height(grid_cell_height)
+            cell.stretch_to_fit_width(grid_cell_width)
+            cell.move_to(graph.get_center())
+            grid.add(cell)
+
+        return grid
+
+    def get_2d_index(self, index, rows, cols):
+        row_index = index // rows
+        col_index = index % cols
+        return row_index, col_index
+
+    def get_graph(self, NUM_VERTICES):
+        new_layout = {
+            0: LEFT * 0.8,
+            1: UP * 2 + LEFT * 2,
+            2: UP * 2 + RIGHT * 2,
+            3: RIGHT * 0.8,
+            4: RIGHT * 2 + DOWN * 2,
+            5: LEFT * 2 + DOWN * 2,
+        }
+        circular_graph = TSPGraph(list(range(NUM_VERTICES)), layout=new_layout)
+
+        MIN_NOISE, MAX_NOISE = -0.24, 0.24
+        for v in circular_graph.vertices:
+            noise_vec = np.array(
+                [
+                    np.random.uniform(MIN_NOISE, MAX_NOISE),
+                    np.random.uniform(MIN_NOISE, MAX_NOISE),
+                    0,
+                ]
+            )
+            new_layout[v] += noise_vec
+        return TSPGraph(list(range(NUM_VERTICES)), layout=new_layout)
+
+    # def arrange_in_reasonable_order(self, all_tours, rows, cols):
+    #     """
+    #     Orders the tours such that every neighboring tour is a 2-opt or 3-opt switch
+    #     """
+    #     ordering = [0]
+    #     ordered_all_tours = [all_tours[0]]
+    #     all_edge_diffs = self.all_graph_edge_diffs(all_tours)
+    #     all_edge_keys = list(all_edge_diffs.keys())
+    #     remaining_index = set(list(range(1, len(all_tours))))
+    #     for i in range(1, len(all_tours)):
+    #         prev_neighbors = []
+    #         if i % cols == 0:
+    #             prev_neighbors.append(i - cols)
+    #         elif i < cols:
+    #             prev_neighbors.append(i - 1)
+    #         else:
+    #             prev_neighbors.extend([i - cols, i - 1])
+
+    #         graphs_to_pair = [
+    #             all_tours.index(ordered_all_tours[i]) for i in prev_neighbors
+    #         ]
+    #         candidate_graph_indices = self.get_candidate_graphs(
+    #             all_tours, all_edge_diffs, graphs_to_pair
+    #         )
+    #         print(len(candidate_graph_indices))
+    #         for index in candidate_graph_indices:
+    #             if index not in ordering:
+    #                 break
+    #         if index in ordering:
+    #             ordering.extend(list(remaining_index))
+    #             ordered_all_tours.extend(
+    #                 [all_tours[index] for index in remaining_index]
+    #             )
+    #             break
+
+    #         ordering.append(index)
+    #         remaining_index.remove(index)
+    #         ordered_all_tours.append(all_tours[index])
+
+    #     print("Ordering", ordering)
+    #     print(len(ordering))
+    #     return ordered_all_tours
+
+    # def get_candidate_graphs(self, all_tours, all_edge_diffs, graphs_to_pair):
+    #     # print(all_edge_diffs)
+    #     print(graphs_to_pair)
+    #     two_opt_three_opt_vertices = set()
+    #     to_pair = graphs_to_pair[0]
+
+    #     for edge in all_edge_diffs:
+    #         u, v = edge
+    #         other_vertex = u if u == to_pair else v
+    #         if (
+    #             all_edge_diffs[edge] == 2
+    #             or all_edge_diffs[edge] == 3
+    #             and u == to_pair
+    #             or v == to_pair
+    #         ):
+    #             two_opt_three_opt_vertices.add(other_vertex)
+
+    #     if len(graphs_to_pair) == 1:
+    #         return list(two_opt_three_opt_vertices)
+
+    #     to_pair = graphs_to_pair[1]
+    #     filtered_vertices = []
+    #     for v in two_opt_three_opt_vertices:
+    #         edge = (to_pair, v) if to_pair < v else (v, to_pair)
+    #         if edge not in all_edge_diffs:
+    #             continue
+
+    #         if v == to_pair or all_edge_diffs[edge] != 2 and all_edge_diffs[edge] != 3:
+    #             continue
+    #         filtered_vertices.append(v)
+    #     return filtered_vertices
