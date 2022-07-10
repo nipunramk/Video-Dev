@@ -18,6 +18,8 @@ np.random.seed(23)
 
 config["assets_dir"] = "assets"
 
+BACKGROUND_IMG = ImageMobject("bg-75.png").scale_to_fit_width(config.frame_width)
+
 
 class TSPGraph(Graph):
     def __init__(
@@ -179,6 +181,7 @@ class TSPTester(Scene):
 
 class NearestNeighbor(Scene):
     def construct(self):
+        self.add(BACKGROUND_IMG)
         NUM_VERTICES = 10
         layout = self.get_random_layout(NUM_VERTICES)
         # MANUAL ADJUSTMENTS FOR BETTER INSTRUCTIONAL EXAMPLE
@@ -196,6 +199,7 @@ class NearestNeighbor(Scene):
         self.compare_nn_with_optimal(graph_with_tour_edges, graph)
 
         self.clear()
+        self.add(BACKGROUND_IMG)
 
         self.show_many_large_graph_nn_solutions()
 
@@ -218,7 +222,6 @@ class NearestNeighbor(Scene):
         residual_edges = {}
         for vertex in tour[1:]:
             self.play(tour_edges[(prev, vertex)].animate.set_color(REDUCIBLE_YELLOW))
-            self.wait()
             seen.add(vertex)
             new_glowing_circle = get_glowing_surround_circle(graph.vertices[vertex])
             new_neighboring_edges = graph.get_neighboring_edges(vertex)
@@ -238,7 +241,6 @@ class NearestNeighbor(Scene):
                     for edge_key in filtered_prev_edges
                 ],
             )
-            self.wait()
             filtered_new_edges = [
                 edge_key
                 for edge_key, edge in new_neighboring_edges.items()
@@ -252,7 +254,6 @@ class NearestNeighbor(Scene):
                         for edge_key in filtered_new_edges
                     ]
                 )
-                self.wait()
             residual_edges[(prev, vertex)] = neighboring_edges[(prev, vertex)]
             neighboring_edges = new_neighboring_edges
             glowing_circle = new_glowing_circle
@@ -466,6 +467,7 @@ class NearestNeighbor(Scene):
 
 class LowerBoundTSP(NearestNeighbor):
     def construct(self):
+        self.add(BACKGROUND_IMG)
         graph = self.get_graph_with_random_layout(200, radius=0.05)
         tour, nn_cost = get_nearest_neighbor_solution(graph.get_dist_matrix())
         edge_ordering = get_edges_from_tour(tour)
@@ -497,10 +499,12 @@ class LowerBoundTSP(NearestNeighbor):
         self.wait()
 
         self.clear()
+        self.add(BACKGROUND_IMG)
 
         self.present_lower_bound_idea()
 
         self.clear()
+        self.add(BACKGROUND_IMG)
 
         tsp_graph, mst_tree, mst_edge_dict = self.intro_mst()
 
@@ -727,6 +731,7 @@ class LowerBoundTSP(NearestNeighbor):
         self.wait()
 
         self.clear()
+        self.add(BACKGROUND_IMG)
 
         mst_tree, mst_edge_dict = self.demo_prims_algorithm(
             original_scaled_graph.copy()
@@ -1191,6 +1196,7 @@ class LowerBoundTSP(NearestNeighbor):
 
 class GreedyApproach(LowerBoundTSP):
     def construct(self):
+        self.add(BACKGROUND_IMG)
         self.show_greedy_algorithm()
 
     def show_greedy_algorithm(self):
@@ -1357,6 +1363,7 @@ class GreedApproachExtraText(Scene):
         self.wait()
 
         self.clear()
+        self.add(BACKGROUND_IMG)
 
         screen_rect_left = ScreenRectangle(height=3)
         screen_rect_right = ScreenRectangle(height=3)
@@ -1369,6 +1376,7 @@ class GreedApproachExtraText(Scene):
 
 class Christofides(GreedyApproach):
     def construct(self):
+        self.add(BACKGROUND_IMG)
         self.show_christofides()
 
     def show_christofides(self):
@@ -2044,6 +2052,7 @@ class Christofides(GreedyApproach):
         self.wait()
 
         self.clear()
+        self.add(BACKGROUND_IMG)
 
     def summarize_christofides(self):
 
@@ -2175,8 +2184,10 @@ class Christofides(GreedyApproach):
 
 class TourImprovement(Christofides):
     def construct(self):
+        self.add(BACKGROUND_IMG)
         self.intro_idea()
         self.clear()
+        self.add(BACKGROUND_IMG)
         self.show_random_swaps()
         self.show_two_opt_switches()
         self.k_opt_improvement()
@@ -2381,6 +2392,7 @@ class TourImprovement(Christofides):
         self.play(ReplacementTransform(cost, new_nn_cost))
         self.wait()
         self.clear()
+        self.add(BACKGROUND_IMG)
 
     def show_two_opt_switches(self):
         title = (
@@ -2541,6 +2553,7 @@ class TourImprovement(Christofides):
         self.wait()
 
         self.clear()
+        self.add(BACKGROUND_IMG)
 
     def k_opt_improvement(self):
         title = (
@@ -2655,6 +2668,7 @@ class TourImprovement(Christofides):
 
 class LocalMinima(TourImprovement):
     def construct(self):
+        self.add(BACKGROUND_IMG)
         NUM_VERTICES = 6
         all_tours = get_all_tour_permutations(NUM_VERTICES, 0)
         np.random.shuffle(all_tours)
@@ -3377,6 +3391,7 @@ class AntColonySimulation:
 
 class AntColonyExplanation(TourImprovement):
     def construct(self):
+        self.add(BACKGROUND_IMG)
         np.random.seed(7)
         NUM_VERTICES = 7
         layout = self.get_random_layout(NUM_VERTICES)
@@ -3565,6 +3580,7 @@ class AntColonyExplanation(TourImprovement):
                 self.remove(tour_cost_text)
 
         self.clear()
+        self.add(BACKGROUND_IMG)
 
     def get_random_tour(self, graph, reward_matrix):
         start = np.random.choice(list(graph.vertices.keys()))
@@ -4137,6 +4153,7 @@ class AntColonyExplanation(TourImprovement):
 
 class AntsDemonstrationSmall(AntColonyExplanation):
     def construct(self):
+        self.add(BACKGROUND_IMG)
         title = Text("Ant Colony Optimization", font=REDUCIBLE_FONT, weight=BOLD).scale(
             0.8
         )
@@ -4322,6 +4339,7 @@ class AntColonyOptimizationSteps(Scene):
 
 class AntSimulation(TourImprovement):
     def construct(self):
+        self.add(BACKGROUND_IMG)
         NUM_VERTICES = 12
         layout = self.get_random_layout(NUM_VERTICES)
         tsp_graph = TSPGraph(list(range(NUM_VERTICES)), layout=layout).scale(0.9)
@@ -4424,3 +4442,64 @@ class AntSimulation(TourImprovement):
         tour_centers.append(tour_centers[0])
         path.set_points_as_corners(*[tour_centers])
         return MoveAlongPath(ant.get_mob(), path)
+
+
+class IntroPIP(Scene):
+    def construct(self):
+        self.add(BACKGROUND_IMG)
+        screen_rect = ScreenRectangle(height=4).shift(UP * 0.5)
+        creative_approach = Text(
+            "Creative approaches to solving the TSP", font=REDUCIBLE_FONT
+        )
+        creative_approach.scale(0.7)
+        creative_approach.next_to(screen_rect, DOWN, buff=0.5)
+
+        self.play(FadeIn(screen_rect), FadeIn(creative_approach))
+        self.wait()
+
+        heuristic_search = Text(
+            "Heuristic Search and Approximation Algorithms", font=REDUCIBLE_FONT
+        )
+
+        heuristic_search.scale(0.7)
+
+        heuristic_search.move_to(creative_approach.get_center())
+
+        self.play(FadeTransform(creative_approach, heuristic_search))
+        self.wait()
+
+
+class TSPTourDefinition(LocalMinima):
+    def construct(self):
+        self.add(BACKGROUND_IMG)
+        NUM_VERTICES = 6
+        layout = self.get_random_layout(NUM_VERTICES)
+        tsp_graph = TSPGraph(list(range(NUM_VERTICES))).shift(UP * 0.5)
+        all_tours = get_all_tour_permutations(NUM_VERTICES, 0)
+        tour_1_index = np.random.choice(list(range(len(all_tours))))
+        tour_2_index = np.random.choice(list(range(len(all_tours))))
+        tour_1_edges = get_edges_from_tour(
+            all_tours[tour_1_index],
+        )
+        tour_2_edges = get_edges_from_tour(
+            all_tours[tour_2_index],
+        )
+        tour_def = Tex(
+            r"TSP Tour: starts at node $v$, visits all nodes once, and returns to $v$"
+        ).scale(0.7)
+        tour_def.next_to(tsp_graph, DOWN, buff=0.5)
+        self.play(FadeIn(tsp_graph), FadeIn(tour_def))
+        self.wait()
+
+        tour_1_edges_mob = self.get_tsp_tour_edges_mob(tsp_graph, tour_1_edges)
+        tour_2_edges_mob = self.get_tsp_tour_edges_mob(tsp_graph, tour_2_edges)
+
+        for edge_mob in tour_1_edges_mob:
+            self.play(Create(edge_mob), rate_func=linear)
+
+        self.play(FadeOut(tour_1_edges_mob))
+        self.wait()
+
+        for edge_mob in tour_2_edges_mob:
+            self.play(Create(edge_mob), rate_func=linear)
+        self.wait()

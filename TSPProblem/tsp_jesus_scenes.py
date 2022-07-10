@@ -14,19 +14,19 @@ from itertools import combinations, permutations
 np.random.seed(2)
 config["assets_dir"] = "assets"
 
+BACKGROUND_IMG = ImageMobject("bg-75.png").scale_to_fit_width(config.frame_width)
+
 
 class TSPAssumptions(MovingCameraScene):
     def construct(self):
-        bg = ImageMobject("bg-video.png").scale_to_fit_width(config.frame_width)
-        bg.add_updater(lambda mob: mob.move_to(self.camera.frame_center))
-        self.add(bg)
+
+        BACKGROUND_IMG.add_updater(lambda mob: mob.move_to(self.camera.frame_center))
+        self.add(BACKGROUND_IMG)
 
         self.intro_PIP()
-        self.wait()
-        self.play(*[FadeOut(mob) for mob in self.mobjects])
-        self.wait()
+        self.clear()
 
-        self.add(bg)
+        self.add(BACKGROUND_IMG)
         self.present_TSP_graph()
         self.wait()
         self.play(*[FadeOut(mob) for mob in self.mobjects])
@@ -34,6 +34,7 @@ class TSPAssumptions(MovingCameraScene):
     def intro_PIP(self):
         rect = ScreenRectangle(height=4)
         self.play(Write(rect), run_time=2)
+        self.wait()
 
     def present_TSP_graph(self):
         frame = self.camera.frame
@@ -426,9 +427,9 @@ class CustomArrow(Line):
         return self
 
 
-class BruteForce(TSPAssumptions):
+class BruteForceSnippet(TSPAssumptions):
     def construct(self):
-
+        self.add(BACKGROUND_IMG)
         cities = 5
         graph = TSPGraph(range(cities))
         all_edges = graph.get_all_edges()
@@ -450,7 +451,8 @@ class BruteForce(TSPAssumptions):
             .shift(LEFT * 3 + UP * 0.2)
         )
         permutations_mobs = VGroup()
-
+        min_cost_mob = None
+        best_cost = float("inf")
         for i, tour in enumerate(tour_perms):
             tour_edges = get_edges_from_tour(tour)
 
@@ -458,6 +460,7 @@ class BruteForce(TSPAssumptions):
             self.play(*edges_animation, run_time=1 / (i + 1))
 
             curr_tour_cost = get_cost_from_permutation(graph.dist_matrix, tour_edges)
+
             curr_tour = (
                 VGroup(
                     *[v.copy() for v in graph.vertices.values()],
@@ -471,11 +474,18 @@ class BruteForce(TSPAssumptions):
                 .scale(0.3)
                 .next_to(curr_tour, DOWN, buff=0.2)
             )
+            if curr_tour_cost < best_cost:
+                min_cost_mob = VGroup(curr_tour, cost_text)
+                best_cost = curr_tour_cost
             permutations_mobs.add(curr_tour, cost_text)
 
             self.play(FadeIn(curr_tour), FadeIn(cost_text), run_time=1 / (i + 1))
 
         self.wait()
+
+        self.play(ShowPassingFlash(SurroundingRectangle(min_cost_mob)), time_width=0.5)
+        self.wait()
+
         self.play(
             LaggedStart(
                 FadeOut(permutations_mobs),
@@ -754,16 +764,14 @@ class BruteForce(TSPAssumptions):
 
 class ProblemComplexity(TSPAssumptions):
     def construct(self):
-        self.dynamic_programming_simulation()
-        self.wait()
-        self.play(*[FadeOut(mob) for mob in self.mobjects])
+        self.add(BACKGROUND_IMG)
 
+        self.dynamic_programming_simulation()
         self.np_hard_problems()
         self.wait()
 
         self.plot_graphs()
         self.wait()
-        self.play(*[FadeOut(mob) for mob in self.mobjects])
 
     def dynamic_programming_simulation(self):
         cities = 4
@@ -916,6 +924,18 @@ class ProblemComplexity(TSPAssumptions):
 
             self.wait()
 
+        self.play(
+            FadeOut(text_vg),
+            FadeOut(curr_tour_str),
+            FadeOut(curr_cost_str),
+            FadeOut(best_tour_str),
+            FadeOut(best_cost_str),
+            FadeOut(explanation),
+            *[FadeOut(mob) for mob in all_edges.values()],
+            *[FadeOut(mob) for mob in all_labels.values()],
+            FadeOut(graph),
+        )
+
     def np_hard_problems(self):
         # explanation about NP problems
         tsp_problem = (
@@ -954,7 +974,8 @@ class ProblemComplexity(TSPAssumptions):
             run_time=5,
         )
         self.wait()
-        self.play(*[FadeOut(m, scale=0.95) for m in self.mobjects])
+
+        self.play(FadeOut(modules), FadeOut(np_hard_problems), FadeOut(tsp_problem))
 
     def plot_graphs(self):
 
@@ -1279,9 +1300,10 @@ class TransitionOtherApproaches(TSPAssumptions):
             LaggedStart(*[all_edges[e].animate.set_opacity(1) for e in nn_edges]),
             FadeTransform(cost_indicator, nn_cost_indicator),
             FadeIn(good_enough_txt, scale=0.95),
-            run_time=2
+            run_time=3
             # Transform(cost_indicator, nn_cost_indicator),
         )
+        self.wait()
 
     ############################ UTIL FUNCTIONS
     def get_specific_layout(self, *coords):
@@ -1351,8 +1373,9 @@ class CustomLabel(Text):
         self.scale(scale)
 
 
-class SimulatedAnnealing(BruteForce, TransitionOtherApproaches):
+class SimulatedAnnealing(BruteForceSnippet, TransitionOtherApproaches):
     def construct(self):
+        self.add(BACKGROUND_IMG)
 
         frame = self.camera.frame
         self.guided_example()
@@ -2116,22 +2139,29 @@ class TransitionTemplate(Scene):
         self.add(bg)
         self.wait()
 
-        self.transition("Brute Force", 1, 6)
+        NUM_TRANSITIONS = 8
+        self.transition("TSP Problem Definition", 1, NUM_TRANSITIONS)
         self.wait()
 
-        self.transition("Nearest Neighbor", 2, 6)
+        self.transition("Brute Force", 2, NUM_TRANSITIONS)
         self.wait()
 
-        self.transition("Greedy Method", 3, 6)
+        self.transition("Nearest Neighbor", 3, NUM_TRANSITIONS)
         self.wait()
 
-        self.transition("Christofides Method", 4, 6)
+        self.transition("Greedy Method", 4, NUM_TRANSITIONS)
         self.wait()
 
-        self.transition("Simulated Annealing", 5, 6)
+        self.transition("Christofides Method", 5, NUM_TRANSITIONS)
         self.wait()
 
-        self.transition("Ant Simulation", 6, 6)
+        self.transition("Tour Improvement", 6, NUM_TRANSITIONS)
+        self.wait()
+
+        self.transition("Simulated Annealing", 7, NUM_TRANSITIONS)
+        self.wait()
+
+        self.transition("Ant Simulation", 8, NUM_TRANSITIONS)
         self.wait()
 
     def transition(self, transition_name, index, total):
@@ -2184,6 +2214,7 @@ class TransitionTemplate(Scene):
 
         self.wait()
         self.play(FadeOut(title), FadeOut(nodes_and_lines))
+
 
 class Introduction(TransitionOtherApproaches):
     def construct(self):
@@ -2243,7 +2274,7 @@ class Introduction(TransitionOtherApproaches):
 
         nn_perm, nn_cost = get_nearest_neighbor_solution(graph.dist_matrix, 0)
 
-        self.play(FadeIn(graph[0]))
+        # self.play(FadeIn(graph[0]))
         sf_tag = (
             Text("SF", font=REDUCIBLE_FONT, weight=BOLD)
             .scale(0.4)
@@ -2251,16 +2282,19 @@ class Introduction(TransitionOtherApproaches):
             .set_stroke(BLACK, width=5, background=True)
         )
 
-        self.play(FadeIn(sf_tag, shift=UP * 0.3))
-        self.wait()
         self.play(
-            FadeOut(sf_tag, shift=UP * 0.3),
             LaggedStart(
-                *[FadeIn(v, scale=0.95) for v in list(graph.vertices.values())[1:]],
+                *[FadeIn(v, scale=0.95) for v in list(graph.vertices.values())],
                 lag_ratio=0.5,
             ),
             run_time=3,
         )
+        self.wait()
+
+        self.play(FadeIn(sf_tag, shift=UP * 0.3))
+        self.wait()
+
+        self.play(FadeOut(sf_tag, shift=UP * 0.3))
         self.wait()
 
         all_edges = graph.get_all_edges(buff=graph.vertices[0].width / 2)
