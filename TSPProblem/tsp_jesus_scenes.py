@@ -1115,11 +1115,13 @@ class ProblemComplexity(TSPAssumptions):
 class TransitionOtherApproaches(TSPAssumptions):
     def construct(self):
 
+        BACKGROUND_IMG.add_updater(lambda mob: mob.move_to(self.camera.frame_center))
+        self.add(BACKGROUND_IMG)
+
         bg = ImageMobject("usa-map-satellite-markers.png").scale_to_fit_width(
             config.frame_width
         )
-        dark_filter = ScreenRectangle(height=10).set_fill(BLACK, opacity=0.2)
-        self.play(FadeIn(bg), FadeIn(dark_filter))
+        self.play(FadeIn(bg))
         self.wait()
         # self.add(
         #     Axes(
@@ -1296,7 +1298,7 @@ class TransitionOtherApproaches(TSPAssumptions):
         )
         self.play(
             frame.animate.shift(OUT * 0.5 + UP * 0.8),
-            dark_filter.animate.set_opacity(1),
+            bg.animate.set_opacity(0),
             LaggedStart(*[all_edges[e].animate.set_opacity(1) for e in nn_edges]),
             FadeTransform(cost_indicator, nn_cost_indicator),
             FadeIn(good_enough_txt, scale=0.95),
