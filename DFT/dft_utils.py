@@ -7,6 +7,13 @@ sys.path.insert(1, "common/")
 
 import matplotlib.pyplot as plt
 import numpy as np
+from manim import *
+from reducible_colors import *
+from functions import *
+
+DEFAULT_AXIS_CONFIG = {"include_numbers": False, "include_ticks": False}
+TIME_DOMAIN_COLOR = REDUCIBLE_YELLOW
+FREQ_DOMAIN_COLOR = REDUCIBLE_VIOLET
 
 def get_dft_matrix(N):
 	"""
@@ -40,7 +47,7 @@ def get_time_axis(
     tips=False,
     axis_config=DEFAULT_AXIS_CONFIG,
 ):
-	
+
     return Axes(
         x_range=x_range,
         y_range=y_range,
@@ -67,3 +74,15 @@ def get_freq_axes(
         axis_config=axis_config,
     )
 
+def plot_time_domain(
+    time_func, t_min=0, t_max=10, t_step=1, y_min=-1, y_max=1, y_step=1
+):
+    time_axis = get_time_axis(
+        x_range=[t_min, t_max, t_step], y_range=[y_min, y_max, y_step]
+    )
+    graph = time_axis.plot(time_func).set_color(TIME_DOMAIN_COLOR)
+
+    return time_axis, graph
+
+def get_cosine_func(amplitude=1, freq=1, phase=0, b=0):
+	return lambda x: amplitude * np.cos(freq * x + phase) + b
