@@ -134,3 +134,10 @@ def get_vertical_bars_for_samples(
         for start_point, y_point in zip(x_axis_points, graph_points)
     ]
     return VGroup(*vertical_lines)
+
+
+def display_signal(time_signal_func, color=TIME_DOMAIN_COLOR):
+    time_axis, graph = plot_time_domain(time_signal_func, t_max=2 * PI, color=color)
+    sampled_points_dots = get_sampled_dots(graph, time_axis)
+    sampled_points_vert_lines = get_vertical_bars_for_samples(graph, time_axis)
+    return VGroup(time_axis, graph, sampled_points_dots, sampled_points_vert_lines)
