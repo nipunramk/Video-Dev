@@ -23,7 +23,7 @@ class BeginIntroSampling_002(Scene):
         ).set_color(REDUCIBLE_VIOLET)
 
         freq_txt = (
-            Text("ƒ = " + str(frequency), font=REDUCIBLE_MONO)
+            Text("ƒ = " + str(frequency) + " Hz", font=REDUCIBLE_MONO)
             .next_to(signal_mob, DOWN, aligned_edge=LEFT, buff=1)
             .scale(0.6)
         )
@@ -56,7 +56,7 @@ class BeginIntroSampling_002(Scene):
             )
             new_freq_txt = (
                 Text(
-                    "ƒ = " + str(frequency * m),
+                    "ƒ = " + str(frequency * m) + " Hz",
                     font=REDUCIBLE_MONO,
                 )
                 .scale(0.6)
