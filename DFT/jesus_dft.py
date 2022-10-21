@@ -9,8 +9,9 @@ from dft_utils import *
 from reducible_colors import *
 
 
-class BeginIntroSampling_002(Scene):
+class BeginIntroSampling_002(MovingCameraScene):
     def construct(self):
+        frame = self.camera.frame
         x_min = 0
         x_max = 2 * PI
         frequency = 7
@@ -132,3 +133,10 @@ class BeginIntroSampling_002(Scene):
             Transform(sampled_dots, shannon_sampling[:-1]),
             FadeTransform(point_n_txt, point_shannon_txt),
         )
+        point_n_txt = point_shannon_txt
+
+        self.play(frame.animate.shift(UP), FadeOut(freq_txt, point_n_txt))
+        shannon_text = Text(
+            "Shannon-Nyquist Theorem", font=REDUCIBLE_FONT, weight=BOLD
+        ).next_to(signal_mob, UP, buff=2)
+        self.play(FadeIn(shannon_text, shift=DOWN))
