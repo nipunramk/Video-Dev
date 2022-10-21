@@ -12,7 +12,6 @@ from reducible_colors import *
 class BeginIntroSampling_002(MovingCameraScene):
     def construct(self):
         frame = self.camera.frame
-        x_min = 0
         x_max = 2 * PI
         frequency = 7
         num_points = 7
@@ -35,6 +34,9 @@ class BeginIntroSampling_002(MovingCameraScene):
         )
 
         self.play(Write(signal_mob))
+
+        self.wait()
+
         self.play(FadeIn(freq_txt))
         self.play(Write(sampled_dots))
 
@@ -148,10 +150,10 @@ class BeginIntroSampling_002(MovingCameraScene):
         )
 
         shannon_theorem = MathTex(
-            r"f_{s} \Rightarrow f_{\text{sample rate}} > 2 \cdot f_{s}"
+            r"f_{s} \Rightarrow f_{\text{\tiny sample rate}} > 2 \cdot f_{s}"
         ).next_to(shannon_text, DOWN, buff=0.5)
         shannon_theorem_reverse = MathTex(
-            r"f_{\text{sample rate}} \Rightarrow f_{s_{+}} < f_{\text{sample rate}} / 2"
+            r"f_{\text{\tiny sample rate}} \Rightarrow f_{s_{+}} < f_{\text{\tiny sample rate}} / 2"
         ).next_to(shannon_theorem, DOWN, buff=0.5)
 
         self.wait()
