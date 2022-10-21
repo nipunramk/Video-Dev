@@ -33,7 +33,8 @@ class BeginIntroSampling_002(Scene):
             .scale(0.6)
         )
 
-        self.play(Write(signal_mob), FadeIn(freq_txt))
+        self.play(Write(signal_mob))
+        self.play(FadeIn(freq_txt))
         self.play(Write(sampled_dots))
 
         self.wait()
@@ -48,6 +49,19 @@ class BeginIntroSampling_002(Scene):
             .set_stroke(width=8, background=True)
             .to_corner(UR)
         )
+
+        axes, constant_signal_mob = plot_time_domain(
+            get_cosine_func(0), t_max=x_max - PI / 4
+        )
+
+        constant_signal_mob = DashedVMobject(constant_signal_mob).move_to(
+            sampled_dots[0], coor_mask=[0, 1, 0]
+        )
+
+        self.play(FadeOut(signal_mob), FadeIn(constant_signal_mob))
+        self.wait()
+        self.play(FadeOut(constant_signal_mob), FadeIn(signal_mob))
+
         self.play(FadeIn(aliasing_txt, shift=LEFT))
         for m in range(2, multiples):
             cosine_signal_aa = get_cosine_func(freq=frequency * m)
