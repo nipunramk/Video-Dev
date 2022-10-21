@@ -140,3 +140,21 @@ class BeginIntroSampling_002(MovingCameraScene):
             "Shannon-Nyquist Theorem", font=REDUCIBLE_FONT, weight=BOLD
         ).next_to(signal_mob, UP, buff=2)
         self.play(FadeIn(shannon_text, shift=DOWN))
+
+        self.wait()
+
+        self.play(
+            signal_mob.animate.shift(DOWN * 0.8), sampled_dots.animate.shift(DOWN * 0.8)
+        )
+
+        shannon_theorem = MathTex(
+            r"f_{s} \Rightarrow f_{\text{sample rate}} > 2 \cdot f_{s}"
+        ).next_to(shannon_text, DOWN, buff=0.5)
+        shannon_theorem_reverse = MathTex(
+            r"f_{\text{sample rate}} \Rightarrow f_{s_{+}} < f_{\text{sample rate}} / 2"
+        ).next_to(shannon_theorem, DOWN, buff=0.5)
+
+        self.wait()
+
+        self.play(FadeIn(shannon_theorem))
+        self.play(FadeIn(shannon_theorem_reverse))
