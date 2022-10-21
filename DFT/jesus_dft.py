@@ -85,6 +85,7 @@ class BeginIntroSampling_002(MovingCameraScene):
                 FadeTransform(freq_txt, new_freq_txt),
                 run_time=2,
             )
+            self.wait(0.5)
             freq_txt = new_freq_txt
 
         self.play(FadeOut(aliasing_txt, shift=RIGHT))
@@ -137,7 +138,9 @@ class BeginIntroSampling_002(MovingCameraScene):
         )
         point_n_txt = point_shannon_txt
 
+        self.wait()
         self.play(frame.animate.shift(UP), FadeOut(freq_txt, point_n_txt))
+
         shannon_text = Text(
             "Shannon-Nyquist Theorem", font=REDUCIBLE_FONT, weight=BOLD
         ).next_to(signal_mob, UP, buff=2)
