@@ -33,11 +33,14 @@ class BeginIntroSampling_002(MovingCameraScene):
             .scale(0.6)
         )
 
-        self.play(Write(signal_mob))
+        self.play(Write(signal_mob), run_time=2.5)
 
         self.wait()
 
         self.play(FadeIn(freq_txt))
+
+        self.wait()
+
         self.play(Write(sampled_dots))
 
         self.wait()
@@ -61,9 +64,14 @@ class BeginIntroSampling_002(MovingCameraScene):
             sampled_dots[0], coor_mask=[0, 1, 0]
         )
 
-        self.play(FadeOut(signal_mob), FadeIn(constant_signal_mob))
+        self.play(
+            signal_mob.animate.set_stroke(opacity=0.25).set_fill(opacity=0),
+            FadeIn(constant_signal_mob),
+        )
         self.wait()
-        self.play(FadeOut(constant_signal_mob), FadeIn(signal_mob))
+        self.play(
+            FadeOut(constant_signal_mob), signal_mob.animate.set_stroke(opacity=1)
+        )
 
         self.play(FadeIn(aliasing_txt, shift=LEFT))
         for m in range(2, multiples):
@@ -138,28 +146,29 @@ class BeginIntroSampling_002(MovingCameraScene):
         )
         point_n_txt = point_shannon_txt
 
-        self.wait()
-        self.play(frame.animate.shift(UP), FadeOut(freq_txt, point_n_txt))
-
         shannon_text = Text(
             "Shannon-Nyquist Theorem", font=REDUCIBLE_FONT, weight=BOLD
         ).next_to(signal_mob, UP, buff=2)
-        self.play(FadeIn(shannon_text, shift=DOWN))
 
         self.wait()
 
         self.play(
-            signal_mob.animate.shift(DOWN * 0.8), sampled_dots.animate.shift(DOWN * 0.8)
+            FadeIn(shannon_text, shift=DOWN),
+            frame.animate.shift(UP),
+            FadeOut(freq_txt, point_n_txt),
+            signal_mob.animate.shift(DOWN * 0.8),
+            sampled_dots.animate.shift(DOWN * 0.8),
         )
 
         shannon_theorem = MathTex(
             r"f_{s} \Rightarrow f_{\text{\tiny sample rate}} > 2 \cdot f_{s}"
         ).next_to(shannon_text, DOWN, buff=0.5)
         shannon_theorem_reverse = MathTex(
-            r"f_{\text{\tiny sample rate}} \Rightarrow f_{s_{+}} < f_{\text{\tiny sample rate}} / 2"
+            r"f_{\text{\tiny sample rate}} \Rightarrow f_{s_{+}} < \frac{f_{\text{\tiny sample rate}}}{2}"
         ).next_to(shannon_theorem, DOWN, buff=0.5)
 
         self.wait()
 
         self.play(FadeIn(shannon_theorem))
+        self.wait()
         self.play(FadeIn(shannon_theorem_reverse))
