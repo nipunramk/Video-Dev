@@ -20,7 +20,7 @@ class BeginIntroSampling_002(MovingCameraScene):
         axes, signal_mob = plot_time_domain(cosine_signal, t_max=x_max - PI / 4)
         sampled_dots = get_sampled_dots(
             signal_mob, axes, x_max=x_max, num_points=num_points
-        ).set_color(REDUCIBLE_VIOLET)
+        ).set_color(REDUCIBLE_YELLOW)
 
         freq_txt = (
             Text("ƒ = " + str(frequency) + " Hz", font=REDUCIBLE_MONO)
@@ -109,7 +109,7 @@ class BeginIntroSampling_002(MovingCameraScene):
         # double sampling
         double_sampling = get_sampled_dots(
             signal_mob, axes, x_max=x_max, num_points=frequency * 2
-        ).set_color(REDUCIBLE_VIOLET)
+        ).set_color(REDUCIBLE_YELLOW)
 
         point_n_txt = (
             Text("N = " + str(num_points), font=REDUCIBLE_MONO)
@@ -134,7 +134,7 @@ class BeginIntroSampling_002(MovingCameraScene):
         # shannon sampling
         shannon_sampling = get_sampled_dots(
             signal_mob, axes, x_max=x_max, num_points=frequency * 2 + 1
-        )
+        ).set_color(REDUCIBLE_YELLOW)
         point_shannon_txt = (
             Text("N = " + str(num_points * 2 + 1), font=REDUCIBLE_MONO)
             .next_to(signal_mob, DOWN, aligned_edge=RIGHT, buff=1)
@@ -158,6 +158,7 @@ class BeginIntroSampling_002(MovingCameraScene):
             FadeOut(freq_txt, point_n_txt),
             signal_mob.animate.shift(DOWN * 0.8),
             sampled_dots.animate.shift(DOWN * 0.8),
+            axes.animate.shift(DOWN * 0.8).set_stroke(opacity=0),
         )
 
         shannon_theorem = MathTex(
@@ -172,3 +173,18 @@ class BeginIntroSampling_002(MovingCameraScene):
         self.play(FadeIn(shannon_theorem))
         self.wait()
         self.play(FadeIn(shannon_theorem_reverse))
+
+        high_sampling_dots = get_sampled_dots(
+            signal_mob, axes, x_max=x_max - PI / 4, num_points=300
+        ).set_color(REDUCIBLE_YELLOW)
+
+        [p.scale(0.7) for p in high_sampling_dots]
+
+        self.wait()
+
+        self.play(
+            FadeTransform(sampled_dots, high_sampling_dots),
+            signal_mob.animate.set_stroke(opacity=0.3),
+        )
+
+        self.wait()
