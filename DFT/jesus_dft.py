@@ -17,7 +17,7 @@ class BeginIntroSampling_002(MovingCameraScene):
         num_points = 7
 
         cosine_signal = get_cosine_func(freq=frequency)
-        axes, signal_mob = plot_time_domain(cosine_signal, t_max=x_max - PI / 4)
+        axes, signal_mob = plot_time_domain(cosine_signal, t_max=x_max)
         sampled_dots = get_sampled_dots(
             signal_mob, axes, x_max=x_max, num_points=num_points
         ).set_color(REDUCIBLE_YELLOW)
@@ -56,9 +56,7 @@ class BeginIntroSampling_002(MovingCameraScene):
             .to_corner(UR)
         )
 
-        axes, constant_signal_mob = plot_time_domain(
-            get_cosine_func(0), t_max=x_max - PI / 4
-        )
+        axes, constant_signal_mob = plot_time_domain(get_cosine_func(0), t_max=x_max)
 
         constant_signal_mob = DashedVMobject(constant_signal_mob).move_to(
             sampled_dots[0], coor_mask=[0, 1, 0]
@@ -76,9 +74,7 @@ class BeginIntroSampling_002(MovingCameraScene):
         self.play(FadeIn(aliasing_txt, shift=LEFT))
         for m in range(2, multiples):
             cosine_signal_aa = get_cosine_func(freq=frequency * m)
-            axes_aa, signal_mob_aa = plot_time_domain(
-                cosine_signal_aa, t_max=x_max - PI / 4
-            )
+            axes_aa, signal_mob_aa = plot_time_domain(cosine_signal_aa, t_max=x_max)
             new_freq_txt = (
                 Text(
                     "ƒ = " + str(frequency * m) + " Hz",
@@ -158,8 +154,8 @@ class BeginIntroSampling_002(MovingCameraScene):
             FadeOut(freq_txt, point_n_txt),
             signal_mob.animate.shift(DOWN * 0.8),
             sampled_dots.animate.shift(DOWN * 0.8),
-            axes.animate.shift(DOWN * 0.8).set_stroke(opacity=0),
         )
+        axes.shift(DOWN * 0.8)
 
         shannon_theorem = MathTex(
             r"f_{s} \Rightarrow f_{\text{\tiny sample rate}} > 2 \cdot f_{s}"
@@ -175,7 +171,7 @@ class BeginIntroSampling_002(MovingCameraScene):
         self.play(FadeIn(shannon_theorem_reverse))
 
         high_sampling_dots = get_sampled_dots(
-            signal_mob, axes, x_max=x_max - PI / 4, num_points=300
+            signal_mob, axes, x_max=x_max, num_points=300
         ).set_color(REDUCIBLE_YELLOW)
 
         [p.scale(0.7) for p in high_sampling_dots]

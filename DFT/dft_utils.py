@@ -88,7 +88,7 @@ def plot_time_domain(
     t_step=1,
     y_min=-1,
     y_max=1,
-    y_step=1,
+    y_step=0.1,
     color=TIME_DOMAIN_COLOR,
 ):
     time_axis = get_time_axis(
