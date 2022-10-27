@@ -103,6 +103,10 @@ def get_cosine_func(amplitude=1, freq=1, phase=0, b=0):
     return lambda x: amplitude * np.cos(freq * x + phase) + b
 
 
+def get_sine_func(amplitude=1, freq=1, phase=0, b=0):
+    return lambda x: amplitude * np.sin(freq * x + phase) + b
+
+
 def get_sampled_coords(graph, x_min=0, x_max=2 * PI, num_points=8):
     func = graph.underlying_function
     x_coords = np.linspace(x_min, x_max, num=num_points, endpoint=False)

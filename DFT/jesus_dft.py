@@ -122,7 +122,7 @@ class BeginIntroSampling_002(MovingCameraScene):
         self.play(FadeIn(point_n_txt, shift=LEFT))
         self.wait()
         self.play(
-            Transform(sampled_dots, double_sampling[:-1]),
+            Transform(sampled_dots, double_sampling),
             FadeTransform(point_n_txt, point_2n_txt),
         )
         point_n_txt = point_2n_txt
@@ -139,9 +139,24 @@ class BeginIntroSampling_002(MovingCameraScene):
             x_min=period_quarter,
             x_max=x_max + period_quarter,
             num_points=frequency * 2,
+        ).set_color(REDUCIBLE_YELLOW)
+
+        _, constant_sine = plot_time_domain(get_sine_func(0), t_max=x_max)
+        c_sine_mob = (
+            DashedVMobject(constant_sine)
+            .move_to(double_sampling_offset, coor_mask=[0, 1, 0])
+            .set_color(REDUCIBLE_YELLOW)
+            .set_stroke(opacity=0.5)
         )
-        self.play(Transform(sampled_dots, double_sampling_offset), FadeIn(axes))
-        self.wait(3)
+
+        self.play(Transform(sampled_dots, double_sampling_offset), run_time=3)
+        self.wait()
+
+        self.play(signal_mob.animate.set_stroke(opacity=0.3), FadeIn(c_sine_mob))
+        self.wait()
+
+        self.play(FadeOut(c_sine_mob), signal_mob.animate.set_stroke(opacity=1))
+        self.wait()
 
         # shannon sampling
         shannon_sampling = get_sampled_dots(
@@ -153,7 +168,7 @@ class BeginIntroSampling_002(MovingCameraScene):
             .scale(0.6)
         )
         self.play(
-            Transform(sampled_dots, shannon_sampling[:-1]),
+            Transform(sampled_dots, shannon_sampling),
             FadeTransform(point_n_txt, point_shannon_txt),
         )
         point_n_txt = point_shannon_txt
@@ -192,11 +207,9 @@ class BeginIntroSampling_002(MovingCameraScene):
 
         [p.scale(0.7) for p in high_sampling_dots]
 
-        self.wait()
-
-        self.play(
-            FadeTransform(sampled_dots, high_sampling_dots),
-            signal_mob.animate.set_stroke(opacity=0.3),
-        )
+        # self.play(
+        #     FadeTransform(sampled_dots, high_sampling_dots),
+        #     signal_mob.animate.set_stroke(opacity=0.3),
+        # )
 
         self.wait()
