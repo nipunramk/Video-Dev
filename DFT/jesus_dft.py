@@ -12,7 +12,7 @@ from reducible_colors import *
 class BeginIntroSampling_002(MovingCameraScene):
     def construct(self):
         frame = self.camera.frame
-        x_max = 2 * PI
+        x_max = TAU
         frequency = 7
         num_points = 7
 
@@ -118,6 +118,7 @@ class BeginIntroSampling_002(MovingCameraScene):
             .scale(0.6)
         )
 
+        # sampling at N = 14
         self.play(FadeIn(point_n_txt, shift=LEFT))
         self.wait()
         self.play(
@@ -126,6 +127,21 @@ class BeginIntroSampling_002(MovingCameraScene):
         )
         point_n_txt = point_2n_txt
         self.wait()
+
+        # now show how this could be a constant signal
+        # shift every point π radians
+        period_length = TAU / frequency
+        period_quarter = period_length / 4
+
+        double_sampling_offset = get_sampled_dots(
+            signal_mob,
+            axes,
+            x_min=period_quarter,
+            x_max=x_max + period_quarter,
+            num_points=frequency * 2,
+        )
+        self.play(Transform(sampled_dots, double_sampling_offset), FadeIn(axes))
+        self.wait(3)
 
         # shannon sampling
         shannon_sampling = get_sampled_dots(
