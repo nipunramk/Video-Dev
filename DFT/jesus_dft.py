@@ -198,18 +198,9 @@ class BeginIntroSampling_002(MovingCameraScene):
         self.wait()
 
         self.play(FadeIn(shannon_theorem))
+
         self.wait()
+
         self.play(FadeIn(shannon_theorem_reverse))
-
-        high_sampling_dots = get_sampled_dots(
-            signal_mob, axes, x_max=x_max, num_points=300
-        ).set_color(REDUCIBLE_YELLOW)
-
-        [p.scale(0.7) for p in high_sampling_dots]
-
-        # self.play(
-        #     FadeTransform(sampled_dots, high_sampling_dots),
-        #     signal_mob.animate.set_stroke(opacity=0.3),
-        # )
 
         self.wait()
