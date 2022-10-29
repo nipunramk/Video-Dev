@@ -195,14 +195,12 @@ def get_fourier_line_chart(
 
 
 def get_fourier_bar_chart(
-    axes,
     time_func,
     t_min=0,
     t_max=10,
     f_min=0,
     f_max=10,
     n_samples=NUM_SAMPLES_FOR_FFT,
-    complex_to_real_func=lambda z: z.real,
     bar_width=0.2,
     color=FREQ_DOMAIN_COLOR,
 ):
@@ -218,8 +216,8 @@ def get_fourier_bar_chart(
         if x <= f_max + 0.1:
             rect = (
                 Rectangle(height=np.abs(y) / n_samples, width=bar_width)
-                .set_color(FREQ_DOMAIN_COLOR)
-                .set_fill(FREQ_DOMAIN_COLOR, opacity=1)
+                .set_color(color)
+                .set_fill(color, opacity=1)
                 .set_stroke(width=1)
             )
             graph.add(rect)

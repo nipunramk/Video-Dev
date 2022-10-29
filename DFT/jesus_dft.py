@@ -216,7 +216,7 @@ class IntroTimeFreqDomain(MovingCameraScene):
 
         cos_1 = get_cosine_func(freq=1)
         cos_2 = get_cosine_func(freq=3)
-        cos_3 = get_cosine_func(freq=2)
+        cos_3 = get_cosine_func(freq=2000)
         sum_function = get_sum_functions(cos_1, cos_2, cos_3)
 
         print([sum_function(x) for x in range(10)])
@@ -226,4 +226,4 @@ class IntroTimeFreqDomain(MovingCameraScene):
 
         dft_graph = get_fourier_bar_chart(axes, sum_function)
         # self.play(Write(axes))
-        self.play(Write(dft_graph.scale(0.4)))
+        self.play(LaggedStartMap(FadeIn, dft_graph.scale(0.4)))
