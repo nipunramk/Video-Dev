@@ -204,3 +204,26 @@ class BeginIntroSampling_002(MovingCameraScene):
         self.play(FadeIn(shannon_theorem_reverse))
 
         self.wait()
+
+
+class IntroTimeFreqDomain(MovingCameraScene):
+    def construct(self):
+
+        frame = self.camera.frame
+        x_max = TAU * 3
+        frequency = 7
+        num_points = 7
+
+        cos_1 = get_cosine_func(freq=1)
+        cos_2 = get_cosine_func(freq=3)
+        cos_3 = get_cosine_func(freq=2)
+        sum_function = get_sum_functions(cos_1, cos_2, cos_3)
+
+        print([sum_function(x) for x in range(10)])
+        print([get_cosine_func(freq=7)(x) for x in range(10)])
+
+        axes, sum_mob = plot_time_domain(sum_function, t_max=x_max)
+
+        dft_graph = get_fourier_bar_chart(axes, sum_function)
+        # self.play(Write(axes))
+        self.play(Write(dft_graph.scale(0.4)))
