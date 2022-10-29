@@ -202,6 +202,7 @@ def get_fourier_bar_chart(
     f_max=10,
     n_samples=NUM_SAMPLES_FOR_FFT,
     bar_width=0.2,
+    height_scale=1,
     color=FREQ_DOMAIN_COLOR,
 ):
 
@@ -215,7 +216,7 @@ def get_fourier_bar_chart(
     for x, y in zip(frequencies, fft_output[: n_samples // 2]):
         if x <= f_max + 0.1:
             rect = (
-                Rectangle(height=np.abs(y) / n_samples, width=bar_width)
+                Rectangle(height=height_scale * np.abs(y) / n_samples, width=bar_width)
                 .set_color(color)
                 .set_fill(color, opacity=1)
                 .set_stroke(width=1)
