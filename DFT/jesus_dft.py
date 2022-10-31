@@ -12,7 +12,7 @@ from reducible_colors import *
 class IntroSampling_002(MovingCameraScene):
     def construct(self):
         frame = self.camera.frame
-        x_max = 2 * PI
+        x_max = TAU
         frequency = 7
         num_points = 7
 
@@ -118,13 +118,44 @@ class IntroSampling_002(MovingCameraScene):
             .scale(0.6)
         )
 
+        # sampling at N = 14
         self.play(FadeIn(point_n_txt, shift=LEFT))
         self.wait()
         self.play(
-            Transform(sampled_dots, double_sampling[:-1]),
+            Transform(sampled_dots, double_sampling),
             FadeTransform(point_n_txt, point_2n_txt),
         )
         point_n_txt = point_2n_txt
+        self.wait()
+
+        # now show how this could be a constant signal
+        # shift every point π radians
+        period_length = TAU / frequency
+        period_quarter = period_length / 4
+
+        double_sampling_offset = get_sampled_dots(
+            signal_mob,
+            axes,
+            x_min=period_quarter,
+            x_max=x_max + period_quarter,
+            num_points=frequency * 2,
+        ).set_color(REDUCIBLE_YELLOW)
+
+        _, constant_sine = plot_time_domain(get_sine_func(0), t_max=x_max)
+        c_sine_mob = (
+            DashedVMobject(constant_sine)
+            .move_to(double_sampling_offset, coor_mask=[0, 1, 0])
+            .set_color(REDUCIBLE_YELLOW)
+            .set_stroke(opacity=0.5)
+        )
+
+        self.play(Transform(sampled_dots, double_sampling_offset), run_time=3)
+        self.wait()
+
+        self.play(signal_mob.animate.set_stroke(opacity=0.3), FadeIn(c_sine_mob))
+        self.wait()
+
+        self.play(FadeOut(c_sine_mob), signal_mob.animate.set_stroke(opacity=1))
         self.wait()
 
         # shannon sampling
@@ -137,7 +168,7 @@ class IntroSampling_002(MovingCameraScene):
             .scale(0.6)
         )
         self.play(
-            Transform(sampled_dots, shannon_sampling[:-1]),
+            Transform(sampled_dots, shannon_sampling),
             FadeTransform(point_n_txt, point_shannon_txt),
         )
         point_n_txt = point_shannon_txt
@@ -167,20 +198,9 @@ class IntroSampling_002(MovingCameraScene):
         self.wait()
 
         self.play(FadeIn(shannon_theorem))
+
         self.wait()
+
         self.play(FadeIn(shannon_theorem_reverse))
-
-        high_sampling_dots = get_sampled_dots(
-            signal_mob, axes, x_max=x_max, num_points=300
-        ).set_color(REDUCIBLE_YELLOW)
-
-        [p.scale(0.7) for p in high_sampling_dots]
-
-        self.wait()
-
-        self.play(
-            FadeTransform(sampled_dots, high_sampling_dots),
-            signal_mob.animate.set_stroke(opacity=0.3),
-        )
 
         self.wait()
