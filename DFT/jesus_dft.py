@@ -214,24 +214,95 @@ class IntroTimeFreqDomain(MovingCameraScene):
         frequency = 7
         num_points = 7
 
-        cos_1 = get_cosine_func(freq=1)
-        cos_2 = get_cosine_func(freq=3)
-        cos_3 = get_cosine_func(freq=1)
+        freq_1 = 2
+        freq_2 = 3
+        freq_3 = 4
+
+        cos_1 = get_cosine_func(freq=freq_1, amplitude=0.3)
+        cos_2 = get_cosine_func(freq=freq_2, amplitude=0.3)
+        cos_3 = get_cosine_func(freq=freq_3, amplitude=0.3)
         sum_function = get_sum_functions(cos_1, cos_2, cos_3)
 
-        print([sum_function(x) for x in range(10)])
-        print([get_cosine_func(freq=7)(x) for x in range(10)])
-
-        axes, sum_mob = plot_time_domain(sum_function, t_max=x_max)
-
-        sum_dft_graph = get_fourier_bar_chart(sum_function, height_scale=1.8).scale(0.4)
-        cos_dft_graph = (
-            get_fourier_bar_chart(cos_2, height_scale=1.8)
-            .scale(0.4)
-            .next_to(sum_dft_graph, ORIGIN, aligned_edge=DOWN)
+        axes_sum, sum_mob = plot_time_domain(
+            sum_function,
+            t_max=x_max,
         )
 
-        self.play(FadeIn(sum_dft_graph))
+        self.play(Write(sum_mob), run_time=2)
+
+        # this would be the "frequency representation"
+        sum_dft_graph = (
+            get_fourier_bar_chart(sum_function, height_scale=14.8, n_samples=100)
+            .scale(0.4)
+            .next_to(sum_mob, DOWN, buff=1)
+        )
+
+        cos_1_axes, cos_1_mob = plot_time_domain(
+            cos_1,
+            t_max=x_max,
+        )
+        _, cos_2_mob = plot_time_domain(
+            cos_2,
+            t_max=x_max,
+        )
+        _, cos_3_mob = plot_time_domain(
+            cos_3,
+            t_max=x_max,
+        )
+
+        self.play(
+            sum_mob.animate.shift(UP * 0.5), LaggedStartMap(FadeIn, sum_dft_graph)
+        )
+        decomposed_sum = (
+            VGroup(cos_1_mob, cos_2_mob, cos_3_mob)
+            .arrange(DOWN, buff=0.5)
+            .scale(0.8)
+            .move_to(sum_mob)
+        )
+        text_cos_1 = (
+            Text(f"{freq_1} Hz", font=REDUCIBLE_MONO)
+            .next_to(cos_1_mob, LEFT, buff=0, aligned_edge=DOWN)
+            .scale(0.5)
+        )
+        text_cos_2 = (
+            Text(f"{freq_2} Hz", font=REDUCIBLE_MONO)
+            .next_to(cos_2_mob, LEFT, buff=0, aligned_edge=DOWN)
+            .scale(0.5)
+        )
+        text_cos_3 = (
+            Text(f"{freq_3} Hz", font=REDUCIBLE_MONO)
+            .next_to(cos_3_mob, LEFT, buff=0, aligned_edge=DOWN)
+            .scale(0.5)
+        )
+
         self.wait()
 
-        self.play(Transform(sum_dft_graph, cos_dft_graph))
+        sum_mob_og = sum_mob.copy()
+        self.play(
+            Transform(sum_mob, decomposed_sum),
+            FadeIn(text_cos_1, text_cos_2, text_cos_3),
+        )
+
+        self.wait()
+
+        self.play(FadeOut(text_cos_1, text_cos_2, text_cos_3, shift=UP * 0.3))
+        self.wait()
+
+        self.play(
+            sum_mob[0].animate.stretch_to_fit_height(0.3),
+            sum_mob[1].animate.stretch_to_fit_height(0.8),
+            sum_mob[2].animate.stretch_to_fit_height(0.1),
+        )
+        self.wait()
+
+        self.play(Transform(sum_mob, sum_mob_og))
+        self.wait()
+
+        freq_repr_txt = (
+            Text("Frequency Domain Representation", font=REDUCIBLE_FONT, weight=BOLD)
+            .scale(0.9)
+            .next_to(sum_mob_og, UP * 0.7, buff=2)
+        )
+        self.play(
+            frame.animate.shift(UP * 0.6), FadeIn(freq_repr_txt, shift=DOWN * 0.3)
+        )
