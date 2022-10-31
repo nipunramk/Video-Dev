@@ -9,7 +9,7 @@ from dft_utils import *
 from reducible_colors import *
 
 
-class BeginIntroSampling_002(MovingCameraScene):
+class IntroSampling_002(MovingCameraScene):
     def construct(self):
         frame = self.camera.frame
         x_max = 2 * PI
