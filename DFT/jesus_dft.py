@@ -211,16 +211,14 @@ class IntroTimeFreqDomain(MovingCameraScene):
 
         frame = self.camera.frame
         x_max = TAU * 2
-        frequency = 7
-        num_points = 7
 
         freq_1 = 2
         freq_2 = 5
         freq_3 = 10
 
         cos_1 = get_cosine_func(freq=freq_1, amplitude=0.3)
-        cos_2 = get_cosine_func(freq=freq_2, amplitude=0.2)
-        cos_3 = get_cosine_func(freq=freq_3, amplitude=0.1)
+        cos_2 = get_cosine_func(freq=freq_2, amplitude=0.3)
+        cos_3 = get_cosine_func(freq=freq_3, amplitude=0.3)
         sum_function = get_sum_functions(cos_1, cos_2, cos_3)
 
         axes_sum, sum_mob = plot_time_domain(
@@ -237,7 +235,7 @@ class IntroTimeFreqDomain(MovingCameraScene):
             .next_to(sum_mob, DOWN, buff=1)
         )
 
-        cos_1_axes, cos_1_mob = plot_time_domain(
+        _, cos_1_mob = plot_time_domain(
             cos_1,
             t_max=x_max,
         )
