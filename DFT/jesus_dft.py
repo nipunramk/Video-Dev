@@ -357,3 +357,70 @@ class IntroTimeFreqDomain(MovingCameraScene):
         self.play(
             frame.animate.shift(UP * 0.6), FadeIn(freq_repr_txt, shift=DOWN * 0.3)
         )
+
+
+DEFAULT_SCALE = 0.8
+DEFAULT_FREQ = 2
+
+
+class IntroSimilarityConcept(MovingCameraScene):
+    def construct(self):
+        frame = self.camera.frame
+        x_max = TAU * 2
+
+        freq_1 = 2
+        freq_2 = 5
+        freq_3 = 10
+
+        cos_1 = get_cosine_func(freq=freq_1, amplitude=0.3)
+        cos_2 = get_cosine_func(freq=freq_2, amplitude=0.3)
+        cos_3 = get_cosine_func(freq=freq_3, amplitude=0.3)
+
+        _, cos_1_mob = plot_time_domain(cos_1, t_max=x_max)
+
+        self.play(Write(cos_1_mob))
+
+    def show_changing_analysis_frequency(self, time_domain_graph, analysis_freq_signal):
+        frequency_tracker = ValueTracker(2)
+
+        time_freq = (
+            VGroup(MathTex("f = "), DecimalNumber(2.00, num_decimal_places=2))
+            .arrange(RIGHT)
+            .scale(DEFAULT_SCALE)
+        )
+        time_freq.next_to(time_domain_graph, UP)
+
+        analysis_freq_symbol = MathTex(r"\hat{f} = ")
+        analysis_freq_value = DecimalNumber(2.00, num_decimal_places=2)
+        analysis_freq_value.add_updater(
+            lambda m: m.set_value(frequency_tracker.get_value())
+        )
+        analysis_freq = (
+            VGroup(analysis_freq_symbol, analysis_freq_value)
+            .arrange(RIGHT)
+            .scale(DEFAULT_SCALE)
+        )
+        analysis_freq.next_to(analysis_freq_signal, UP)
+
+        def get_signal_of_frequency():
+            analysis_freq_func = get_cosine_func(freq=frequency_tracker.get_value())
+            new_signal = self.show_signal(analysis_freq_func, color=FREQ_DOMAIN_COLOR)
+            return new_signal.shift(RIGHT * 3.5).scale(DEFAULT_SCALE)
+
+        changing_analysis_freq_signal = always_redraw(get_signal_of_frequency)
+        self.add(changing_analysis_freq_signal)
+
+        self.play(FadeIn(time_freq))
+        self.wait()
+
+        self.play(FadeIn(analysis_freq))
+        self.wait()
+
+        self.play(frequency_tracker.animate.set_value(3), rate_func=linear, run_time=2)
+        self.play(frequency_tracker.animate.set_value(4), rate_func=linear, run_time=2)
+        self.play(frequency_tracker.animate.set_value(5), rate_func=linear, run_time=2)
+        self.play(frequency_tracker.animate.set_value(2), rate_func=linear, run_time=6)
+        self.wait()
+
+        changing_analysis_freq_signal.clear_updaters()
+        return changing_analysis_freq_signal, time_freq, analysis_freq
