@@ -202,14 +202,27 @@ class AnalysisFrequencies(Scene):
             time_domain_func = get_cosine_func(freq=DEFAULT_FREQ)
             analysis_freq_func = get_cosine_func(freq=frequency_tracker.get_value())
             dot_prod = inner_prod(time_domain_func, analysis_freq_func)
-            bar_chart = BarChart(
-                values=[dot_prod],
-                y_range=[-5, 5, 5],
-                x_length=3,
-                y_length=3,
-                bar_width=0.4,
-                bar_colors=[REDUCIBLE_GREEN_LIGHTER],
-            ).shift(DOWN * 2)
+            bar_chart = (
+                BarChart(
+                    values=[dot_prod],
+                    y_range=[-5, 5, 5],
+                    x_length=3,
+                    y_length=3,
+                    bar_width=0.4,
+                    bar_colors=[REDUCIBLE_GREEN_LIGHTER],
+                )
+                .rotate(PI / 2)
+                .flip(UP)
+                .shift(DOWN * 2)
+            )
+            bar_chart.y_axis.numbers.flip(RIGHT)
+            bar_chart.y_axis.numbers[0].rotate(PI / 2)
+            bar_chart.y_axis.numbers[1].rotate(PI / 2)
+            shift_to_align = (
+                bar_chart.y_axis.numbers[0].get_center()[1]
+                - bar_chart.y_axis.numbers[1].get_center()[1]
+            )
+            bar_chart.y_axis.numbers[1].shift(UP * shift_to_align)
             return bar_chart
 
         self.remove(analysis_freq_signal)
