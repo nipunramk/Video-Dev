@@ -365,7 +365,6 @@ class IntroSimilarityConcept(MovingCameraScene):
         t_max = TAU * 2
 
         original_freq = 2
-        compared_freq = 10  # will animate the freq
 
         cos_og = get_cosine_func(freq=original_freq, amplitude=0.3)
 
@@ -378,26 +377,87 @@ class IntroSimilarityConcept(MovingCameraScene):
         )
 
         self.play(Write(original_freq_mob), run_time=1.5)
+        self.wait()
 
         self.play(original_freq_mob.animate.shift(UP * 1.5))
+        self.wait()
 
         self.play(LaggedStartMap(FadeIn, og_fourier))
+        self.wait()
 
-        frequency_tracker = ValueTracker(2)
+        self.play(frame.animate.scale(0.8).shift(UP * 0.2), FadeOut(og_fourier))
+        self.wait()
+
+        frequency_tracker = ValueTracker(3)
 
         def get_signal_of_frequency():
             analysis_freq_func = get_cosine_func(
                 freq=frequency_tracker.get_value(), amplitude=0.3
             )
-            _, new_signal = plot_time_domain(analysis_freq_func, t_max=t_max)
+            _, new_signal = plot_time_domain(
+                analysis_freq_func, t_max=t_max, color=FREQ_DOMAIN_COLOR
+            )
             return new_signal.move_to(original_freq_mob)
 
+        def get_dot_prod_bar():
+            analysis_freq = get_cosine_func(freq=frequency_tracker.get_value())
+            og_freq = get_cosine_func(freq=original_freq)
+            dot_prod = abs(inner_prod(og_freq, analysis_freq))
+
+            barchart = (
+                BarChart(
+                    values=[dot_prod],
+                    y_range=[0, 4, 1],
+                    x_length=1,
+                    y_length=original_freq_mob.width,
+                    bar_width=0.3,
+                    bar_colors=[REDUCIBLE_GREEN_LIGHTER],
+                )
+                .rotate(PI / 2)
+                .flip()
+            )
+
+            barchart[1:].set_opacity(0.0).next_to(
+                original_freq_mob, DOWN, buff=2.4, aligned_edge=LEFT
+            )
+
+            barchart[0].next_to(original_freq_mob, DOWN, buff=2.4, aligned_edge=LEFT)
+
+            return barchart
+
         changing_analysis_freq_signal = always_redraw(get_signal_of_frequency)
+        changing_bar_dot_prod = always_redraw(get_dot_prod_bar)
 
-        self.play(FadeIn(changing_analysis_freq_signal))
+        bg_rect = (
+            Rectangle(height=0.3, width=original_freq_mob.width, color=REDUCIBLE_GREEN)
+            .set_opacity(0.3)
+            .set_stroke(opacity=0.3)
+            .next_to(original_freq_mob, DOWN, buff=2.4)
+        )
+        v_similar_txt = (
+            Text("Very Similar", font=REDUCIBLE_FONT)
+            .scale(0.2)
+            .next_to(bg_rect, DOWN, aligned_edge=RIGHT)
+        )
+        n_similar_txt = (
+            Text("Very Different", font=REDUCIBLE_FONT)
+            .scale(0.2)
+            .next_to(bg_rect, DOWN, aligned_edge=LEFT)
+        )
 
-        self.play(frequency_tracker.animate.set_value(3), run_time=2)
-        self.play(frequency_tracker.animate.set_value(4), run_time=2)
-        self.play(frequency_tracker.animate.set_value(5), run_time=2)
-        self.play(frequency_tracker.animate.set_value(2), run_time=6)
+        self.play(Write(changing_analysis_freq_signal))
+        self.play(FadeIn(bg_rect, changing_bar_dot_prod, shift=DOWN * 0.3))
+        self.play(FadeIn(v_similar_txt, n_similar_txt, shift=DOWN * 0.3))
+        self.wait()
+
+        self.play(frequency_tracker.animate.set_value(3.5), run_time=4)
+        self.play(frequency_tracker.animate.set_value(4), run_time=4, rate_func=linear)
+        self.play(
+            frequency_tracker.animate.set_value(3.6), run_time=4, rate_func=linear
+        )
+        self.play(
+            frequency_tracker.animate.set_value(original_freq),
+            run_time=6,
+            rate_func=linear,
+        )
         self.wait()
