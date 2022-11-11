@@ -9,7 +9,7 @@ from dft_utils import *
 from reducible_colors import *
 
 
-class BeginIntroSampling_002(MovingCameraScene):
+class IntroSampling_002(MovingCameraScene):
     def construct(self):
         frame = self.camera.frame
         x_max = TAU
@@ -342,6 +342,15 @@ class IntroTimeFreqDomain(MovingCameraScene):
             sum_mob[0].animate.stretch_to_fit_height(0.3),
             sum_mob[1].animate.stretch_to_fit_height(0.8),
             sum_mob[2].animate.stretch_to_fit_height(0.1),
+            sum_dft_graph[3]
+            .animate.stretch_to_fit_height(sum_dft_graph[3].height - 0.3)
+            .move_to(sum_dft_graph[3], aligned_edge=DOWN),
+            sum_dft_graph[8]
+            .animate.stretch_to_fit_height(sum_dft_graph[3].height - 0.1)
+            .move_to(sum_dft_graph[8], aligned_edge=DOWN),
+            sum_dft_graph[16]
+            .animate.stretch_to_fit_height(sum_dft_graph[3].height - 0.6)
+            .move_to(sum_dft_graph[16], aligned_edge=DOWN),
         )
         self.wait()
 
