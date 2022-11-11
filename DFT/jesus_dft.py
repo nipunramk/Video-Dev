@@ -482,6 +482,7 @@ class IntroSimilarityConcept(MovingCameraScene):
         return original_freq_mob
 
     def show_point_sequence(self, original_freq_mob):
+
         self.play(original_freq_mob.animate.move_to(ORIGIN))
 
         dots = VGroup(
@@ -533,6 +534,7 @@ class IntroSimilarityConcept(MovingCameraScene):
             FadeIn(vector_purple, times_symbol),
         )
 
+        self.wait()
         self.play(*[FadeOut(mob) for mob in self.mobjects])
 
     def show_signal_cosines(self):
