@@ -548,17 +548,17 @@ class IntroSimilarityConcept(MovingCameraScene):
         original_freq_mob.set_color(REDUCIBLE_YELLOW).set_stroke(width=12)
 
         analysis_freqs = VGroup()
-        for i in range(1, 10):
+        for i in range(1, 9):
             _, af = plot_time_domain(
                 get_cosine_func(freq=i, amplitude=0.3), t_max=t_max
             )
-            af.set_stroke(opacity=0.2 + 1 / i)
+            af.set_stroke(opacity=1 / i)
             analysis_freqs.add(af)
 
-        analysis_freqs.arrange(DOWN).set_color(REDUCIBLE_VIOLET)
+        analysis_freqs.arrange(DOWN).scale(0.6).set_color(REDUCIBLE_VIOLET)
 
         original_freq_mob.shift(LEFT * 6)
-        analysis_freqs.shift(RIGHT * 6)
+        analysis_freqs.shift(RIGHT * 5)
 
         times = MathTex(r"\times").scale(2)
 
