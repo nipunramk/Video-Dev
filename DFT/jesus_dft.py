@@ -366,3 +366,211 @@ class IntroTimeFreqDomain(MovingCameraScene):
         self.play(
             frame.animate.shift(UP * 0.6), FadeIn(freq_repr_txt, shift=DOWN * 0.3)
         )
+
+
+class IntroSimilarityConcept(MovingCameraScene):
+    def construct(self):
+
+        original_freq_mob = self.show_similarity_operation()
+        self.show_point_sequence(original_freq_mob)
+        self.show_signal_cosines()
+
+    def show_similarity_operation(self):
+
+        frame = self.camera.frame
+        t_max = TAU * 2
+
+        original_freq = 2
+
+        cos_og = get_cosine_func(freq=original_freq, amplitude=0.3)
+
+        _, original_freq_mob = plot_time_domain(cos_og, t_max=t_max)
+
+        og_fourier = (
+            get_fourier_bar_chart(cos_og, t_max=t_max, height_scale=14.8, n_samples=100)
+            .scale_to_fit_width(original_freq_mob.width)
+            .shift(DOWN * 2)
+        )
+
+        self.play(Write(original_freq_mob), run_time=1.5)
+        self.wait()
+
+        self.play(original_freq_mob.animate.shift(UP * 1.5))
+        self.wait()
+
+        self.play(LaggedStartMap(FadeIn, og_fourier))
+        self.wait()
+
+        self.play(frame.animate.scale(0.8).shift(UP * 0.2), FadeOut(og_fourier))
+        self.wait()
+
+        frequency_tracker = ValueTracker(3)
+
+        def get_signal_of_frequency():
+            analysis_freq_func = get_cosine_func(
+                freq=frequency_tracker.get_value(), amplitude=0.3
+            )
+            _, new_signal = plot_time_domain(
+                analysis_freq_func, t_max=t_max, color=FREQ_DOMAIN_COLOR
+            )
+            return new_signal.move_to(original_freq_mob)
+
+        def get_dot_prod_bar():
+            analysis_freq = get_cosine_func(freq=frequency_tracker.get_value())
+            og_freq = get_cosine_func(freq=original_freq)
+            dot_prod = abs(inner_prod(og_freq, analysis_freq))
+
+            barchart = (
+                BarChart(
+                    values=[dot_prod],
+                    y_range=[0, 4, 1],
+                    x_length=1,
+                    y_length=original_freq_mob.width,
+                    bar_width=0.3,
+                    bar_colors=[REDUCIBLE_GREEN_LIGHTER],
+                )
+                .rotate(PI / 2)
+                .flip()
+            )
+
+            barchart[1:].set_opacity(0.0).next_to(
+                original_freq_mob, DOWN, buff=2.4, aligned_edge=LEFT
+            )
+
+            barchart[0].next_to(original_freq_mob, DOWN, buff=2.4, aligned_edge=LEFT)
+
+            return barchart
+
+        changing_analysis_freq_signal = always_redraw(get_signal_of_frequency)
+        changing_bar_dot_prod = always_redraw(get_dot_prod_bar)
+
+        bg_rect = (
+            Rectangle(height=0.3, width=original_freq_mob.width, color=REDUCIBLE_GREEN)
+            .set_opacity(0.3)
+            .set_stroke(opacity=0.3)
+            .next_to(original_freq_mob, DOWN, buff=2.4)
+        )
+        v_similar_txt = (
+            Text("Very Similar", font=REDUCIBLE_FONT)
+            .scale(0.2)
+            .next_to(bg_rect, DOWN, aligned_edge=RIGHT)
+        )
+        n_similar_txt = (
+            Text("Very Different", font=REDUCIBLE_FONT)
+            .scale(0.2)
+            .next_to(bg_rect, DOWN, aligned_edge=LEFT)
+        )
+
+        self.play(Write(changing_analysis_freq_signal))
+        self.play(FadeIn(bg_rect, changing_bar_dot_prod, shift=DOWN * 0.3))
+        self.play(FadeIn(v_similar_txt, n_similar_txt, shift=DOWN * 0.3))
+        self.wait()
+
+        self.play(frequency_tracker.animate.set_value(3.5), run_time=4)
+        self.play(frequency_tracker.animate.set_value(4), run_time=4, rate_func=linear)
+        self.play(
+            frequency_tracker.animate.set_value(3.6), run_time=4, rate_func=linear
+        )
+        self.play(
+            frequency_tracker.animate.set_value(original_freq),
+            run_time=6,
+            rate_func=linear,
+        )
+        self.wait()
+        self.play(
+            FadeOut(changing_analysis_freq_signal),
+            FadeOut(
+                changing_bar_dot_prod,
+                bg_rect,
+                v_similar_txt,
+                n_similar_txt,
+                shift=DOWN * 0.3,
+            ),
+        )
+
+        return original_freq_mob
+
+    def show_point_sequence(self, original_freq_mob):
+
+        self.play(original_freq_mob.animate.move_to(ORIGIN))
+
+        dots = VGroup(
+            *[
+                Dot(color=WHITE).move_to(original_freq_mob.point_from_proportion(d))
+                for d in np.linspace(0, 1, 3)
+            ]
+        )
+
+        for i in range(6, 3 * 10, 3):
+            dots_pos = np.linspace(0, 1, i)
+            new_dots = VGroup(
+                *[
+                    Dot(color=WHITE).move_to(original_freq_mob.point_from_proportion(d))
+                    for d in dots_pos
+                ]
+            )
+            self.play(Transform(dots, new_dots), run_time=4 / i)
+            self.wait(1 / config.frame_rate)
+
+        self.wait()
+
+        self.play(
+            dots.animate.scale(0.7).move_to(ORIGIN).arrange(RIGHT),
+            FadeOut(original_freq_mob),
+        )
+
+        left_bracket = (
+            Tex("[")
+            .scale_to_fit_height(dots[0].height * 3)
+            .next_to(dots, LEFT, buff=0.2)
+        )
+        right_bracket = (
+            Tex("]")
+            .scale_to_fit_height(dots[0].height * 3)
+            .next_to(dots, RIGHT, buff=0.2)
+        )
+
+        vector = VGroup(left_bracket, dots, right_bracket)
+
+        self.play(FadeIn(left_bracket, right_bracket, shift=DOWN * 0.3))
+
+        self.wait()
+        vector_purple = vector.copy().set_color(REDUCIBLE_VIOLET).shift(DOWN * 1)
+
+        times_symbol = MathTex(r"\times").scale(0.8)
+        self.play(
+            vector.animate.shift(UP * 1).set_color(REDUCIBLE_YELLOW),
+            FadeIn(vector_purple, times_symbol),
+        )
+
+        self.wait()
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
+
+    def show_signal_cosines(self):
+        t_max = TAU * 2
+
+        original_freq = 2
+
+        cos_og = get_cosine_func(freq=original_freq, amplitude=1)
+
+        _, original_freq_mob = plot_time_domain(cos_og, t_max=t_max)
+        original_freq_mob.set_color(REDUCIBLE_YELLOW).set_stroke(width=12)
+
+        analysis_freqs = VGroup()
+        for i in range(1, 9):
+            _, af = plot_time_domain(
+                get_cosine_func(freq=i, amplitude=0.3), t_max=t_max
+            )
+            af.set_stroke(opacity=1 / i)
+            analysis_freqs.add(af)
+
+        analysis_freqs.arrange(DOWN).scale(0.6).set_color(REDUCIBLE_VIOLET)
+
+        original_freq_mob.shift(LEFT * 6)
+        analysis_freqs.shift(RIGHT * 5)
+
+        times = MathTex(r"\times").scale(2)
+
+        self.play(Write(original_freq_mob))
+        self.play(FadeIn(times))
+        self.play(LaggedStartMap(FadeIn, analysis_freqs), run_time=2)

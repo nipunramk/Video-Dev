@@ -233,6 +233,7 @@ def get_fourier_bar_chart(
     graph.arrange(RIGHT, buff=0.1, aligned_edge=DOWN)
     return graph
 
+
 def get_vertical_dashed_lines_for_samples(
     graph, axes, x_min=0, x_max=2 * PI, num_points=8, color=REDUCIBLE_YELLOW
 ):
