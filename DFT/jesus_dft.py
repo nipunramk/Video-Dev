@@ -361,6 +361,13 @@ class IntroTimeFreqDomain(MovingCameraScene):
 
 class IntroSimilarityConcept(MovingCameraScene):
     def construct(self):
+
+        # original_freq_mob = self.show_similarity_operation()
+        # self.show_point_sequence(original_freq_mob)
+        self.show_signal_cosines()
+
+    def show_similarity_operation(self):
+
         frame = self.camera.frame
         t_max = TAU * 2
 
@@ -461,3 +468,98 @@ class IntroSimilarityConcept(MovingCameraScene):
             rate_func=linear,
         )
         self.wait()
+        self.play(
+            FadeOut(changing_analysis_freq_signal),
+            FadeOut(
+                changing_bar_dot_prod,
+                bg_rect,
+                v_similar_txt,
+                n_similar_txt,
+                shift=DOWN * 0.3,
+            ),
+        )
+
+        return original_freq_mob
+
+    def show_point_sequence(self, original_freq_mob):
+        self.play(original_freq_mob.animate.move_to(ORIGIN))
+
+        dots = VGroup(
+            *[
+                Dot(color=WHITE).move_to(original_freq_mob.point_from_proportion(d))
+                for d in np.linspace(0, 1, 3)
+            ]
+        )
+
+        for i in range(6, 3 * 10, 3):
+            dots_pos = np.linspace(0, 1, i)
+            new_dots = VGroup(
+                *[
+                    Dot(color=WHITE).move_to(original_freq_mob.point_from_proportion(d))
+                    for d in dots_pos
+                ]
+            )
+            self.play(Transform(dots, new_dots), run_time=4 / i)
+            self.wait(1 / config.frame_rate)
+
+        self.wait()
+
+        self.play(
+            dots.animate.scale(0.7).move_to(ORIGIN).arrange(RIGHT),
+            FadeOut(original_freq_mob),
+        )
+
+        left_bracket = (
+            Tex("[")
+            .scale_to_fit_height(dots[0].height * 3)
+            .next_to(dots, LEFT, buff=0.2)
+        )
+        right_bracket = (
+            Tex("]")
+            .scale_to_fit_height(dots[0].height * 3)
+            .next_to(dots, RIGHT, buff=0.2)
+        )
+
+        vector = VGroup(left_bracket, dots, right_bracket)
+
+        self.play(FadeIn(left_bracket, right_bracket, shift=DOWN * 0.3))
+
+        self.wait()
+        vector_purple = vector.copy().set_color(REDUCIBLE_VIOLET).shift(DOWN * 1)
+
+        times_symbol = MathTex(r"\times").scale(0.8)
+        self.play(
+            vector.animate.shift(UP * 1).set_color(REDUCIBLE_YELLOW),
+            FadeIn(vector_purple, times_symbol),
+        )
+
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
+
+    def show_signal_cosines(self):
+        t_max = TAU * 2
+
+        original_freq = 2
+
+        cos_og = get_cosine_func(freq=original_freq, amplitude=1)
+
+        _, original_freq_mob = plot_time_domain(cos_og, t_max=t_max)
+        original_freq_mob.set_color(REDUCIBLE_YELLOW).set_stroke(width=12)
+
+        analysis_freqs = VGroup()
+        for i in range(1, 10):
+            _, af = plot_time_domain(
+                get_cosine_func(freq=i, amplitude=0.3), t_max=t_max
+            )
+            af.set_stroke(opacity=0.2 + 1 / i)
+            analysis_freqs.add(af)
+
+        analysis_freqs.arrange(DOWN).set_color(REDUCIBLE_VIOLET)
+
+        original_freq_mob.shift(LEFT * 6)
+        analysis_freqs.shift(RIGHT * 6)
+
+        times = MathTex(r"\times").scale(2)
+
+        self.play(Write(original_freq_mob))
+        self.play(FadeIn(times))
+        self.play(LaggedStartMap(FadeIn, analysis_freqs), run_time=2)
