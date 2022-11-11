@@ -88,7 +88,7 @@ def plot_time_domain(
     t_step=1,
     y_min=-1,
     y_max=1,
-    y_step=1,
+    y_step=0.1,
     color=TIME_DOMAIN_COLOR,
 ):
     time_axis = get_time_axis(
@@ -101,6 +101,10 @@ def plot_time_domain(
 
 def get_cosine_func(amplitude=1, freq=1, phase=0, b=0):
     return lambda x: amplitude * np.cos(freq * x + phase) + b
+
+
+def get_sine_func(amplitude=1, freq=1, phase=0, b=0):
+    return lambda x: amplitude * np.sin(freq * x + phase) + b
 
 
 def get_sampled_coords(graph, x_min=0, x_max=2 * PI, num_points=8):
@@ -142,6 +146,12 @@ def get_vertical_bars_for_samples(
     ]
     return VGroup(*vertical_lines)
 
+
+def display_signal(time_signal_func, color=TIME_DOMAIN_COLOR):
+    time_axis, graph = plot_time_domain(time_signal_func, t_max=2 * PI, color=color)
+    sampled_points_dots = get_sampled_dots(graph, time_axis)
+    sampled_points_vert_lines = get_vertical_bars_for_samples(graph, time_axis)
+    return VGroup(time_axis, graph, sampled_points_dots, sampled_points_vert_lines)
 
 def get_vertical_dashed_lines_for_samples(
     graph, axes, x_min=0, x_max=2 * PI, num_points=8, color=REDUCIBLE_YELLOW
