@@ -362,8 +362,8 @@ class IntroTimeFreqDomain(MovingCameraScene):
 class IntroSimilarityConcept(MovingCameraScene):
     def construct(self):
 
-        # original_freq_mob = self.show_similarity_operation()
-        # self.show_point_sequence(original_freq_mob)
+        original_freq_mob = self.show_similarity_operation()
+        self.show_point_sequence(original_freq_mob)
         self.show_signal_cosines()
 
     def show_similarity_operation(self):
