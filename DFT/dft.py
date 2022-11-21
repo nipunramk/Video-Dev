@@ -246,3 +246,49 @@ class AnalysisFrequencies(Scene):
         self.wait()
         self.play(frequency_tracker.animate.set_value(5), run_time=2, rate_func=linear)
         self.wait()
+
+
+class MatrixDefinition(Scene):
+    def construct(self):
+        time_signal_func = get_cosine_func(freq=DEFAULT_FREQ)
+        self.define_transformation(time_signal_func)
+
+    def define_transformation(self, time_signal_func):
+        time_domain_graph = display_signal(time_signal_func)
+        signal_samples_vec = MathTex(
+            r"\vec{y} = \begin{bmatrix} y_{0} & y_{1} & \cdots & y_{N-1} \end{bmatrix}"
+        ).scale(0.8)
+        sample_value = MathTex(r"y_k = \cos \left( \frac{2 \pi k f}{N} \right)").scale(
+            0.8
+        )
+        graph_notation = VGroup(
+            time_domain_graph, signal_samples_vec, sample_value
+        ).arrange(DOWN)
+
+        self.play(Write(time_domain_graph))
+        self.wait()
+        self.play(FadeIn(signal_samples_vec))
+        self.wait()
+        self.play(FadeIn(sample_value))
+        self.wait()
+
+        self.play(graph_notation.animate.scale(DEFAULT_SCALE).shift(LEFT * 3.5))
+
+        for freq in range(8):
+            time_signal_func = get_cosine_func(freq=freq)
+            print("Freq", freq)
+            fourier_line_graph = get_fourier_with_sample_points_and_vert_lines(
+                time_signal_func,
+                t_max=2 * PI,
+                f_max=3,
+                n_samples=16,
+                x_length=time_domain_graph.width,
+                y_length=time_domain_graph.height,
+            )
+            fourier_line_graph.move_to(
+                RIGHT * 3.5 + UP * time_domain_graph.get_center()[1]
+            )
+
+            self.add(fourier_line_graph)
+            self.wait()
+            self.remove(fourier_line_graph)
