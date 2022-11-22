@@ -574,3 +574,24 @@ class IntroSimilarityConcept(MovingCameraScene):
         self.play(Write(original_freq_mob))
         self.play(FadeIn(times))
         self.play(LaggedStartMap(FadeIn, analysis_freqs), run_time=2)
+
+
+class IntroducePhaseProblem(MovingCameraScene):
+    def construct(self):
+        frame = self.camera.frame
+        t_max = TAU * 2
+
+        original_freq = 2
+
+        cos_og = get_cosine_func(freq=original_freq, amplitude=0.3)
+
+        sin_og = get_sine_func(freq=original_freq, amplitude=0.3)
+
+        cos_axes, cos_mob = plot_time_domain(cos_og, t_max=t_max)
+        sin_axes, sin_mob = plot_time_domain(sin_og, t_max=t_max)
+
+        self.play(Write(cos_mob), Write(cos_axes))
+
+        self.wait()
+
+        self.play(Transform(cos_mob, sin_mob))
