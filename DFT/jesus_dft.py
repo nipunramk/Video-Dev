@@ -579,6 +579,7 @@ class IntroSimilarityConcept(MovingCameraScene):
 class IntroducePhaseProblem(MovingCameraScene):
     def construct(self):
         frame = self.camera.frame
+        t_min = 0
         t_max = TAU * 2
 
         original_freq = 4
@@ -606,16 +607,14 @@ class IntroducePhaseProblem(MovingCameraScene):
         self.play(vt.animate.set_value(PI / 2))
         self.play(vt.animate.set_value(PI))
 
-        af_matrix = get_analysis_frequency_matrix(of_sampling_rate)
+        af_matrix = get_analysis_frequency_matrix(of_sampling_rate, t_max=t_max)
 
-        sampled_signal = (
-            np.array(
-                [
-                    get_cosine_func(freq=original_freq)(n)
-                    for n in range(of_sampling_rate)
-                ]
-            ).reshape(-1, 1),
-        )
+        sampled_signal = np.array(
+            [
+                get_cosine_func(freq=original_freq)(v)
+                for v in np.linspace(t_min, t_max, num=of_sampling_rate, endpoint=False)
+            ]
+        ).reshape(-1, 1)
         mt = apply_matrix_transform(sampled_signal, af_matrix)
 
         print(sampled_signal)

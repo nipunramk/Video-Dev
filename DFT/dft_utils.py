@@ -279,7 +279,7 @@ def make_row_vector(values, h_buff=0.6, scale=0.6):
     return vector.scale(scale)
 
 
-def get_analysis_frequency_matrix(N):
+def get_analysis_frequency_matrix(N, t_min=0, t_max=2 * PI):
     """
     Constructs a N x N matrix of N analysis frequencies
     sampled at N points.
@@ -295,4 +295,6 @@ def get_analysis_frequency_matrix(N):
     # for each analysis frequency, sample that function along N points
     # this returns the frequencies per rows, so .T transposes and
     # have the signal values in cols
-    return np.array([[f(s) for s in range(N)] for f in af]).T
+    return np.array(
+        [[f(s) for s in np.linspace(t_min, t_max, num=N, endpoint=False)] for f in af]
+    ).T
