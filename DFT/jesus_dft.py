@@ -582,10 +582,19 @@ class IntroducePhaseProblem(MovingCameraScene):
         t_min = 0
         t_max = TAU * 2
 
-        original_freq = 4
+        # 10 samples per second
+        sample_frequency = 5
 
-        # original freq sampling rate attending to Nyquist
-        of_sampling_rate = original_freq * 2 + 1
+        # total number of samples
+        n_samples = 10
+
+        duration = n_samples // sample_frequency
+
+        analysis_frequencies = [n / duration for n in range(n_samples)]
+        print(analysis_frequencies[:5])
+
+        # let's just take one AF as an example
+        original_freq = analysis_frequencies[2]
 
         # this tracker will move phase: from 0 to PI/2
         vt = ValueTracker(0)
@@ -607,12 +616,14 @@ class IntroducePhaseProblem(MovingCameraScene):
         self.play(vt.animate.set_value(PI / 2))
         self.play(vt.animate.set_value(PI))
 
-        af_matrix = get_analysis_frequency_matrix(of_sampling_rate, t_max=t_max)
+        af_matrix = get_analysis_frequency_matrix(
+            n_samples, duration=duration, t_max=t_max
+        )
 
         sampled_signal = np.array(
             [
                 get_cosine_func(freq=original_freq)(v)
-                for v in np.linspace(t_min, t_max, num=of_sampling_rate, endpoint=False)
+                for v in np.linspace(t_min, t_max, num=n_samples, endpoint=False)
             ]
         ).reshape(-1, 1)
         mt = apply_matrix_transform(sampled_signal, af_matrix)
@@ -622,12 +633,13 @@ class IntroducePhaseProblem(MovingCameraScene):
         print(mt)
 
         self.play(*[FadeOut(mob) for mob in self.mobjects])
+        rect_scale = 0.8
         rects = VGroup(
             *[
                 VGroup(
-                    Rectangle(color=REDUCIBLE_VIOLET, width=0.3, height=f).set_fill(
-                        REDUCIBLE_VIOLET, opacity=1
-                    ),
+                    Rectangle(
+                        color=REDUCIBLE_VIOLET, width=0.3, height=f * rect_scale
+                    ).set_fill(REDUCIBLE_VIOLET, opacity=1),
                     Text(str(i), font=REDUCIBLE_MONO).scale(0.4),
                 ).arrange(DOWN)
                 for i, f in enumerate(mt.flatten())
