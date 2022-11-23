@@ -581,17 +581,67 @@ class IntroducePhaseProblem(MovingCameraScene):
         frame = self.camera.frame
         t_max = TAU * 2
 
-        original_freq = 2
+        original_freq = 4
 
-        cos_og = get_cosine_func(freq=original_freq, amplitude=0.3)
+        # original freq sampling rate attending to Nyquist
+        of_sampling_rate = original_freq * 2 + 1
 
-        sin_og = get_sine_func(freq=original_freq, amplitude=0.3)
-
-        cos_axes, cos_mob = plot_time_domain(cos_og, t_max=t_max)
-        sin_axes, sin_mob = plot_time_domain(sin_og, t_max=t_max)
-
-        self.play(Write(cos_mob), Write(cos_axes))
+        # this tracker will move phase: from 0 to PI/2
+        vt = ValueTracker(0)
 
         self.wait()
 
-        self.play(Transform(cos_mob, sin_mob))
+        def change_phase_redraw():
+            phase_ch_cos = get_cosine_func(
+                freq=original_freq, amplitude=0.3, phase=vt.get_value()
+            )
+            _, phase_ch_cos_mob = plot_time_domain(phase_ch_cos, t_max=t_max)
+            return phase_ch_cos_mob
+
+        phase_changing_cos = always_redraw(change_phase_redraw)
+
+        self.play(Write(phase_changing_cos))
+        self.wait()
+
+        self.play(vt.animate.set_value(PI / 2))
+        self.play(vt.animate.set_value(PI))
+
+        af_matrix = self.analysis_frequency_matrix(of_sampling_rate)
+
+        sampled_signal = (
+            np.array(
+                [
+                    get_cosine_func(freq=original_freq)(n)
+                    for n in range(of_sampling_rate)
+                ]
+            ).reshape(-1, 1),
+        )
+        mt = apply_matrix_transform(sampled_signal, af_matrix)
+
+        print(sampled_signal)
+        print()
+        print(mt)
+
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
+        rects = VGroup(
+            *[
+                VGroup(
+                    Rectangle(color=REDUCIBLE_VIOLET, width=0.3, height=f).set_fill(
+                        REDUCIBLE_VIOLET, opacity=1
+                    ),
+                    Text(str(i), font=REDUCIBLE_MONO).scale(0.4),
+                ).arrange(DOWN)
+                for i, f in enumerate(mt.flatten())
+            ]
+        ).arrange(RIGHT, aligned_edge=DOWN)
+        self.play(Write(rects))
+        fouri
+
+    def analysis_frequency_matrix(self, N):
+        # analysis frequencies
+        af = [get_cosine_func(freq=n) for n in range(N)]
+
+        # for each analysis frequency, sample that function along N points
+        # this returns the frequencies per rows, so .T transposes and
+        # have the signal values in cols
+        return np.array([[f(s) for s in range(N)] for f in af]).T
