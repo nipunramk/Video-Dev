@@ -633,6 +633,7 @@ class IntroducePhaseProblem(MovingCameraScene):
         print(mt)
 
         self.play(*[FadeOut(mob) for mob in self.mobjects])
+
         rect_scale = 0.8
         rects = VGroup(
             *[
