@@ -606,7 +606,7 @@ class IntroducePhaseProblem(MovingCameraScene):
         self.play(vt.animate.set_value(PI / 2))
         self.play(vt.animate.set_value(PI))
 
-        af_matrix = self.analysis_frequency_matrix(of_sampling_rate)
+        af_matrix = get_analysis_frequency_matrix(of_sampling_rate)
 
         sampled_signal = (
             np.array(
@@ -635,13 +635,3 @@ class IntroducePhaseProblem(MovingCameraScene):
             ]
         ).arrange(RIGHT, aligned_edge=DOWN)
         self.play(Write(rects))
-        fouri
-
-    def analysis_frequency_matrix(self, N):
-        # analysis frequencies
-        af = [get_cosine_func(freq=n) for n in range(N)]
-
-        # for each analysis frequency, sample that function along N points
-        # this returns the frequencies per rows, so .T transposes and
-        # have the signal values in cols
-        return np.array([[f(s) for s in range(N)] for f in af]).T

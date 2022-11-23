@@ -277,3 +277,22 @@ def make_row_vector(values, h_buff=0.6, scale=0.6):
             integer_values.append(int(value))
     vector = Matrix([[value for value in integer_values]], h_buff=h_buff)
     return vector.scale(scale)
+
+
+def get_analysis_frequency_matrix(N):
+    """
+    Constructs a N x N matrix of N analysis frequencies
+    sampled at N points.
+
+    The matrix holds the values in columns,
+    as in the N values of the Nth analysis frequency are stored in
+    column number N.
+    """
+
+    # analysis frequencies
+    af = [get_cosine_func(freq=n) for n in range(N)]
+
+    # for each analysis frequency, sample that function along N points
+    # this returns the frequencies per rows, so .T transposes and
+    # have the signal values in cols
+    return np.array([[f(s) for s in range(N)] for f in af]).T
