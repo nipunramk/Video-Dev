@@ -582,68 +582,77 @@ class IntroducePhaseProblem(MovingCameraScene):
         t_min = 0
         t_max = TAU * 2
 
-        # 10 samples per second
-        sample_frequency = 5
+        # samples per second
+        sample_frequency = 20
 
         # total number of samples
-        n_samples = 10
+        n_samples = sample_frequency * 2
 
         duration = n_samples // sample_frequency
 
         analysis_frequencies = [n / duration for n in range(n_samples)]
-        print(analysis_frequencies[:5])
 
         # let's just take one AF as an example
         original_freq = analysis_frequencies[2]
 
         # this tracker will move phase: from 0 to PI/2
-        vt = ValueTracker(0)
-
-        self.wait()
+        vt_frequency = ValueTracker(original_freq)
+        vt_phase = ValueTracker(0)
 
         def change_phase_redraw():
             phase_ch_cos = get_cosine_func(
-                freq=original_freq, amplitude=0.3, phase=vt.get_value()
+                freq=vt_frequency.get_value(), phase=vt_phase.get_value()
             )
             _, phase_ch_cos_mob = plot_time_domain(phase_ch_cos, t_max=t_max)
-            return phase_ch_cos_mob
-
-        phase_changing_cos = always_redraw(change_phase_redraw)
-
-        self.play(Write(phase_changing_cos))
-        self.wait()
-
-        self.play(vt.animate.set_value(PI / 2))
-        self.play(vt.animate.set_value(PI))
+            return phase_ch_cos_mob.scale(0.6).shift(UP)
 
         af_matrix = get_analysis_frequency_matrix(
             n_samples, duration=duration, t_max=t_max
         )
 
-        sampled_signal = np.array(
-            [
-                get_cosine_func(freq=original_freq)(v)
-                for v in np.linspace(t_min, t_max, num=n_samples, endpoint=False)
-            ]
-        ).reshape(-1, 1)
-        mt = apply_matrix_transform(sampled_signal, af_matrix)
+        rect_scale = 0.2
 
-        print(sampled_signal)
-        print()
-        print(mt)
+        def updating_transform_redraw():
+            signal_function = get_cosine_func(
+                freq=vt_frequency.get_value(), phase=vt_phase.get_value()
+            )
 
-        self.play(*[FadeOut(mob) for mob in self.mobjects])
+            sampled_signal = np.array(
+                [
+                    signal_function(v)
+                    for v in np.linspace(t_min, t_max, num=n_samples, endpoint=False)
+                ]
+            ).reshape(-1, 1)
 
-        rect_scale = 0.8
-        rects = VGroup(
-            *[
+            # matrix transform
+            mt = apply_matrix_transform(sampled_signal, af_matrix)
+
+            rects = (
                 VGroup(
-                    Rectangle(
-                        color=REDUCIBLE_VIOLET, width=0.3, height=f * rect_scale
-                    ).set_fill(REDUCIBLE_VIOLET, opacity=1),
-                    Text(str(i), font=REDUCIBLE_MONO).scale(0.4),
-                ).arrange(DOWN)
-                for i, f in enumerate(mt.flatten())
-            ]
-        ).arrange(RIGHT, aligned_edge=DOWN)
-        self.play(Write(rects))
+                    *[
+                        VGroup(
+                            Rectangle(
+                                color=REDUCIBLE_VIOLET, width=0.3, height=f * rect_scale
+                            ).set_fill(REDUCIBLE_VIOLET, opacity=1),
+                            Text(str(i), font=REDUCIBLE_MONO).scale(0.4),
+                        ).arrange(DOWN)
+                        for i, f in enumerate(mt.flatten())
+                    ]
+                )
+                .arrange(RIGHT, aligned_edge=DOWN)
+                .scale(0.6)
+                .move_to(DOWN * 3.4, aligned_edge=DOWN)
+            )
+
+            return rects
+
+        changing_signal_mob = always_redraw(change_phase_redraw)
+        rects = always_redraw(updating_transform_redraw)
+
+        self.play(FadeIn(changing_signal_mob, rects))
+
+        self.play(vt_frequency.animate.set_value(analysis_frequencies[3]))
+        self.play(vt_frequency.animate.set_value(analysis_frequencies[4]))
+        self.play(vt_frequency.animate.set_value(analysis_frequencies[5]))
+
+        self.play(vt_phase.animate.set_value(PI / 2))
