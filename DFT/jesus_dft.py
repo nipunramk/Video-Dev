@@ -7,6 +7,7 @@ sys.path.insert(1, "common/")
 from manim import *
 from dft_utils import *
 from reducible_colors import *
+from math import degrees
 
 
 class IntroSampling_002(MovingCameraScene):
@@ -578,19 +579,26 @@ class IntroSimilarityConcept(MovingCameraScene):
 
 class IntroducePhaseProblem(MovingCameraScene):
     def construct(self):
+
+        self.test_cases_again()
+
+    def test_cases_again(self):
         frame = self.camera.frame
         t_min = 0
         t_max = TAU * 2
 
         # samples per second
-        sample_frequency = 20
+        sample_frequency = 80
 
         # total number of samples
-        n_samples = sample_frequency * 2
+        n_samples = sample_frequency
 
-        duration = n_samples // sample_frequency
+        duration = n_samples / sample_frequency
 
-        analysis_frequencies = [n / duration for n in range(n_samples)]
+        analysis_frequencies = [
+            sample_frequency * m / n_samples for m in range(n_samples // 2)
+        ]
+        print(analysis_frequencies)
 
         # let's just take one AF as an example
         original_freq = analysis_frequencies[2]
@@ -598,23 +606,72 @@ class IntroducePhaseProblem(MovingCameraScene):
         # this tracker will move phase: from 0 to PI/2
         vt_frequency = ValueTracker(original_freq)
         vt_phase = ValueTracker(0)
+        vt_amplitude = ValueTracker(1)
+        vt_b = ValueTracker(0)
+
+        def change_text_redraw():
+            v_freq = f"{vt_frequency.get_value():.2f}"
+            v_amplitude = f"{vt_amplitude.get_value():.2f}"
+            v_phase = f"{degrees(vt_phase.get_value()):.2f}"
+            v_b = f"{vt_b.get_value():.2f}"
+
+            tex_frequency = Text(
+                "ƒ = " + v_freq + " Hz",
+                font=REDUCIBLE_FONT,
+                t2f={v_freq: REDUCIBLE_MONO},
+            ).scale(0.8)
+
+            phi_eq = MathTex(r"\phi = ")
+            tex_phase_n = Text(
+                v_phase + "º",
+                font=REDUCIBLE_FONT,
+                t2f={v_phase: REDUCIBLE_MONO},
+            ).scale(0.8)
+            tex_phase = VGroup(phi_eq, tex_phase_n).arrange(RIGHT)
+
+            tex_amplitude = Text(
+                "A = " + v_amplitude,
+                font=REDUCIBLE_FONT,
+                t2f={v_amplitude: REDUCIBLE_MONO},
+            ).scale(0.8)
+
+            tex_b = Text(
+                "b = " + v_b,
+                font=REDUCIBLE_FONT,
+                t2f={v_b: REDUCIBLE_MONO},
+            ).scale(0.8)
+
+            text_group = (
+                VGroup(tex_frequency, tex_phase, tex_amplitude, tex_b)
+                .arrange(DOWN, aligned_edge=LEFT)
+                .scale(0.6)
+                .to_corner(UL)
+            )
+            return text_group
 
         def change_phase_redraw():
             phase_ch_cos = get_cosine_func(
-                freq=vt_frequency.get_value(), phase=vt_phase.get_value()
+                amplitude=vt_amplitude.get_value(),
+                freq=vt_frequency.get_value(),
+                phase=vt_phase.get_value(),
+                b=vt_b.get_value(),
             )
             _, phase_ch_cos_mob = plot_time_domain(phase_ch_cos, t_max=t_max)
             return phase_ch_cos_mob.scale(0.6).shift(UP)
 
         af_matrix = get_analysis_frequency_matrix(
-            n_samples, duration=duration, t_max=t_max
+            N=n_samples, sample_rate=sample_frequency, t_max=t_max
         )
+        print(af_matrix.shape)
 
-        rect_scale = 0.2
+        rect_scale = 0.1
 
         def updating_transform_redraw():
             signal_function = get_cosine_func(
-                freq=vt_frequency.get_value(), phase=vt_phase.get_value()
+                amplitude=vt_amplitude.get_value(),
+                freq=vt_frequency.get_value(),
+                phase=vt_phase.get_value(),
+                b=vt_b.get_value(),
             )
 
             sampled_signal = np.array(
@@ -636,7 +693,7 @@ class IntroducePhaseProblem(MovingCameraScene):
                             ).set_fill(REDUCIBLE_VIOLET, opacity=1),
                             Text(str(i), font=REDUCIBLE_MONO).scale(0.4),
                         ).arrange(DOWN)
-                        for i, f in enumerate(mt.flatten())
+                        for i, f in enumerate(mt.flatten()[: mt.shape[0] // 2])
                     ]
                 )
                 .arrange(RIGHT, aligned_edge=DOWN)
@@ -647,12 +704,39 @@ class IntroducePhaseProblem(MovingCameraScene):
             return rects
 
         changing_signal_mob = always_redraw(change_phase_redraw)
-        rects = always_redraw(updating_transform_redraw)
+        freq_analysis = always_redraw(updating_transform_redraw)
+        changing_tex_group = always_redraw(change_text_redraw)
 
-        self.play(FadeIn(changing_signal_mob, rects))
+        line_ref = DashedVMobject(
+            Line(freq_analysis.get_left(), freq_analysis.get_right())
+            .set_stroke(WHITE, opacity=0.5)
+            .move_to(changing_signal_mob)
+        )
+
+        self.play(Write(changing_signal_mob), FadeIn(freq_analysis), Write(line_ref))
+        self.play(FadeIn(changing_tex_group))
+
+        self.play(vt_amplitude.animate.set_value(0.5), run_time=0.8)
+        self.wait()
+        self.play(vt_amplitude.animate.set_value(0.1), run_time=0.8)
+        self.wait()
+        self.play(vt_amplitude.animate.set_value(0), run_time=0.8)
+        self.wait()
+        self.play(vt_amplitude.animate.set_value(1), run_time=0.8)
+        self.wait()
 
         self.play(vt_frequency.animate.set_value(analysis_frequencies[3]))
+        self.wait()
         self.play(vt_frequency.animate.set_value(analysis_frequencies[4]))
-        self.play(vt_frequency.animate.set_value(analysis_frequencies[5]))
+        self.wait()
 
-        self.play(vt_phase.animate.set_value(PI / 2))
+        self.play(vt_b.animate.set_value(0.3))
+        self.wait()
+        self.play(vt_b.animate.set_value(0.5))
+        self.wait()
+        self.play(vt_b.animate.set_value(0))
+        self.wait()
+
+        for i in range(1, 5):
+            self.play(vt_phase.animate.set_value(i * PI / 2))
+            self.wait()

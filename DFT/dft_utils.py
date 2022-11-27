@@ -279,7 +279,7 @@ def make_row_vector(values, h_buff=0.6, scale=0.6):
     return vector.scale(scale)
 
 
-def get_analysis_frequency_matrix(N, duration, t_min=0, t_max=2 * PI):
+def get_analysis_frequency_matrix(N, sample_rate, t_min=0, t_max=2 * PI):
     """
     Constructs a N x N matrix of N analysis frequencies
     sampled at N points.
@@ -290,11 +290,11 @@ def get_analysis_frequency_matrix(N, duration, t_min=0, t_max=2 * PI):
     """
 
     # analysis frequencies
-    af = [get_cosine_func(freq=n / duration) for n in range(N)]
+    af = [get_cosine_func(freq=sample_rate * m / N) for m in range(N // 2)]
 
     # for each analysis frequency, sample that function along N points
     # this returns the frequencies per rows, so .T transposes and
     # have the signal values in cols
     return np.array(
         [[f(s) for s in np.linspace(t_min, t_max, num=N, endpoint=False)] for f in af]
-    ).T
+    )
