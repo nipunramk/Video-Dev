@@ -598,7 +598,6 @@ class IntroducePhaseProblem(MovingCameraScene):
         analysis_frequencies = [
             sample_frequency * m / n_samples for m in range(n_samples // 2)
         ]
-        print(analysis_frequencies)
 
         # let's just take one AF as an example
         original_freq = analysis_frequencies[2]
@@ -662,7 +661,6 @@ class IntroducePhaseProblem(MovingCameraScene):
         af_matrix = get_analysis_frequency_matrix(
             N=n_samples, sample_rate=sample_frequency, t_max=t_max
         )
-        print(af_matrix.shape)
 
         rect_scale = 0.1
 
