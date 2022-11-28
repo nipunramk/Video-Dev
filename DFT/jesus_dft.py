@@ -689,23 +689,25 @@ class IntroducePhaseProblem(MovingCameraScene):
         )
 
         cos_mob = changing_sine.copy()
-        self.play(FadeIn(cos_mob), FadeOut(changing_sine))
-        self.play(
-            FadeOut(changing_rects),
-            FadeOut(sin_tex),
-            cos_mob.animate.move_to(ORIGIN),
-        )
-        self.wait()
-
         analysis_freq = get_cosine_func(freq=original_freq)
         _, analysis_freq_mob = plot_time_domain(analysis_freq, t_max=t_max)
 
         analysis_freq_mob.set_color(REDUCIBLE_VIOLET).scale_to_fit_width(
             changing_sine.width
-        ).move_to(cos_mob)
+        ).move_to(ORIGIN)
 
-        self.play(Write(analysis_freq_mob), frame.animate.scale(0.7).shift(DOWN * 0.8))
+        self.play(FadeIn(cos_mob), FadeOut(changing_sine))
+        self.play(
+            FadeOut(changing_rects),
+            FadeOut(sin_tex),
+            cos_mob.animate.move_to(ORIGIN),
+            Write(analysis_freq_mob),
+            frame.animate.scale(0.8).shift(DOWN * 0.8),
+        )
         self.wait()
+
+        # self.play(Write(analysis_freq_mob), frame.animate.scale(0.7).shift(DOWN * 0.8))
+        # self.wait()
 
         aux_analysis_freq_axis, _ = plot_time_domain(
             get_cosine_func(freq=original_freq), t_max=t_max
@@ -721,17 +723,25 @@ class IntroducePhaseProblem(MovingCameraScene):
 
         dots_analysis_freq = get_sampled_dots(
             analysis_freq_mob, aux_analysis_freq_axis, num_points=10
-        )
-        dots_cos_mob = get_sampled_dots(sine_wave, aux_signal_axis, num_points=10)
+        ).set_fill(REDUCIBLE_VIOLET)
+        dots_cos_mob = get_sampled_dots(
+            sine_wave, aux_signal_axis, num_points=10
+        ).set_fill(REDUCIBLE_YELLOW)
 
-        self.play(LaggedStartMap(FadeIn, [*dots_analysis_freq, dots_cos_mob]))
+        self.play(LaggedStartMap(FadeIn, [*dots_analysis_freq, *dots_cos_mob]))
 
         dots_line = dots_cos_mob.copy()
-        [d.move_to(DOWN * 2, coor_mask=[0, 1, 0]) for d in dots_line]
+        [
+            d.set_fill(REDUCIBLE_GREEN_LIGHTER, opacity=1).move_to(
+                DOWN * 2.5, coor_mask=[0, 1, 0]
+            )
+            for d in dots_line
+        ]
 
         self.play(
             Transform(dots_cos_mob, dots_line), Transform(dots_analysis_freq, dots_line)
         )
+        self.wait()
 
         zero = (
             Text(str(0), font=REDUCIBLE_MONO, weight=SEMIBOLD)
@@ -739,10 +749,8 @@ class IntroducePhaseProblem(MovingCameraScene):
             .move_to(dots_cos_mob)
         )
 
-        self.play(
-            Transform(dots_cos_mob, zero),
-            Transform(dots_analysis_freq, zero),
-        )
+        self.play(Transform(dots_cos_mob, zero), FadeOut(dots_analysis_freq))
+        self.wait()
 
     def test_cases_again(self):
         frame = self.camera.frame
