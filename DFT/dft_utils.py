@@ -93,7 +93,8 @@ def plot_time_domain(
     color=TIME_DOMAIN_COLOR,
 ):
     time_axis = get_time_axis(
-        x_range=[t_min, t_max, t_step], y_range=[y_min, y_max, y_step]
+        x_range=[t_min, t_max, t_step],
+        y_range=[y_min, y_max, y_step],
     )
     graph = time_axis.plot(time_func).set_color(color)
 

@@ -580,7 +580,169 @@ class IntroSimilarityConcept(MovingCameraScene):
 class IntroducePhaseProblem(MovingCameraScene):
     def construct(self):
 
+        frame = self.camera.frame.save_state()
+        self.try_sine_wave()
+
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
+        self.play(Restore(frame))
+
         self.test_cases_again()
+
+    def try_sine_wave(self):
+        frame = self.camera.frame
+        t_min = 0
+        t_max = TAU
+
+        original_freq = 2
+
+        # samples per second
+        sample_frequency = 80
+
+        n_samples = sample_frequency
+
+        vt_frequency = ValueTracker(original_freq)
+        vt_phase = ValueTracker(0)
+        vt_amplitude = ValueTracker(1)
+        vt_b = ValueTracker(0)
+
+        def sine_cosine_redraw():
+            phase_ch_cos = get_cosine_func(
+                amplitude=vt_amplitude.get_value(),
+                freq=vt_frequency.get_value(),
+                phase=vt_phase.get_value(),
+                b=vt_b.get_value(),
+            )
+            _, phase_ch_cos_mob = plot_time_domain(phase_ch_cos, t_max=t_max)
+
+            return phase_ch_cos_mob.scale(0.6).shift(UP * 1.5)
+
+        af_matrix = get_analysis_frequency_matrix(
+            N=n_samples, sample_rate=sample_frequency, t_max=t_max
+        )
+
+        rect_scale = 0.1
+
+        def updating_transform_redraw():
+            signal_function = get_cosine_func(
+                amplitude=vt_amplitude.get_value(),
+                freq=vt_frequency.get_value(),
+                phase=vt_phase.get_value(),
+                b=vt_b.get_value(),
+            )
+
+            sampled_signal = np.array(
+                [
+                    signal_function(v)
+                    for v in np.linspace(t_min, t_max, num=n_samples, endpoint=False)
+                ]
+            ).reshape(-1, 1)
+
+            # matrix transform
+            mt = apply_matrix_transform(sampled_signal, af_matrix)
+
+            rects = (
+                VGroup(
+                    *[
+                        VGroup(
+                            Rectangle(
+                                color=REDUCIBLE_VIOLET, width=0.3, height=f * rect_scale
+                            ).set_fill(REDUCIBLE_VIOLET, opacity=1),
+                            Text(str(i), font=REDUCIBLE_MONO).scale(0.4),
+                        ).arrange(DOWN)
+                        for i, f in enumerate(mt.flatten()[: mt.shape[0] // 2])
+                    ]
+                )
+                .arrange(RIGHT, aligned_edge=DOWN)
+                .scale(0.6)
+                .move_to(DOWN * 3.4, aligned_edge=DOWN)
+            )
+
+            return rects
+
+        changing_sine = always_redraw(sine_cosine_redraw)
+        sampled_dots = VGroup(
+            *[
+                Dot()
+                .move_to(changing_sine.point_from_proportion(p))
+                .set_fill(REDUCIBLE_YELLOW, opacity=1)
+                for p in np.linspace(0, 1, 10)
+            ]
+        )
+
+        changing_rects = always_redraw(updating_transform_redraw)
+
+        cos_tex = MathTex("cos(x)").scale(0.8).next_to(changing_sine, DOWN, buff=1)
+        sin_tex = MathTex("sin(x)").scale(0.8).next_to(changing_sine, DOWN, buff=1)
+
+        self.play(Write(changing_sine), FadeIn(cos_tex, changing_rects))
+
+        self.wait()
+
+        self.play(LaggedStartMap(FadeIn, sampled_dots))
+        self.wait()
+        self.play(FadeOut(sampled_dots))
+
+        self.play(
+            vt_phase.animate.set_value(PI / 2),
+            FadeTransform(cos_tex, sin_tex),
+            run_time=2,
+        )
+
+        cos_mob = changing_sine.copy()
+        self.play(FadeIn(cos_mob), FadeOut(changing_sine))
+        self.play(
+            FadeOut(changing_rects),
+            FadeOut(sin_tex),
+            cos_mob.animate.move_to(ORIGIN),
+        )
+        self.wait()
+
+        analysis_freq = get_cosine_func(freq=original_freq)
+        _, analysis_freq_mob = plot_time_domain(analysis_freq, t_max=t_max)
+
+        analysis_freq_mob.set_color(REDUCIBLE_VIOLET).scale_to_fit_width(
+            changing_sine.width
+        ).move_to(cos_mob)
+
+        self.play(Write(analysis_freq_mob), frame.animate.scale(0.7).shift(DOWN * 0.8))
+        self.wait()
+
+        aux_analysis_freq_axis, _ = plot_time_domain(
+            get_cosine_func(freq=original_freq), t_max=t_max
+        )
+        aux_analysis_freq_axis.scale_to_fit_width(analysis_freq_mob.width).move_to(
+            analysis_freq_mob
+        )
+
+        aux_signal_axis, sine_wave = plot_time_domain(
+            get_cosine_func(freq=original_freq, phase=vt_phase.get_value()), t_max=t_max
+        )
+        aux_signal_axis.scale_to_fit_width(cos_mob.width).move_to(cos_mob)
+
+        dots_analysis_freq = get_sampled_dots(
+            analysis_freq_mob, aux_analysis_freq_axis, num_points=10
+        )
+        dots_cos_mob = get_sampled_dots(sine_wave, aux_signal_axis, num_points=10)
+
+        self.play(LaggedStartMap(FadeIn, [*dots_analysis_freq, dots_cos_mob]))
+
+        dots_line = dots_cos_mob.copy()
+        [d.move_to(DOWN * 2, coor_mask=[0, 1, 0]) for d in dots_line]
+
+        self.play(
+            Transform(dots_cos_mob, dots_line), Transform(dots_analysis_freq, dots_line)
+        )
+
+        zero = (
+            Text(str(0), font=REDUCIBLE_MONO, weight=SEMIBOLD)
+            .scale(2)
+            .move_to(dots_cos_mob)
+        )
+
+        self.play(
+            Transform(dots_cos_mob, zero),
+            Transform(dots_analysis_freq, zero),
+        )
 
     def test_cases_again(self):
         frame = self.camera.frame
@@ -611,7 +773,7 @@ class IntroducePhaseProblem(MovingCameraScene):
         def change_text_redraw():
             v_freq = f"{vt_frequency.get_value():.2f}"
             v_amplitude = f"{vt_amplitude.get_value():.2f}"
-            v_phase = f"{degrees(vt_phase.get_value()):.2f}"
+            v_phase = f"{degrees(vt_phase.get_value()) % 360:.2f}"
             v_b = f"{vt_b.get_value():.2f}"
 
             tex_frequency = Text(
@@ -738,3 +900,7 @@ class IntroducePhaseProblem(MovingCameraScene):
         for i in range(1, 5):
             self.play(vt_phase.animate.set_value(i * PI / 2))
             self.wait()
+
+        self.play(
+            vt_phase.animate.set_value(20 * PI / 2), run_time=10, rate_func=linear
+        )
