@@ -1053,9 +1053,21 @@ class SolvingPhaseProblem(MovingCameraScene):
 
         original_frequency = analysis_frequencies[4]
 
+        og_t = Text(
+            f"Original signal, ƒ = {original_frequency:.2f} Hz", font=REDUCIBLE_MONO
+        ).scale(0.6)
+        af_sine_t = Text(f"Analysis frequency, sin(x)", font=REDUCIBLE_MONO).scale(0.6)
+        af_cos_t = Text(f"Analysis frequency, cos(x)", font=REDUCIBLE_MONO).scale(0.6)
+        og_t = Text(f"", font=REDUCIBLE_MONO).scale(0.6)
+        og_t = Text(
+            f"Original signal, ƒ = {original_frequency:.2f} Hz", font=REDUCIBLE_MONO
+        ).scale(0.6)
+
         # just an array of 5 dots to position the sine waves
         positions = (
-            VGroup(*[Dot() for i in range(5)]).arrange(DOWN, buff=1.3).to_edge(LEFT)
+            VGroup(*[Dot() for i in range(5)])
+            .arrange(DOWN, buff=1.3)
+            .to_edge(LEFT, buff=3)
         )
 
         vt_phase = ValueTracker(0)
@@ -1107,33 +1119,32 @@ class SolvingPhaseProblem(MovingCameraScene):
             vg = VGroup(axis, cos_prod)
             return vg.scale(scale).move_to(positions[2], aligned_edge=LEFT)
 
-        def changing_sine_dot_prod():
-            pass
-
         # cos based analysis frequency
-        _, cos_af = plot_time_domain(
+        cos_axis, cos_af = plot_time_domain(
             get_cosine_func(freq=original_frequency),
             t_max=t_max,
             color=REDUCIBLE_VIOLET,
         )
-        cos_af.scale(scale).move_to(positions[1], aligned_edge=LEFT)
+        cos_af_vg = VGroup(cos_axis, cos_af)
+        cos_af_vg.scale(scale).move_to(positions[1], aligned_edge=LEFT)
 
         # sin based analysis frequency
-        _, sin_af = plot_time_domain(
+        sin_axis, sin_af = plot_time_domain(
             get_sine_func(freq=original_frequency),
             t_max=t_max,
             color=REDUCIBLE_CHARM,
         )
-        sin_af.scale(scale).move_to(positions[3], aligned_edge=LEFT)
+        sin_af_vg = VGroup(sin_axis, sin_af)
+        sin_af_vg.scale(scale).move_to(positions[3], aligned_edge=LEFT)
 
         og_signal_mob = always_redraw(changing_original_signal)
         sin_prod_mob = always_redraw(changing_sin_prod)
         cos_prod_mob = always_redraw(changing_cos_prod)
 
         self.play(Write(og_signal_mob))
-        self.play(Write(cos_af))
+        self.play(Write(cos_af_vg))
         self.play(Write(cos_prod_mob))
-        self.play(Write(sin_af))
+        self.play(Write(sin_af_vg))
         self.play(Write(sin_prod_mob))
 
-        self.play(vt_phase.animate.set_value(8 * 2 * PI), run_time=4, rate_func=linear)
+        self.play(vt_phase.animate.set_value(8 * 2 * PI), run_time=15)
