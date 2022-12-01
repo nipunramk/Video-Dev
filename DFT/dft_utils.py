@@ -280,7 +280,7 @@ def make_row_vector(values, h_buff=0.6, scale=0.6):
     return vector.scale(scale)
 
 
-def get_analysis_frequency_matrix(N, sample_rate, t_min=0, t_max=2 * PI):
+def get_analysis_frequency_matrix(N, sample_rate, func="cos", t_min=0, t_max=2 * PI):
     """
     Constructs a N x N matrix of N analysis frequencies
     sampled at N points.
@@ -288,10 +288,23 @@ def get_analysis_frequency_matrix(N, sample_rate, t_min=0, t_max=2 * PI):
     The matrix holds the values in columns,
     as in the N values of the Nth analysis frequency are stored in
     column number N.
+
+    We can choose how the transform is calculated, if using sine or cosine
+    functions. Just pass 'sin' to the "func" argument. By default, this value
+    is set to 'cos'.
     """
 
+    print(func)
+    if func != "cos" and func != "sin":
+        raise ValueError('func can either be "cos" or "sin"')
+
+    if func == "cos":
+        signal_func = get_cosine_func
+    else:
+        signal_func = get_sine_func
+
     # analysis frequencies
-    af = [get_cosine_func(freq=sample_rate * m / N) for m in range(N // 2)]
+    af = [signal_func(freq=sample_rate * m / N) for m in range(N // 2)]
 
     # for each analysis frequency, sample that function along N points
     # this returns the frequencies per rows, so .T transposes and

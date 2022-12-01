@@ -5,9 +5,10 @@ import sys
 sys.path.insert(1, "common/")
 
 from manim import *
+
 from dft_utils import *
 from reducible_colors import *
-from math import degrees
+from math import degrees, radians
 
 
 class IntroSampling_002(MovingCameraScene):
@@ -917,3 +918,124 @@ class IntroducePhaseProblem(MovingCameraScene):
 class SolvingPhaseProblem(MovingCameraScene):
     def construct(self):
         frame = self.camera.frame
+
+        self.hacky_sine_waves()
+
+    def hacky_sine_waves(self):
+        original_frequency = 4
+        t_max = PI
+
+        # samples per second
+        sample_frequency = 80
+
+        # total number of samples
+        n_samples = sample_frequency
+
+        sin_f = get_sine_func(freq=original_frequency)
+        _, sin_mob = plot_time_domain(sin_f, t_max=t_max, color=REDUCIBLE_YELLOW)
+
+        sin_t = (
+            Text("sin(x)", font=REDUCIBLE_FONT, weight=BOLD)
+            .next_to(sin_mob, DOWN, buff=0.5)
+            .set_color(REDUCIBLE_YELLOW)
+        )
+
+        vt_phase = ValueTracker(0)
+        vt_amplitude = ValueTracker(1)
+        vt_frequency = ValueTracker(original_frequency)
+        vt_b = ValueTracker(0)
+
+        def change_af_cos_sin():
+            # cos analysis frequency
+            cos_af = get_cosine_func(
+                freq=original_frequency, phase=vt_phase.get_value()
+            )
+            _, cos_af_mob = plot_time_domain(
+                cos_af, t_max=t_max, color=REDUCIBLE_VIOLET
+            )
+
+            return cos_af_mob
+
+        af_matrix = get_analysis_frequency_matrix(
+            n_samples, sample_rate=sample_frequency, func="sin", t_max=t_max
+        )
+
+        def show_transform():
+            signal_function = get_sine_func(
+                amplitude=vt_amplitude.get_value(),
+                freq=vt_frequency.get_value(),
+                phase=vt_phase.get_value(),
+                b=vt_b.get_value(),
+            )
+
+            sampled_signal = np.array(
+                [
+                    signal_function(v)
+                    for v in np.linspace(0, t_max, num=n_samples, endpoint=False)
+                ]
+            ).reshape(-1, 1)
+
+            # matrix transform
+            mt = apply_matrix_transform(sampled_signal, af_matrix)
+
+            rect_scale = 0.1
+            rects = (
+                VGroup(
+                    *[
+                        VGroup(
+                            Rectangle(
+                                color=REDUCIBLE_VIOLET, width=0.3, height=f * rect_scale
+                            ).set_fill(REDUCIBLE_VIOLET, opacity=1),
+                            Text(str(i), font=REDUCIBLE_MONO).scale(0.4),
+                        ).arrange(DOWN)
+                        for i, f in enumerate(mt.flatten()[: mt.shape[0] // 2])
+                    ]
+                )
+                .arrange(RIGHT, aligned_edge=DOWN)
+                .scale(0.6)
+                .move_to(DOWN * 3.4, aligned_edge=DOWN)
+            )
+            return rects
+
+        af_mob = always_redraw(change_af_cos_sin)
+        sine_transform = always_redraw(show_transform)
+
+        self.play(Write(sin_mob), FadeIn(sin_t, shift=DOWN * 0.3), run_time=2)
+        self.wait()
+        self.play(Write(af_mob))
+
+        self.wait()
+        self.play(vt_phase.animate.set_value(-PI / 2))
+        self.wait()
+        self.play(
+            FadeOut(af_mob),
+            sin_t.animate.set_color(REDUCIBLE_VIOLET)
+            .scale(0.5)
+            .next_to(sine_transform, LEFT, aligned_edge=DOWN, buff=0.3),
+            sin_mob.animate.scale(0.7).shift(UP * 2),
+            Write(sine_transform),
+        )
+
+        vt_phase.set_value(0)
+
+        def changing_og_signal():
+            # cos analysis frequency
+            og_signal = get_sine_func(
+                freq=original_frequency, phase=vt_phase.get_value()
+            )
+            _, signal_mob = plot_time_domain(
+                og_signal, t_max=t_max, color=REDUCIBLE_YELLOW
+            )
+
+            return signal_mob.scale(0.7).shift(UP * 2)
+
+        changing_signal = always_redraw(changing_og_signal)
+
+        self.play(FadeIn(changing_signal))
+        self.play(FadeOut(sin_mob))
+
+        self.wait()
+        self.play(vt_phase.animate.set_value(PI / 2))
+
+    def capture_sine_and_cosine_transforms(self):
+        pass
