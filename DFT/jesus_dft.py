@@ -1039,7 +1039,6 @@ class SolvingPhaseProblem(MovingCameraScene):
         self.play(vt_phase.animate.set_value(PI / 2))
 
     def capture_sine_and_cosine_transforms(self):
-        original_frequency = 4
         t_max = PI
 
         # samples per second
@@ -1048,80 +1047,84 @@ class SolvingPhaseProblem(MovingCameraScene):
         # total number of samples
         n_samples = sample_frequency
 
-        vt_phase = ValueTracker(0)
-        vt_amplitude = ValueTracker(0.4)
-        vt_frequency = ValueTracker(original_frequency)
-        vt_b = ValueTracker(0)
+        analysis_frequencies = [
+            sample_frequency * m / n_samples for m in range(n_samples // 2)
+        ]
 
+        original_frequency = analysis_frequencies[4]
+
+        # just an array of 5 dots to position the sine waves
         positions = (
             VGroup(*[Dot() for i in range(5)]).arrange(DOWN, buff=1.3).to_edge(LEFT)
         )
 
+        vt_phase = ValueTracker(0)
+
+        scale = 0.4
+
         # original signal that will keep changing
         def changing_original_signal():
             cos_signal = get_cosine_func(
-                amplitude=vt_amplitude.get_value(),
-                phase=vt_phase.get_value(),
-                freq=vt_frequency.get_value(),
-                b=vt_b.get_value(),
+                phase=vt_phase.get_value(), freq=original_frequency
             )
 
-            _, signal_mob = plot_time_domain(
-                cos_signal, 0, t_max=t_max, color=REDUCIBLE_YELLOW
+            signal_axis, signal_mob = plot_time_domain(
+                cos_signal, t_max=t_max, color=REDUCIBLE_YELLOW
             )
 
-            return signal_mob.scale(0.7).move_to(positions[0], aligned_edge=LEFT)
+            vg = VGroup(signal_axis, signal_mob)
+
+            return vg.scale(scale).move_to(positions[0], aligned_edge=LEFT)
 
         def changing_sin_prod():
             og_signal = get_cosine_func(
-                amplitude=vt_amplitude.get_value(),
-                phase=vt_phase.get_value(),
-                freq=vt_frequency.get_value(),
-                b=vt_b.get_value(),
+                phase=vt_phase.get_value(), freq=original_frequency
             )
 
             sin_af = get_sine_func(freq=original_frequency)
 
             prod_f = get_prod_functions(og_signal, sin_af)
 
-            _, sine_prod = plot_time_domain(prod_f, t_max=t_max, color=REDUCIBLE_ORANGE)
-            return sine_prod.scale(0.7).move_to(positions[4], aligned_edge=LEFT)
+            axis, sine_prod = plot_time_domain(
+                prod_f, t_max=t_max, color=REDUCIBLE_ORANGE
+            )
+            vg = VGroup(axis, sine_prod)
+
+            return vg.scale(scale).move_to(positions[4], aligned_edge=LEFT)
 
         def changing_cos_prod():
             og_signal = get_cosine_func(
-                amplitude=vt_amplitude.get_value(),
-                phase=vt_phase.get_value(),
-                freq=vt_frequency.get_value(),
-                b=vt_b.get_value(),
+                phase=vt_phase.get_value(), freq=original_frequency
             )
 
             cos_af = get_cosine_func(freq=original_frequency)
 
             prod_f = get_prod_functions(og_signal, cos_af)
 
-            _, cos_prod = plot_time_domain(
+            axis, cos_prod = plot_time_domain(
                 prod_f, t_max=t_max, color=REDUCIBLE_GREEN_LIGHTER
             )
-            return cos_prod.scale(0.7).move_to(positions[2], aligned_edge=LEFT)
+            vg = VGroup(axis, cos_prod)
+            return vg.scale(scale).move_to(positions[2], aligned_edge=LEFT)
+
+        def changing_sine_dot_prod():
+            pass
 
         # cos based analysis frequency
         _, cos_af = plot_time_domain(
-            get_cosine_func(
-                freq=original_frequency, amplitude=vt_amplitude.get_value()
-            ),
+            get_cosine_func(freq=original_frequency),
             t_max=t_max,
             color=REDUCIBLE_VIOLET,
         )
-        cos_af.scale(0.7).move_to(positions[1], aligned_edge=LEFT)
+        cos_af.scale(scale).move_to(positions[1], aligned_edge=LEFT)
 
         # sin based analysis frequency
         _, sin_af = plot_time_domain(
-            get_sine_func(freq=original_frequency, amplitude=vt_amplitude.get_value()),
+            get_sine_func(freq=original_frequency),
             t_max=t_max,
             color=REDUCIBLE_CHARM,
         )
-
-        sin_af.scale(0.7).move_to(positions[3], aligned_edge=LEFT)
+        sin_af.scale(scale).move_to(positions[3], aligned_edge=LEFT)
 
         og_signal_mob = always_redraw(changing_original_signal)
         sin_prod_mob = always_redraw(changing_sin_prod)
@@ -1133,4 +1136,4 @@ class SolvingPhaseProblem(MovingCameraScene):
         self.play(Write(sin_af))
         self.play(Write(sin_prod_mob))
 
-        self.play(vt_phase.animate.set_value(2 * 4 * PI), run_time=4)
+        self.play(vt_phase.animate.set_value(8 * 2 * PI), run_time=4, rate_func=linear)
