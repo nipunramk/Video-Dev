@@ -1161,11 +1161,13 @@ class SolvingPhaseProblem(MovingCameraScene):
             .next_to(cos_prod_mob, LEFT)
         )
 
-        self.play(Write(og_signal_mob))
-        self.play(Write(cos_af_vg))
-        self.play(Write(cos_prod_mob))
-        self.play(Write(sin_af_vg))
-        self.play(Write(sin_prod_mob))
+        self.play(
+            Write(og_signal_mob),
+            Write(cos_af_vg),
+            Write(cos_prod_mob),
+            Write(sin_af_vg),
+            Write(sin_prod_mob),
+        )
 
         self.play(
             LaggedStartMap(
