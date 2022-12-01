@@ -912,3 +912,8 @@ class IntroducePhaseProblem(MovingCameraScene):
         self.play(
             vt_phase.animate.set_value(20 * PI / 2), run_time=10, rate_func=linear
         )
+
+
+class SolvingPhaseProblem(MovingCameraScene):
+    def construct(self):
+        frame = self.camera.frame
