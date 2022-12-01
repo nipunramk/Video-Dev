@@ -1053,16 +1053,6 @@ class SolvingPhaseProblem(MovingCameraScene):
 
         original_frequency = analysis_frequencies[4]
 
-        og_t = Text(
-            f"Original signal, ƒ = {original_frequency:.2f} Hz", font=REDUCIBLE_MONO
-        ).scale(0.6)
-        af_sine_t = Text(f"Analysis frequency, sin(x)", font=REDUCIBLE_MONO).scale(0.6)
-        af_cos_t = Text(f"Analysis frequency, cos(x)", font=REDUCIBLE_MONO).scale(0.6)
-        og_t = Text(f"", font=REDUCIBLE_MONO).scale(0.6)
-        og_t = Text(
-            f"Original signal, ƒ = {original_frequency:.2f} Hz", font=REDUCIBLE_MONO
-        ).scale(0.6)
-
         # just an array of 5 dots to position the sine waves
         positions = (
             VGroup(*[Dot() for i in range(5)])
@@ -1141,10 +1131,46 @@ class SolvingPhaseProblem(MovingCameraScene):
         sin_prod_mob = always_redraw(changing_sin_prod)
         cos_prod_mob = always_redraw(changing_cos_prod)
 
+        og_t = (
+            Text(
+                f"x[n], ƒ = {original_frequency:.2f} Hz",
+                font=REDUCIBLE_FONT,
+                weight=BOLD,
+            )
+            .scale(0.4)
+            .next_to(og_signal_mob, LEFT)
+        )
+        af_sine_t = (
+            Text(f"sin(x)", font=REDUCIBLE_FONT, weight=BOLD)
+            .scale(0.4)
+            .next_to(sin_af_vg, LEFT)
+        )
+        af_cos_t = (
+            Text(f"cos(x)", font=REDUCIBLE_FONT, weight=BOLD)
+            .scale(0.4)
+            .next_to(cos_af_vg, LEFT)
+        )
+        sin_prod_t = (
+            Text(f"x[n] · sin(x)", font=REDUCIBLE_FONT, weight=BOLD)
+            .scale(0.4)
+            .next_to(sin_prod_mob, LEFT)
+        )
+        cos_prod_t = (
+            Text(f"x[n] · cos(x)", font=REDUCIBLE_FONT, weight=BOLD)
+            .scale(0.4)
+            .next_to(cos_prod_mob, LEFT)
+        )
+
         self.play(Write(og_signal_mob))
         self.play(Write(cos_af_vg))
         self.play(Write(cos_prod_mob))
         self.play(Write(sin_af_vg))
         self.play(Write(sin_prod_mob))
+
+        self.play(
+            LaggedStartMap(
+                FadeIn, VGroup(*[og_t, af_sine_t, af_cos_t, sin_prod_t, cos_prod_t])
+            )
+        )
 
         self.play(vt_phase.animate.set_value(8 * 2 * PI), run_time=15)
