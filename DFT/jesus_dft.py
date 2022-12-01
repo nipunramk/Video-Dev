@@ -919,7 +919,8 @@ class SolvingPhaseProblem(MovingCameraScene):
     def construct(self):
         frame = self.camera.frame
 
-        self.hacky_sine_waves()
+        # self.hacky_sine_waves()
+        self.capture_sine_and_cosine_transforms()
 
     def hacky_sine_waves(self):
         original_frequency = 4
@@ -1038,4 +1039,98 @@ class SolvingPhaseProblem(MovingCameraScene):
         self.play(vt_phase.animate.set_value(PI / 2))
 
     def capture_sine_and_cosine_transforms(self):
-        pass
+        original_frequency = 4
+        t_max = PI
+
+        # samples per second
+        sample_frequency = 80
+
+        # total number of samples
+        n_samples = sample_frequency
+
+        vt_phase = ValueTracker(0)
+        vt_amplitude = ValueTracker(0.4)
+        vt_frequency = ValueTracker(original_frequency)
+        vt_b = ValueTracker(0)
+
+        positions = (
+            VGroup(*[Dot() for i in range(5)]).arrange(DOWN, buff=1.3).to_edge(LEFT)
+        )
+
+        # original signal that will keep changing
+        def changing_original_signal():
+            cos_signal = get_cosine_func(
+                amplitude=vt_amplitude.get_value(),
+                phase=vt_phase.get_value(),
+                freq=vt_frequency.get_value(),
+                b=vt_b.get_value(),
+            )
+
+            _, signal_mob = plot_time_domain(
+                cos_signal, 0, t_max=t_max, color=REDUCIBLE_YELLOW
+            )
+
+            return signal_mob.scale(0.7).move_to(positions[0], aligned_edge=LEFT)
+
+        def changing_sin_prod():
+            og_signal = get_cosine_func(
+                amplitude=vt_amplitude.get_value(),
+                phase=vt_phase.get_value(),
+                freq=vt_frequency.get_value(),
+                b=vt_b.get_value(),
+            )
+
+            sin_af = get_sine_func(freq=original_frequency)
+
+            prod_f = get_prod_functions(og_signal, sin_af)
+
+            _, sine_prod = plot_time_domain(prod_f, t_max=t_max, color=REDUCIBLE_ORANGE)
+            return sine_prod.scale(0.7).move_to(positions[4], aligned_edge=LEFT)
+
+        def changing_cos_prod():
+            og_signal = get_cosine_func(
+                amplitude=vt_amplitude.get_value(),
+                phase=vt_phase.get_value(),
+                freq=vt_frequency.get_value(),
+                b=vt_b.get_value(),
+            )
+
+            cos_af = get_cosine_func(freq=original_frequency)
+
+            prod_f = get_prod_functions(og_signal, cos_af)
+
+            _, cos_prod = plot_time_domain(
+                prod_f, t_max=t_max, color=REDUCIBLE_GREEN_LIGHTER
+            )
+            return cos_prod.scale(0.7).move_to(positions[2], aligned_edge=LEFT)
+
+        # cos based analysis frequency
+        _, cos_af = plot_time_domain(
+            get_cosine_func(
+                freq=original_frequency, amplitude=vt_amplitude.get_value()
+            ),
+            t_max=t_max,
+            color=REDUCIBLE_VIOLET,
+        )
+        cos_af.scale(0.7).move_to(positions[1], aligned_edge=LEFT)
+
+        # sin based analysis frequency
+        _, sin_af = plot_time_domain(
+            get_sine_func(freq=original_frequency, amplitude=vt_amplitude.get_value()),
+            t_max=t_max,
+            color=REDUCIBLE_CHARM,
+        )
+
+        sin_af.scale(0.7).move_to(positions[3], aligned_edge=LEFT)
+
+        og_signal_mob = always_redraw(changing_original_signal)
+        sin_prod_mob = always_redraw(changing_sin_prod)
+        cos_prod_mob = always_redraw(changing_cos_prod)
+
+        self.play(Write(og_signal_mob))
+        self.play(Write(cos_af))
+        self.play(Write(cos_prod_mob))
+        self.play(Write(sin_af))
+        self.play(Write(sin_prod_mob))
+
+        self.play(vt_phase.animate.set_value(2 * 4 * PI), run_time=4)

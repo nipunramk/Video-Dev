@@ -109,6 +109,10 @@ def get_sum_functions(*time_functions):
     return lambda x: sum([f(x) for f in time_functions])
 
 
+def get_prod_functions(*time_functions):
+    return lambda x: np.prod([f(x) for f in time_functions])
+
+
 def get_cosine_func(amplitude=1, freq=1, phase=0, b=0):
     return lambda x: amplitude * np.cos(freq * x + phase) + b
 
