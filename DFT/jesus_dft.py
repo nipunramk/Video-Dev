@@ -1133,7 +1133,7 @@ class SolvingPhaseProblem(MovingCameraScene):
 
         og_t = (
             Text(
-                f"x[n], ƒ = {original_frequency:.2f} Hz",
+                f"x[n]",
                 font=REDUCIBLE_FONT,
                 weight=BOLD,
             )
@@ -1175,4 +1175,4 @@ class SolvingPhaseProblem(MovingCameraScene):
             )
         )
 
-        self.play(vt_phase.animate.set_value(8 * 2 * PI), run_time=15)
+        self.play(vt_phase.animate.set_value(4 * 2 * PI), run_time=15)
