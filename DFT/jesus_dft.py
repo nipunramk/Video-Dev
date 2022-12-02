@@ -977,9 +977,10 @@ class SolvingPhaseProblem(MovingCameraScene):
 
         self.play(FadeIn(changing_signal))
         self.play(FadeOut(sin_mob))
-
         self.wait()
+
         self.play(vt_phase.animate.set_value(PI / 2))
+        self.wait()
 
     def capture_sine_and_cosine_transforms(self):
         t_max = PI
