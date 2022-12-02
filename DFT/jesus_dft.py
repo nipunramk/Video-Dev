@@ -620,8 +620,6 @@ class IntroducePhaseProblem(MovingCameraScene):
             N=n_samples, sample_rate=sample_frequency, t_max=t_max
         )
 
-        rect_scale = 0.1
-
         def updating_transform_redraw():
             signal_function = get_cosine_func(
                 amplitude=vt_amplitude.get_value(),
@@ -737,12 +735,10 @@ class IntroducePhaseProblem(MovingCameraScene):
         t_max = TAU * 2
 
         # samples per second
-        sample_frequency = 80
+        sample_frequency = 40
 
         # total number of samples
         n_samples = sample_frequency
-
-        duration = n_samples / sample_frequency
 
         analysis_frequencies = [
             sample_frequency * m / n_samples for m in range(n_samples // 2)
@@ -751,8 +747,8 @@ class IntroducePhaseProblem(MovingCameraScene):
         # let's just take one AF as an example
         original_freq = analysis_frequencies[2]
 
-        # this tracker will move phase: from 0 to PI/2
         vt_frequency = ValueTracker(original_freq)
+        # this tracker will move phase: from 0 to PI/2
         vt_phase = ValueTracker(0)
         vt_amplitude = ValueTracker(1)
         vt_b = ValueTracker(0)
@@ -828,25 +824,7 @@ class IntroducePhaseProblem(MovingCameraScene):
                 ]
             ).reshape(-1, 1)
 
-            # matrix transform
-            mt = apply_matrix_transform(sampled_signal, af_matrix)
-
-            rects = (
-                VGroup(
-                    *[
-                        VGroup(
-                            Rectangle(
-                                color=REDUCIBLE_VIOLET, width=0.3, height=f * rect_scale
-                            ).set_fill(REDUCIBLE_VIOLET, opacity=1),
-                            Text(str(i), font=REDUCIBLE_MONO).scale(0.4),
-                        ).arrange(DOWN)
-                        for i, f in enumerate(mt.flatten()[: mt.shape[0] // 2])
-                    ]
-                )
-                .arrange(RIGHT, aligned_edge=DOWN)
-                .scale(0.6)
-                .move_to(DOWN * 3.4, aligned_edge=DOWN)
-            )
+            rects = get_rectangles_for_matrix_transform(sampled_signal, af_matrix)
 
             return rects
 
