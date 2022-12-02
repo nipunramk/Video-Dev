@@ -334,7 +334,7 @@ def get_rectangles_for_matrix_transform(
                     Text(str(i), font=REDUCIBLE_MONO).scale(0.4),
                 ).arrange(DOWN)
                 for i, f in enumerate(
-                    matrix_transform.flatten()[: matrix_transform.shape[0] // 2]
+                    matrix_transform.flatten()[: matrix_transform.shape[0]]
                 )
             ]
         )
