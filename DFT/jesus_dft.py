@@ -1261,15 +1261,14 @@ class SolvingPhaseProblem(MovingCameraScene):
 
         def redraw_arc():
             radius = Line(number_plane.c2p(0, 0), number_plane.c2p(1, 0)).width
-            np_center = number_plane.c2p(0, 0)
-            arc_center = (np_center[0], np_center[1], 0)
             return (
                 Arc(radius, angle=vt_phase.get_value())
-                .move_arc_center_to(arc_center)
+                .move_arc_center_to(number_plane.c2p(0, 0))
                 .set_color(REDUCIBLE_YELLOW)
             )
 
         arc = always_redraw(redraw_arc)
+        arc.move_arc_center_to(number_plane.c2p(0, 0))
 
         self.play(Write(number_plane), vt_phase.animate.set_value(0))
         self.play(FadeIn(arc))
