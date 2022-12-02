@@ -875,12 +875,12 @@ class IntroducePhaseProblem(MovingCameraScene):
 
 class SolvingPhaseProblem(MovingCameraScene):
     def construct(self):
-        # frame = self.camera.frame.save_state()
+        frame = self.camera.frame.save_state()
 
-        # self.hacky_sine_waves()
+        self.hacky_sine_waves()
 
-        # self.play(*[FadeOut(mob) for mob in self.mobjects])
-        # self.play(Restore(frame))
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
+        self.play(Restore(frame))
 
         self.capture_sine_and_cosine_transforms()
 
@@ -1175,19 +1175,6 @@ class SolvingPhaseProblem(MovingCameraScene):
             rate_func=rate_functions.ease_in_out_sine,
         )
         self.wait()
-
-        # signals_vg = VGroup(
-        #     og_signal_mob,
-        #     cos_af_vg,
-        #     cos_prod_mob,
-        #     sin_af_vg,
-        #     sin_prod_mob,
-        #     og_t,
-        #     af_sine_t,
-        #     af_cos_t,
-        #     sin_prod_t,
-        #     cos_prod_t,
-        # )
 
         cos_dot_prod_mob.clear_updaters()
 
