@@ -583,10 +583,10 @@ class IntroducePhaseProblem(MovingCameraScene):
         frame = self.camera.frame.save_state()
         self.try_sine_wave()
 
-        self.play(*[FadeOut(mob) for mob in self.mobjects])
-        self.play(Restore(frame))
+        # self.play(*[FadeOut(mob) for mob in self.mobjects])
+        # self.play(Restore(frame))
 
-        self.test_cases_again()
+        # self.test_cases_again()
 
     def try_sine_wave(self):
         frame = self.camera.frame
@@ -637,25 +637,7 @@ class IntroducePhaseProblem(MovingCameraScene):
                 ]
             ).reshape(-1, 1)
 
-            # matrix transform
-            mt = apply_matrix_transform(sampled_signal, af_matrix)
-
-            rects = (
-                VGroup(
-                    *[
-                        VGroup(
-                            Rectangle(
-                                color=REDUCIBLE_VIOLET, width=0.3, height=f * rect_scale
-                            ).set_fill(REDUCIBLE_VIOLET, opacity=1),
-                            Text(str(i), font=REDUCIBLE_MONO).scale(0.4),
-                        ).arrange(DOWN)
-                        for i, f in enumerate(mt.flatten()[: mt.shape[0] // 2])
-                    ]
-                )
-                .arrange(RIGHT, aligned_edge=DOWN)
-                .scale(0.6)
-                .move_to(DOWN * 3.4, aligned_edge=DOWN)
-            )
+            rects = get_rectangles_for_matrix_transform(sampled_signal, af_matrix)
 
             return rects
 
@@ -705,9 +687,6 @@ class IntroducePhaseProblem(MovingCameraScene):
             frame.animate.scale(0.8).shift(DOWN * 0.8),
         )
         self.wait()
-
-        # self.play(Write(analysis_freq_mob), frame.animate.scale(0.7).shift(DOWN * 0.8))
-        # self.wait()
 
         aux_analysis_freq_axis, _ = plot_time_domain(
             get_cosine_func(freq=original_freq), t_max=t_max

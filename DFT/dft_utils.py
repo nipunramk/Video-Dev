@@ -299,3 +299,47 @@ def get_analysis_frequency_matrix(N, sample_rate, t_min=0, t_max=2 * PI):
     return np.array(
         [[f(s) for s in np.linspace(t_min, t_max, num=N, endpoint=False)] for f in af]
     )
+
+
+def get_rectangles_for_matrix_transform(
+    sampled_signal, analysis_frequency_matrix, rect_scale=0.1
+):
+    """
+    Create an array of rectangles with annotations to represent the matrix transform input.
+
+    INPUTS
+    ------
+    This function accepts a sampled signal and an analysis frequency matrix to transform the signal.
+    The sampled signal is an array of values and the analysis frequency matrix is a 2D square array of
+    N analysis frequencies sampled at N points.
+
+    The rectangle scaling argument is there to control the height of the rectangles, since
+    the values can get pretty wild if not controlled properly.
+
+    RETURN
+    ------
+    The function returns a VGroup of rectangles and text, and this VGroup is already aligned down,
+    in order for it to work properly with redrawing animations.
+    """
+
+    matrix_transform = apply_matrix_transform(sampled_signal, analysis_frequency_matrix)
+
+    rects = (
+        VGroup(
+            *[
+                VGroup(
+                    Rectangle(
+                        color=REDUCIBLE_VIOLET, width=0.3, height=f * rect_scale
+                    ).set_fill(REDUCIBLE_VIOLET, opacity=1),
+                    Text(str(i), font=REDUCIBLE_MONO).scale(0.4),
+                ).arrange(DOWN)
+                for i, f in enumerate(
+                    matrix_transform.flatten()[: matrix_transform.shape[0] // 2]
+                )
+            ]
+        )
+        .arrange(RIGHT, aligned_edge=DOWN)
+        .scale(0.6)
+        .move_to(DOWN * 3.4, aligned_edge=DOWN)
+    )
+    return rects
