@@ -8,7 +8,8 @@ from manim import *
 
 from dft_utils import *
 from reducible_colors import *
-from math import degrees, radians
+from math import degrees
+from classes import CustomLabel
 
 
 class IntroSampling_002(MovingCameraScene):
@@ -874,12 +875,12 @@ class IntroducePhaseProblem(MovingCameraScene):
 
 class SolvingPhaseProblem(MovingCameraScene):
     def construct(self):
-        frame = self.camera.frame.save_state()
+        # frame = self.camera.frame.save_state()
 
-        self.hacky_sine_waves()
+        # self.hacky_sine_waves()
 
-        self.play(*[FadeOut(mob) for mob in self.mobjects])
-        self.play(Restore(frame))
+        # self.play(*[FadeOut(mob) for mob in self.mobjects])
+        # self.play(Restore(frame))
 
         self.capture_sine_and_cosine_transforms()
 
@@ -1005,6 +1006,51 @@ class SolvingPhaseProblem(MovingCameraScene):
         vt_phase = ValueTracker(0)
 
         scale = 0.4
+        dot_prod_scale = 1
+
+        def get_dot_prod_cos_bar():
+            cos_analysis_freq = get_cosine_func(freq=original_frequency)
+            sin_analysis_freq = get_sine_func(freq=original_frequency)
+
+            og_signal = get_cosine_func(
+                freq=original_frequency, phase=vt_phase.get_value()
+            )
+
+            cos_dot_prod = (
+                inner_prod(
+                    og_signal,
+                    cos_analysis_freq,
+                    x_max=t_max,
+                    num_points=sample_frequency,
+                )
+                * dot_prod_scale
+            )
+            sin_dot_prod = (
+                inner_prod(
+                    og_signal,
+                    sin_analysis_freq,
+                    x_max=t_max,
+                    num_points=sample_frequency,
+                )
+                * dot_prod_scale
+            )
+
+            barchart = BarChart(
+                values=[cos_dot_prod, sin_dot_prod],
+                y_range=[-20, 20, 10],
+                x_length=1,
+                y_length=3,
+                bar_width=0.3,
+                bar_colors=[REDUCIBLE_GREEN_LIGHTER, REDUCIBLE_ORANGE],
+                y_axis_config={
+                    "label_constructor": CustomLabel,
+                    "font_size": 8,
+                },
+            )
+
+            barchart.scale(2).move_to(RIGHT * 3)
+
+            return barchart
 
         # original signal that will keep changing
         def changing_original_signal():
@@ -1072,6 +1118,7 @@ class SolvingPhaseProblem(MovingCameraScene):
         og_signal_mob = always_redraw(changing_original_signal)
         sin_prod_mob = always_redraw(changing_sin_prod)
         cos_prod_mob = always_redraw(changing_cos_prod)
+        cos_dot_prod = always_redraw(get_dot_prod_cos_bar)
 
         og_t = (
             Text(
@@ -1116,5 +1163,8 @@ class SolvingPhaseProblem(MovingCameraScene):
                 FadeIn, VGroup(*[og_t, af_sine_t, af_cos_t, sin_prod_t, cos_prod_t])
             )
         )
+
+        self.play(FadeIn(cos_dot_prod))
+        self.wait()
 
         self.play(vt_phase.animate.set_value(4 * 2 * PI), run_time=15)

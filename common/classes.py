@@ -368,8 +368,8 @@ class ReducibleBarChart(BarChart):
 
         super().__init__(
             values,
-            height=height,
-            width=width,
+            # height=height,
+            # width=width,
             n_ticks=n_ticks,
             tick_width=tick_width,
             label_y_axis=label_y_axis,
