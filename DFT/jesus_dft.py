@@ -1257,6 +1257,7 @@ class SolvingPhaseProblem(MovingCameraScene):
         arc = always_redraw(redraw_arc)
         arc.move_arc_center_to(number_plane.c2p(0, 0))
 
-        self.play(Write(number_plane), vt_phase.animate.set_value(0))
+        vt_phase.set_value(0)
+        self.play(Write(number_plane))
         self.play(FadeIn(arc))
         self.play(vt_phase.animate.set_value(2 * PI), run_time=10)
