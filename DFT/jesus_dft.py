@@ -584,10 +584,10 @@ class IntroducePhaseProblem(MovingCameraScene):
         frame = self.camera.frame.save_state()
         self.try_sine_wave()
 
-        # self.play(*[FadeOut(mob) for mob in self.mobjects])
-        # self.play(Restore(frame))
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
+        self.play(Restore(frame))
 
-        # self.test_cases_again()
+        self.test_cases_again()
 
     def try_sine_wave(self):
         frame = self.camera.frame
