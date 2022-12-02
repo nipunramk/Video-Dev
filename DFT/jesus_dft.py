@@ -874,9 +874,13 @@ class IntroducePhaseProblem(MovingCameraScene):
 
 class SolvingPhaseProblem(MovingCameraScene):
     def construct(self):
-        frame = self.camera.frame
+        frame = self.camera.frame.save_state()
 
-        # self.hacky_sine_waves()
+        self.hacky_sine_waves()
+
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
+        self.play(Restore(frame))
+
         self.capture_sine_and_cosine_transforms()
 
     def hacky_sine_waves(self):
@@ -884,7 +888,7 @@ class SolvingPhaseProblem(MovingCameraScene):
         t_max = PI
 
         # samples per second
-        sample_frequency = 80
+        sample_frequency = 40
 
         # total number of samples
         n_samples = sample_frequency
@@ -933,26 +937,7 @@ class SolvingPhaseProblem(MovingCameraScene):
                 ]
             ).reshape(-1, 1)
 
-            # matrix transform
-            mt = apply_matrix_transform(sampled_signal, af_matrix)
-
-            rect_scale = 0.1
-            rects = (
-                VGroup(
-                    *[
-                        VGroup(
-                            Rectangle(
-                                color=REDUCIBLE_VIOLET, width=0.3, height=f * rect_scale
-                            ).set_fill(REDUCIBLE_VIOLET, opacity=1),
-                            Text(str(i), font=REDUCIBLE_MONO).scale(0.4),
-                        ).arrange(DOWN)
-                        for i, f in enumerate(mt.flatten()[: mt.shape[0] // 2])
-                    ]
-                )
-                .arrange(RIGHT, aligned_edge=DOWN)
-                .scale(0.6)
-                .move_to(DOWN * 3.4, aligned_edge=DOWN)
-            )
+            rects = get_rectangles_for_matrix_transform(sampled_signal, af_matrix)
             return rects
 
         af_mob = always_redraw(change_af_cos_sin)
@@ -999,7 +984,7 @@ class SolvingPhaseProblem(MovingCameraScene):
         t_max = PI
 
         # samples per second
-        sample_frequency = 80
+        sample_frequency = 40
 
         # total number of samples
         n_samples = sample_frequency
