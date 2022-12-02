@@ -875,12 +875,12 @@ class IntroducePhaseProblem(MovingCameraScene):
 
 class SolvingPhaseProblem(MovingCameraScene):
     def construct(self):
-        frame = self.camera.frame.save_state()
+        # frame = self.camera.frame.save_state()
 
-        self.hacky_sine_waves()
+        # self.hacky_sine_waves()
 
-        self.play(*[FadeOut(mob) for mob in self.mobjects])
-        self.play(Restore(frame))
+        # self.play(*[FadeOut(mob) for mob in self.mobjects])
+        # self.play(Restore(frame))
 
         self.capture_sine_and_cosine_transforms()
 
@@ -983,6 +983,7 @@ class SolvingPhaseProblem(MovingCameraScene):
         self.wait()
 
     def capture_sine_and_cosine_transforms(self):
+        frame = self.camera.frame
         t_max = PI
 
         # samples per second
@@ -1119,7 +1120,7 @@ class SolvingPhaseProblem(MovingCameraScene):
         og_signal_mob = always_redraw(changing_original_signal)
         sin_prod_mob = always_redraw(changing_sin_prod)
         cos_prod_mob = always_redraw(changing_cos_prod)
-        cos_dot_prod = always_redraw(get_dot_prod_cos_bar)
+        cos_dot_prod_mob = always_redraw(get_dot_prod_cos_bar)
 
         og_t = (
             Text(
@@ -1165,7 +1166,7 @@ class SolvingPhaseProblem(MovingCameraScene):
             )
         )
 
-        self.play(FadeIn(cos_dot_prod))
+        self.play(FadeIn(cos_dot_prod_mob))
         self.wait()
 
         self.play(
@@ -1173,3 +1174,87 @@ class SolvingPhaseProblem(MovingCameraScene):
             run_time=25,
             rate_func=rate_functions.ease_in_out_sine,
         )
+        self.wait()
+
+        # signals_vg = VGroup(
+        #     og_signal_mob,
+        #     cos_af_vg,
+        #     cos_prod_mob,
+        #     sin_af_vg,
+        #     sin_prod_mob,
+        #     og_t,
+        #     af_sine_t,
+        #     af_cos_t,
+        #     sin_prod_t,
+        #     cos_prod_t,
+        # )
+
+        cos_dot_prod_mob.clear_updaters()
+
+        self.play(
+            frame.animate.scale(1.1).shift(RIGHT * 1.3),
+            cos_dot_prod_mob.animate.shift(LEFT * 2.3),
+        )
+
+        # we need to remake this function with the only change of the new position
+        # and then swap the mobjects. a bit inconvenient but :(
+        def get_dot_prod_cos_bar_new():
+            cos_analysis_freq = get_cosine_func(freq=original_frequency)
+            sin_analysis_freq = get_sine_func(freq=original_frequency)
+
+            og_signal = get_cosine_func(
+                freq=original_frequency, phase=vt_phase.get_value()
+            )
+
+            cos_dot_prod = (
+                inner_prod(
+                    og_signal,
+                    cos_analysis_freq,
+                    x_max=t_max,
+                    num_points=sample_frequency,
+                )
+                * dot_prod_scale
+            )
+            sin_dot_prod = (
+                inner_prod(
+                    og_signal,
+                    sin_analysis_freq,
+                    x_max=t_max,
+                    num_points=sample_frequency,
+                )
+                * dot_prod_scale
+            )
+
+            barchart = BarChart(
+                values=[cos_dot_prod, sin_dot_prod],
+                y_range=[-20, 20, 10],
+                x_length=1,
+                y_length=3,
+                bar_width=0.3,
+                bar_colors=[REDUCIBLE_GREEN_LIGHTER, REDUCIBLE_ORANGE],
+                y_axis_config={
+                    "label_constructor": CustomLabel,
+                    "font_size": 8,
+                },
+            )
+
+            barchart.scale(2).move_to(cos_dot_prod_mob)
+
+            return barchart
+
+        cos_dot_prod_new = always_redraw(get_dot_prod_cos_bar_new)
+
+        self.play(FadeIn(cos_dot_prod_new))
+
+        number_plane = (
+            NumberPlane(
+                x_length=5,
+                y_length=5,
+                x_range=[-3, 3],
+                y_range=[-3, 3],
+                background_line_style={"stroke_color": REDUCIBLE_VIOLET},
+            )
+            .set_opacity(0.7)
+            .next_to(cos_dot_prod_new, RIGHT, buff=1)
+        )
+        self.play(Write(number_plane))
