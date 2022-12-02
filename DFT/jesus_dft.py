@@ -1245,16 +1245,32 @@ class SolvingPhaseProblem(MovingCameraScene):
         cos_dot_prod_new = always_redraw(get_dot_prod_cos_bar_new)
 
         self.play(FadeIn(cos_dot_prod_new))
+        self.play(FadeOut(cos_dot_prod_mob))
 
         number_plane = (
             NumberPlane(
                 x_length=5,
                 y_length=5,
-                x_range=[-3, 3],
-                y_range=[-3, 3],
+                x_range=[-2, 2],
+                y_range=[-2, 2],
                 background_line_style={"stroke_color": REDUCIBLE_VIOLET},
             )
             .set_opacity(0.7)
             .next_to(cos_dot_prod_new, RIGHT, buff=1)
         )
-        self.play(Write(number_plane))
+
+        def redraw_arc():
+            radius = Line(number_plane.c2p(0, 0), number_plane.c2p(1, 0)).width
+            np_center = number_plane.c2p(0, 0)
+            arc_center = (np_center[0], np_center[1], 0)
+            return (
+                Arc(radius, angle=vt_phase.get_value())
+                .move_arc_center_to(arc_center)
+                .set_color(REDUCIBLE_YELLOW)
+            )
+
+        arc = always_redraw(redraw_arc)
+
+        self.play(Write(number_plane), vt_phase.animate.set_value(0))
+        self.play(FadeIn(arc))
+        self.play(vt_phase.animate.set_value(2 * PI), run_time=10)
