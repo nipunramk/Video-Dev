@@ -875,14 +875,18 @@ class IntroducePhaseProblem(MovingCameraScene):
 
 class SolvingPhaseProblem(MovingCameraScene):
     def construct(self):
-        frame = self.camera.frame.save_state()
+        reset_frame = self.camera.frame.save_state()
 
-        self.hacky_sine_waves()
+        # self.hacky_sine_waves()
 
-        self.play(*[FadeOut(mob) for mob in self.mobjects])
-        self.play(Restore(frame))
+        # self.play(*[FadeOut(mob) for mob in self.mobjects])
+        # self.play(Restore(reset_frame))
 
-        self.capture_sine_and_cosine_transforms()
+        # self.capture_sine_and_cosine_transforms()
+        # self.play(*[FadeOut(mob) for mob in self.mobjects])
+        # self.play(Restore(reset_frame))
+
+        self.sum_up_dft()
 
     def hacky_sine_waves(self):
         original_frequency = 4
@@ -1246,18 +1250,97 @@ class SolvingPhaseProblem(MovingCameraScene):
             .next_to(cos_dot_prod_new, RIGHT, buff=1)
         )
 
+        np_center = number_plane.c2p(0, 0)
+
         def redraw_arc():
-            radius = Line(number_plane.c2p(0, 0), number_plane.c2p(1, 0)).width
+            radius = Line(np_center, number_plane.c2p(1, 0)).width
             return (
                 Arc(radius, angle=vt_phase.get_value())
-                .move_arc_center_to(number_plane.c2p(0, 0))
+                .move_arc_center_to(np_center)
                 .set_color(REDUCIBLE_YELLOW)
             )
 
         arc = always_redraw(redraw_arc)
-        arc.move_arc_center_to(number_plane.c2p(0, 0))
+        arc.move_arc_center_to(np_center)
 
         vt_phase.set_value(0)
         self.play(Write(number_plane))
         self.play(FadeIn(arc))
         self.play(vt_phase.animate.set_value(2 * PI), run_time=10)
+
+        vector = Arrow(np_center, number_plane.c2p(1, 0), buff=0).set_color(
+            REDUCIBLE_YELLOW
+        )
+        brace = (
+            Brace(vector, UP)
+            .set_color(REDUCIBLE_YELLOW)
+            .set_stroke(BLACK, 3, background=True)
+        )
+        xy_t = (
+            Text("|(x, y)|", font=REDUCIBLE_FONT, weight=BOLD)
+            .scale(0.5)
+            .set_stroke(BLACK, width=5, background=True)
+            .next_to(brace, UP)
+        )
+
+        self.play(Write(vector), focus_on(frame, vector, buff=7), run_time=3)
+        self.play(FadeIn(xy_t, shift=DOWN * 0.3), Write(brace))
+
+        self.wait()
+
+    def sum_up_dft(self):
+        frame = self.camera.frame
+        t_max = PI
+
+        # samples per second
+        sample_frequency = 40
+
+        # total number of samples
+        n_samples = sample_frequency
+
+        analysis_frequencies = [
+            sample_frequency * m / n_samples for m in range(n_samples // 2)
+        ]
+
+        original_frequency = analysis_frequencies[4]
+
+        cos_matrix = self.get_analysis_matrix_mob(analysis_frequencies, "cos")
+        sin_matrix = self.get_analysis_matrix_mob(analysis_frequencies, "sin")
+
+        self.play(Write(cos_matrix))
+        self.wait()
+        self.play(cos_matrix.animate.scale(0.4).to_corner(UL))
+
+        cos_t = (
+            Text("cos(x)", font=REDUCIBLE_FONT, weight=BOLD)
+            .set_color(REDUCIBLE_VIOLET)
+            .next_to(cos_matrix, DOWN, buff=0.1)
+        ).scale(0.4)
+        self.play(FadeIn(cos_t, shift=DOWN * 0.3))
+
+        self.play(Write(sin_matrix))
+        self.wait()
+        self.play(sin_matrix.animate.scale(0.4).to_corner(DL))
+
+        sin_t = (
+            Text("sin(x)", font=REDUCIBLE_FONT, weight=BOLD)
+            .set_color(REDUCIBLE_CHARM)
+            .next_to(sin_matrix, UP, buff=0.1)
+        ).scale(0.4)
+        self.play(FadeIn(sin_t, shift=UP * 0.3))
+
+    def get_analysis_matrix_mob(self, analysis_frequencies, func="cos", t_max=2 * PI):
+        if func != "cos" and func != "sin":
+            raise ValueError('func can either be "cos" or "sin"')
+
+        function = get_cosine_func if func == "cos" else get_sine_func
+        color = REDUCIBLE_VIOLET if func == "cos" else REDUCIBLE_CHARM
+
+        af = [function(freq=f, amplitude=0.1) for f in analysis_frequencies]
+        mobs = (
+            VGroup(*[plot_time_domain(f, t_max=t_max, color=color)[1] for f in af])
+            .arrange(DOWN, buff=0.2)
+            .rotate(PI / 2)
+        )
+
+        return VGroup(*mobs)

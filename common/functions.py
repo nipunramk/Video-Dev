@@ -119,3 +119,8 @@ def matrix_to_mob(matrix: np.ndarray, h_buff=2.3, v_buff=1.3):
         h_buff=h_buff,
         v_buff=v_buff,
     ).scale(0.3)
+
+
+def focus_on(frame, mobject, buff=2):
+    """Returns a ready to play animation of the camera focusing on a given mobject"""
+    return frame.animate.set_width(mobject.width * buff).move_to(mobject)
