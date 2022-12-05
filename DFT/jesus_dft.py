@@ -877,18 +877,18 @@ class SolvingPhaseProblem(MovingCameraScene):
     def construct(self):
         reset_frame = self.camera.frame.save_state()
 
-        # self.hacky_sine_waves()
+        self.hacky_sine_waves()
 
-        # self.play(*[FadeOut(mob) for mob in self.mobjects])
-        # self.play(Restore(reset_frame))
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
+        self.play(Restore(reset_frame))
 
-        # self.capture_sine_and_cosine_transforms()
-        # self.play(*[FadeOut(mob) for mob in self.mobjects])
-        # self.play(Restore(reset_frame))
+        self.capture_sine_and_cosine_transforms()
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
+        self.play(Restore(reset_frame))
 
-        # self.sum_up_dft()
-        # self.play(*[FadeOut(mob) for mob in self.mobjects])
-        # self.play(Restore(reset_frame))
+        self.sum_up_dft()
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
+        self.play(Restore(reset_frame))
 
         self.final_tests_dft()
 
@@ -1518,6 +1518,8 @@ class SolvingPhaseProblem(MovingCameraScene):
         self.play(
             vt_phase.animate.set_value(20 * PI / 2), run_time=10, rate_func=linear
         )
+
+        self.wait()
 
     # local utils
     def get_analysis_matrix_mob(self, analysis_frequencies, func="cos", t_max=2 * PI):
