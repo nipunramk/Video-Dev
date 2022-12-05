@@ -886,7 +886,11 @@ class SolvingPhaseProblem(MovingCameraScene):
         # self.play(*[FadeOut(mob) for mob in self.mobjects])
         # self.play(Restore(reset_frame))
 
-        self.sum_up_dft()
+        # self.sum_up_dft()
+        # self.play(*[FadeOut(mob) for mob in self.mobjects])
+        # self.play(Restore(reset_frame))
+
+        self.final_tests_dft()
 
     def hacky_sine_waves(self):
         original_frequency = 4
@@ -1304,8 +1308,20 @@ class SolvingPhaseProblem(MovingCameraScene):
 
         original_frequency = analysis_frequencies[4]
 
+        main_signal = (
+            plot_time_domain(
+                get_cosine_func(freq=original_frequency, amplitude=0.4), t_max=t_max
+            )[1]
+            .scale(0.7)
+            .shift(RIGHT * 0.6)
+        )
+
         cos_matrix = self.get_analysis_matrix_mob(analysis_frequencies, "cos")
-        sin_matrix = self.get_analysis_matrix_mob(analysis_frequencies, "sin")
+        sin_matrix = (
+            self.get_analysis_matrix_mob(analysis_frequencies, "sin")
+            .scale(0.4)
+            .to_corner(DL)
+        )
 
         self.play(Write(cos_matrix))
         self.wait()
@@ -1314,21 +1330,196 @@ class SolvingPhaseProblem(MovingCameraScene):
         cos_t = (
             Text("cos(x)", font=REDUCIBLE_FONT, weight=BOLD)
             .set_color(REDUCIBLE_VIOLET)
-            .next_to(cos_matrix, DOWN, buff=0.1)
+            .next_to(cos_matrix, DOWN, buff=0)
         ).scale(0.4)
         self.play(FadeIn(cos_t, shift=DOWN * 0.3))
 
-        self.play(Write(sin_matrix))
         self.wait()
-        self.play(sin_matrix.animate.scale(0.4).to_corner(DL))
+        self.play(Write(sin_matrix))
 
         sin_t = (
             Text("sin(x)", font=REDUCIBLE_FONT, weight=BOLD)
             .set_color(REDUCIBLE_CHARM)
-            .next_to(sin_matrix, UP, buff=0.1)
+            .next_to(sin_matrix, UP, buff=0)
         ).scale(0.4)
         self.play(FadeIn(sin_t, shift=UP * 0.3))
 
+        x_t = Text("x", font=REDUCIBLE_FONT, weight=BOLD).next_to(
+            main_signal, UP, buff=1.5
+        )
+        y_t = Text("y", font=REDUCIBLE_FONT, weight=BOLD).next_to(
+            main_signal, DOWN, buff=1.5
+        )
+        self.play(Write(main_signal), Write(x_t), Write(y_t))
+
+        coords = (
+            VGroup(
+                *[
+                    Text(
+                        "|(x, y)|",
+                        font=REDUCIBLE_FONT,
+                        weight=BOLD,
+                        t2c={"x": REDUCIBLE_VIOLET, "y": REDUCIBLE_CHARM},
+                    )
+                    .scale(0.7)
+                    .set_opacity(2 / (i + 1))
+                    for i in range(8)
+                ]
+            )
+            .arrange(DOWN, buff=0.2)
+            .next_to(main_signal, RIGHT, buff=1.8)
+        )
+        brace = Brace(coords, LEFT, buff=0.7)
+
+        self.play(FadeIn(brace, shift=LEFT * 0.3))
+        self.play(FadeIn(coords, shift=DOWN * 0.3))
+
+        self.wait()
+
+    def final_tests_dft(self):
+        frame = self.camera.frame
+        t_min = 0
+        t_max = TAU * 2
+
+        # samples per second
+        sample_frequency = 40
+
+        # total number of samples
+        n_samples = sample_frequency
+
+        analysis_frequencies = [
+            sample_frequency * m / n_samples for m in range(n_samples // 2)
+        ]
+
+        # let's just take one AF as an example
+        original_freq = analysis_frequencies[2]
+
+        vt_frequency = ValueTracker(original_freq)
+        # this tracker will move phase: from 0 to PI/2
+        vt_phase = ValueTracker(0)
+        vt_amplitude = ValueTracker(1)
+        vt_b = ValueTracker(0)
+
+        def change_text_redraw():
+            v_freq = f"{vt_frequency.get_value():.2f}"
+            v_amplitude = f"{vt_amplitude.get_value():.2f}"
+            v_phase = f"{degrees(vt_phase.get_value()) % 360:.2f}"
+            v_b = f"{vt_b.get_value():.2f}"
+
+            tex_frequency = Text(
+                "ƒ = " + v_freq + " Hz",
+                font=REDUCIBLE_FONT,
+                t2f={v_freq: REDUCIBLE_MONO},
+            ).scale(0.8)
+
+            phi_eq = MathTex(r"\phi = ")
+            tex_phase_n = Text(
+                v_phase + "º",
+                font=REDUCIBLE_FONT,
+                t2f={v_phase: REDUCIBLE_MONO},
+            ).scale(0.8)
+            tex_phase = VGroup(phi_eq, tex_phase_n).arrange(RIGHT)
+
+            tex_amplitude = Text(
+                "A = " + v_amplitude,
+                font=REDUCIBLE_FONT,
+                t2f={v_amplitude: REDUCIBLE_MONO},
+            ).scale(0.8)
+
+            tex_b = Text(
+                "b = " + v_b,
+                font=REDUCIBLE_FONT,
+                t2f={v_b: REDUCIBLE_MONO},
+            ).scale(0.8)
+
+            text_group = (
+                VGroup(tex_frequency, tex_phase, tex_amplitude, tex_b)
+                .arrange(DOWN, aligned_edge=LEFT)
+                .scale(0.6)
+                .to_corner(UL)
+            )
+            return text_group
+
+        def change_phase_redraw():
+            phase_ch_cos = get_cosine_func(
+                amplitude=vt_amplitude.get_value(),
+                freq=vt_frequency.get_value(),
+                phase=vt_phase.get_value(),
+                b=vt_b.get_value(),
+            )
+            _, phase_ch_cos_mob = plot_time_domain(phase_ch_cos, t_max=t_max)
+            return phase_ch_cos_mob.scale(0.6).shift(UP)
+
+        af_matrix = get_analysis_frequency_matrix(
+            N=n_samples, sample_rate=sample_frequency, t_max=t_max
+        )
+
+        rect_scale = 0.1
+
+        def updating_transform_redraw():
+            signal_function = get_cosine_func(
+                amplitude=vt_amplitude.get_value(),
+                freq=vt_frequency.get_value(),
+                phase=vt_phase.get_value(),
+                b=vt_b.get_value(),
+            )
+
+            sampled_signal = np.array(
+                [
+                    signal_function(v)
+                    for v in np.linspace(t_min, t_max, num=n_samples, endpoint=False)
+                ]
+            ).reshape(-1, 1)
+
+            rects = get_fourier_bar_chart(
+                signal_function, t_max=t_max, n_samples=n_samples, height_scale=3
+            )
+
+            return rects.move_to(DOWN * 2, aligned_edge=DOWN)
+
+        changing_signal_mob = always_redraw(change_phase_redraw)
+        freq_analysis = always_redraw(updating_transform_redraw)
+        changing_tex_group = always_redraw(change_text_redraw)
+
+        line_ref = DashedVMobject(
+            Line(freq_analysis.get_left(), freq_analysis.get_right())
+            .set_stroke(WHITE, opacity=0.5)
+            .move_to(changing_signal_mob)
+        )
+
+        self.play(Write(changing_signal_mob), FadeIn(freq_analysis), Write(line_ref))
+        self.play(FadeIn(changing_tex_group))
+
+        self.play(vt_amplitude.animate.set_value(0.5), run_time=0.8)
+        self.wait()
+        self.play(vt_amplitude.animate.set_value(0.1), run_time=0.8)
+        self.wait()
+        self.play(vt_amplitude.animate.set_value(0), run_time=0.8)
+        self.wait()
+        self.play(vt_amplitude.animate.set_value(1), run_time=0.8)
+        self.wait()
+
+        self.play(vt_frequency.animate.set_value(analysis_frequencies[3]))
+        self.wait()
+        self.play(vt_frequency.animate.set_value(analysis_frequencies[4]))
+        self.wait()
+
+        self.play(vt_b.animate.set_value(0.3))
+        self.wait()
+        self.play(vt_b.animate.set_value(0.5))
+        self.wait()
+        self.play(vt_b.animate.set_value(0))
+        self.wait()
+
+        for i in range(1, 5):
+            self.play(vt_phase.animate.set_value(i * PI / 2))
+            self.wait()
+
+        self.play(
+            vt_phase.animate.set_value(20 * PI / 2), run_time=10, rate_func=linear
+        )
+
+    # local utils
     def get_analysis_matrix_mob(self, analysis_frequencies, func="cos", t_max=2 * PI):
         if func != "cos" and func != "sin":
             raise ValueError('func can either be "cos" or "sin"')
