@@ -1570,11 +1570,71 @@ class InterpretDFT(MovingCameraScene):
             ]
         ).arrange(DOWN, buff=-2.2)
 
-        af_matrix_signals = VGroup(*[af[1] for af in af_matrix])
-        self.play(FadeIn(af_matrix_signals))
-
-        sampled_points_af = VGroup(
-            *[get_sampled_dots(signal, axis, x_max=t_max) for axis, signal in af_matrix]
+        af_matrix_signals = VGroup(
+            *[
+                VGroup(
+                    af[1].set_color(REDUCIBLE_VIOLET),
+                )
+                for af in af_matrix
+            ]
         )
 
-        self.play(FadeIn(sampled_points_af))
+        [af[0].set_opacity(0) for af in af_matrix]
+
+        self.play(FadeIn(af_matrix_signals))
+        self.play(af_matrix.animate.scale(0.8).to_edge(RIGHT, buff=1))
+
+        sampled_points_af = VGroup(
+            *[
+                get_sampled_dots(signal, axis, x_max=t_max, num_points=5).set_color(
+                    REDUCIBLE_VIOLET
+                )
+                for axis, signal in af_matrix
+            ]
+        )
+
+        number_plane = (
+            NumberPlane(
+                x_length=5,
+                y_length=5,
+                x_range=[-2, 2],
+                y_range=[-2, 2],
+                background_line_style={"stroke_color": REDUCIBLE_VIOLET},
+            )
+            .set_opacity(0.7)
+            .shift(LEFT * 3.4)
+        )
+        np_radius = Line(number_plane.c2p(0, 0), number_plane.c2p(0, 1)).height
+
+        complex_circle = (
+            Circle(np_radius)
+            .set_color(REDUCIBLE_YELLOW)
+            .move_to(number_plane.c2p(0, 0))
+        )
+
+        signals_and_dots = VGroup(af_matrix_signals, sampled_points_af)
+
+        self.play(Write(number_plane), Write(complex_circle))
+
+        _points_on_circle = (
+            Dot()
+            .set_color(REDUCIBLE_YELLOW)
+            .move_to(complex_circle.point_from_proportion(0))
+        )
+        for i, sampled_points in enumerate(sampled_points_af):
+
+            if i == 0:
+                self.play(FadeIn(sampled_points))
+                continue
+
+            n_points = len(sampled_points)
+            points_on_circle = VGroup(
+                *[
+                    Dot()
+                    .move_to(complex_circle.point_from_proportion(n / i))
+                    .set_color(REDUCIBLE_YELLOW)
+                    for n in range(i)
+                ]
+            )
+            self.play(FadeIn(sampled_points))
+            self.play(Transform(_points_on_circle, points_on_circle))
