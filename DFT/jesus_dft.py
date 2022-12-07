@@ -1537,3 +1537,44 @@ class SolvingPhaseProblem(MovingCameraScene):
         )
 
         return VGroup(*mobs)
+
+
+class InterpretDFT(MovingCameraScene):
+    def construct(self):
+        reset_frame = self.camera.frame.save_state()
+
+        self.visualize_complex_and_frequencies()
+
+    def visualize_complex_and_frequencies(self):
+        frame = self.camera.frame
+        t_max = PI
+
+        # samples per second
+        sample_frequency = 40
+
+        # total number of samples
+        n_samples = sample_frequency
+
+        analysis_frequencies = [
+            sample_frequency * m / n_samples for m in range(n_samples // 2)
+        ]
+
+        af_matrix = VGroup(
+            *[
+                VGroup(
+                    *plot_time_domain(
+                        get_cosine_func(freq=f, amplitude=0.2), t_max=t_max
+                    )
+                )
+                for f in analysis_frequencies[:7]
+            ]
+        ).arrange(DOWN, buff=-2.2)
+
+        af_matrix_signals = VGroup(*[af[1] for af in af_matrix])
+        self.play(FadeIn(af_matrix_signals))
+
+        sampled_points_af = VGroup(
+            *[get_sampled_dots(signal, axis, x_max=t_max) for axis, signal in af_matrix]
+        )
+
+        self.play(FadeIn(sampled_points_af))
