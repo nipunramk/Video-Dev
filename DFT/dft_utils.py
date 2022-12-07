@@ -312,3 +312,64 @@ def get_fourier_bar_chart(
 
     graph.arrange(RIGHT, buff=0.1, aligned_edge=DOWN)
     return graph
+
+
+def get_fourier_rects(
+    signal_func,
+    n_samples=32,
+    sample_rate=32,
+    t_min=0,
+    t_max=2 * PI,
+    rect_scale=0.1,
+    rect_width=0.3,
+    font_scale=0.4,
+):
+    # idea: sample points from get_fourier_line_chart
+    # and create num_bars dynamically to scale with the axes size
+    af_matrix = get_analysis_frequency_matrix(
+        N=n_samples, sample_rate=sample_rate, t_max=t_max
+    )
+    sampled_signal = np.array(
+        [
+            signal_func(v)
+            for v in np.linspace(t_min, t_max, num=n_samples, endpoint=False)
+        ]
+    ).reshape(-1, 1)
+
+    mt = apply_matrix_transform(sampled_signal, af_matrix)
+    rects = VGroup(
+        *[
+            VGroup(
+                Rectangle(
+                    color=REDUCIBLE_VIOLET, width=rect_width, height=f * rect_scale
+                ).set_fill(REDUCIBLE_VIOLET, opacity=1),
+                Text(str(i), font=REDUCIBLE_MONO).scale(font_scale),
+            ).arrange(DOWN)
+            for i, f in enumerate(mt.flatten()[: mt.shape[0]])
+        ]
+    ).arrange(RIGHT, aligned_edge=DOWN)
+
+    frequency_label = Text("Frequency", font=REDUCIBLE_MONO).scale(font_scale / 1.2)
+    frequency_label.next_to(rects, DOWN)
+
+    return VGroup(rects, frequency_label)
+
+
+def get_analysis_frequency_matrix(N, sample_rate, t_min=0, t_max=2 * PI):
+    """
+    Constructs a N x N matrix of N analysis frequencies
+    sampled at N points.
+    The matrix holds the values in columns,
+    as in the N values of the Nth analysis frequency are stored in
+    column number N.
+    """
+
+    # analysis frequencies
+    af = [get_cosine_func(freq=sample_rate * m / N) for m in range(N // 2)]
+
+    # for each analysis frequency, sample that function along N points
+    # this returns the frequencies per rows, so .T transposes and
+    # have the signal values in cols
+    return np.array(
+        [[f(s) for s in np.linspace(t_min, t_max, num=N, endpoint=False)] for f in af]
+    )
