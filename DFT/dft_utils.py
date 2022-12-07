@@ -135,12 +135,14 @@ def inner_prod(time_domain_func, freq_func, x_min=0, x_max=2 * PI, num_points=8)
     return np.dot(y_coords_time, y_coords_freq)
 
 
-def get_sampled_dots(graph, axes, x_min=0, x_max=2 * PI, num_points=8):
+def get_sampled_dots(
+    graph, axes, x_min=0, x_max=2 * PI, num_points=8, radius=DEFAULT_DOT_RADIUS
+):
     x_coords, y_coords = get_sampled_coords(
         graph, x_min=x_min, x_max=x_max, num_points=num_points
     )
     coord_dots = [
-        Dot().move_to(axes.coords_to_point(x_coord, y_coord))
+        Dot(radius=radius).move_to(axes.coords_to_point(x_coord, y_coord))
         for x_coord, y_coord in zip(x_coords, y_coords)
     ]
     return VGroup(*coord_dots)

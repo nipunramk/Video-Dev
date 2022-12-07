@@ -1546,18 +1546,37 @@ class InterpretDFT(MovingCameraScene):
         self.visualize_complex_and_frequencies()
 
     def visualize_complex_and_frequencies(self):
+
         frame = self.camera.frame
         t_max = PI
 
         # samples per second
-        sample_frequency = 40
+        sample_frequency = 4
 
         # total number of samples
         n_samples = sample_frequency
 
         analysis_frequencies = [
-            sample_frequency * m / n_samples for m in range(n_samples // 2)
+            sample_frequency * m / n_samples for m in range(n_samples)
         ]
+
+        matrix_elements = []
+        power = 0
+        for i in range(n_samples):
+            row = []
+            for j in range(n_samples):
+                if i == 0 or j == 0:
+                    power = 0
+                else:
+                    power = i * j
+
+                power_index = f"{power}"
+                row.append(r"\omega^{" + power_index + "}")
+
+            matrix_elements.append(row)
+
+        matrix = Matrix(matrix_elements)
+        self.play(FadeIn(matrix))
 
         af_matrix = VGroup(
             *[
@@ -1566,29 +1585,38 @@ class InterpretDFT(MovingCameraScene):
                         get_cosine_func(freq=f, amplitude=0.2), t_max=t_max
                     )
                 )
-                for f in analysis_frequencies[:7]
+                for f in analysis_frequencies
             ]
         ).arrange(DOWN, buff=-2.2)
 
-        af_matrix_signals = VGroup(
-            *[
-                VGroup(
-                    af[1].set_color(REDUCIBLE_VIOLET),
-                )
-                for af in af_matrix
-            ]
+        af_matrix_signals = (
+            VGroup(
+                *[
+                    VGroup(
+                        af[1].set_color(REDUCIBLE_VIOLET),
+                    )
+                    for af in af_matrix
+                ]
+            )
+            .next_to(ORIGIN, ORIGIN, aligned_edge=UP)
+            .shift(UP * 2)
         )
 
         [af[0].set_opacity(0) for af in af_matrix]
 
-        self.play(FadeIn(af_matrix_signals))
-        self.play(af_matrix.animate.scale(0.8).to_edge(RIGHT, buff=1))
+        self.play(LaggedStartMap(FadeIn, af_matrix_signals))
+        self.wait()
+        self.play(af_matrix.animate.scale(0.4).to_edge(RIGHT, buff=1))
 
         sampled_points_af = VGroup(
             *[
-                get_sampled_dots(signal, axis, x_max=t_max, num_points=5).set_color(
-                    REDUCIBLE_VIOLET
-                )
+                get_sampled_dots(
+                    signal,
+                    axis,
+                    x_max=t_max,
+                    num_points=n_samples,
+                    radius=DEFAULT_DOT_RADIUS / 2,
+                ).set_color(REDUCIBLE_VIOLET)
                 for axis, signal in af_matrix
             ]
         )
@@ -1630,7 +1658,7 @@ class InterpretDFT(MovingCameraScene):
             n_points = len(sampled_points)
             points_on_circle = VGroup(
                 *[
-                    Dot()
+                    Dot(radius=DEFAULT_DOT_RADIUS * 1.3)
                     .move_to(complex_circle.point_from_proportion(n / i))
                     .set_color(REDUCIBLE_YELLOW)
                     for n in range(i)
