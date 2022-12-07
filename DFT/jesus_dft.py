@@ -1579,7 +1579,10 @@ class InterpretDFT(MovingCameraScene):
         omega_definition = MathTex(
             r"\text{where} \ \omega = e ^{-\frac{2 \pi i}{N}}"
         ).next_to(dft_matrix_tex, UP)
+
         self.play(FadeIn(dft_matrix_tex, omega_definition))
+        self.wait()
+        self.play(dft_matrix_tex.animate.move_to(ORIGIN), FadeOut(omega_definition))
 
         af_matrix = VGroup(
             *[
@@ -1587,29 +1590,26 @@ class InterpretDFT(MovingCameraScene):
                     *plot_time_domain(
                         get_cosine_func(freq=f, amplitude=0.2), t_max=t_max
                     )
-                )
-                for f in analysis_frequencies
+                ).move_to(dft_matrix_tex[0][i * n_samples], aligned_edge=LEFT)
+                for i, f in enumerate(analysis_frequencies)
             ]
-        ).arrange(DOWN, buff=-2.2)
-
-        af_matrix_signals = (
-            VGroup(
-                *[
-                    VGroup(
-                        af[1].set_color(REDUCIBLE_VIOLET),
-                    )
-                    for af in af_matrix
-                ]
-            )
-            .next_to(ORIGIN, ORIGIN, aligned_edge=UP)
-            .shift(UP * 2)
         )
-
         [af[0].set_opacity(0) for af in af_matrix]
 
-        self.play(LaggedStartMap(FadeIn, af_matrix_signals))
-        self.wait()
-        self.play(af_matrix.animate.scale(0.4).to_edge(RIGHT, buff=1))
+        self.play(FadeIn(af_matrix))
+
+        # af_matrix_signals = (
+        #     VGroup(
+        #         *[
+        #             VGroup(
+        #                 af[1].set_color(REDUCIBLE_VIOLET),
+        #             )
+        #             for af in af_matrix
+        #         ]
+        #     )
+        #     .next_to(ORIGIN, ORIGIN, aligned_edge=UP)
+        #     .shift(UP * 2)
+        # )
 
         sampled_points_af = VGroup(
             *[
@@ -1643,7 +1643,7 @@ class InterpretDFT(MovingCameraScene):
             .move_to(number_plane.c2p(0, 0))
         )
 
-        signals_and_dots = VGroup(af_matrix_signals, sampled_points_af)
+        # signals_and_dots = VGroup(af_matrix_signals, sampled_points_af)
 
         self.play(Write(number_plane), Write(complex_circle))
 
