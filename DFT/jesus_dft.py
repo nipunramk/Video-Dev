@@ -1551,7 +1551,7 @@ class InterpretDFT(MovingCameraScene):
         t_max = PI
 
         # samples per second
-        sample_frequency = 4
+        sample_frequency = 8
 
         # total number of samples
         n_samples = sample_frequency
@@ -1575,8 +1575,11 @@ class InterpretDFT(MovingCameraScene):
 
             matrix_elements.append(row)
 
-        matrix = Matrix(matrix_elements)
-        self.play(FadeIn(matrix))
+        dft_matrix_tex = Matrix(matrix_elements).shift(DOWN * 3)
+        omega_definition = MathTex(
+            r"\text{where} \ \omega = e ^{-\frac{2 \pi i}{N}}"
+        ).next_to(dft_matrix_tex, UP)
+        self.play(FadeIn(dft_matrix_tex, omega_definition))
 
         af_matrix = VGroup(
             *[
