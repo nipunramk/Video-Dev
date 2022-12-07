@@ -1584,43 +1584,86 @@ class InterpretDFT(MovingCameraScene):
         self.wait()
         self.play(dft_matrix_tex.animate.move_to(ORIGIN), FadeOut(omega_definition))
 
-        af_matrix = VGroup(
+        cos_af_matrix = VGroup(
             *[
                 VGroup(
                     *plot_time_domain(
                         get_cosine_func(freq=f, amplitude=0.2), t_max=t_max
                     )
-                ).move_to(dft_matrix_tex[0][i * n_samples], aligned_edge=LEFT)
+                )
+                .stretch_to_fit_width(dft_matrix_tex.width - 1)
+                .move_to(dft_matrix_tex[0][i * n_samples], aligned_edge=LEFT)
+                for i, f in enumerate(range(n_samples))
+            ]
+        )
+
+        sin_af_matrix = VGroup(
+            *[
+                VGroup(
+                    *plot_time_domain(get_sine_func(freq=f, amplitude=0.2), t_max=t_max)
+                )
+                .stretch_to_fit_width(dft_matrix_tex.width - 1)
+                .move_to(dft_matrix_tex[0][i * n_samples], aligned_edge=LEFT)
                 for i, f in enumerate(analysis_frequencies)
             ]
         )
-        [af[0].set_opacity(0) for af in af_matrix]
 
-        self.play(FadeIn(af_matrix))
+        [af[0].set_opacity(0) for af in cos_af_matrix]
+        [af[0].set_opacity(0) for af in sin_af_matrix]
 
-        # af_matrix_signals = (
-        #     VGroup(
-        #         *[
-        #             VGroup(
-        #                 af[1].set_color(REDUCIBLE_VIOLET),
-        #             )
-        #             for af in af_matrix
-        #         ]
-        #     )
-        #     .next_to(ORIGIN, ORIGIN, aligned_edge=UP)
-        #     .shift(UP * 2)
-        # )
+        for sin_mob, cos_mob in zip(sin_af_matrix, cos_af_matrix):
+            sin_mob[1].set_color(REDUCIBLE_CHARM)
+            cos_mob[1].set_color(REDUCIBLE_VIOLET)
 
-        sampled_points_af = VGroup(
+        self.play(LaggedStartMap(Write, cos_af_matrix))
+        self.wait()
+        self.play(FadeOut(dft_matrix_tex[0]), LaggedStartMap(Write, sin_af_matrix))
+        self.wait()
+
+        legend = (
+            VGroup(
+                VGroup(
+                    Text("cos(x), \nreal part", font=REDUCIBLE_FONT).scale(0.2),
+                    Line(LEFT * 0.3, ORIGIN)
+                    .set_stroke(width=14)
+                    .set_color(REDUCIBLE_VIOLET),
+                ).arrange(DOWN, buff=0.1, aligned_edge=LEFT),
+                VGroup(
+                    Text("sin(x), \nimaginary part", font=REDUCIBLE_FONT).scale(0.2),
+                    Line(LEFT * 0.3, ORIGIN)
+                    .set_stroke(width=14)
+                    .set_color(REDUCIBLE_CHARM),
+                ).arrange(DOWN, buff=0.1, aligned_edge=LEFT),
+            )
+            .arrange(DOWN, buff=0.4, aligned_edge=LEFT)
+            .next_to(dft_matrix_tex, LEFT, aligned_edge=UP)
+        )
+
+        self.play(FadeIn(legend), focus_on(frame, VGroup(dft_matrix_tex, legend)))
+        self.wait()
+
+        sampled_points_cos_af = VGroup(
             *[
                 get_sampled_dots(
                     signal,
                     axis,
                     x_max=t_max,
                     num_points=n_samples,
-                    radius=DEFAULT_DOT_RADIUS / 2,
+                    radius=DEFAULT_DOT_RADIUS,
                 ).set_color(REDUCIBLE_VIOLET)
-                for axis, signal in af_matrix
+                for axis, signal in cos_af_matrix
+            ]
+        )
+        sampled_points_sin_af = VGroup(
+            *[
+                get_sampled_dots(
+                    signal,
+                    axis,
+                    x_max=t_max,
+                    num_points=n_samples,
+                    radius=DEFAULT_DOT_RADIUS,
+                ).set_color(REDUCIBLE_CHARM)
+                for axis, signal in sin_af_matrix
             ]
         )
 
@@ -1633,7 +1676,7 @@ class InterpretDFT(MovingCameraScene):
                 background_line_style={"stroke_color": REDUCIBLE_VIOLET},
             )
             .set_opacity(0.7)
-            .shift(LEFT * 3.4)
+            .next_to(dft_matrix_tex, RIGHT, buff=1)
         )
         np_radius = Line(number_plane.c2p(0, 0), number_plane.c2p(0, 1)).height
 
@@ -1643,29 +1686,37 @@ class InterpretDFT(MovingCameraScene):
             .move_to(number_plane.c2p(0, 0))
         )
 
-        # signals_and_dots = VGroup(af_matrix_signals, sampled_points_af)
-
-        self.play(Write(number_plane), Write(complex_circle))
+        self.play(
+            FadeOut(legend),
+            focus_on(frame, VGroup(number_plane, dft_matrix_tex)),
+        )
+        self.play(
+            Write(number_plane),
+            Write(complex_circle),
+        )
 
         _points_on_circle = (
             Dot()
             .set_color(REDUCIBLE_YELLOW)
             .move_to(complex_circle.point_from_proportion(0))
         )
-        for i, sampled_points in enumerate(sampled_points_af):
-
+        for i, sampled_points in enumerate(
+            zip(sampled_points_cos_af, sampled_points_sin_af)
+        ):
             if i == 0:
-                self.play(FadeIn(sampled_points))
+                self.play(FadeIn(*sampled_points))
                 continue
 
-            n_points = len(sampled_points)
             points_on_circle = VGroup(
                 *[
-                    Dot(radius=DEFAULT_DOT_RADIUS * 1.3)
+                    Dot(radius=DEFAULT_DOT_RADIUS * 1)
                     .move_to(complex_circle.point_from_proportion(n / i))
                     .set_color(REDUCIBLE_YELLOW)
                     for n in range(i)
                 ]
             )
-            self.play(FadeIn(sampled_points))
-            self.play(Transform(_points_on_circle, points_on_circle))
+            self.play(
+                LaggedStartMap(FadeIn, sampled_points[0]),
+                LaggedStartMap(FadeIn, sampled_points[1]),
+                Transform(_points_on_circle, points_on_circle),
+            )
