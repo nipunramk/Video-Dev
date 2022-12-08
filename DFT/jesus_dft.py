@@ -1748,8 +1748,39 @@ class InterpretDFT(MovingCameraScene):
                 ]
             )
             self.play(
-                LaggedStartMap(FadeIn, sampled_points[0]),
-                LaggedStartMap(FadeIn, sampled_points[1]),
+                # enable current index
+                indices[i].animate.set_opacity(1),
+                cos_af_matrix[i][1].animate.set_stroke(opacity=1),
+                *[
+                    cos_af_matrix[idx][1].animate.set_stroke(opacity=0.3)
+                    for idx in range(n_samples)
+                    if idx != i
+                ],
+                sin_af_matrix[i][1].animate.set_stroke(opacity=1),
+                *[
+                    sin_af_matrix[idx][1].animate.set_stroke(opacity=0.3)
+                    for idx in range(n_samples)
+                    if idx != i
+                ],
+                # "disable" every other index
+                *[
+                    indices[idx].animate.set_opacity(0.3)
+                    for idx in range(n_samples)
+                    if idx != i
+                ],
+                *[
+                    sampled_points_cos_af[idx].animate.set_opacity(0.3)
+                    for idx in range(n_samples)
+                    if idx < i
+                ],
+                *[
+                    sampled_points_sin_af[idx].animate.set_opacity(0.3)
+                    for idx in range(n_samples)
+                    if idx < i
+                ],
+                LaggedStartMap(Write, sampled_points[0]),
+                LaggedStartMap(Write, sampled_points[1]),
                 Transform(_points_on_circle, points_on_circle),
+                run_time=0.7,
             )
             self.wait()
