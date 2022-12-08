@@ -1800,28 +1800,37 @@ class InterpretDFT(MovingCameraScene):
         )
         brackets[0].set_opacity(0)
 
-        main_signal = VGroup(brackets.move_to(signal_dots), signal_dots).next_to(
+        main_signal_vector = VGroup(brackets.move_to(signal_dots), signal_dots).next_to(
             dft_matrix_tex, RIGHT, buff=2
+        )
+
+        cos_func = get_cosine_func(freq=original_frequency, amplitude=0.3)
+        _, main_signal_mob = plot_time_domain(cos_func, t_max=t_max)
+        main_signal_mob.scale_to_fit_width(main_signal_vector.width).next_to(
+            main_signal_vector, UP
         )
 
         dot_product = Dot().next_to(dft_matrix_tex, RIGHT, buff=1)
         equal_sign = Text("=", font=REDUCIBLE_FONT, weight=BOLD).next_to(
-            main_signal, RIGHT, buff=0.8
+            main_signal_vector, RIGHT, buff=0.8
         )
 
         np_and_circle = VGroup(number_plane, complex_circle, points_on_circle)
 
         # aux mobject to allow for the panning animation to work properly
-        np_and_circle_aux = np_and_circle.copy().next_to(main_signal, RIGHT, buff=2)
+        np_and_circle_aux = np_and_circle.copy().next_to(
+            main_signal_vector, RIGHT, buff=2
+        )
 
         self.play(
-            Write(main_signal),
+            FadeIn(main_signal_vector),
+            Write(main_signal_mob),
             Write(dot_product),
             Write(equal_sign),
             np_and_circle.animate.move_to(np_and_circle_aux),
             focus_on(
                 frame,
-                (indices, dft_matrix_tex, main_signal, np_and_circle_aux),
+                (indices, dft_matrix_tex, main_signal_vector, np_and_circle_aux),
                 buff=1.4,
             ),
             *[indices[idx].animate.set_opacity(1) for idx in range(n_samples)],
@@ -1845,7 +1854,7 @@ class InterpretDFT(MovingCameraScene):
 
         # had to make amplitude smaller in order for the actual points
         # to land on the screen. is there
-        cos_func = get_cosine_func(freq=original_frequency, amplitude=0.3)
+
         sampled_signal = np.array(
             [cos_func(f) for f in np.linspace(0, t_max, num=n_samples, endpoint=False)]
         ).reshape(-1, 1)
@@ -1873,13 +1882,13 @@ class InterpretDFT(MovingCameraScene):
                     for idx in range(n_samples)
                     if idx == i
                 ],
+                sin_af_matrix[i][1].animate.set_stroke(opacity=1),
                 # "disable" every other index
                 *[
                     cos_af_matrix[idx][1].animate.set_stroke(opacity=0.3)
                     for idx in range(n_samples)
                     if idx != i
                 ],
-                sin_af_matrix[i][1].animate.set_stroke(opacity=1),
                 *[
                     sin_af_matrix[idx][1].animate.set_stroke(opacity=0.3)
                     for idx in range(n_samples)
@@ -1903,3 +1912,51 @@ class InterpretDFT(MovingCameraScene):
                 run_time=0.7,
             )
             self.wait(1.3)
+
+        vt_frequency = ValueTracker(original_frequency)
+        vt_phase = ValueTracker(0)
+        vt_amplitude = ValueTracker(0.3)
+
+        def main_signal_redraw():
+            cos_func = get_cosine_func(
+                freq=vt_frequency.get_value(),
+                amplitude=vt_amplitude.get_value(),
+                phase=vt_phase.get_value(),
+            )
+            _, main_signal_mob = plot_time_domain(cos_func, t_max=t_max)
+            main_signal_mob.scale_to_fit_width(main_signal_vector.width).next_to(
+                main_signal_vector, UP
+            )
+
+            return main_signal_mob
+
+        def dft_barchart_redraw():
+            cos_func = get_cosine_func(
+                freq=vt_frequency.get_value(),
+                amplitude=vt_amplitude.get_value(),
+                phase=vt_phase.get_value(),
+            )
+            barchart = get_fourier_bar_chart(
+                cos_func,
+                t_max=t_max,
+                n_samples=n_samples,
+                full_spectrum=True,
+                height_scale=2,
+            )
+
+            return (
+                barchart.rotate(-90 * DEGREES)
+                .stretch_to_fit_height(dft_matrix_tex.height)
+                .next_to(dft_matrix_tex, RIGHT, buff=0.4)
+            )
+
+        main_signal_mob_changing = always_redraw(main_signal_redraw)
+        dft_barchart_changing = always_redraw(dft_barchart_redraw)
+
+        self.play(
+            FadeOut(main_signal_mob),
+            FadeIn(main_signal_mob_changing),
+            FadeIn(dft_barchart_changing),
+        )
+        self.wait()
+        self.play(vt_phase.animate.set_value(PI / 2))

@@ -218,16 +218,19 @@ def get_fourier_bar_chart(
     bar_width=0.2,
     height_scale=1,
     color=FREQ_DOMAIN_COLOR,
+    full_spectrum=False,
 ):
+
+    spectrum_selection = n_samples if full_spectrum else n_samples // 2
 
     time_range = float(t_max - t_min)
     time_samples = np.vectorize(time_func)(np.linspace(t_min, t_max, n_samples))
     fft_output = np.fft.fft(time_samples)
-    frequencies = np.linspace(0.0, n_samples / (2.0 * time_range), n_samples // 2)
+    frequencies = np.linspace(0.0, n_samples / (2.0 * time_range), spectrum_selection)
 
     graph = VGroup()
 
-    for x, y in zip(frequencies, fft_output[: n_samples // 2]):
+    for x, y in zip(frequencies, fft_output[:spectrum_selection]):
         if x <= f_max + 0.1:
             rect = (
                 Rectangle(height=height_scale * np.abs(y) / n_samples, width=bar_width)
