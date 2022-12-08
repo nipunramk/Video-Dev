@@ -1580,9 +1580,20 @@ class InterpretDFT(MovingCameraScene):
             r"\text{where} \ \omega = e ^{-\frac{2 \pi i}{N}}"
         ).next_to(dft_matrix_tex, UP)
 
-        self.play(FadeIn(dft_matrix_tex, omega_definition))
+        title = (
+            Text("The DFT Matrix", font=REDUCIBLE_FONT, weight=BOLD)
+            .scale(0.8)
+            .to_edge(UP)
+        )
+        self.play(FadeIn(title, shift=UP * 0.3))
+        self.play(FadeIn(dft_matrix_tex, shift=UP * 0.3))
+        self.play(FadeIn(omega_definition, shift=UP * 0.3))
         self.wait()
-        self.play(dft_matrix_tex.animate.move_to(ORIGIN), FadeOut(omega_definition))
+        self.play(
+            dft_matrix_tex.animate.move_to(ORIGIN).shift(DOWN * 0.5),
+            FadeOut(omega_definition, shift=UP * 0.3),
+        )
+        self.wait()
 
         cos_af_matrix = VGroup(
             *[
@@ -1639,7 +1650,11 @@ class InterpretDFT(MovingCameraScene):
             .next_to(dft_matrix_tex, LEFT, aligned_edge=UP)
         )
 
-        self.play(FadeIn(legend), focus_on(frame, VGroup(dft_matrix_tex, legend)))
+        self.play(
+            FadeIn(legend, shift=UP * 0.3),
+            FadeOut(title, shift=UP * 0.3),
+            focus_on(frame, VGroup(dft_matrix_tex, legend)),
+        )
         self.wait()
 
         sampled_points_cos_af = VGroup(
@@ -1686,14 +1701,31 @@ class InterpretDFT(MovingCameraScene):
             .move_to(number_plane.c2p(0, 0))
         )
 
+        indices = VGroup(
+            *[
+                Text(str(f), font=REDUCIBLE_MONO)
+                .scale(0.7)
+                .next_to(cos_af_matrix[f][0], LEFT)
+                for f in range(n_samples)
+            ]
+        ).next_to(dft_matrix_tex, LEFT, buff=0.5)
+        m_t = (
+            Text("m", font=REDUCIBLE_FONT, weight=BOLD, slant=ITALIC)
+            .scale(0.7)
+            .next_to(indices, UP, buff=0.6)
+        )
+
         self.play(
             FadeOut(legend),
-            focus_on(frame, VGroup(number_plane, dft_matrix_tex)),
+            FadeIn(indices, m_t),
+            focus_on(frame, VGroup(number_plane, indices, dft_matrix_tex)),
         )
+        self.wait()
         self.play(
             Write(number_plane),
             Write(complex_circle),
         )
+        self.wait()
 
         _points_on_circle = (
             Dot()
@@ -1720,3 +1752,4 @@ class InterpretDFT(MovingCameraScene):
                 LaggedStartMap(FadeIn, sampled_points[1]),
                 Transform(_points_on_circle, points_on_circle),
             )
+            self.wait()
