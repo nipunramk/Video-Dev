@@ -1917,19 +1917,6 @@ class InterpretDFT(MovingCameraScene):
         vt_phase = ValueTracker(0)
         vt_amplitude = ValueTracker(0.3)
 
-        def main_signal_redraw():
-            cos_func = get_cosine_func(
-                freq=vt_frequency.get_value(),
-                amplitude=vt_amplitude.get_value(),
-                phase=vt_phase.get_value(),
-            )
-            _, main_signal_mob = plot_time_domain(cos_func, t_max=t_max)
-            main_signal_mob.scale_to_fit_width(main_signal_vector.width).next_to(
-                main_signal_vector, UP
-            )
-
-            return main_signal_mob
-
         def dft_barchart_redraw():
             cos_func = get_cosine_func(
                 freq=vt_frequency.get_value(),
@@ -1950,13 +1937,74 @@ class InterpretDFT(MovingCameraScene):
                 .next_to(dft_matrix_tex, RIGHT, buff=0.4)
             )
 
+        shift_mobs = RIGHT * 0.7
+        _aux_complex_plane = number_plane.copy().shift(shift_mobs)
+        self.play(
+            focus_on(frame, (indices, _aux_complex_plane)),
+            main_signal_mob.animate.shift(shift_mobs),
+            main_signal_vector.animate.shift(shift_mobs),
+            dot_product.animate.shift(shift_mobs),
+            equal_sign.animate.shift(shift_mobs),
+            number_plane.animate.shift(shift_mobs),
+            complex_circle.animate.shift(shift_mobs),
+            FadeOut(current_dot),
+        )
+
+        def main_signal_redraw():
+            cos_func = get_cosine_func(
+                freq=vt_frequency.get_value(),
+                amplitude=vt_amplitude.get_value(),
+                phase=vt_phase.get_value(),
+            )
+            axis_and_signal = VGroup(*plot_time_domain(cos_func, t_max=t_max))
+            axis_and_signal[0].set_opacity(0.3)
+            axis_and_signal.scale_to_fit_width(main_signal_vector.width).next_to(
+                main_signal_vector, UP
+            )
+
+            return axis_and_signal
+
+        def tracking_text_redraw():
+
+            v_freq = f"{vt_frequency.get_value():.2f}"
+            v_amplitude = f"{vt_amplitude.get_value():.2f}"
+            v_phase = f"{degrees(vt_phase.get_value()) % 360:.2f}"
+
+            tex_frequency = Text(
+                "ƒ = " + v_freq + " Hz",
+                font=REDUCIBLE_FONT,
+                t2f={v_freq: REDUCIBLE_MONO},
+            ).scale(0.8)
+
+            phi_eq = MathTex(r"\phi = ")
+            tex_phase_n = Text(
+                v_phase + "º",
+                font=REDUCIBLE_FONT,
+                t2f={v_phase: REDUCIBLE_MONO},
+            ).scale(0.8)
+            tex_phase = VGroup(phi_eq, tex_phase_n).arrange(RIGHT)
+
+            tex_amplitude = Text(
+                "A = " + v_amplitude,
+                font=REDUCIBLE_FONT,
+                t2f={v_amplitude: REDUCIBLE_MONO},
+            ).scale(0.8)
+
+            return (
+                VGroup(tex_frequency, tex_phase, tex_amplitude)
+                .arrange(DOWN, aligned_edge=LEFT)
+                .next_to(main_signal_mob, UP, buff=0.4)
+            ).scale(0.7)
+
+        tracking_text_changing = always_redraw(tracking_text_redraw)
         main_signal_mob_changing = always_redraw(main_signal_redraw)
         dft_barchart_changing = always_redraw(dft_barchart_redraw)
 
         self.play(
             FadeOut(main_signal_mob),
-            FadeIn(main_signal_mob_changing),
+            Write(main_signal_mob_changing),
             FadeIn(dft_barchart_changing),
+            FadeIn(tracking_text_changing),
             *[indices[idx].animate.set_opacity(1) for idx in range(n_samples)],
             *[
                 sin_af_matrix[idx][1].animate.set_stroke(opacity=1)
@@ -1976,12 +2024,12 @@ class InterpretDFT(MovingCameraScene):
             ],
         )
         self.wait()
-        self.play(vt_phase.animate.set_value(PI / 2))
+        self.play(vt_phase.animate.set_value(4 * 2 * PI), run_time=5)
         self.wait()
-        self.play(vt_frequency.animate.set_value(analysis_frequencies[0]))
+        self.play(vt_frequency.animate.set_value(analysis_frequencies[0]), run_time=5)
         self.wait()
-        self.play(vt_frequency.animate.set_value(analysis_frequencies[1]))
+        self.play(vt_frequency.animate.set_value(analysis_frequencies[1]), run_time=5)
         self.wait()
-        self.play(vt_frequency.animate.set_value(analysis_frequencies[2]))
+        self.play(vt_frequency.animate.set_value(analysis_frequencies[2]), run_time=5)
         self.wait()
-        self.play(vt_frequency.animate.set_value(analysis_frequencies[3]))
+        self.play(vt_frequency.animate.set_value(analysis_frequencies[3]), run_time=5)
