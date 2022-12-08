@@ -1559,6 +1559,7 @@ class InterpretDFT(MovingCameraScene):
         analysis_frequencies = [
             sample_frequency * m / n_samples for m in range(n_samples)
         ]
+        original_frequency = analysis_frequencies[2]
 
         matrix_elements = []
         power = 0
@@ -1741,14 +1742,14 @@ class InterpretDFT(MovingCameraScene):
 
             points_on_circle = VGroup(
                 *[
-                    Dot(radius=DEFAULT_DOT_RADIUS * 1)
+                    Dot(radius=DEFAULT_DOT_RADIUS * 1.4)
                     .move_to(complex_circle.point_from_proportion(n / i))
                     .set_color(REDUCIBLE_YELLOW)
                     for n in range(i)
                 ]
             )
             self.play(
-                # enable current index
+                # enable current index: number, sine and cosine graphs and sampled dots
                 indices[i].animate.set_opacity(1),
                 cos_af_matrix[i][1].animate.set_stroke(opacity=1),
                 *[
@@ -1784,3 +1785,13 @@ class InterpretDFT(MovingCameraScene):
                 run_time=0.7,
             )
             self.wait()
+
+        _, main_signal = plot_time_domain(
+            get_cosine_func(freq=original_frequency), t_max=t_max
+        )
+
+        main_signal.rotate(90)
+        main_signal = Matrix(
+            [[Dot().set_color(REDUCIBLE_YELLOW)] for n in range(n_samples)]
+        ).next_to(number_plane, RIGHT)
+        self.play(FadeIn(main_signal), focus_on(frame, main_signal))
