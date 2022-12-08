@@ -1941,7 +1941,7 @@ class InterpretDFT(MovingCameraScene):
                 t_max=t_max,
                 n_samples=n_samples,
                 full_spectrum=True,
-                height_scale=2,
+                height_scale=4,
             )
 
             return (
@@ -1957,6 +1957,31 @@ class InterpretDFT(MovingCameraScene):
             FadeOut(main_signal_mob),
             FadeIn(main_signal_mob_changing),
             FadeIn(dft_barchart_changing),
+            *[indices[idx].animate.set_opacity(1) for idx in range(n_samples)],
+            *[
+                sin_af_matrix[idx][1].animate.set_stroke(opacity=1)
+                for idx in range(n_samples)
+            ],
+            *[
+                cos_af_matrix[idx][1].animate.set_stroke(opacity=1)
+                for idx in range(n_samples)
+            ],
+            *[
+                sampled_points_cos_af[idx].animate.set_opacity(1)
+                for idx in range(n_samples)
+            ],
+            *[
+                sampled_points_sin_af[idx].animate.set_opacity(1)
+                for idx in range(n_samples)
+            ],
         )
         self.wait()
         self.play(vt_phase.animate.set_value(PI / 2))
+        self.wait()
+        self.play(vt_frequency.animate.set_value(analysis_frequencies[0]))
+        self.wait()
+        self.play(vt_frequency.animate.set_value(analysis_frequencies[1]))
+        self.wait()
+        self.play(vt_frequency.animate.set_value(analysis_frequencies[2]))
+        self.wait()
+        self.play(vt_frequency.animate.set_value(analysis_frequencies[3]))
