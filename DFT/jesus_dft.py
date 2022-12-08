@@ -6,10 +6,11 @@ sys.path.insert(1, "common/")
 
 from manim import *
 
+
 from dft_utils import *
 from reducible_colors import *
 from math import degrees
-from classes import CustomLabel
+from classes import CustomLabel, LabeledDot
 
 
 class IntroSampling_002(MovingCameraScene):
@@ -1548,7 +1549,7 @@ class InterpretDFT(MovingCameraScene):
     def visualize_complex_and_frequencies(self):
 
         frame = self.camera.frame
-        t_max = PI
+        t_max = 2 * PI
 
         # samples per second
         sample_frequency = 8
@@ -1603,7 +1604,7 @@ class InterpretDFT(MovingCameraScene):
                         get_cosine_func(freq=f, amplitude=0.2), t_max=t_max
                     )
                 )
-                .stretch_to_fit_width(dft_matrix_tex.width - 1)
+                .stretch_to_fit_width(dft_matrix_tex[0].width)
                 .move_to(dft_matrix_tex[0][i * n_samples], aligned_edge=LEFT)
                 for i, f in enumerate(range(n_samples))
             ]
@@ -1614,7 +1615,7 @@ class InterpretDFT(MovingCameraScene):
                 VGroup(
                     *plot_time_domain(get_sine_func(freq=f, amplitude=0.2), t_max=t_max)
                 )
-                .stretch_to_fit_width(dft_matrix_tex.width - 1)
+                .stretch_to_fit_width(dft_matrix_tex[0].width)
                 .move_to(dft_matrix_tex[0][i * n_samples], aligned_edge=LEFT)
                 for i, f in enumerate(analysis_frequencies)
             ]
@@ -1684,7 +1685,7 @@ class InterpretDFT(MovingCameraScene):
         )
 
         number_plane = (
-            NumberPlane(
+            ComplexPlane(
                 x_length=5,
                 y_length=5,
                 x_range=[-2, 2],
@@ -1719,7 +1720,7 @@ class InterpretDFT(MovingCameraScene):
         self.play(
             FadeOut(legend),
             FadeIn(indices, m_t),
-            focus_on(frame, VGroup(number_plane, indices, dft_matrix_tex)),
+            focus_on(frame, [number_plane, indices, dft_matrix_tex]),
         )
         self.wait()
         self.play(
@@ -1728,7 +1729,7 @@ class InterpretDFT(MovingCameraScene):
         )
         self.wait()
 
-        _points_on_circle = (
+        points_on_circle = (
             Dot()
             .set_color(REDUCIBLE_YELLOW)
             .move_to(complex_circle.point_from_proportion(0))
@@ -1740,7 +1741,7 @@ class InterpretDFT(MovingCameraScene):
                 self.play(FadeIn(*sampled_points))
                 continue
 
-            points_on_circle = VGroup(
+            _points_on_circle = VGroup(
                 *[
                     Dot(radius=DEFAULT_DOT_RADIUS * 1.4)
                     .move_to(complex_circle.point_from_proportion(n / i))
@@ -1781,17 +1782,124 @@ class InterpretDFT(MovingCameraScene):
                 ],
                 LaggedStartMap(Write, sampled_points[0]),
                 LaggedStartMap(Write, sampled_points[1]),
-                Transform(_points_on_circle, points_on_circle),
+                Transform(points_on_circle, _points_on_circle),
                 run_time=0.7,
             )
             self.wait()
 
-        _, main_signal = plot_time_domain(
-            get_cosine_func(freq=original_frequency), t_max=t_max
+        signal_dots = (
+            VGroup(
+                *[Dot(radius=0.1).set_color(REDUCIBLE_YELLOW) for n in range(n_samples)]
+            )
+            .arrange(DOWN, buff=1)
+            .scale_to_fit_height(dft_matrix_tex.height - 0.3)
         )
 
-        main_signal.rotate(90)
-        main_signal = Matrix(
-            [[Dot().set_color(REDUCIBLE_YELLOW)] for n in range(n_samples)]
-        ).next_to(number_plane, RIGHT)
-        self.play(FadeIn(main_signal), focus_on(frame, main_signal))
+        brackets = Matrix([[v] for v in range(n_samples)]).stretch_to_fit_height(
+            dft_matrix_tex.height
+        )
+        brackets[0].set_opacity(0)
+
+        main_signal = VGroup(brackets.move_to(signal_dots), signal_dots).next_to(
+            dft_matrix_tex, RIGHT, buff=2
+        )
+
+        dot_product = Dot().next_to(dft_matrix_tex, RIGHT, buff=1)
+        equal_sign = Text("=", font=REDUCIBLE_FONT, weight=BOLD).next_to(
+            main_signal, RIGHT, buff=0.8
+        )
+
+        np_and_circle = VGroup(number_plane, complex_circle, points_on_circle)
+
+        # aux mobject to allow for the panning animation to work properly
+        np_and_circle_aux = np_and_circle.copy().next_to(main_signal, RIGHT, buff=2)
+
+        self.play(
+            Write(main_signal),
+            Write(dot_product),
+            Write(equal_sign),
+            np_and_circle.animate.move_to(np_and_circle_aux),
+            focus_on(
+                frame,
+                (indices, dft_matrix_tex, main_signal, np_and_circle_aux),
+                buff=1.4,
+            ),
+            *[indices[idx].animate.set_opacity(1) for idx in range(n_samples)],
+            *[
+                sin_af_matrix[idx][1].animate.set_stroke(opacity=1)
+                for idx in range(n_samples)
+            ],
+            *[
+                cos_af_matrix[idx][1].animate.set_stroke(opacity=1)
+                for idx in range(n_samples)
+            ],
+            *[
+                sampled_points_cos_af[idx].animate.set_opacity(1)
+                for idx in range(n_samples)
+            ],
+            *[
+                sampled_points_sin_af[idx].animate.set_opacity(1)
+                for idx in range(n_samples)
+            ],
+        )
+
+        # had to make amplitude smaller in order for the actual points
+        # to land on the screen. is there
+        cos_func = get_cosine_func(freq=original_frequency, amplitude=0.3)
+        sampled_signal = np.array(
+            [cos_func(f) for f in np.linspace(0, t_max, num=n_samples, endpoint=False)]
+        ).reshape(-1, 1)
+        dft_on_signal = np.fft.fft2(sampled_signal)
+
+        self.play(FadeOut(points_on_circle))
+
+        current_dot = LabeledDot(0).move_to(number_plane.n2p(dft_on_signal[0]))
+        for i in range(n_samples):
+            point = dft_on_signal[i]
+
+            _current_dot = LabeledDot(i).move_to(number_plane.n2p(point))
+
+            self.play(
+                Transform(current_dot, _current_dot),
+                indices[i].animate.set_opacity(1),
+                cos_af_matrix[i][1].animate.set_stroke(opacity=1),
+                *[
+                    sampled_points_cos_af[idx].animate.set_opacity(1)
+                    for idx in range(n_samples)
+                    if idx == i
+                ],
+                *[
+                    sampled_points_sin_af[idx].animate.set_opacity(1)
+                    for idx in range(n_samples)
+                    if idx == i
+                ],
+                # "disable" every other index
+                *[
+                    cos_af_matrix[idx][1].animate.set_stroke(opacity=0.3)
+                    for idx in range(n_samples)
+                    if idx != i
+                ],
+                sin_af_matrix[i][1].animate.set_stroke(opacity=1),
+                *[
+                    sin_af_matrix[idx][1].animate.set_stroke(opacity=0.3)
+                    for idx in range(n_samples)
+                    if idx != i
+                ],
+                *[
+                    indices[idx].animate.set_opacity(0.3)
+                    for idx in range(n_samples)
+                    if idx != i
+                ],
+                *[
+                    sampled_points_cos_af[idx].animate.set_opacity(0.3)
+                    for idx in range(n_samples)
+                    if idx != i
+                ],
+                *[
+                    sampled_points_sin_af[idx].animate.set_opacity(0.3)
+                    for idx in range(n_samples)
+                    if idx != i
+                ],
+                run_time=0.7,
+            )
+            self.wait(1.3)

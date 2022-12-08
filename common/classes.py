@@ -486,3 +486,18 @@ class RCircularNode(VGroup):
             self.text.scale_to_fit_height(self.circle.height)
 
         super().__init__(self.circle, self.text, **kwargs)
+
+
+class LabeledDot(VGroup):
+    def __init__(self, n=3, color=REDUCIBLE_YELLOW, label_scale=1, **kwargs):
+        self.dot = Dot(radius=DEFAULT_DOT_RADIUS * 2, color=color)
+
+        self.text = (
+            Text(str(n), font=REDUCIBLE_MONO, weight=BOLD)
+            .set_stroke(BLACK, width=3, background=True)
+            .move_to(self.dot)
+        )
+        self.text.scale_to_fit_height(self.dot.height - (self.dot.height * 0.4))
+        self.text.scale(label_scale)
+
+        super().__init__(self.dot, self.text, **kwargs)
