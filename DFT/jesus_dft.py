@@ -1552,7 +1552,7 @@ class InterpretDFT(MovingCameraScene):
         t_max = 2 * PI
 
         # samples per second
-        sample_frequency = 8
+        sample_frequency = 10
 
         # total number of samples
         n_samples = sample_frequency
@@ -1787,28 +1787,33 @@ class InterpretDFT(MovingCameraScene):
             )
             self.wait()
 
-        signal_dots = (
-            VGroup(
-                *[Dot(radius=0.1).set_color(REDUCIBLE_YELLOW) for n in range(n_samples)]
+        og_axis_and_signal = VGroup(
+            *plot_time_domain(
+                get_cosine_func(freq=original_frequency, amplitude=0.2), t_max=t_max
             )
-            .arrange(DOWN, buff=1)
-            .scale_to_fit_height(dft_matrix_tex.height - 0.3)
         )
+        og_axis_and_signal.rotate(-90 * DEGREES).stretch_to_fit_height(
+            dft_matrix_tex.height - 0.3
+        )
+        og_axis_and_signal[0].set_opacity(0)
+
+        sampled_dots_main_signal = get_sampled_dots(
+            og_axis_and_signal[1],
+            og_axis_and_signal[0],
+            num_points=n_samples,
+            x_max=t_max,
+        ).set_color(REDUCIBLE_YELLOW)
 
         brackets = Matrix([[v] for v in range(n_samples)]).stretch_to_fit_height(
             dft_matrix_tex.height
         )
         brackets[0].set_opacity(0)
 
-        main_signal_vector = VGroup(brackets.move_to(signal_dots), signal_dots).next_to(
-            dft_matrix_tex, RIGHT, buff=2
-        )
-
-        cos_func = get_cosine_func(freq=original_frequency, amplitude=0.3)
-        _, main_signal_mob = plot_time_domain(cos_func, t_max=t_max)
-        main_signal_mob.scale_to_fit_width(main_signal_vector.width).next_to(
-            main_signal_vector, UP
-        )
+        main_signal_vector = VGroup(
+            brackets.move_to(og_axis_and_signal),
+            og_axis_and_signal,
+            sampled_dots_main_signal,
+        ).next_to(dft_matrix_tex, RIGHT, buff=1)
 
         dot_product = Dot().next_to(dft_matrix_tex, RIGHT, buff=1)
         equal_sign = Text("=", font=REDUCIBLE_FONT, weight=BOLD).next_to(
@@ -1824,7 +1829,6 @@ class InterpretDFT(MovingCameraScene):
 
         self.play(
             FadeIn(main_signal_vector),
-            Write(main_signal_mob),
             Write(dot_product),
             Write(equal_sign),
             np_and_circle.animate.move_to(np_and_circle_aux),
@@ -1855,6 +1859,7 @@ class InterpretDFT(MovingCameraScene):
         # had to make amplitude smaller in order for the actual points
         # to land on the screen. is there
 
+        cos_func = get_cosine_func(freq=original_frequency, amplitude=0.3)
         sampled_signal = np.array(
             [cos_func(f) for f in np.linspace(0, t_max, num=n_samples, endpoint=False)]
         ).reshape(-1, 1)
@@ -1915,7 +1920,7 @@ class InterpretDFT(MovingCameraScene):
 
         vt_frequency = ValueTracker(original_frequency)
         vt_phase = ValueTracker(0)
-        vt_amplitude = ValueTracker(0.3)
+        vt_amplitude = ValueTracker(0.2)
 
         def dft_barchart_redraw():
             cos_func = get_cosine_func(
@@ -1941,7 +1946,6 @@ class InterpretDFT(MovingCameraScene):
         _aux_complex_plane = number_plane.copy().shift(shift_mobs)
         self.play(
             focus_on(frame, (indices, _aux_complex_plane)),
-            main_signal_mob.animate.shift(shift_mobs),
             main_signal_vector.animate.shift(shift_mobs),
             dot_product.animate.shift(shift_mobs),
             equal_sign.animate.shift(shift_mobs),
@@ -1956,13 +1960,22 @@ class InterpretDFT(MovingCameraScene):
                 amplitude=vt_amplitude.get_value(),
                 phase=vt_phase.get_value(),
             )
+
             axis_and_signal = VGroup(*plot_time_domain(cos_func, t_max=t_max))
-            axis_and_signal[0].set_opacity(0.3)
-            axis_and_signal.scale_to_fit_width(main_signal_vector.width).next_to(
-                main_signal_vector, UP
+            axis_and_signal[0].set_opacity(0)
+            axis_and_signal.rotate(-90 * DEGREES)
+            axis_and_signal.stretch_to_fit_height(og_axis_and_signal[1].height).move_to(
+                og_axis_and_signal[1]
             )
 
-            return axis_and_signal
+            sampled_dots_main_signal = get_sampled_dots(
+                axis_and_signal[1],
+                axis_and_signal[0],
+                num_points=n_samples,
+                x_max=t_max,
+            ).set_color(REDUCIBLE_YELLOW)
+
+            return VGroup(axis_and_signal, sampled_dots_main_signal)
 
         def tracking_text_redraw():
 
@@ -1993,7 +2006,7 @@ class InterpretDFT(MovingCameraScene):
             return (
                 VGroup(tex_frequency, tex_phase, tex_amplitude)
                 .arrange(DOWN, aligned_edge=LEFT)
-                .next_to(main_signal_mob, UP, buff=0.4)
+                .next_to(main_signal_vector, UP, buff=0.4)
             ).scale(0.7)
 
         tracking_text_changing = always_redraw(tracking_text_redraw)
@@ -2001,8 +2014,9 @@ class InterpretDFT(MovingCameraScene):
         dft_barchart_changing = always_redraw(dft_barchart_redraw)
 
         self.play(
-            FadeOut(main_signal_mob),
-            Write(main_signal_mob_changing),
+            FadeOut(sampled_dots_main_signal),
+            FadeOut(og_axis_and_signal[1]),
+            FadeIn(main_signal_mob_changing),
             FadeIn(dft_barchart_changing),
             FadeIn(tracking_text_changing),
             *[indices[idx].animate.set_opacity(1) for idx in range(n_samples)],
