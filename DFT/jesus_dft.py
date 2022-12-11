@@ -596,7 +596,7 @@ class IntroducePhaseProblem(MovingCameraScene):
         original_freq = 2
 
         # samples per second
-        sample_frequency = 40
+        sample_frequency = 10
 
         n_samples = sample_frequency
 
