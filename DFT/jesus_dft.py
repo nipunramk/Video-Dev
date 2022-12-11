@@ -877,20 +877,20 @@ class SolvingPhaseProblem(MovingCameraScene):
     def construct(self):
         reset_frame = self.camera.frame.save_state()
 
-        self.hacky_sine_waves()
+        # self.hacky_sine_waves()
 
-        self.play(*[FadeOut(mob) for mob in self.mobjects])
-        self.play(Restore(reset_frame))
+        # self.play(*[FadeOut(mob) for mob in self.mobjects])
+        # self.play(Restore(reset_frame))
 
         self.capture_sine_and_cosine_transforms()
         self.play(*[FadeOut(mob) for mob in self.mobjects])
         self.play(Restore(reset_frame))
 
-        self.sum_up_dft()
-        self.play(*[FadeOut(mob) for mob in self.mobjects])
-        self.play(Restore(reset_frame))
+        # self.sum_up_dft()
+        # self.play(*[FadeOut(mob) for mob in self.mobjects])
+        # self.play(Restore(reset_frame))
 
-        self.final_tests_dft()
+        # self.final_tests_dft()
 
     def hacky_sine_waves(self):
         original_frequency = 4
@@ -1255,11 +1255,12 @@ class SolvingPhaseProblem(MovingCameraScene):
         )
 
         np_center = number_plane.c2p(0, 0)
+        vt_phase.set_value(0)
 
         def redraw_arc():
             radius = Line(np_center, number_plane.c2p(1, 0)).width
             return (
-                Arc(radius, angle=vt_phase.get_value())
+                Arc(radius, angle=-vt_phase.get_value())
                 .move_arc_center_to(np_center)
                 .set_color(REDUCIBLE_YELLOW)
             )
@@ -1267,7 +1268,6 @@ class SolvingPhaseProblem(MovingCameraScene):
         arc = always_redraw(redraw_arc)
         arc.move_arc_center_to(np_center)
 
-        vt_phase.set_value(0)
         self.play(Write(number_plane))
         self.play(FadeIn(arc))
         self.play(vt_phase.animate.set_value(2 * PI), run_time=10)
