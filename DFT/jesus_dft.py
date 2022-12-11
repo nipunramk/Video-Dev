@@ -1592,7 +1592,7 @@ class InterpretDFT(MovingCameraScene):
         self.play(FadeIn(omega_definition, shift=UP * 0.3))
         self.wait()
         self.play(
-            dft_matrix_tex.animate.move_to(ORIGIN).shift(DOWN * 0.5),
+            dft_matrix_tex.animate.scale(0.8).move_to(ORIGIN).shift(DOWN * 0.5),
             FadeOut(omega_definition, shift=UP * 0.3),
         )
         self.wait()
@@ -1601,7 +1601,7 @@ class InterpretDFT(MovingCameraScene):
             *[
                 VGroup(
                     *plot_time_domain(
-                        get_cosine_func(freq=f, amplitude=0.2), t_max=t_max
+                        get_cosine_func(freq=f, amplitude=0.13), t_max=t_max
                     )
                 )
                 .stretch_to_fit_width(dft_matrix_tex[0].width)
@@ -1613,7 +1613,9 @@ class InterpretDFT(MovingCameraScene):
         sin_af_matrix = VGroup(
             *[
                 VGroup(
-                    *plot_time_domain(get_sine_func(freq=f, amplitude=0.2), t_max=t_max)
+                    *plot_time_domain(
+                        get_sine_func(freq=f, amplitude=0.13), t_max=t_max
+                    )
                 )
                 .stretch_to_fit_width(dft_matrix_tex[0].width)
                 .move_to(dft_matrix_tex[0][i * n_samples], aligned_edge=LEFT)
@@ -2006,16 +2008,49 @@ class InterpretDFT(MovingCameraScene):
             return (
                 VGroup(tex_frequency, tex_phase, tex_amplitude)
                 .arrange(DOWN, aligned_edge=LEFT)
-                .next_to(main_signal_vector, UP, buff=0.4)
+                .next_to(
+                    main_signal_vector,
+                    UP,
+                    buff=0.4,
+                )
             ).scale(0.7)
+
+        def complex_frequencies_on_plane():
+            cos_func = get_cosine_func(
+                freq=vt_frequency.get_value(),
+                amplitude=vt_amplitude.get_value(),
+                phase=vt_phase.get_value(),
+            )
+
+            sampled_signal = np.array(
+                [
+                    cos_func(f)
+                    for f in np.linspace(0, t_max, num=n_samples, endpoint=False)
+                ]
+            ).reshape(-1, 1)
+
+            dft_on_signal = np.fft.fft2(sampled_signal)
+
+            complex_points = VGroup(
+                *[
+                    LabeledDot(str(i), label_color=WHITE).move_to(
+                        number_plane.n2p(point)
+                    )
+                    for i, point in list(enumerate(dft_on_signal))[::-1]
+                ]
+            )
+
+            return complex_points
 
         tracking_text_changing = always_redraw(tracking_text_redraw)
         main_signal_mob_changing = always_redraw(main_signal_redraw)
         dft_barchart_changing = always_redraw(dft_barchart_redraw)
+        complex_points = always_redraw(complex_frequencies_on_plane)
 
         self.play(
             FadeOut(sampled_dots_main_signal),
             FadeOut(og_axis_and_signal[1]),
+            FadeIn(complex_points),
             FadeIn(main_signal_mob_changing),
             FadeIn(dft_barchart_changing),
             FadeIn(tracking_text_changing),
