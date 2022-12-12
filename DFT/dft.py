@@ -276,7 +276,7 @@ class MatrixDefinition(Scene):
         self.play(graph_notation.animate.scale(DEFAULT_SCALE).shift(LEFT * 3.5))
 
         time_signal_func = get_cosine_func(freq=2)
-        rects = get_fourier_rects(time_signal_func, n_samples=16, sample_rate=16)
+        rects = get_fourier_rects_n(time_signal_func, n_samples=16, sample_rate=16)
         rects.scale(1.2).move_to(RIGHT * 3.5)
 
         self.play(FadeIn(rects))
@@ -294,7 +294,7 @@ class MatrixDefinition(Scene):
             ).scale_to_fit_height(freq_annotation.height)
 
             new_rects = (
-                get_fourier_rects(new_time_signal_func, n_samples=16, sample_rate=16)
+                get_fourier_rects_n(new_time_signal_func, n_samples=16, sample_rate=16)
                 .scale_to_fit_height(rects.height)
                 .move_to(rects.get_center())
             )
@@ -538,3 +538,204 @@ class MatrixDefinition(Scene):
     #             animations.append(mob.animate.set_stroke(opacity=opacity))
 
     #     return animations
+
+
+class TestCases(Scene):
+    def construct(self):
+        NUM_SAMPLES = 16
+        time_signal_func = get_cosine_func(freq=DEFAULT_FREQ)
+        time_domain_graph = display_signal(time_signal_func, num_points=NUM_SAMPLES)
+        (
+            time_axis,
+            sampled_points_vert_lines,
+            graph,
+            sampled_points_dots,
+        ) = time_domain_graph
+        self.play(FadeIn(time_axis), Write(graph))
+        self.wait()
+        sample_value = MathTex(
+            r"y_k = A \cos \left( \frac{2 \pi k f}{N} \right) + b"
+        ).scale(0.7)
+
+        signal_math = VGroup(sample_value).arrange(DOWN).next_to(time_domain_graph, UP)
+
+        num_samples_text = MathTex("N = 16").scale(0.7)
+        num_samples_text.next_to(time_domain_graph, DOWN)
+
+        self.play(FadeIn(signal_math))
+        self.wait()
+
+        self.play(
+            LaggedStartMap(Write, sampled_points_vert_lines),
+            LaggedStartMap(GrowFromCenter, sampled_points_dots),
+        )
+        self.wait()
+        time_domain_graph_with_math = VGroup(
+            signal_math, time_domain_graph, num_samples_text
+        )
+
+        self.play(FadeIn(num_samples_text))
+        self.wait()
+
+        self.play(time_domain_graph_with_math.animate.scale(0.8).shift(UP * 1.5))
+        self.wait()
+
+        cosine_dft_matrix = get_cosine_dft_matrix(NUM_SAMPLES)
+        fourier_rects = (
+            get_fourier_rects_from_custom_matrix(
+                time_signal_func,
+                cosine_dft_matrix,
+                n_samples=NUM_SAMPLES,
+                full_spectrum=True,
+            )
+            .scale(1.2)
+            .move_to(DOWN * 2)
+        )
+
+        self.play(FadeIn(fourier_rects))
+        self.wait()
+
+        surround_rect = SurroundingRectangle(
+            fourier_rects[0][: NUM_SAMPLES // 2], color=REDUCIBLE_YELLOW
+        )
+        self.play(Write(surround_rect))
+        self.wait()
+
+        vt_amplitude = ValueTracker(1)
+        vt_frequency = ValueTracker(DEFAULT_FREQ)
+        vt_b = ValueTracker(0)
+
+        half_fourier_rects, reference_label = (
+            get_fourier_rects_from_custom_matrix(
+                time_signal_func,
+                cosine_dft_matrix,
+                n_samples=NUM_SAMPLES,
+                full_spectrum=False,
+            )
+            .scale(1.2)
+            .move_to(fourier_rects.get_center())
+        )
+
+        half_fourier_rects_group = VGroup(half_fourier_rects, reference_label)
+
+        def get_changing_fourier_rects():
+            time_signal_func = get_cosine_func(
+                amplitude=vt_amplitude.get_value(),
+                freq=vt_frequency.get_value(),
+                b=vt_b.get_value(),
+            )
+            changing_half_fourier_rects, frequency_label = (
+                get_fourier_rects_from_custom_matrix(
+                    time_signal_func,
+                    cosine_dft_matrix,
+                    n_samples=NUM_SAMPLES,
+                    full_spectrum=False,
+                )
+                .scale(1.2)
+                .move_to(half_fourier_rects, aligned_edge=DOWN)
+                .shift(DOWN * 0.5)
+            )
+            return changing_half_fourier_rects
+
+        self.play(
+            FadeTransform(fourier_rects, half_fourier_rects_group),
+            FadeOut(surround_rect),
+        )
+        self.wait()
+
+        changing_half_fourier_rects = always_redraw(get_changing_fourier_rects)
+
+        def get_changing_signal():
+            analysis_freq_func = get_cosine_func(
+                amplitude=vt_amplitude.get_value(),
+                freq=vt_frequency.get_value(),
+                b=vt_b.get_value(),
+            )
+            new_signal = display_signal(analysis_freq_func, num_points=16)
+            return new_signal.scale(0.8).move_to(time_domain_graph, aligned_edge=UP)
+
+        def change_text_redraw():
+            v_freq = f"{vt_frequency.get_value():.2f}"
+            v_amplitude = f"{vt_amplitude.get_value():.2f}"
+            v_b = f"{vt_b.get_value():.2f}"
+
+            freq_eq = MathTex(r"f = ")
+            tex_frequency_val = Text(
+                v_freq,
+                font=REDUCIBLE_MONO,
+            ).scale(0.8)
+            tex_freq = VGroup(freq_eq, tex_frequency_val).arrange(RIGHT)
+
+            amplitude_tex = MathTex("A = ")
+            amplitude_val = Text(
+                v_amplitude,
+                font=REDUCIBLE_MONO,
+            ).scale(0.8)
+            tex_amplitude = VGroup(amplitude_tex, amplitude_val).arrange(RIGHT)
+
+            b_eq = MathTex("b = ")
+            b_val = Text(
+                v_b,
+                font=REDUCIBLE_MONO,
+            ).scale(0.8)
+            tex_b = VGroup(b_eq, b_val).arrange(RIGHT)
+
+            text_group = (
+                VGroup(tex_amplitude, tex_freq, tex_b)
+                .arrange(DOWN, aligned_edge=LEFT)
+                .scale(0.6)
+                .to_corner(UL)
+            )
+            return text_group
+
+        changing_time_domain_graph = always_redraw(get_changing_signal)
+
+        text_group = always_redraw(change_text_redraw)
+        self.remove(time_domain_graph)
+        self.add(changing_time_domain_graph)
+        self.remove(half_fourier_rects)
+        self.add(changing_half_fourier_rects)
+
+        self.play(
+            FadeIn(text_group),
+        )
+        self.wait()
+
+        new_text_group_with_math = (
+            VGroup(
+                text_group.copy(),
+                signal_math.copy().scale(0.7 / 0.8),
+                num_samples_text.copy().scale(0.7 / 0.8),
+            )
+            .arrange(DOWN, aligned_edge=LEFT)
+            .to_corner(UL)
+        )
+
+        self.play(
+            Transform(signal_math, new_text_group_with_math[1]),
+            Transform(num_samples_text, new_text_group_with_math[2]),
+        )
+        self.wait()
+
+        self.play(vt_amplitude.animate.set_value(0.5), run_time=2)
+        self.wait()
+        self.play(vt_amplitude.animate.set_value(1.5), run_time=4)
+        self.wait()
+        self.play(vt_amplitude.animate.set_value(1), run_time=2)
+        self.wait()
+
+        self.play(vt_frequency.animate.set_value(1), run_time=2)
+
+        self.play(vt_frequency.animate.set_value(3), run_time=4)
+
+        self.play(vt_frequency.animate.set_value(4), run_time=2)
+        self.play(vt_frequency.animate.set_value(5), run_time=2)
+        self.play(vt_frequency.animate.set_value(6), run_time=2)
+        self.play(vt_frequency.animate.set_value(7), run_time=2)
+        self.play(vt_frequency.animate.set_value(2), run_time=4)
+        self.wait()
+
+        self.play(vt_b.animate.set_value(0.5), run_time=2)
+        self.wait()
+        self.play(vt_b.animate.set_value(0), run_time=2)
+        self.wait()
