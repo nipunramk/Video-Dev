@@ -1291,7 +1291,13 @@ class SolvingPhaseProblem(MovingCameraScene):
 
         def redraw_vector():
             current_coord = arc.get_end()
-            vector = Arrow(np_center, current_coord, buff=0).set_color(REDUCIBLE_YELLOW)
+            vector = Arrow(
+                np_center,
+                current_coord,
+                buff=0,
+                max_tip_length_to_length_ratio=0.1,
+                max_stroke_width_to_length_ratio=2,
+            ).set_color(REDUCIBLE_YELLOW)
             return vector
 
         arc_lines = always_redraw(redraw_arc_coords)
@@ -1308,14 +1314,19 @@ class SolvingPhaseProblem(MovingCameraScene):
             .set_stroke(BLACK, 3, background=True)
         )
         xy_t = (
-            Text("|(x, y)|", font=REDUCIBLE_FONT, weight=BOLD)
+            MathTex("r = \sqrt{x^2 + y^2}")
             .scale(0.5)
-            .set_stroke(BLACK, width=5, background=True)
             .next_to(brace, UP)
+            .scale_to_fit_width(vector.width)
+        )
+        surr_rect = (
+            SurroundingRectangle(xy_t, buff=SMALL_BUFF, color=BLACK, corner_radius=0.1)
+            .set_stroke(width=0)
+            .set_fill(BLACK, opacity=0.7)
         )
 
         self.play(focus_on(frame, vector, buff=7), run_time=3)
-        self.play(FadeIn(xy_t, shift=DOWN * 0.3), Write(brace))
+        self.play(FadeIn(surr_rect, xy_t, shift=DOWN * 0.3), Write(brace))
 
         self.wait()
 
