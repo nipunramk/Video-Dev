@@ -1873,7 +1873,9 @@ class InterpretDFT(MovingCameraScene):
         for i in range(n_samples):
             point = dft_on_signal[i]
 
-            _current_dot = LabeledDot(i).move_to(number_plane.n2p(point))
+            _current_dot = LabeledDot(i, label_color=WHITE).move_to(
+                number_plane.n2p(point)
+            )
 
             self.play(
                 Transform(current_dot, _current_dot),
@@ -2073,12 +2075,32 @@ class InterpretDFT(MovingCameraScene):
             ],
         )
         self.wait()
-        self.play(vt_phase.animate.set_value(4 * 2 * PI), run_time=5)
+        self.play(
+            vt_phase.animate.set_value(4 * 2 * PI),
+            run_time=10,
+            rate_func=rate_functions.ease_in_out_sine,
+        )
         self.wait()
-        self.play(vt_frequency.animate.set_value(analysis_frequencies[0]), run_time=5)
+        self.play(
+            vt_frequency.animate.set_value(analysis_frequencies[0]),
+            run_time=5,
+            rate_func=rate_functions.ease_in_out_sine,
+        )
         self.wait()
-        self.play(vt_frequency.animate.set_value(analysis_frequencies[1]), run_time=5)
+        self.play(
+            vt_frequency.animate.set_value(analysis_frequencies[1]),
+            run_time=5,
+            rate_func=rate_functions.ease_in_out_sine,
+        )
         self.wait()
-        self.play(vt_frequency.animate.set_value(analysis_frequencies[2]), run_time=5)
+        self.play(
+            vt_frequency.animate.set_value(analysis_frequencies[2]),
+            run_time=5,
+            rate_func=rate_functions.ease_in_out_sine,
+        )
         self.wait()
-        self.play(vt_frequency.animate.set_value(analysis_frequencies[3]), run_time=5)
+        self.play(
+            vt_frequency.animate.set_value(analysis_frequencies[3]),
+            run_time=5,
+            rate_func=rate_functions.ease_in_out_sine,
+        )
