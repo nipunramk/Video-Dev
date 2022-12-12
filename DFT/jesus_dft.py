@@ -1479,7 +1479,10 @@ class SolvingPhaseProblem(MovingCameraScene):
             return text_group
 
         def changing_signal_redraw():
-            amplitude_padding = 0.4
+            # for viz purposes, we are going to make the signal's amplitude smaller
+            # all the calculations will be done with the actual amplitude, though
+            # this helps the redrawing function deal better with the signal
+            amplitude_padding = 0.2
             changing_func = get_cosine_func(
                 amplitude=vt_amplitude.get_value() - amplitude_padding
                 if vt_amplitude.get_value() > amplitude_padding
