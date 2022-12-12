@@ -882,15 +882,15 @@ class SolvingPhaseProblem(MovingCameraScene):
         # self.play(*[FadeOut(mob) for mob in self.mobjects])
         # self.play(Restore(reset_frame))
 
-        self.capture_sine_and_cosine_transforms()
-        self.play(*[FadeOut(mob) for mob in self.mobjects])
-        self.play(Restore(reset_frame))
+        # self.capture_sine_and_cosine_transforms()
+        # self.play(*[FadeOut(mob) for mob in self.mobjects])
+        # self.play(Restore(reset_frame))
 
         # self.sum_up_dft()
         # self.play(*[FadeOut(mob) for mob in self.mobjects])
         # self.play(Restore(reset_frame))
 
-        # self.final_tests_dft()
+        self.final_tests_dft()
 
     def hacky_sine_waves(self):
         original_frequency = 4
@@ -1478,15 +1478,18 @@ class SolvingPhaseProblem(MovingCameraScene):
             )
             return text_group
 
-        def change_phase_redraw():
-            phase_ch_cos = get_cosine_func(
-                amplitude=vt_amplitude.get_value(),
+        def changing_signal_redraw():
+            amplitude_padding = 0.4
+            changing_func = get_cosine_func(
+                amplitude=vt_amplitude.get_value() - amplitude_padding
+                if vt_amplitude.get_value() > amplitude_padding
+                else vt_amplitude.get_value(),
                 freq=vt_frequency.get_value(),
                 phase=vt_phase.get_value(),
                 b=vt_b.get_value(),
             )
-            _, phase_ch_cos_mob = plot_time_domain(phase_ch_cos, t_max=t_max)
-            return phase_ch_cos_mob.scale(0.6).shift(UP)
+            displayed_signal = display_signal(changing_func, TIME_DOMAIN_COLOR)
+            return displayed_signal.scale(0.6).move_to(UP * 2, aligned_edge=UP)
 
         def updating_transform_redraw():
             signal_function = get_cosine_func(
@@ -1500,19 +1503,96 @@ class SolvingPhaseProblem(MovingCameraScene):
                 signal_function, t_max=t_max, n_samples=n_samples, height_scale=3
             )
 
-            return rects.move_to(DOWN * 2, aligned_edge=DOWN)
+            return (
+                rects.move_to(DOWN * 2, aligned_edge=DOWN)
+                .stretch_to_fit_width(changing_signal_mob.width)
+                .set_color(REDUCIBLE_YELLOW)
+            )
 
-        changing_signal_mob = always_redraw(change_phase_redraw)
+        def updating_sine_transform_redraw():
+            signal_function = get_cosine_func(
+                amplitude=vt_amplitude.get_value(),
+                freq=vt_frequency.get_value(),
+                phase=vt_phase.get_value(),
+                b=vt_b.get_value(),
+            )
+
+            sampled_signal = np.array(
+                [
+                    signal_function(v)
+                    for v in np.linspace(t_min, t_max, num=n_samples, endpoint=False)
+                ]
+            ).reshape(-1, 1)
+
+            af_matrix = get_analysis_frequency_matrix(
+                N=n_samples, sample_rate=sample_frequency, func="sin"
+            )
+
+            rects = get_rectangles_for_matrix_transform(sampled_signal, af_matrix)
+            rects = VGroup(*[r[0] for r in rects])
+
+            return (
+                rects.next_to(freq_analysis, LEFT, aligned_edge=DOWN, buff=-0.6)
+                .stretch_to_fit_width(changing_signal_mob.width)
+                .set_color(REDUCIBLE_CHARM)
+            )
+
+        def updating_cosine_transform_redraw():
+            signal_function = get_cosine_func(
+                amplitude=vt_amplitude.get_value(),
+                freq=vt_frequency.get_value(),
+                phase=vt_phase.get_value(),
+                b=vt_b.get_value(),
+            )
+
+            sampled_signal = np.array(
+                [
+                    signal_function(v)
+                    for v in np.linspace(t_min, t_max, num=n_samples, endpoint=False)
+                ]
+            ).reshape(-1, 1)
+
+            af_matrix = get_analysis_frequency_matrix(
+                N=n_samples, sample_rate=sample_frequency, func="cos"
+            )
+
+            rects = get_rectangles_for_matrix_transform(sampled_signal, af_matrix)
+            rects = VGroup(*[r[0] for r in rects])
+
+            return rects.next_to(
+                freq_analysis, RIGHT, aligned_edge=DOWN, buff=-0.6
+            ).stretch_to_fit_width(changing_signal_mob.width)
+
+        changing_signal_mob = always_redraw(changing_signal_redraw)
         freq_analysis = always_redraw(updating_transform_redraw)
+        sin_freq_analysis = always_redraw(updating_sine_transform_redraw)
+        cos_freq_analysis = always_redraw(updating_cosine_transform_redraw)
         changing_tex_group = always_redraw(change_text_redraw)
 
-        line_ref = DashedVMobject(
-            Line(freq_analysis.get_left(), freq_analysis.get_right())
-            .set_stroke(WHITE, opacity=0.5)
-            .move_to(changing_signal_mob)
+        sin_t = (
+            Text("sin(x)", font=REDUCIBLE_FONT, weight=BOLD)
+            .set_color(REDUCIBLE_CHARM)
+            .scale(0.4)
+            .next_to(sin_freq_analysis, DOWN, buff=0.3)
+        )
+        cos_t = (
+            Text("cos(x)", font=REDUCIBLE_FONT, weight=BOLD)
+            .set_color(REDUCIBLE_VIOLET)
+            .scale(0.4)
+            .next_to(cos_freq_analysis, DOWN, buff=0.3)
+        )
+        complex_t = (
+            Text("sin(x) + cos(x)", font=REDUCIBLE_FONT, weight=BOLD)
+            .set_color(REDUCIBLE_YELLOW)
+            .scale(0.4)
+            .next_to(freq_analysis, DOWN, buff=0.3)
         )
 
-        self.play(Write(changing_signal_mob), FadeIn(freq_analysis), Write(line_ref))
+        self.play(
+            Write(changing_signal_mob),
+            FadeIn(freq_analysis, sin_freq_analysis, cos_freq_analysis),
+            FadeIn(sin_t, cos_t, complex_t, shift=UP * 0.3),
+        )
         self.play(FadeIn(changing_tex_group))
 
         self.play(vt_amplitude.animate.set_value(0.5), run_time=0.8)
