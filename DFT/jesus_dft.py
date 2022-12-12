@@ -1268,13 +1268,40 @@ class SolvingPhaseProblem(MovingCameraScene):
         arc = always_redraw(redraw_arc)
         arc.move_arc_center_to(np_center)
 
+        def redraw_arc_coords():
+            current_coord = arc.get_end()
+
+            # this is the vertical line, from x axis to point
+            x_line_start = (current_coord[0], np_center[1], 0)
+            x_line_end = (current_coord[0], current_coord[1], 0)
+
+            x_line = DashedLine(x_line_start, x_line_end).set_stroke(
+                width=2, color=REDUCIBLE_YELLOW
+            )
+
+            # this is the horizontal line, from y axis to point
+            y_line_start = (np_center[0], current_coord[1], 0)
+            y_line_end = (current_coord[0], current_coord[1], 0)
+
+            y_line = DashedLine(y_line_start, y_line_end).set_stroke(
+                width=2, color=REDUCIBLE_YELLOW
+            )
+
+            return VGroup(x_line, y_line)
+
+        def redraw_vector():
+            current_coord = arc.get_end()
+            vector = Arrow(np_center, current_coord, buff=0).set_color(REDUCIBLE_YELLOW)
+            return vector
+
+        arc_lines = always_redraw(redraw_arc_coords)
+        vector = always_redraw(redraw_vector)
+
         self.play(Write(number_plane))
         self.play(FadeIn(arc))
+        self.play(FadeIn(arc_lines, vector))
         self.play(vt_phase.animate.set_value(2 * PI), run_time=10)
 
-        vector = Arrow(np_center, number_plane.c2p(1, 0), buff=0).set_color(
-            REDUCIBLE_YELLOW
-        )
         brace = (
             Brace(vector, UP)
             .set_color(REDUCIBLE_YELLOW)
@@ -1287,7 +1314,7 @@ class SolvingPhaseProblem(MovingCameraScene):
             .next_to(brace, UP)
         )
 
-        self.play(Write(vector), focus_on(frame, vector, buff=7), run_time=3)
+        self.play(focus_on(frame, vector, buff=7), run_time=3)
         self.play(FadeIn(xy_t, shift=DOWN * 0.3), Write(brace))
 
         self.wait()
@@ -1450,12 +1477,6 @@ class SolvingPhaseProblem(MovingCameraScene):
             _, phase_ch_cos_mob = plot_time_domain(phase_ch_cos, t_max=t_max)
             return phase_ch_cos_mob.scale(0.6).shift(UP)
 
-        af_matrix = get_analysis_frequency_matrix(
-            N=n_samples, sample_rate=sample_frequency, t_max=t_max
-        )
-
-        rect_scale = 0.1
-
         def updating_transform_redraw():
             signal_function = get_cosine_func(
                 amplitude=vt_amplitude.get_value(),
@@ -1463,13 +1484,6 @@ class SolvingPhaseProblem(MovingCameraScene):
                 phase=vt_phase.get_value(),
                 b=vt_b.get_value(),
             )
-
-            sampled_signal = np.array(
-                [
-                    signal_function(v)
-                    for v in np.linspace(t_min, t_max, num=n_samples, endpoint=False)
-                ]
-            ).reshape(-1, 1)
 
             rects = get_fourier_bar_chart(
                 signal_function, t_max=t_max, n_samples=n_samples, height_scale=3
