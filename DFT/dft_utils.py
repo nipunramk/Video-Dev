@@ -458,39 +458,6 @@ def get_fourier_with_sample_points_and_vert_lines(
     return VGroup(graph, axes, sampled_points, vertical_lines)
 
 
-def get_fourier_bar_chart(
-    time_func,
-    t_min=0,
-    t_max=10,
-    f_min=0,
-    f_max=10,
-    n_samples=NUM_SAMPLES_FOR_FFT,
-    bar_width=0.2,
-    height_scale=1,
-    color=FREQ_DOMAIN_COLOR,
-):
-
-    time_range = float(t_max - t_min)
-    time_samples = np.vectorize(time_func)(np.linspace(t_min, t_max, n_samples))
-    fft_output = np.fft.fft(time_samples)
-    frequencies = np.linspace(0.0, n_samples / (2.0 * time_range), n_samples // 2)
-
-    graph = VGroup()
-
-    for x, y in zip(frequencies, fft_output[: n_samples // 2]):
-        if x <= f_max + 0.1:
-            rect = (
-                Rectangle(height=height_scale * np.abs(y) / n_samples, width=bar_width)
-                .set_color(color)
-                .set_fill(color, opacity=1)
-                .set_stroke(width=1)
-            )
-            graph.add(rect)
-
-    graph.arrange(RIGHT, buff=0.1, aligned_edge=DOWN)
-    return graph
-
-
 def get_fourier_rects(
     signal_func,
     n_samples=32,
