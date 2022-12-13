@@ -6,10 +6,11 @@ sys.path.insert(1, "common/")
 
 from manim import *
 
+
 from dft_utils import *
 from reducible_colors import *
 from math import degrees
-from classes import CustomLabel
+from classes import CustomLabel, LabeledDot
 
 
 class IntroSampling_002(MovingCameraScene):
@@ -1666,3 +1667,569 @@ class SolvingPhaseProblem(MovingCameraScene):
         )
 
         return VGroup(*mobs)
+
+
+class InterpretDFT(MovingCameraScene):
+    def construct(self):
+        reset_frame = self.camera.frame.save_state()
+
+        self.visualize_complex_and_frequencies()
+
+    def visualize_complex_and_frequencies(self):
+
+        frame = self.camera.frame
+        t_max = 2 * PI
+
+        # samples per second
+        sample_frequency = 10
+
+        # total number of samples
+        n_samples = sample_frequency
+
+        analysis_frequencies = [
+            sample_frequency * m / n_samples for m in range(n_samples)
+        ]
+        original_frequency = analysis_frequencies[2]
+
+        matrix_elements = []
+        power = 0
+        for i in range(n_samples):
+            row = []
+            for j in range(n_samples):
+                if i == 0 or j == 0:
+                    power = 0
+                else:
+                    power = i * j
+
+                power_index = f"{power}"
+                row.append(r"\omega^{" + power_index + "}")
+
+            matrix_elements.append(row)
+
+        dft_matrix_tex = Matrix(matrix_elements).shift(DOWN * 3)
+        omega_definition = MathTex(
+            r"\text{where} \ \omega = e ^{-\frac{2 \pi i}{N}}"
+        ).next_to(dft_matrix_tex, UP)
+
+        title = (
+            Text("The DFT Matrix", font=REDUCIBLE_FONT, weight=BOLD)
+            .scale(0.8)
+            .to_edge(UP)
+        )
+        self.play(FadeIn(title, shift=UP * 0.3))
+        self.play(FadeIn(dft_matrix_tex, shift=UP * 0.3))
+        self.play(FadeIn(omega_definition, shift=UP * 0.3))
+        self.wait()
+        self.play(
+            dft_matrix_tex.animate.scale(0.8).move_to(ORIGIN).shift(DOWN * 0.5),
+            FadeOut(omega_definition, shift=UP * 0.3),
+        )
+        self.wait()
+
+        cos_af_matrix = VGroup(
+            *[
+                VGroup(
+                    *plot_time_domain(
+                        get_cosine_func(freq=f, amplitude=0.13), t_max=t_max
+                    )
+                )
+                .stretch_to_fit_width(dft_matrix_tex[0].width)
+                .move_to(dft_matrix_tex[0][i * n_samples], aligned_edge=LEFT)
+                for i, f in enumerate(range(n_samples))
+            ]
+        )
+
+        sin_af_matrix = VGroup(
+            *[
+                VGroup(
+                    *plot_time_domain(
+                        get_sine_func(freq=f, amplitude=0.13), t_max=t_max
+                    )
+                )
+                .stretch_to_fit_width(dft_matrix_tex[0].width)
+                .move_to(dft_matrix_tex[0][i * n_samples], aligned_edge=LEFT)
+                for i, f in enumerate(analysis_frequencies)
+            ]
+        )
+
+        [af[0].set_opacity(0) for af in cos_af_matrix]
+        [af[0].set_opacity(0) for af in sin_af_matrix]
+
+        for sin_mob, cos_mob in zip(sin_af_matrix, cos_af_matrix):
+            sin_mob[1].set_color(REDUCIBLE_CHARM)
+            cos_mob[1].set_color(REDUCIBLE_VIOLET)
+
+        self.play(LaggedStartMap(Write, cos_af_matrix))
+        self.wait()
+        self.play(FadeOut(dft_matrix_tex[0]), LaggedStartMap(Write, sin_af_matrix))
+        self.wait()
+
+        legend = (
+            VGroup(
+                VGroup(
+                    Text("cos(x), \nreal part", font=REDUCIBLE_FONT).scale(0.2),
+                    Line(LEFT * 0.3, ORIGIN)
+                    .set_stroke(width=14)
+                    .set_color(REDUCIBLE_VIOLET),
+                ).arrange(DOWN, buff=0.1, aligned_edge=LEFT),
+                VGroup(
+                    Text("sin(x), \nimaginary part", font=REDUCIBLE_FONT).scale(0.2),
+                    Line(LEFT * 0.3, ORIGIN)
+                    .set_stroke(width=14)
+                    .set_color(REDUCIBLE_CHARM),
+                ).arrange(DOWN, buff=0.1, aligned_edge=LEFT),
+            )
+            .arrange(DOWN, buff=0.4, aligned_edge=LEFT)
+            .next_to(dft_matrix_tex, LEFT, aligned_edge=UP)
+        )
+
+        self.play(
+            FadeIn(legend, shift=UP * 0.3),
+            FadeOut(title, shift=UP * 0.3),
+            focus_on(frame, VGroup(dft_matrix_tex, legend)),
+        )
+        self.wait()
+
+        sampled_points_cos_af = VGroup(
+            *[
+                get_sampled_dots(
+                    signal,
+                    axis,
+                    x_max=t_max,
+                    num_points=n_samples,
+                    radius=DEFAULT_DOT_RADIUS,
+                ).set_color(REDUCIBLE_VIOLET)
+                for axis, signal in cos_af_matrix
+            ]
+        )
+        sampled_points_sin_af = VGroup(
+            *[
+                get_sampled_dots(
+                    signal,
+                    axis,
+                    x_max=t_max,
+                    num_points=n_samples,
+                    radius=DEFAULT_DOT_RADIUS,
+                ).set_color(REDUCIBLE_CHARM)
+                for axis, signal in sin_af_matrix
+            ]
+        )
+
+        number_plane = (
+            ComplexPlane(
+                x_length=5,
+                y_length=5,
+                x_range=[-2, 2],
+                y_range=[-2, 2],
+                background_line_style={"stroke_color": REDUCIBLE_VIOLET},
+            )
+            .set_opacity(0.7)
+            .next_to(dft_matrix_tex, RIGHT, buff=1)
+        )
+        np_radius = Line(number_plane.c2p(0, 0), number_plane.c2p(0, 1)).height
+
+        complex_circle = (
+            Circle(np_radius)
+            .set_color(REDUCIBLE_YELLOW)
+            .move_to(number_plane.c2p(0, 0))
+        )
+
+        indices = VGroup(
+            *[
+                Text(str(f), font=REDUCIBLE_MONO)
+                .scale(0.7)
+                .next_to(cos_af_matrix[f][0], LEFT)
+                for f in range(n_samples)
+            ]
+        ).next_to(dft_matrix_tex, LEFT, buff=0.5)
+        m_t = (
+            Text("m", font=REDUCIBLE_FONT, weight=BOLD, slant=ITALIC)
+            .scale(0.7)
+            .next_to(indices, UP, buff=0.6)
+        )
+
+        self.play(
+            FadeOut(legend),
+            FadeIn(indices, m_t),
+            focus_on(frame, [number_plane, indices, dft_matrix_tex]),
+        )
+        self.wait()
+        self.play(
+            Write(number_plane),
+            Write(complex_circle),
+        )
+        self.wait()
+
+        points_on_circle = (
+            Dot()
+            .set_color(REDUCIBLE_YELLOW)
+            .move_to(complex_circle.point_from_proportion(0))
+        )
+        for i, sampled_points in enumerate(
+            zip(sampled_points_cos_af, sampled_points_sin_af)
+        ):
+            if i == 0:
+                self.play(FadeIn(*sampled_points))
+                continue
+
+            _points_on_circle = VGroup(
+                *[
+                    Dot(radius=DEFAULT_DOT_RADIUS * 1.4)
+                    .move_to(complex_circle.point_from_proportion(n / i))
+                    .set_color(REDUCIBLE_YELLOW)
+                    for n in range(i)
+                ]
+            )
+            self.play(
+                # enable current index: number, sine and cosine graphs and sampled dots
+                indices[i].animate.set_opacity(1),
+                cos_af_matrix[i][1].animate.set_stroke(opacity=1),
+                *[
+                    cos_af_matrix[idx][1].animate.set_stroke(opacity=0.3)
+                    for idx in range(n_samples)
+                    if idx != i
+                ],
+                sin_af_matrix[i][1].animate.set_stroke(opacity=1),
+                *[
+                    sin_af_matrix[idx][1].animate.set_stroke(opacity=0.3)
+                    for idx in range(n_samples)
+                    if idx != i
+                ],
+                # "disable" every other index
+                *[
+                    indices[idx].animate.set_opacity(0.3)
+                    for idx in range(n_samples)
+                    if idx != i
+                ],
+                *[
+                    sampled_points_cos_af[idx].animate.set_opacity(0.3)
+                    for idx in range(n_samples)
+                    if idx < i
+                ],
+                *[
+                    sampled_points_sin_af[idx].animate.set_opacity(0.3)
+                    for idx in range(n_samples)
+                    if idx < i
+                ],
+                LaggedStartMap(Write, sampled_points[0]),
+                LaggedStartMap(Write, sampled_points[1]),
+                Transform(points_on_circle, _points_on_circle),
+                run_time=0.7,
+            )
+            self.wait()
+
+        og_axis_and_signal = VGroup(
+            *plot_time_domain(
+                get_cosine_func(freq=original_frequency, amplitude=0.2), t_max=t_max
+            )
+        )
+        og_axis_and_signal.rotate(-90 * DEGREES).stretch_to_fit_height(
+            dft_matrix_tex.height - 0.3
+        )
+        og_axis_and_signal[0].set_opacity(0)
+
+        sampled_dots_main_signal = get_sampled_dots(
+            og_axis_and_signal[1],
+            og_axis_and_signal[0],
+            num_points=n_samples,
+            x_max=t_max,
+        ).set_color(REDUCIBLE_YELLOW)
+
+        brackets = Matrix([[v] for v in range(n_samples)]).stretch_to_fit_height(
+            dft_matrix_tex.height
+        )
+        brackets[0].set_opacity(0)
+
+        main_signal_vector = VGroup(
+            brackets.move_to(og_axis_and_signal),
+            og_axis_and_signal,
+            sampled_dots_main_signal,
+        ).next_to(dft_matrix_tex, RIGHT, buff=1)
+
+        dot_product = Dot().next_to(dft_matrix_tex, RIGHT, buff=1)
+        equal_sign = Text("=", font=REDUCIBLE_FONT, weight=BOLD).next_to(
+            main_signal_vector, RIGHT, buff=0.8
+        )
+
+        np_and_circle = VGroup(number_plane, complex_circle, points_on_circle)
+
+        # aux mobject to allow for the panning animation to work properly
+        np_and_circle_aux = np_and_circle.copy().next_to(
+            main_signal_vector, RIGHT, buff=2
+        )
+
+        self.play(
+            FadeIn(main_signal_vector),
+            Write(dot_product),
+            Write(equal_sign),
+            np_and_circle.animate.move_to(np_and_circle_aux),
+            focus_on(
+                frame,
+                (indices, dft_matrix_tex, main_signal_vector, np_and_circle_aux),
+                buff=1.4,
+            ),
+            *[indices[idx].animate.set_opacity(1) for idx in range(n_samples)],
+            *[
+                sin_af_matrix[idx][1].animate.set_stroke(opacity=1)
+                for idx in range(n_samples)
+            ],
+            *[
+                cos_af_matrix[idx][1].animate.set_stroke(opacity=1)
+                for idx in range(n_samples)
+            ],
+            *[
+                sampled_points_cos_af[idx].animate.set_opacity(1)
+                for idx in range(n_samples)
+            ],
+            *[
+                sampled_points_sin_af[idx].animate.set_opacity(1)
+                for idx in range(n_samples)
+            ],
+        )
+
+        # had to make amplitude smaller in order for the actual points
+        # to land on the screen. is there
+
+        cos_func = get_cosine_func(freq=original_frequency, amplitude=0.3)
+        sampled_signal = np.array(
+            [cos_func(f) for f in np.linspace(0, t_max, num=n_samples, endpoint=False)]
+        ).reshape(-1, 1)
+        dft_on_signal = np.fft.fft2(sampled_signal)
+
+        self.play(FadeOut(points_on_circle))
+
+        current_dot = LabeledDot(0).move_to(number_plane.n2p(dft_on_signal[0]))
+        for i in range(n_samples):
+            point = dft_on_signal[i]
+
+            _current_dot = LabeledDot(i, label_color=WHITE).move_to(
+                number_plane.n2p(point)
+            )
+
+            self.play(
+                Transform(current_dot, _current_dot),
+                indices[i].animate.set_opacity(1),
+                cos_af_matrix[i][1].animate.set_stroke(opacity=1),
+                *[
+                    sampled_points_cos_af[idx].animate.set_opacity(1)
+                    for idx in range(n_samples)
+                    if idx == i
+                ],
+                *[
+                    sampled_points_sin_af[idx].animate.set_opacity(1)
+                    for idx in range(n_samples)
+                    if idx == i
+                ],
+                sin_af_matrix[i][1].animate.set_stroke(opacity=1),
+                # "disable" every other index
+                *[
+                    cos_af_matrix[idx][1].animate.set_stroke(opacity=0.3)
+                    for idx in range(n_samples)
+                    if idx != i
+                ],
+                *[
+                    sin_af_matrix[idx][1].animate.set_stroke(opacity=0.3)
+                    for idx in range(n_samples)
+                    if idx != i
+                ],
+                *[
+                    indices[idx].animate.set_opacity(0.3)
+                    for idx in range(n_samples)
+                    if idx != i
+                ],
+                *[
+                    sampled_points_cos_af[idx].animate.set_opacity(0.3)
+                    for idx in range(n_samples)
+                    if idx != i
+                ],
+                *[
+                    sampled_points_sin_af[idx].animate.set_opacity(0.3)
+                    for idx in range(n_samples)
+                    if idx != i
+                ],
+                run_time=0.7,
+            )
+            self.wait(1.3)
+
+        vt_frequency = ValueTracker(original_frequency)
+        vt_phase = ValueTracker(0)
+        vt_amplitude = ValueTracker(0.2)
+
+        def dft_barchart_redraw():
+            cos_func = get_cosine_func(
+                freq=vt_frequency.get_value(),
+                amplitude=vt_amplitude.get_value(),
+                phase=vt_phase.get_value(),
+            )
+            barchart = get_fourier_bar_chart(
+                cos_func,
+                t_max=t_max,
+                n_samples=n_samples,
+                full_spectrum=True,
+                height_scale=4,
+            )
+
+            return (
+                barchart.rotate(-90 * DEGREES)
+                .stretch_to_fit_height(dft_matrix_tex.height)
+                .next_to(dft_matrix_tex, RIGHT, buff=0.4)
+            )
+
+        shift_mobs = RIGHT * 0.7
+        _aux_complex_plane = number_plane.copy().shift(shift_mobs)
+        self.play(
+            focus_on(frame, (indices, _aux_complex_plane)),
+            main_signal_vector.animate.shift(shift_mobs),
+            dot_product.animate.shift(shift_mobs),
+            equal_sign.animate.shift(shift_mobs),
+            number_plane.animate.shift(shift_mobs),
+            complex_circle.animate.shift(shift_mobs),
+            FadeOut(current_dot),
+        )
+
+        def main_signal_redraw():
+            cos_func = get_cosine_func(
+                freq=vt_frequency.get_value(),
+                amplitude=vt_amplitude.get_value(),
+                phase=vt_phase.get_value(),
+            )
+
+            axis_and_signal = VGroup(*plot_time_domain(cos_func, t_max=t_max))
+            axis_and_signal[0].set_opacity(0)
+            axis_and_signal.rotate(-90 * DEGREES)
+            axis_and_signal.stretch_to_fit_height(og_axis_and_signal[1].height).move_to(
+                og_axis_and_signal[1]
+            )
+
+            sampled_dots_main_signal = get_sampled_dots(
+                axis_and_signal[1],
+                axis_and_signal[0],
+                num_points=n_samples,
+                x_max=t_max,
+            ).set_color(REDUCIBLE_YELLOW)
+
+            return VGroup(axis_and_signal, sampled_dots_main_signal)
+
+        def tracking_text_redraw():
+
+            v_freq = f"{vt_frequency.get_value():.2f}"
+            v_amplitude = f"{vt_amplitude.get_value():.2f}"
+            v_phase = f"{degrees(vt_phase.get_value()) % 360:.2f}"
+
+            tex_frequency = Text(
+                "ƒ = " + v_freq + " Hz",
+                font=REDUCIBLE_FONT,
+                t2f={v_freq: REDUCIBLE_MONO},
+            ).scale(0.8)
+
+            phi_eq = MathTex(r"\phi = ")
+            tex_phase_n = Text(
+                v_phase + "º",
+                font=REDUCIBLE_FONT,
+                t2f={v_phase: REDUCIBLE_MONO},
+            ).scale(0.8)
+            tex_phase = VGroup(phi_eq, tex_phase_n).arrange(RIGHT)
+
+            tex_amplitude = Text(
+                "A = " + v_amplitude,
+                font=REDUCIBLE_FONT,
+                t2f={v_amplitude: REDUCIBLE_MONO},
+            ).scale(0.8)
+
+            return (
+                VGroup(tex_frequency, tex_phase, tex_amplitude)
+                .arrange(DOWN, aligned_edge=LEFT)
+                .next_to(
+                    main_signal_vector,
+                    UP,
+                    buff=0.4,
+                )
+            ).scale(0.7)
+
+        def complex_frequencies_on_plane():
+            cos_func = get_cosine_func(
+                freq=vt_frequency.get_value(),
+                amplitude=vt_amplitude.get_value(),
+                phase=vt_phase.get_value(),
+            )
+
+            sampled_signal = np.array(
+                [
+                    cos_func(f)
+                    for f in np.linspace(0, t_max, num=n_samples, endpoint=False)
+                ]
+            ).reshape(-1, 1)
+
+            dft_on_signal = np.fft.fft2(sampled_signal)
+
+            complex_points = VGroup(
+                *[
+                    LabeledDot(str(i), label_color=WHITE).move_to(
+                        number_plane.n2p(point)
+                    )
+                    for i, point in list(enumerate(dft_on_signal))[::-1]
+                ]
+            )
+
+            return complex_points
+
+        tracking_text_changing = always_redraw(tracking_text_redraw)
+        main_signal_mob_changing = always_redraw(main_signal_redraw)
+        dft_barchart_changing = always_redraw(dft_barchart_redraw)
+        complex_points = always_redraw(complex_frequencies_on_plane)
+
+        self.play(
+            FadeOut(sampled_dots_main_signal),
+            FadeOut(og_axis_and_signal[1]),
+            FadeIn(complex_points),
+            FadeIn(main_signal_mob_changing),
+            FadeIn(dft_barchart_changing),
+            FadeIn(tracking_text_changing),
+            *[indices[idx].animate.set_opacity(1) for idx in range(n_samples)],
+            *[
+                sin_af_matrix[idx][1].animate.set_stroke(opacity=1)
+                for idx in range(n_samples)
+            ],
+            *[
+                cos_af_matrix[idx][1].animate.set_stroke(opacity=1)
+                for idx in range(n_samples)
+            ],
+            *[
+                sampled_points_cos_af[idx].animate.set_opacity(1)
+                for idx in range(n_samples)
+            ],
+            *[
+                sampled_points_sin_af[idx].animate.set_opacity(1)
+                for idx in range(n_samples)
+            ],
+        )
+        self.wait()
+        self.play(
+            vt_phase.animate.set_value(4 * 2 * PI),
+            run_time=10,
+            rate_func=rate_functions.ease_in_out_sine,
+        )
+        self.wait()
+        self.play(
+            vt_frequency.animate.set_value(analysis_frequencies[0]),
+            run_time=5,
+            rate_func=rate_functions.ease_in_out_sine,
+        )
+        self.wait()
+        self.play(
+            vt_frequency.animate.set_value(analysis_frequencies[1]),
+            run_time=5,
+            rate_func=rate_functions.ease_in_out_sine,
+        )
+        self.wait()
+        self.play(
+            vt_frequency.animate.set_value(analysis_frequencies[2]),
+            run_time=5,
+            rate_func=rate_functions.ease_in_out_sine,
+        )
+        self.wait()
+        self.play(
+            vt_frequency.animate.set_value(analysis_frequencies[3]),
+            run_time=5,
+            rate_func=rate_functions.ease_in_out_sine,
+        )

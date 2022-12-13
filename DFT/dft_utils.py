@@ -135,12 +135,14 @@ def inner_prod(time_domain_func, freq_func, x_min=0, x_max=2 * PI, num_points=8)
     return np.dot(y_coords_time, y_coords_freq)
 
 
-def get_sampled_dots(graph, axes, x_min=0, x_max=2 * PI, num_points=8):
+def get_sampled_dots(
+    graph, axes, x_min=0, x_max=2 * PI, num_points=8, radius=DEFAULT_DOT_RADIUS
+):
     x_coords, y_coords = get_sampled_coords(
         graph, x_min=x_min, x_max=x_max, num_points=num_points
     )
     coord_dots = [
-        Dot().move_to(axes.coords_to_point(x_coord, y_coord))
+        Dot(radius=radius).move_to(axes.coords_to_point(x_coord, y_coord))
         for x_coord, y_coord in zip(x_coords, y_coords)
     ]
     return VGroup(*coord_dots)
@@ -216,16 +218,19 @@ def get_fourier_bar_chart(
     bar_width=0.2,
     height_scale=1,
     color=FREQ_DOMAIN_COLOR,
+    full_spectrum=False,
 ):
+
+    spectrum_selection = n_samples if full_spectrum else n_samples // 2
 
     time_range = float(t_max - t_min)
     time_samples = np.vectorize(time_func)(np.linspace(t_min, t_max, n_samples))
     fft_output = np.fft.fft(time_samples)
-    frequencies = np.linspace(0.0, n_samples / (2.0 * time_range), n_samples // 2)
+    frequencies = np.linspace(0.0, n_samples / (2.0 * time_range), spectrum_selection)
 
     graph = VGroup()
 
-    for x, y in zip(frequencies, fft_output[: n_samples // 2]):
+    for x, y in zip(frequencies, fft_output[:spectrum_selection]):
         if x <= f_max + 0.1:
             rect = (
                 Rectangle(height=height_scale * np.abs(y) / n_samples, width=bar_width)
