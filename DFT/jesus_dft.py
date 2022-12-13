@@ -598,7 +598,7 @@ class IntroducePhaseProblem(MovingCameraScene):
         original_freq = 2
 
         # samples per second
-        sample_frequency = 40
+        sample_frequency = 10
 
         n_samples = sample_frequency
 
@@ -707,29 +707,50 @@ class IntroducePhaseProblem(MovingCameraScene):
             sine_wave, aux_signal_axis, num_points=10
         ).set_fill(REDUCIBLE_YELLOW)
 
-        self.play(LaggedStartMap(FadeIn, [*dots_analysis_freq, *dots_cos_mob]))
-
-        dots_line = dots_cos_mob.copy()
-        [
-            d.set_fill(REDUCIBLE_GREEN_LIGHTER, opacity=1).move_to(
-                DOWN * 2.5, coor_mask=[0, 1, 0]
-            )
-            for d in dots_line
+        sampled_dots_af = [
+            analysis_freq(v) for v in np.linspace(0, t_max, 10, endpoint=False)
+        ]
+        sampled_dots_signal = [
+            get_cosine_func(freq=original_freq, phase=vt_phase.get_value())(v)
+            for v in np.linspace(0, t_max, 10, endpoint=False)
+        ]
+        prod_per_sample = [
+            af * s for af, s in zip(sampled_dots_af, sampled_dots_signal)
         ]
 
+        self.play(LaggedStartMap(FadeIn, [*dots_analysis_freq, *dots_cos_mob]))
+        self.wait()
+
+        barchart = BarChart(
+            prod_per_sample,
+            bar_colors=[REDUCIBLE_PURPLE],
+            bar_width=1,
+            x_length=dots_analysis_freq.width,
+        )
+        barchart.remove(barchart[2])
+        barchart.stretch_to_fit_width(dots_analysis_freq.width).stretch_to_fit_height(
+            analysis_freq_mob.height * 1.3
+        ).next_to(analysis_freq_mob, DOWN, buff=0.5, aligned_edge=LEFT)
+
+        self.play(Write(barchart[1]))
+        self.play(LaggedStartMap(FadeIn, barchart[0]))
+        self.wait()
+
         self.play(
-            Transform(dots_cos_mob, dots_line), Transform(dots_analysis_freq, dots_line)
+            *[
+                bar.animate.set_color(REDUCIBLE_GREEN)
+                if prod > 0
+                else bar.animate.set_color(REDUCIBLE_CHARM)
+                for prod, bar in zip(prod_per_sample, barchart[0])
+            ]
         )
         self.wait()
 
-        zero = (
-            Text(str(0), font=REDUCIBLE_MONO, weight=SEMIBOLD)
-            .scale(2)
-            .move_to(dots_cos_mob)
+        self.play(
+            barchart.animate.change_bar_values(
+                [0 for i in range(len(prod_per_sample))], update_colors=False
+            )
         )
-
-        self.play(Transform(dots_cos_mob, zero), FadeOut(dots_analysis_freq))
-        self.wait()
 
     def test_cases_again(self):
         frame = self.camera.frame
