@@ -298,7 +298,6 @@ def get_analysis_frequency_matrix(N, sample_rate, func="cos", t_min=0, t_max=2 *
     is set to 'cos'.
     """
 
-    print(func)
     if func != "cos" and func != "sin":
         raise ValueError('func can either be "cos" or "sin"')
 

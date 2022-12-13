@@ -898,18 +898,18 @@ class SolvingPhaseProblem(MovingCameraScene):
     def construct(self):
         reset_frame = self.camera.frame.save_state()
 
-        self.hacky_sine_waves()
+        # self.hacky_sine_waves()
 
-        self.play(*[FadeOut(mob) for mob in self.mobjects])
-        self.play(Restore(reset_frame))
+        # self.play(*[FadeOut(mob) for mob in self.mobjects])
+        # self.play(Restore(reset_frame))
 
-        self.capture_sine_and_cosine_transforms()
-        self.play(*[FadeOut(mob) for mob in self.mobjects])
-        self.play(Restore(reset_frame))
+        # self.capture_sine_and_cosine_transforms()
+        # self.play(*[FadeOut(mob) for mob in self.mobjects])
+        # self.play(Restore(reset_frame))
 
-        self.sum_up_dft()
-        self.play(*[FadeOut(mob) for mob in self.mobjects])
-        self.play(Restore(reset_frame))
+        # self.sum_up_dft()
+        # self.play(*[FadeOut(mob) for mob in self.mobjects])
+        # self.play(Restore(reset_frame))
 
         self.final_tests_dft()
 
@@ -1276,11 +1276,12 @@ class SolvingPhaseProblem(MovingCameraScene):
         )
 
         np_center = number_plane.c2p(0, 0)
+        vt_phase.set_value(0)
 
         def redraw_arc():
             radius = Line(np_center, number_plane.c2p(1, 0)).width
             return (
-                Arc(radius, angle=vt_phase.get_value())
+                Arc(radius, angle=-vt_phase.get_value())
                 .move_arc_center_to(np_center)
                 .set_color(REDUCIBLE_YELLOW)
             )
@@ -1288,28 +1289,65 @@ class SolvingPhaseProblem(MovingCameraScene):
         arc = always_redraw(redraw_arc)
         arc.move_arc_center_to(np_center)
 
-        vt_phase.set_value(0)
+        def redraw_arc_coords():
+            current_coord = arc.get_end()
+
+            # this is the vertical line, from x axis to point
+            x_line_start = (current_coord[0], np_center[1], 0)
+            x_line_end = (current_coord[0], current_coord[1], 0)
+
+            x_line = DashedLine(x_line_start, x_line_end).set_stroke(
+                width=2, color=REDUCIBLE_YELLOW
+            )
+
+            # this is the horizontal line, from y axis to point
+            y_line_start = (np_center[0], current_coord[1], 0)
+            y_line_end = (current_coord[0], current_coord[1], 0)
+
+            y_line = DashedLine(y_line_start, y_line_end).set_stroke(
+                width=2, color=REDUCIBLE_YELLOW
+            )
+
+            return VGroup(x_line, y_line)
+
+        def redraw_vector():
+            current_coord = arc.get_end()
+            vector = Arrow(
+                np_center,
+                current_coord,
+                buff=0,
+                max_tip_length_to_length_ratio=0.1,
+                max_stroke_width_to_length_ratio=2,
+            ).set_color(REDUCIBLE_YELLOW)
+            return vector
+
+        arc_lines = always_redraw(redraw_arc_coords)
+        vector = always_redraw(redraw_vector)
+
         self.play(Write(number_plane))
         self.play(FadeIn(arc))
+        self.play(FadeIn(arc_lines, vector))
         self.play(vt_phase.animate.set_value(2 * PI), run_time=10)
 
-        vector = Arrow(np_center, number_plane.c2p(1, 0), buff=0).set_color(
-            REDUCIBLE_YELLOW
-        )
         brace = (
             Brace(vector, UP)
             .set_color(REDUCIBLE_YELLOW)
             .set_stroke(BLACK, 3, background=True)
         )
         xy_t = (
-            Text("|(x, y)|", font=REDUCIBLE_FONT, weight=BOLD)
+            MathTex("r = \sqrt{x^2 + y^2}")
             .scale(0.5)
-            .set_stroke(BLACK, width=5, background=True)
             .next_to(brace, UP)
+            .scale_to_fit_width(vector.width)
+        )
+        surr_rect = (
+            SurroundingRectangle(xy_t, buff=SMALL_BUFF, color=BLACK, corner_radius=0.1)
+            .set_stroke(width=0)
+            .set_fill(BLACK, opacity=0.7)
         )
 
-        self.play(Write(vector), focus_on(frame, vector, buff=7), run_time=3)
-        self.play(FadeIn(xy_t, shift=DOWN * 0.3), Write(brace))
+        self.play(focus_on(frame, vector, buff=7), run_time=3)
+        self.play(FadeIn(surr_rect, xy_t, shift=DOWN * 0.3), Write(brace))
 
         self.wait()
 
@@ -1461,23 +1499,41 @@ class SolvingPhaseProblem(MovingCameraScene):
             )
             return text_group
 
-        def change_phase_redraw():
-            phase_ch_cos = get_cosine_func(
+        def changing_signal_redraw():
+            # for viz purposes, we are going to make the signal's amplitude smaller
+            # all the calculations will be done with the actual amplitude, though
+            # this helps the redrawing function deal better with the signal
+            amplitude_padding = 0.2
+            changing_func = get_cosine_func(
+                amplitude=vt_amplitude.get_value() - amplitude_padding
+                if vt_amplitude.get_value() > amplitude_padding
+                else vt_amplitude.get_value(),
+                freq=vt_frequency.get_value(),
+                phase=vt_phase.get_value(),
+                b=vt_b.get_value(),
+            )
+            displayed_signal = display_signal(changing_func, TIME_DOMAIN_COLOR)
+            return displayed_signal.scale(0.6).move_to(UP * 2, aligned_edge=UP)
+
+        def updating_transform_redraw():
+            signal_function = get_cosine_func(
                 amplitude=vt_amplitude.get_value(),
                 freq=vt_frequency.get_value(),
                 phase=vt_phase.get_value(),
                 b=vt_b.get_value(),
             )
-            _, phase_ch_cos_mob = plot_time_domain(phase_ch_cos, t_max=t_max)
-            return phase_ch_cos_mob.scale(0.6).shift(UP)
 
-        af_matrix = get_analysis_frequency_matrix(
-            N=n_samples, sample_rate=sample_frequency, t_max=t_max
-        )
+            rects = get_fourier_bar_chart(
+                signal_function, t_max=t_max, n_samples=n_samples, height_scale=3
+            )
 
-        rect_scale = 0.1
+            return (
+                rects.move_to(DOWN * 2, aligned_edge=DOWN)
+                .stretch_to_fit_width(changing_signal_mob.width)
+                .set_color(REDUCIBLE_YELLOW)
+            )
 
-        def updating_transform_redraw():
+        def updating_sine_transform_redraw():
             signal_function = get_cosine_func(
                 amplitude=vt_amplitude.get_value(),
                 freq=vt_frequency.get_value(),
@@ -1492,23 +1548,75 @@ class SolvingPhaseProblem(MovingCameraScene):
                 ]
             ).reshape(-1, 1)
 
-            rects = get_fourier_bar_chart(
-                signal_function, t_max=t_max, n_samples=n_samples, height_scale=3
+            af_matrix = get_analysis_frequency_matrix(
+                N=n_samples, sample_rate=sample_frequency, func="sin"
             )
 
-            return rects.move_to(DOWN * 2, aligned_edge=DOWN)
+            rects = get_rectangles_for_matrix_transform(sampled_signal, af_matrix)
+            rects = VGroup(*[r[0] for r in rects])
 
-        changing_signal_mob = always_redraw(change_phase_redraw)
+            return (
+                rects.next_to(freq_analysis, LEFT, aligned_edge=DOWN, buff=-0.6)
+                .stretch_to_fit_width(changing_signal_mob.width)
+                .set_color(REDUCIBLE_CHARM)
+            )
+
+        def updating_cosine_transform_redraw():
+            signal_function = get_cosine_func(
+                amplitude=vt_amplitude.get_value(),
+                freq=vt_frequency.get_value(),
+                phase=vt_phase.get_value(),
+                b=vt_b.get_value(),
+            )
+
+            sampled_signal = np.array(
+                [
+                    signal_function(v)
+                    for v in np.linspace(t_min, t_max, num=n_samples, endpoint=False)
+                ]
+            ).reshape(-1, 1)
+
+            af_matrix = get_analysis_frequency_matrix(
+                N=n_samples, sample_rate=sample_frequency, func="cos"
+            )
+
+            rects = get_rectangles_for_matrix_transform(sampled_signal, af_matrix)
+            rects = VGroup(*[r[0] for r in rects])
+
+            return rects.next_to(
+                freq_analysis, RIGHT, aligned_edge=DOWN, buff=-0.6
+            ).stretch_to_fit_width(changing_signal_mob.width)
+
+        changing_signal_mob = always_redraw(changing_signal_redraw)
         freq_analysis = always_redraw(updating_transform_redraw)
+        sin_freq_analysis = always_redraw(updating_sine_transform_redraw)
+        cos_freq_analysis = always_redraw(updating_cosine_transform_redraw)
         changing_tex_group = always_redraw(change_text_redraw)
 
-        line_ref = DashedVMobject(
-            Line(freq_analysis.get_left(), freq_analysis.get_right())
-            .set_stroke(WHITE, opacity=0.5)
-            .move_to(changing_signal_mob)
+        sin_t = (
+            Text("sin(x)", font=REDUCIBLE_FONT, weight=BOLD)
+            .set_color(REDUCIBLE_CHARM)
+            .scale(0.4)
+            .next_to(sin_freq_analysis, DOWN, buff=0.3)
+        )
+        cos_t = (
+            Text("cos(x)", font=REDUCIBLE_FONT, weight=BOLD)
+            .set_color(REDUCIBLE_VIOLET)
+            .scale(0.4)
+            .next_to(cos_freq_analysis, DOWN, buff=0.3)
+        )
+        complex_t = (
+            Text("sin(x) + cos(x)", font=REDUCIBLE_FONT, weight=BOLD)
+            .set_color(REDUCIBLE_YELLOW)
+            .scale(0.4)
+            .next_to(freq_analysis, DOWN, buff=0.3)
         )
 
-        self.play(Write(changing_signal_mob), FadeIn(freq_analysis), Write(line_ref))
+        self.play(
+            Write(changing_signal_mob),
+            FadeIn(freq_analysis, sin_freq_analysis, cos_freq_analysis),
+            FadeIn(sin_t, cos_t, complex_t, shift=UP * 0.3),
+        )
         self.play(FadeIn(changing_tex_group))
 
         self.play(vt_amplitude.animate.set_value(0.5), run_time=0.8)
