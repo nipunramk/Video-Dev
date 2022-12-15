@@ -156,10 +156,12 @@ def get_vertical_bars_for_samples(
     return VGroup(*vertical_lines)
 
 
-def display_signal(time_signal_func, color=TIME_DOMAIN_COLOR):
+def display_signal(time_signal_func, color=TIME_DOMAIN_COLOR, num_points=8):
     time_axis, graph = plot_time_domain(time_signal_func, t_max=2 * PI, color=color)
-    sampled_points_dots = get_sampled_dots(graph, time_axis)
-    sampled_points_vert_lines = get_vertical_bars_for_samples(graph, time_axis)
+    sampled_points_dots = get_sampled_dots(graph, time_axis, num_points=num_points)
+    sampled_points_vert_lines = get_vertical_bars_for_samples(
+        graph, time_axis, num_points=num_points
+    )
     return VGroup(time_axis, graph, sampled_points_dots, sampled_points_vert_lines)
 
 
@@ -279,11 +281,11 @@ def make_row_vector(values, h_buff=0.6, scale=0.6):
     return vector.scale(scale)
 
 
-def display_signal(time_signal_func, color=TIME_DOMAIN_COLOR):
+def display_signal(time_signal_func, color=TIME_DOMAIN_COLOR, num_points=8):
     time_axis, graph = plot_time_domain(time_signal_func, t_max=2 * PI, color=color)
-    sampled_points_dots = get_sampled_dots(graph, time_axis)
+    sampled_points_dots = get_sampled_dots(graph, time_axis, num_points=num_points)
     sampled_points_vert_lines = get_vertical_dashed_lines_for_samples(
-        graph, time_axis, color=color
+        graph, time_axis, color=color, num_points=num_points
     )
     return VGroup(time_axis, sampled_points_vert_lines, graph, sampled_points_dots)
 
@@ -404,18 +406,19 @@ def get_fourier_bar_chart(
     return graph
 
 
-def get_fourier_rects(
+def get_fourier_rects_n(
     signal_func,
-    n_samples=32,
-    sample_rate=32,
+    n_samples=16,
+    sample_rate=16,
     t_min=0,
     t_max=2 * PI,
     rect_scale=0.1,
     rect_width=0.3,
     font_scale=0.4,
+    full_spectrum=False,
 ):
-    # idea: sample points from get_fourier_line_chart
-    # and create num_bars dynamically to scale with the axes size
+    spectrum_selection = n_samples if full_spectrum else n_samples // 2
+
     af_matrix = get_analysis_frequency_matrix(
         N=n_samples, sample_rate=sample_rate, t_max=t_max
     )
@@ -435,7 +438,56 @@ def get_fourier_rects(
                 ).set_fill(REDUCIBLE_VIOLET, opacity=1),
                 Text(str(i), font=REDUCIBLE_MONO).scale(font_scale),
             ).arrange(DOWN)
-            for i, f in enumerate(mt.flatten()[: mt.shape[0]])
+            for i, f in enumerate(mt.flatten()[:spectrum_selection])
+        ]
+    ).arrange(RIGHT, aligned_edge=DOWN)
+
+    frequency_label = Text("Frequency", font=REDUCIBLE_MONO).scale(font_scale / 1.2)
+    frequency_label.next_to(rects, DOWN)
+
+    return VGroup(rects, frequency_label)
+
+
+def get_fourier_rects_from_custom_matrix(
+    signal_func,
+    af_matrix,
+    n_samples=16,
+    t_min=0,
+    t_max=2 * PI,
+    rect_scale=0.1,
+    rect_width=0.3,
+    font_scale=0.4,
+    full_spectrum=False,
+):
+    spectrum_selection = n_samples if full_spectrum else n_samples // 2
+
+    sampled_signal = np.array(
+        [
+            signal_func(v)
+            for v in np.linspace(t_min, t_max, num=n_samples, endpoint=False)
+        ]
+    ).reshape(-1, 1)
+
+    mt = apply_matrix_transform(sampled_signal, af_matrix)
+    mt = np.abs(mt)
+    if True in np.iscomplex(mt):
+        mt = np.abs(mt)
+
+    width_heights = [
+        (rect_width, f * rect_scale) for f in mt.flatten()[:spectrum_selection]
+    ]
+    # print("(width, height)", width_heights)
+    rects = VGroup(
+        *[
+            VGroup(
+                Rectangle(
+                    color=REDUCIBLE_VIOLET,
+                    width=rect_width,
+                    height=f * rect_scale if f > 0.001 else 0.001,
+                ).set_fill(REDUCIBLE_VIOLET, opacity=1),
+                Text(str(i), font=REDUCIBLE_MONO).scale(font_scale),
+            ).arrange(DOWN)
+            for i, f in enumerate(mt.flatten()[:spectrum_selection])
         ]
     ).arrange(RIGHT, aligned_edge=DOWN)
 
@@ -455,7 +507,7 @@ def get_analysis_frequency_matrix(N, sample_rate, t_min=0, t_max=2 * PI):
     """
 
     # analysis frequencies
-    af = [get_cosine_func(freq=sample_rate * m / N) for m in range(N // 2)]
+    af = [get_cosine_func(freq=sample_rate * m / N) for m in range(N)]
 
     # for each analysis frequency, sample that function along N points
     # this returns the frequencies per rows, so .T transposes and
