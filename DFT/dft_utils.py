@@ -316,7 +316,7 @@ def get_analysis_frequency_matrix(
     selected_spectrum = N if full_spectrum else N // 2
 
     # analysis frequencies
-    af = [signal_func(freq=sample_rate * m / N) for m in range(selected_spectrum)]
+    af = [signal_func(freq=sample_rate * m / N) for m in range(N)]
 
     # for each analysis frequency, sample that function along N points
     # this returns the frequencies per rows, so .T transposes and
@@ -471,11 +471,12 @@ def get_fourier_rects(
     rect_scale=0.1,
     rect_width=0.3,
     font_scale=0.4,
+    full_spectrum=False,
 ):
     # idea: sample points from get_fourier_line_chart
     # and create num_bars dynamically to scale with the axes size
     af_matrix = get_analysis_frequency_matrix(
-        N=n_samples, sample_rate=sample_rate, t_max=t_max, full_spectrum=False
+        N=n_samples, sample_rate=sample_rate, t_max=t_max, full_spectrum=full_spectrum
     )
     sampled_signal = np.array(
         [

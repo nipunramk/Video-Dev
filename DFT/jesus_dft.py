@@ -765,11 +765,11 @@ class IntroducePhaseProblem(MovingCameraScene):
         n_samples = sample_frequency
 
         analysis_frequencies = [
-            sample_frequency * m / n_samples for m in range(n_samples // 2)
+            sample_frequency * m / n_samples for m in range(n_samples)
         ]
 
         # let's just take one AF as an example
-        original_freq = analysis_frequencies[2]
+        original_freq = analysis_frequencies[1]
 
         vt_frequency = ValueTracker(original_freq)
         # this tracker will move phase: from 0 to PI/2
