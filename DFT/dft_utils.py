@@ -289,7 +289,9 @@ def make_row_vector(values, h_buff=0.6, scale=0.6):
     return vector.scale(scale)
 
 
-def get_analysis_frequency_matrix(N, sample_rate, func="cos", t_min=0, t_max=2 * PI):
+def get_analysis_frequency_matrix(
+    N, sample_rate, func="cos", t_min=0, t_max=2 * PI, full_spectrum=False
+):
     """
     Constructs a N x N matrix of N analysis frequencies
     sampled at N points.
@@ -311,6 +313,8 @@ def get_analysis_frequency_matrix(N, sample_rate, func="cos", t_min=0, t_max=2 *
     else:
         signal_func = get_sine_func
 
+    selected_spectrum = N if full_spectrum else N // 2
+
     # analysis frequencies
     af = [signal_func(freq=sample_rate * m / N) for m in range(N)]
 
@@ -318,7 +322,10 @@ def get_analysis_frequency_matrix(N, sample_rate, func="cos", t_min=0, t_max=2 *
     # this returns the frequencies per rows, so .T transposes and
     # have the signal values in cols
     return np.array(
-        [[f(s) for s in np.linspace(t_min, t_max, num=N, endpoint=False)] for f in af]
+        [
+            [f(s) for s in np.linspace(t_min, t_max, num=N, endpoint=False)]
+            for f in af[:selected_spectrum]
+        ]
     )
 
 
