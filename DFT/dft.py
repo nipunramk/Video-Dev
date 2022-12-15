@@ -646,13 +646,17 @@ class TestCases(Scene):
         changing_half_fourier_rects = always_redraw(get_changing_fourier_rects)
 
         def get_changing_signal():
+            # TODO might need to unpack the display signal function here
+            # get the axes and vertical lines, move them to the center of reference axes and the vertical lines
+            # then plot the signal with reference to the axes and vertical lines. Return that signal and dots.
             analysis_freq_func = get_cosine_func(
                 amplitude=vt_amplitude.get_value(),
                 freq=vt_frequency.get_value(),
                 b=vt_b.get_value(),
             )
             new_signal = display_signal(analysis_freq_func, num_points=16)
-            return new_signal.scale(0.8).move_to(time_domain_graph, aligned_edge=UP)
+            new_signal.scale(0.8).move_to(time_domain_graph.get_center())
+            return VGroup(new_signal[2], new_signal[3])
 
         def change_text_redraw():
             v_freq = f"{vt_frequency.get_value():.2f}"
@@ -691,7 +695,7 @@ class TestCases(Scene):
         changing_time_domain_graph = always_redraw(get_changing_signal)
 
         text_group = always_redraw(change_text_redraw)
-        self.remove(time_domain_graph)
+        self.remove(time_domain_graph[2], time_domain_graph[3])
         self.add(changing_time_domain_graph)
         self.remove(half_fourier_rects)
         self.add(changing_half_fourier_rects)
@@ -738,4 +742,124 @@ class TestCases(Scene):
         self.play(vt_b.animate.set_value(0.5), run_time=2)
         self.wait()
         self.play(vt_b.animate.set_value(0), run_time=2)
+        self.wait()
+
+        self.play(
+            FadeOut(text_group),
+            FadeOut(
+                changing_time_domain_graph, time_domain_graph[0], time_domain_graph[1]
+            ),
+            FadeOut(changing_half_fourier_rects),
+            FadeOut(signal_math),
+            FadeOut(num_samples_text),
+            FadeOut(reference_label),
+        )
+        self.wait()
+        f1 = get_cosine_func(freq=1, amplitude=0.4)
+        freq_one = display_signal(f1, num_points=16)
+        f2 = get_cosine_func(freq=4, amplitude=0.6)
+        freq_four = display_signal(
+            f2,
+            num_points=16,
+            color=REDUCIBLE_GREEN_LIGHTER,
+        )
+        f3 = get_cosine_func(freq=5, amplitude=0.1)
+        freq_five = display_signal(
+            f3,
+            num_points=16,
+            color=REDUCIBLE_ORANGE,
+        )
+
+        frequencies = (
+            VGroup(freq_one, freq_four, freq_five)
+            .scale(0.6)
+            .arrange(RIGHT)
+            .move_to(UP * 2)
+        )
+
+        self.play(FadeIn(frequencies))
+        self.wait()
+
+        a_f_label_1 = VGroup(MathTex("A = 0.4, f = 1")).scale(0.6).next_to(freq_one, UP)
+        a_f_label_2 = (
+            VGroup(MathTex("A = 0.6, f = 4")).scale(0.6).next_to(freq_four, UP)
+        )
+        a_f_label_3 = (
+            VGroup(MathTex("A = 0.1, f = 5")).scale(0.6).next_to(freq_five, UP)
+        )
+
+        f_label_1 = MathTex("F_1").scale(0.7).next_to(freq_one, DOWN)
+        f_label_2 = MathTex("F_2").scale(0.7).next_to(freq_four, DOWN)
+        f_label_3 = MathTex("F_3").scale(0.7).next_to(freq_five, DOWN)
+
+        self.play(
+            FadeIn(a_f_label_1),
+            FadeIn(a_f_label_2),
+            FadeIn(a_f_label_3),
+            FadeIn(f_label_1),
+            FadeIn(f_label_2),
+            FadeIn(f_label_3),
+        )
+        self.wait()
+
+        separate_group = VGroup(
+            a_f_label_1,
+            a_f_label_2,
+            a_f_label_3,
+            f_label_1,
+            f_label_2,
+            f_label_3,
+            freq_one,
+            freq_four,
+            freq_five,
+        )
+
+        combined_func = lambda x: f1(x) + f2(x) + f3(x)
+
+        combined_func_graph = display_signal(
+            combined_func, num_points=16, color=REDUCIBLE_CHARM
+        )
+        combined_func_graph.scale(0.7).next_to(f_label_2, DOWN)
+
+        combined_func_label = (
+            MathTex("F_1 + F_2 + F_3").scale(0.7).next_to(combined_func_graph, DOWN)
+        )
+
+        self.play(FadeIn(combined_func_graph), FadeIn(combined_func_label))
+        self.wait()
+
+        fourier_rects, _ = get_fourier_rects_n(combined_func)
+        fourier_rects.next_to(combined_func_label, DOWN)
+
+        self.play(FadeIn(fourier_rects))
+        self.wait()
+
+        together_group = VGroup(combined_func_graph, combined_func_label, fourier_rects)
+        self.play(
+            separate_group.animate.scale(0.8).shift(UP * 0.5),
+            together_group.animate.scale(0.8).shift(DOWN * 0.5),
+        )
+        self.wait()
+
+        fourier_rects_copy = fourier_rects.copy()
+        f_rects_1, _ = get_fourier_rects_n(f1)
+        f_rects_2, _ = get_fourier_rects_n(f2)
+        f_rects_3, _ = get_fourier_rects_n(f3)
+        f_rects_1.scale_to_fit_width(fourier_rects_copy.width)
+        f_rects_2.scale_to_fit_width(fourier_rects_copy.width)
+        f_rects_3.scale_to_fit_width(fourier_rects_copy.width)
+
+        f_rects_1.next_to(f_label_1, DOWN).shift(DOWN * SMALL_BUFF * 1.3)
+        f_rects_2.next_to(f_label_2, DOWN)
+        f_rects_3.next_to(f_label_3, DOWN).shift(DOWN * SMALL_BUFF * 3.2)
+
+        summed_transform = MathTex(
+            "T(F_1 + F_2 + F_3) = T(F_1) + T(F_2) + T(F_3)"
+        ).scale(0.8)
+        summed_transform.next_to(f_rects_2, DOWN)
+
+        self.play(FadeIn(summed_transform))
+        self.wait()
+
+        self.play(LaggedStartMap(FadeIn, [f_rects_1, f_rects_2, f_rects_3]))
         self.wait()
