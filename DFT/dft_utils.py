@@ -316,7 +316,7 @@ def get_analysis_frequency_matrix(
     selected_spectrum = N if full_spectrum else N // 2
 
     # analysis frequencies
-    af = [signal_func(freq=sample_rate * m / N) for m in range(N)]
+    af = [signal_func(freq=sample_rate * m / N) for m in range(N // 2)]
 
     # for each analysis frequency, sample that function along N points
     # this returns the frequencies per rows, so .T transposes and
@@ -354,7 +354,9 @@ def get_rectangles_for_matrix_transform(
             *[
                 VGroup(
                     Rectangle(
-                        color=REDUCIBLE_VIOLET, width=0.3, height=f * rect_scale
+                        color=REDUCIBLE_VIOLET,
+                        width=0.3,
+                        height=f * rect_scale if f * rect_scale > 0.01 else 0.01,
                     ).set_fill(REDUCIBLE_VIOLET, opacity=1),
                     Text(str(i), font=REDUCIBLE_MONO).scale(0.4),
                 ).arrange(DOWN)

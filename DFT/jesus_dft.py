@@ -769,7 +769,7 @@ class IntroducePhaseProblem(MovingCameraScene):
         ]
 
         # let's just take one AF as an example
-        original_freq = analysis_frequencies[1]
+        original_freq = analysis_frequencies[2]
 
         vt_frequency = ValueTracker(original_freq)
         # this tracker will move phase: from 0 to PI/2
@@ -827,6 +827,13 @@ class IntroducePhaseProblem(MovingCameraScene):
             changing_signal = display_signal(phase_ch_cos)
             return changing_signal.scale(0.6).shift(UP)
 
+        af_matrix = get_analysis_frequency_matrix(
+            N=n_samples,
+            sample_rate=sample_frequency,
+            func="cos",
+            t_max=t_max,
+        )
+
         def updating_transform_redraw():
             signal_function = get_cosine_func(
                 amplitude=vt_amplitude.get_value(),
@@ -835,9 +842,14 @@ class IntroducePhaseProblem(MovingCameraScene):
                 b=vt_b.get_value(),
             )
 
-            rects = get_fourier_rects(
-                signal_function, n_samples, sample_frequency, t_max=t_max
-            )
+            sampled_signal = np.array(
+                [
+                    signal_function(v)
+                    for v in np.linspace(t_min, t_max, num=n_samples, endpoint=False)
+                ]
+            ).reshape(-1, 1)
+
+            rects = get_rectangles_for_matrix_transform(sampled_signal, af_matrix)
 
             return rects.move_to(DOWN * 3.5, aligned_edge=DOWN)
 
