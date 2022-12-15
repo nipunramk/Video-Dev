@@ -925,18 +925,18 @@ class SolvingPhaseProblem(MovingCameraScene):
     def construct(self):
         reset_frame = self.camera.frame.save_state()
 
-        # self.hacky_sine_waves()
+        self.hacky_sine_waves()
 
-        # self.play(*[FadeOut(mob) for mob in self.mobjects])
-        # self.play(Restore(reset_frame))
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
+        self.play(Restore(reset_frame))
 
-        # self.capture_sine_and_cosine_transforms()
-        # self.play(*[FadeOut(mob) for mob in self.mobjects])
-        # self.play(Restore(reset_frame))
+        self.capture_sine_and_cosine_transforms()
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
+        self.play(Restore(reset_frame))
 
-        # self.sum_up_dft()
-        # self.play(*[FadeOut(mob) for mob in self.mobjects])
-        # self.play(Restore(reset_frame))
+        self.sum_up_dft()
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
+        self.play(Restore(reset_frame))
 
         self.final_tests_dft()
 
