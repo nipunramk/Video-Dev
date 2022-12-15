@@ -583,11 +583,11 @@ class IntroSimilarityConcept(MovingCameraScene):
 class IntroducePhaseProblem(MovingCameraScene):
     def construct(self):
 
-        frame = self.camera.frame.save_state()
-        self.try_sine_wave()
+        # frame = self.camera.frame.save_state()
+        # self.try_sine_wave()
 
-        self.play(*[FadeOut(mob) for mob in self.mobjects])
-        self.play(Restore(frame))
+        # self.play(*[FadeOut(mob) for mob in self.mobjects])
+        # self.play(Restore(frame))
 
         self.test_cases_again()
 
@@ -759,13 +759,13 @@ class IntroducePhaseProblem(MovingCameraScene):
         t_max = TAU * 2
 
         # samples per second
-        sample_frequency = 40
+        sample_frequency = 16
 
         # total number of samples
         n_samples = sample_frequency
 
         analysis_frequencies = [
-            sample_frequency * m / n_samples for m in range(n_samples // 2)
+            sample_frequency * m / n_samples for m in range(n_samples)
         ]
 
         # let's just take one AF as an example
@@ -824,14 +824,15 @@ class IntroducePhaseProblem(MovingCameraScene):
                 phase=vt_phase.get_value(),
                 b=vt_b.get_value(),
             )
-            _, phase_ch_cos_mob = plot_time_domain(phase_ch_cos, t_max=t_max)
-            return phase_ch_cos_mob.scale(0.6).shift(UP)
+            changing_signal = display_signal(phase_ch_cos)
+            return changing_signal.scale(0.6).shift(UP)
 
         af_matrix = get_analysis_frequency_matrix(
-            N=n_samples, sample_rate=sample_frequency, t_max=t_max
+            N=n_samples,
+            sample_rate=sample_frequency,
+            func="cos",
+            t_max=t_max,
         )
-
-        rect_scale = 0.1
 
         def updating_transform_redraw():
             signal_function = get_cosine_func(
@@ -850,48 +851,73 @@ class IntroducePhaseProblem(MovingCameraScene):
 
             rects = get_rectangles_for_matrix_transform(sampled_signal, af_matrix)
 
-            return rects
+            return rects.move_to(DOWN * 3.5, aligned_edge=DOWN)
 
         changing_signal_mob = always_redraw(change_phase_redraw)
         freq_analysis = always_redraw(updating_transform_redraw)
         changing_tex_group = always_redraw(change_text_redraw)
 
-        line_ref = DashedVMobject(
-            Line(freq_analysis.get_left(), freq_analysis.get_right())
-            .set_stroke(WHITE, opacity=0.5)
-            .move_to(changing_signal_mob)
-        )
-
-        self.play(Write(changing_signal_mob), FadeIn(freq_analysis), Write(line_ref))
+        self.play(Write(changing_signal_mob), FadeIn(freq_analysis))
         self.play(FadeIn(changing_tex_group))
 
-        self.play(vt_amplitude.animate.set_value(0.5), run_time=0.8)
+        self.play(
+            vt_amplitude.animate.set_value(0.5),
+            run_time=0.8,
+            rate_func=rate_functions.ease_in_out_sine,
+        )
         self.wait()
-        self.play(vt_amplitude.animate.set_value(0.1), run_time=0.8)
+        self.play(
+            vt_amplitude.animate.set_value(0.1),
+            run_time=0.8,
+            rate_func=rate_functions.ease_in_out_sine,
+        )
         self.wait()
-        self.play(vt_amplitude.animate.set_value(0), run_time=0.8)
+        self.play(
+            vt_amplitude.animate.set_value(0),
+            run_time=0.8,
+            rate_func=rate_functions.ease_in_out_sine,
+        )
         self.wait()
-        self.play(vt_amplitude.animate.set_value(1), run_time=0.8)
+        self.play(
+            vt_amplitude.animate.set_value(1),
+            run_time=0.8,
+            rate_func=rate_functions.ease_in_out_sine,
+        )
         self.wait()
 
-        self.play(vt_frequency.animate.set_value(analysis_frequencies[3]))
+        self.play(
+            vt_frequency.animate.set_value(analysis_frequencies[3]),
+            rate_func=rate_functions.ease_in_out_sine,
+        )
         self.wait()
-        self.play(vt_frequency.animate.set_value(analysis_frequencies[4]))
+        self.play(
+            vt_frequency.animate.set_value(analysis_frequencies[4]),
+            rate_func=rate_functions.ease_in_out_sine,
+        )
         self.wait()
 
-        self.play(vt_b.animate.set_value(0.3))
+        self.play(
+            vt_b.animate.set_value(0.3), rate_func=rate_functions.ease_in_out_sine
+        )
         self.wait()
-        self.play(vt_b.animate.set_value(0.5))
+        self.play(
+            vt_b.animate.set_value(0.5), rate_func=rate_functions.ease_in_out_sine
+        )
         self.wait()
-        self.play(vt_b.animate.set_value(0))
+        self.play(vt_b.animate.set_value(0), rate_func=rate_functions.ease_in_out_sine)
         self.wait()
 
         for i in range(1, 5):
-            self.play(vt_phase.animate.set_value(i * PI / 2))
+            self.play(
+                vt_phase.animate.set_value(i * PI / 2),
+                rate_func=rate_functions.ease_in_out_sine,
+            )
             self.wait()
 
         self.play(
-            vt_phase.animate.set_value(20 * PI / 2), run_time=10, rate_func=linear
+            vt_phase.animate.set_value(20 * PI / 2),
+            run_time=10,
+            rate_func=rate_functions.ease_in_out_sine,
         )
 
 

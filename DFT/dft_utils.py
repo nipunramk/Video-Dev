@@ -289,7 +289,9 @@ def make_row_vector(values, h_buff=0.6, scale=0.6):
     return vector.scale(scale)
 
 
-def get_analysis_frequency_matrix(N, sample_rate, func="cos", t_min=0, t_max=2 * PI):
+def get_analysis_frequency_matrix(
+    N, sample_rate, func="cos", t_min=0, t_max=2 * PI, full_spectrum=False
+):
     """
     Constructs a N x N matrix of N analysis frequencies
     sampled at N points.
@@ -311,8 +313,10 @@ def get_analysis_frequency_matrix(N, sample_rate, func="cos", t_min=0, t_max=2 *
     else:
         signal_func = get_sine_func
 
+    selected_spectrum = N if full_spectrum else N // 2
+
     # analysis frequencies
-    af = [signal_func(freq=sample_rate * m / N) for m in range(N)]
+    af = [signal_func(freq=sample_rate * m / N) for m in range(N // 2)]
 
     # for each analysis frequency, sample that function along N points
     # this returns the frequencies per rows, so .T transposes and
@@ -350,7 +354,9 @@ def get_rectangles_for_matrix_transform(
             *[
                 VGroup(
                     Rectangle(
-                        color=REDUCIBLE_VIOLET, width=0.3, height=f * rect_scale
+                        color=REDUCIBLE_VIOLET,
+                        width=0.3,
+                        height=f * rect_scale if f * rect_scale > 0.01 else 0.01,
                     ).set_fill(REDUCIBLE_VIOLET, opacity=1),
                     Text(str(i), font=REDUCIBLE_MONO).scale(0.4),
                 ).arrange(DOWN)
@@ -467,11 +473,12 @@ def get_fourier_rects(
     rect_scale=0.1,
     rect_width=0.3,
     font_scale=0.4,
+    full_spectrum=False,
 ):
     # idea: sample points from get_fourier_line_chart
     # and create num_bars dynamically to scale with the axes size
     af_matrix = get_analysis_frequency_matrix(
-        N=n_samples, sample_rate=sample_rate, t_max=t_max
+        N=n_samples, sample_rate=sample_rate, t_max=t_max, full_spectrum=full_spectrum
     )
     sampled_signal = np.array(
         [
