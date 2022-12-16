@@ -929,18 +929,18 @@ class SolvingPhaseProblem(MovingCameraScene):
     def construct(self):
         reset_frame = self.camera.frame.save_state()
 
-        # self.hacky_sine_waves()
+        self.hacky_sine_waves()
 
-        # self.play(*[FadeOut(mob) for mob in self.mobjects])
-        # self.play(Restore(reset_frame))
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
+        self.play(Restore(reset_frame))
 
-        # self.capture_sine_and_cosine_transforms()
-        # self.play(*[FadeOut(mob) for mob in self.mobjects])
-        # self.play(Restore(reset_frame))
+        self.capture_sine_and_cosine_transforms()
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
+        self.play(Restore(reset_frame))
 
-        # self.sum_up_dft()
-        # self.play(*[FadeOut(mob) for mob in self.mobjects])
-        # self.play(Restore(reset_frame))
+        self.sum_up_dft()
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
+        self.play(Restore(reset_frame))
 
         self.final_tests_dft()
 
@@ -949,7 +949,7 @@ class SolvingPhaseProblem(MovingCameraScene):
         t_max = PI
 
         # samples per second
-        sample_frequency = 40
+        sample_frequency = 16
 
         # total number of samples
         n_samples = sample_frequency
@@ -1564,6 +1564,8 @@ class SolvingPhaseProblem(MovingCameraScene):
                 .set_color(REDUCIBLE_YELLOW)
             )
 
+        sides_buff = -3.4
+
         def updating_sine_transform_redraw():
             signal_function = get_cosine_func(
                 amplitude=vt_amplitude.get_value(),
@@ -1587,7 +1589,7 @@ class SolvingPhaseProblem(MovingCameraScene):
             rects = VGroup(*[r[0] for r in rects])
 
             return (
-                rects.next_to(freq_analysis, LEFT, aligned_edge=DOWN, buff=-0.6)
+                rects.next_to(freq_analysis, LEFT, aligned_edge=DOWN, buff=sides_buff)
                 .stretch_to_fit_width(changing_signal_mob.width)
                 .set_color(REDUCIBLE_CHARM)
             )
@@ -1615,7 +1617,7 @@ class SolvingPhaseProblem(MovingCameraScene):
             rects = VGroup(*[r[0] for r in rects])
 
             return rects.next_to(
-                freq_analysis, RIGHT, aligned_edge=DOWN, buff=-0.6
+                freq_analysis, RIGHT, aligned_edge=DOWN, buff=sides_buff
             ).stretch_to_fit_width(changing_signal_mob.width)
 
         changing_signal_mob = always_redraw(changing_signal_redraw)
@@ -1675,9 +1677,7 @@ class SolvingPhaseProblem(MovingCameraScene):
             self.play(vt_phase.animate.set_value(i * PI / 2))
             self.wait()
 
-        self.play(
-            vt_phase.animate.set_value(20 * PI / 2), run_time=10, rate_func=linear
-        )
+        self.play(vt_phase.animate.set_value(20 * PI / 2), run_time=5, rate_func=linear)
 
         self.wait()
 
