@@ -812,6 +812,20 @@ class IntroducePhaseProblem(MovingCameraScene):
             )
             return text_group
 
+        display_axes_lines = (
+            display_signal(
+                get_cosine_func(
+                    amplitude=vt_amplitude.get_value(),
+                    freq=vt_frequency.get_value(),
+                    phase=vt_phase.get_value(),
+                    b=vt_b.get_value(),
+                )
+            )
+            .scale(0.6)
+            .shift(UP)
+        )
+        axes_and_lines = VGroup(display_axes_lines[0], display_axes_lines[1])
+
         def change_phase_redraw():
             phase_ch_cos = get_cosine_func(
                 amplitude=vt_amplitude.get_value(),
@@ -820,7 +834,10 @@ class IntroducePhaseProblem(MovingCameraScene):
                 b=vt_b.get_value(),
             )
             changing_signal = display_signal(phase_ch_cos)
-            return changing_signal.scale(0.6).shift(UP)
+
+            # we only return the displayed signal
+            changing_signal_and_points = VGroup(changing_signal[2], changing_signal[3])
+            return changing_signal_and_points.scale(0.6).shift(UP)
 
         af_matrix = get_analysis_frequency_matrix(
             N=n_samples, sample_rate=sample_frequency, t_max=t_max
@@ -844,7 +861,7 @@ class IntroducePhaseProblem(MovingCameraScene):
         freq_analysis = always_redraw(updating_transform_redraw)
         changing_tex_group = always_redraw(change_text_redraw)
 
-        self.play(Write(changing_signal_mob), FadeIn(freq_analysis))
+        self.play(Write(changing_signal_mob), FadeIn(freq_analysis, axes_and_lines))
         self.play(FadeIn(changing_tex_group))
 
         self.play(
