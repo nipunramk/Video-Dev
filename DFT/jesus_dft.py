@@ -586,15 +586,15 @@ class IntroducePhaseProblem(MovingCameraScene):
         frame = self.camera.frame.save_state()
         self.try_sine_wave()
 
-        # self.play(*[FadeOut(mob) for mob in self.mobjects])
-        # self.play(Restore(frame))
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
+        self.play(Restore(frame))
 
-        # self.test_cases_again()
+        self.test_cases_again()
 
     def try_sine_wave(self):
         frame = self.camera.frame
         t_min = 0
-        t_max = TAU
+        t_max = 2 * PI
 
         original_freq = 2
 
@@ -630,13 +630,6 @@ class IntroducePhaseProblem(MovingCameraScene):
                 phase=vt_phase.get_value(),
                 b=vt_b.get_value(),
             )
-
-            sampled_signal = np.array(
-                [
-                    signal_function(v)
-                    for v in np.linspace(t_min, t_max, num=n_samples, endpoint=False)
-                ]
-            ).reshape(-1, 1)
 
             rects = get_fourier_rects_from_custom_matrix(
                 signal_function, af_matrix, n_samples=n_samples, t_max=t_max
@@ -758,13 +751,13 @@ class IntroducePhaseProblem(MovingCameraScene):
     def test_cases_again(self):
         frame = self.camera.frame
         t_min = 0
-        t_max = TAU * 2
+        t_max = 2 * PI
 
         # samples per second
-        sample_frequency = 16
+        n_samples = 16
 
         # total number of samples
-        n_samples = sample_frequency
+        sample_frequency = n_samples
 
         analysis_frequencies = [
             sample_frequency * m / n_samples for m in range(n_samples)
@@ -830,9 +823,7 @@ class IntroducePhaseProblem(MovingCameraScene):
             return changing_signal.scale(0.6).shift(UP)
 
         af_matrix = get_analysis_frequency_matrix(
-            N=n_samples,
-            sample_rate=sample_frequency,
-            t_max=t_max,
+            N=n_samples, sample_rate=sample_frequency, t_max=t_max
         )
 
         def updating_transform_redraw():
@@ -842,13 +833,6 @@ class IntroducePhaseProblem(MovingCameraScene):
                 phase=vt_phase.get_value(),
                 b=vt_b.get_value(),
             )
-
-            sampled_signal = np.array(
-                [
-                    signal_function(v)
-                    for v in np.linspace(t_min, t_max, num=n_samples, endpoint=False)
-                ]
-            ).reshape(-1, 1)
 
             rects = get_fourier_rects_from_custom_matrix(
                 signal_function, af_matrix, n_samples=n_samples, t_max=t_max
