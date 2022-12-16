@@ -2288,7 +2288,7 @@ class TransitionTemplate(Scene):
             "Sampling",
             ["Time and Frequency", " Domains"],
             ["Similarity between", "signals"],
-            "Analysis Frequencies",
+            ["Analysis", "Frequencies"],
             "Phase Problems",
             ["Simplifying the", "Discrete Fourier Transform"],
             "Conclusion",
