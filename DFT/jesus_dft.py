@@ -1713,10 +1713,10 @@ class InterpretDFT(MovingCameraScene):
         t_max = 2 * PI
 
         # samples per second
-        sample_frequency = 10
+        n_samples = 10
 
         # total number of samples
-        n_samples = sample_frequency
+        sample_frequency = n_samples
 
         analysis_frequencies = [
             sample_frequency * m / n_samples for m in range(n_samples)
@@ -1946,9 +1946,11 @@ class InterpretDFT(MovingCameraScene):
                 LaggedStartMap(Write, sampled_points[0]),
                 LaggedStartMap(Write, sampled_points[1]),
                 Transform(points_on_circle, _points_on_circle),
-                run_time=0.7,
+                run_time=1 / (i + 1),
             )
-            self.wait()
+            self.wait(1 / (i + 1))
+
+        self.wait()
 
         og_axis_and_signal = VGroup(
             *plot_time_domain(
@@ -2079,13 +2081,15 @@ class InterpretDFT(MovingCameraScene):
                     for idx in range(n_samples)
                     if idx != i
                 ],
-                run_time=0.7,
+                run_time=1 / (i + 1),
             )
-            self.wait(1.3)
+            self.wait(1 / (i + 1))
 
         vt_frequency = ValueTracker(original_frequency)
         vt_phase = ValueTracker(0)
         vt_amplitude = ValueTracker(0.2)
+
+        dft_matrix = get_dft_matrix(n_samples)
 
         def dft_barchart_redraw():
             cos_func = get_cosine_func(
@@ -2093,16 +2097,19 @@ class InterpretDFT(MovingCameraScene):
                 amplitude=vt_amplitude.get_value(),
                 phase=vt_phase.get_value(),
             )
-            barchart = get_fourier_bar_chart(
+
+            rects = get_fourier_rects_from_custom_matrix(
                 cos_func,
-                t_max=t_max,
+                dft_matrix,
                 n_samples=n_samples,
+                t_max=t_max,
+                rect_scale=0.6,
                 full_spectrum=True,
-                height_scale=4,
             )
+            rects = VGroup(*[r[0] for r in rects[0]])
 
             return (
-                barchart.rotate(-90 * DEGREES)
+                rects.rotate(-90 * DEGREES)
                 .stretch_to_fit_height(dft_matrix_tex.height)
                 .next_to(dft_matrix_tex, RIGHT, buff=0.4)
             )
