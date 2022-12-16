@@ -276,7 +276,7 @@ class MatrixDefinition(Scene):
         self.play(graph_notation.animate.scale(DEFAULT_SCALE).shift(LEFT * 3.5))
 
         time_signal_func = get_cosine_func(freq=2)
-        rects = get_fourier_rects(time_signal_func, n_samples=16, sample_rate=16)
+        rects = get_fourier_rects_n(time_signal_func, n_samples=16, sample_rate=16)
         rects.scale(1.2).move_to(RIGHT * 3.5)
 
         self.play(FadeIn(rects))
@@ -294,7 +294,7 @@ class MatrixDefinition(Scene):
             ).scale_to_fit_height(freq_annotation.height)
 
             new_rects = (
-                get_fourier_rects(new_time_signal_func, n_samples=16, sample_rate=16)
+                get_fourier_rects_n(new_time_signal_func, n_samples=16, sample_rate=16)
                 .scale_to_fit_height(rects.height)
                 .move_to(rects.get_center())
             )
@@ -538,3 +538,328 @@ class MatrixDefinition(Scene):
     #             animations.append(mob.animate.set_stroke(opacity=opacity))
 
     #     return animations
+
+
+class TestCases(Scene):
+    def construct(self):
+        NUM_SAMPLES = 16
+        time_signal_func = get_cosine_func(freq=DEFAULT_FREQ)
+        time_domain_graph = display_signal(time_signal_func, num_points=NUM_SAMPLES)
+        (
+            time_axis,
+            sampled_points_vert_lines,
+            graph,
+            sampled_points_dots,
+        ) = time_domain_graph
+        self.play(FadeIn(time_axis), Write(graph))
+        self.wait()
+        sample_value = MathTex(
+            r"y_k = A \cos \left( \frac{2 \pi k f}{N} \right) + b"
+        ).scale(0.7)
+
+        signal_math = VGroup(sample_value).arrange(DOWN).next_to(time_domain_graph, UP)
+
+        num_samples_text = MathTex("N = 16").scale(0.7)
+        num_samples_text.next_to(time_domain_graph, DOWN)
+
+        self.play(FadeIn(signal_math))
+        self.wait()
+
+        self.play(
+            LaggedStartMap(Write, sampled_points_vert_lines),
+            LaggedStartMap(GrowFromCenter, sampled_points_dots),
+        )
+        self.wait()
+        time_domain_graph_with_math = VGroup(
+            signal_math, time_domain_graph, num_samples_text
+        )
+
+        self.play(FadeIn(num_samples_text))
+        self.wait()
+
+        self.play(time_domain_graph_with_math.animate.scale(0.8).shift(UP * 1.5))
+        self.wait()
+
+        cosine_dft_matrix = get_cosine_dft_matrix(NUM_SAMPLES)
+        fourier_rects = (
+            get_fourier_rects_from_custom_matrix(
+                time_signal_func,
+                cosine_dft_matrix,
+                n_samples=NUM_SAMPLES,
+                full_spectrum=True,
+            )
+            .scale(1.2)
+            .move_to(DOWN * 2)
+        )
+
+        self.play(FadeIn(fourier_rects))
+        self.wait()
+
+        surround_rect = SurroundingRectangle(
+            fourier_rects[0][: NUM_SAMPLES // 2], color=REDUCIBLE_YELLOW
+        )
+        self.play(Write(surround_rect))
+        self.wait()
+
+        vt_amplitude = ValueTracker(1)
+        vt_frequency = ValueTracker(DEFAULT_FREQ)
+        vt_b = ValueTracker(0)
+
+        half_fourier_rects, reference_label = (
+            get_fourier_rects_from_custom_matrix(
+                time_signal_func,
+                cosine_dft_matrix,
+                n_samples=NUM_SAMPLES,
+                full_spectrum=False,
+            )
+            .scale(1.2)
+            .move_to(fourier_rects.get_center())
+        )
+
+        half_fourier_rects_group = VGroup(half_fourier_rects, reference_label)
+
+        def get_changing_fourier_rects():
+            time_signal_func = get_cosine_func(
+                amplitude=vt_amplitude.get_value(),
+                freq=vt_frequency.get_value(),
+                b=vt_b.get_value(),
+            )
+            changing_half_fourier_rects, frequency_label = (
+                get_fourier_rects_from_custom_matrix(
+                    time_signal_func,
+                    cosine_dft_matrix,
+                    n_samples=NUM_SAMPLES,
+                    full_spectrum=False,
+                )
+                .scale(1.2)
+                .move_to(half_fourier_rects, aligned_edge=DOWN)
+                .shift(DOWN * 0.5)
+            )
+            return changing_half_fourier_rects
+
+        self.play(
+            FadeTransform(fourier_rects, half_fourier_rects_group),
+            FadeOut(surround_rect),
+        )
+        self.wait()
+
+        changing_half_fourier_rects = always_redraw(get_changing_fourier_rects)
+
+        def get_changing_signal():
+            # TODO might need to unpack the display signal function here
+            # get the axes and vertical lines, move them to the center of reference axes and the vertical lines
+            # then plot the signal with reference to the axes and vertical lines. Return that signal and dots.
+            analysis_freq_func = get_cosine_func(
+                amplitude=vt_amplitude.get_value(),
+                freq=vt_frequency.get_value(),
+                b=vt_b.get_value(),
+            )
+            new_signal = display_signal(analysis_freq_func, num_points=16)
+            new_signal.scale(0.8).move_to(time_domain_graph.get_center())
+            return VGroup(new_signal[2], new_signal[3])
+
+        def change_text_redraw():
+            v_freq = f"{vt_frequency.get_value():.2f}"
+            v_amplitude = f"{vt_amplitude.get_value():.2f}"
+            v_b = f"{vt_b.get_value():.2f}"
+
+            freq_eq = MathTex(r"f = ")
+            tex_frequency_val = Text(
+                v_freq,
+                font=REDUCIBLE_MONO,
+            ).scale(0.8)
+            tex_freq = VGroup(freq_eq, tex_frequency_val).arrange(RIGHT)
+
+            amplitude_tex = MathTex("A = ")
+            amplitude_val = Text(
+                v_amplitude,
+                font=REDUCIBLE_MONO,
+            ).scale(0.8)
+            tex_amplitude = VGroup(amplitude_tex, amplitude_val).arrange(RIGHT)
+
+            b_eq = MathTex("b = ")
+            b_val = Text(
+                v_b,
+                font=REDUCIBLE_MONO,
+            ).scale(0.8)
+            tex_b = VGroup(b_eq, b_val).arrange(RIGHT)
+
+            text_group = (
+                VGroup(tex_amplitude, tex_freq, tex_b)
+                .arrange(DOWN, aligned_edge=LEFT)
+                .scale(0.6)
+                .to_corner(UL)
+            )
+            return text_group
+
+        changing_time_domain_graph = always_redraw(get_changing_signal)
+
+        text_group = always_redraw(change_text_redraw)
+        self.remove(time_domain_graph[2], time_domain_graph[3])
+        self.add(changing_time_domain_graph)
+        self.remove(half_fourier_rects)
+        self.add(changing_half_fourier_rects)
+
+        self.play(
+            FadeIn(text_group),
+        )
+        self.wait()
+
+        new_text_group_with_math = (
+            VGroup(
+                text_group.copy(),
+                signal_math.copy().scale(0.7 / 0.8),
+                num_samples_text.copy().scale(0.7 / 0.8),
+            )
+            .arrange(DOWN, aligned_edge=LEFT)
+            .to_corner(UL)
+        )
+
+        self.play(
+            Transform(signal_math, new_text_group_with_math[1]),
+            Transform(num_samples_text, new_text_group_with_math[2]),
+        )
+        self.wait()
+
+        self.play(vt_amplitude.animate.set_value(0.5), run_time=2)
+        self.wait()
+        self.play(vt_amplitude.animate.set_value(1.5), run_time=4)
+        self.wait()
+        self.play(vt_amplitude.animate.set_value(1), run_time=2)
+        self.wait()
+
+        self.play(vt_frequency.animate.set_value(1), run_time=2)
+
+        self.play(vt_frequency.animate.set_value(3), run_time=4)
+
+        self.play(vt_frequency.animate.set_value(4), run_time=2)
+        self.play(vt_frequency.animate.set_value(5), run_time=2)
+        self.play(vt_frequency.animate.set_value(6), run_time=2)
+        self.play(vt_frequency.animate.set_value(7), run_time=2)
+        self.play(vt_frequency.animate.set_value(2), run_time=4)
+        self.wait()
+
+        self.play(vt_b.animate.set_value(0.5), run_time=2)
+        self.wait()
+        self.play(vt_b.animate.set_value(0), run_time=2)
+        self.wait()
+
+        self.play(
+            FadeOut(text_group),
+            FadeOut(
+                changing_time_domain_graph, time_domain_graph[0], time_domain_graph[1]
+            ),
+            FadeOut(changing_half_fourier_rects),
+            FadeOut(signal_math),
+            FadeOut(num_samples_text),
+            FadeOut(reference_label),
+        )
+        self.wait()
+        f1 = get_cosine_func(freq=1, amplitude=0.4)
+        freq_one = display_signal(f1, num_points=16)
+        f2 = get_cosine_func(freq=4, amplitude=0.6)
+        freq_four = display_signal(
+            f2,
+            num_points=16,
+            color=REDUCIBLE_GREEN_LIGHTER,
+        )
+        f3 = get_cosine_func(freq=5, amplitude=0.1)
+        freq_five = display_signal(
+            f3,
+            num_points=16,
+            color=REDUCIBLE_ORANGE,
+        )
+
+        frequencies = (
+            VGroup(freq_one, freq_four, freq_five)
+            .scale(0.6)
+            .arrange(RIGHT)
+            .move_to(UP * 2)
+        )
+
+        self.play(FadeIn(frequencies))
+        self.wait()
+
+        a_f_label_1 = VGroup(MathTex("A = 0.4, f = 1")).scale(0.6).next_to(freq_one, UP)
+        a_f_label_2 = (
+            VGroup(MathTex("A = 0.6, f = 4")).scale(0.6).next_to(freq_four, UP)
+        )
+        a_f_label_3 = (
+            VGroup(MathTex("A = 0.1, f = 5")).scale(0.6).next_to(freq_five, UP)
+        )
+
+        f_label_1 = MathTex("F_1").scale(0.7).next_to(freq_one, DOWN)
+        f_label_2 = MathTex("F_2").scale(0.7).next_to(freq_four, DOWN)
+        f_label_3 = MathTex("F_3").scale(0.7).next_to(freq_five, DOWN)
+
+        self.play(
+            FadeIn(a_f_label_1),
+            FadeIn(a_f_label_2),
+            FadeIn(a_f_label_3),
+            FadeIn(f_label_1),
+            FadeIn(f_label_2),
+            FadeIn(f_label_3),
+        )
+        self.wait()
+
+        separate_group = VGroup(
+            a_f_label_1,
+            a_f_label_2,
+            a_f_label_3,
+            f_label_1,
+            f_label_2,
+            f_label_3,
+            freq_one,
+            freq_four,
+            freq_five,
+        )
+
+        combined_func = lambda x: f1(x) + f2(x) + f3(x)
+
+        combined_func_graph = display_signal(
+            combined_func, num_points=16, color=REDUCIBLE_CHARM
+        )
+        combined_func_graph.scale(0.7).next_to(f_label_2, DOWN)
+
+        combined_func_label = (
+            MathTex("F_1 + F_2 + F_3").scale(0.7).next_to(combined_func_graph, DOWN)
+        )
+
+        self.play(FadeIn(combined_func_graph), FadeIn(combined_func_label))
+        self.wait()
+
+        fourier_rects, _ = get_fourier_rects_n(combined_func)
+        fourier_rects.next_to(combined_func_label, DOWN)
+
+        self.play(FadeIn(fourier_rects))
+        self.wait()
+
+        together_group = VGroup(combined_func_graph, combined_func_label, fourier_rects)
+        self.play(
+            separate_group.animate.scale(0.8).shift(UP * 0.5),
+            together_group.animate.scale(0.8).shift(DOWN * 0.5),
+        )
+        self.wait()
+
+        fourier_rects_copy = fourier_rects.copy()
+        f_rects_1, _ = get_fourier_rects_n(f1)
+        f_rects_2, _ = get_fourier_rects_n(f2)
+        f_rects_3, _ = get_fourier_rects_n(f3)
+        f_rects_1.scale_to_fit_width(fourier_rects_copy.width)
+        f_rects_2.scale_to_fit_width(fourier_rects_copy.width)
+        f_rects_3.scale_to_fit_width(fourier_rects_copy.width)
+
+        f_rects_1.next_to(f_label_1, DOWN).shift(DOWN * SMALL_BUFF * 1.3)
+        f_rects_2.next_to(f_label_2, DOWN)
+        f_rects_3.next_to(f_label_3, DOWN).shift(DOWN * SMALL_BUFF * 3.2)
+
+        summed_transform = MathTex(
+            "T(F_1 + F_2 + F_3) = T(F_1) + T(F_2) + T(F_3)"
+        ).scale(0.8)
+        summed_transform.next_to(f_rects_2, DOWN)
+
+        self.play(FadeIn(summed_transform))
+        self.wait()
+
+        self.play(LaggedStartMap(FadeIn, [f_rects_1, f_rects_2, f_rects_3]))
+        self.wait()
