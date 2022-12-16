@@ -501,7 +501,9 @@ def get_fourier_rects_from_custom_matrix(
         ]
     ).arrange(RIGHT, aligned_edge=DOWN)
 
-    frequency_label = Text("Frequency", font=REDUCIBLE_MONO).scale(font_scale / 1.2)
+    frequency_label = Text("Frequency", font=REDUCIBLE_FONT, weight=BOLD).scale(
+        font_scale / 1.2
+    )
     frequency_label.next_to(rects, DOWN)
 
     return VGroup(rects, frequency_label)
