@@ -2272,3 +2272,98 @@ class InterpretDFT(MovingCameraScene):
             run_time=5,
             rate_func=rate_functions.ease_in_out_sine,
         )
+
+
+class TransitionTemplate(Scene):
+    def construct(self):
+        bg = ImageMobject("assets/transition-bg.png").scale_to_fit_width(
+            config.frame_width
+        )
+        self.add(bg)
+        self.wait()
+
+        transition_points = [
+            # use a list if we want multiple lines
+            ["The Discrete", "Cosine Transform"],
+            "Sampling",
+            ["Time and Frequency", " Domains"],
+            ["Similarity between", "signals"],
+            "Analysis Frequencies",
+            "Phase Problems",
+            ["Simplifying the", "Discrete Fourier Transform"],
+            "Conclusion",
+        ]
+        for i in range(len(transition_points)):
+            self.transition(
+                transition_name=transition_points[i],
+                index=i + 1,
+                total=len(transition_points),
+            )
+            self.wait()
+
+    def transition(self, transition_name, index, total):
+        """
+        Create transitions easily.
+
+        - Transition name — string, self explanatory
+        - Index correspond to the position of this transition on the video
+        - Total corresponds to the total amount of transitions there will be
+
+        Total will generate a number of nodes and index will highlight that specific
+        node, showing the progress.
+        """
+
+        if isinstance(transition_name, list):
+            subtitles = [
+                Text(t, font=REDUCIBLE_FONT, weight=BOLD).set_stroke(
+                    BLACK, width=9, background=True
+                )
+                for t in transition_name
+            ]
+
+            title = (
+                VGroup(*subtitles)
+                .arrange(DOWN)
+                .scale_to_fit_width(config.frame_width - 3)
+                .shift(UP)
+            )
+        else:
+            title = (
+                MarkupText(transition_name, font=REDUCIBLE_FONT, weight=BOLD)
+                .set_stroke(BLACK, width=10, background=True)
+                .scale_to_fit_width(config.frame_width - 3)
+                .shift(UP)
+            )
+
+        nodes_and_lines = VGroup()
+        for n in range(1, total + 1):
+            if n == index:
+                node = (
+                    Circle()
+                    .scale(0.2)
+                    .set_stroke(REDUCIBLE_YELLOW)
+                    .set_fill(REDUCIBLE_YELLOW_DARKER, opacity=1)
+                )
+                nodes_and_lines.add(node)
+            else:
+                nodes_and_lines.add(
+                    Circle()
+                    .scale(0.2)
+                    .set_stroke(REDUCIBLE_PURPLE)
+                    .set_fill(REDUCIBLE_PURPLE_DARK_FILL, opacity=1)
+                )
+
+            nodes_and_lines.add(Line().set_color(REDUCIBLE_PURPLE))
+
+        nodes_and_lines.remove(nodes_and_lines[-1])
+
+        nodes_and_lines.arrange(RIGHT, buff=0.5).scale_to_fit_width(
+            config.frame_width - 5
+        ).to_edge(DOWN, buff=1)
+
+        self.play(
+            FadeIn(title, shift=UP * 0.3), LaggedStartMap(FadeIn, nodes_and_lines)
+        )
+
+        self.wait()
+        self.play(FadeOut(title), FadeOut(nodes_and_lines))
