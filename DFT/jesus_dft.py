@@ -583,13 +583,13 @@ class IntroSimilarityConcept(MovingCameraScene):
 class IntroducePhaseProblem(MovingCameraScene):
     def construct(self):
 
-        # frame = self.camera.frame.save_state()
-        # self.try_sine_wave()
+        frame = self.camera.frame.save_state()
+        self.try_sine_wave()
 
         # self.play(*[FadeOut(mob) for mob in self.mobjects])
         # self.play(Restore(frame))
 
-        self.test_cases_again()
+        # self.test_cases_again()
 
     def try_sine_wave(self):
         frame = self.camera.frame
@@ -599,7 +599,7 @@ class IntroducePhaseProblem(MovingCameraScene):
         original_freq = 2
 
         # samples per second
-        sample_frequency = 10
+        sample_frequency = 16
 
         n_samples = sample_frequency
 
@@ -638,9 +638,11 @@ class IntroducePhaseProblem(MovingCameraScene):
                 ]
             ).reshape(-1, 1)
 
-            rects = get_rectangles_for_matrix_transform(sampled_signal, af_matrix)
+            rects = get_fourier_rects_from_custom_matrix(
+                signal_function, af_matrix, n_samples=n_samples, t_max=t_max
+            )
 
-            return rects
+            return rects.move_to(DOWN * 3.5, aligned_edge=DOWN)
 
         changing_sine = always_redraw(sine_cosine_redraw)
         sampled_dots = VGroup(
@@ -739,9 +741,9 @@ class IntroducePhaseProblem(MovingCameraScene):
 
         self.play(
             *[
-                bar.animate.set_color(REDUCIBLE_GREEN)
+                bar.animate.set_color(REDUCIBLE_YELLOW)
                 if prod > 0
-                else bar.animate.set_color(REDUCIBLE_CHARM)
+                else bar.animate.set_color(REDUCIBLE_BLUE)
                 for prod, bar in zip(prod_per_sample, barchart[0])
             ]
         )
@@ -830,7 +832,6 @@ class IntroducePhaseProblem(MovingCameraScene):
         af_matrix = get_analysis_frequency_matrix(
             N=n_samples,
             sample_rate=sample_frequency,
-            func="cos",
             t_max=t_max,
         )
 
@@ -849,7 +850,9 @@ class IntroducePhaseProblem(MovingCameraScene):
                 ]
             ).reshape(-1, 1)
 
-            rects = get_rectangles_for_matrix_transform(sampled_signal, af_matrix)
+            rects = get_fourier_rects_from_custom_matrix(
+                signal_function, af_matrix, n_samples=n_samples, t_max=t_max
+            )
 
             return rects.move_to(DOWN * 3.5, aligned_edge=DOWN)
 
