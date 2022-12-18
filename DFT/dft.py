@@ -468,7 +468,7 @@ class MatrixDefinition(Scene):
         prop_1 = Tex(
             r"1. $\vec{a}_k = \vec{y}$ (frequencies match) $\rightarrow F_k > 0$"
         )
-        prop_2 = Tex(r"2. $\vec{a}_k \neq \vec{y} \rightarrow F_k = 0$")
+        prop_2 = Tex(r"2. $\vec{y} = a_j \neq \vec{a}_k  \rightarrow F_k = 0$")
         prop_3 = Tex(r"3. time $\longleftrightarrow$ frequency")
 
         properties = VGroup(prop_1, prop_2, prop_3).arrange(
@@ -479,6 +479,36 @@ class MatrixDefinition(Scene):
         for prop in properties:
             self.play(FadeIn(prop))
             self.wait()
+
+        invertibility_rect = SurroundingRectangle(prop_3, color=REDUCIBLE_YELLOW)
+        orthogonality_rect = SurroundingRectangle(
+            VGroup(prop_1, prop_2), color=REDUCIBLE_GREEN_LIGHTER
+        )
+
+        self.play(Write(invertibility_rect))
+        invertibility = (
+            Text("Invertibility", font=REDUCIBLE_FONT)
+            .scale(0.6)
+            .next_to(invertibility_rect, DOWN)
+        )
+        orthogonality = (
+            Text("Orthogonality", font=REDUCIBLE_FONT)
+            .scale(0.6)
+            .next_to(orthogonality_rect, UP)
+        )
+
+        self.play(FadeIn(invertibility))
+        self.wait()
+
+        self.play(Write(orthogonality_rect))
+        self.play(FadeIn(orthogonality))
+        self.wait()
+
+        implication = (
+            MathTex(r"\Rightarrow M = N").scale(0.8).next_to(invertibility_rect, RIGHT)
+        )
+        self.play(Write(implication))
+        self.wait()
 
     def get_matrix(self):
         row0 = self.get_row_tex(0)
@@ -525,19 +555,240 @@ class MatrixDefinition(Scene):
         )
         return VGroup(left_arrow, text, right_arrow)
 
-    # def get_fade_animations(self, vgroup, opacity=0.5):
-    #     animations = []
-    #     for mob in vgroup:
-    #         if isinstance(mob, VGroup):
-    #             animations.extend(self.get_fade_animations(mob, opacity=opacity))
-    #         elif isinstance(mob, Dot):
-    #             animations.append(
-    #                 mob.animate.set_stroke(opacity=opacity).set_fill(opacity=opacity)
-    #             )
-    #         else:
-    #             animations.append(mob.animate.set_stroke(opacity=opacity))
 
-    #     return animations
+class IntroduceOrthogonality(Scene):
+    def construct(self):
+        left_analysis_freq = (
+            self.get_analysis_freq(0).scale(DEFAULT_SCALE).move_to(LEFT * 3.5 + UP * 2)
+        )
+        right_analysis_freq = (
+            self.get_analysis_freq(0).scale(DEFAULT_SCALE).move_to(RIGHT * 3.5 + UP * 2)
+        )
+
+        self.play(FadeIn(left_analysis_freq), FadeIn(right_analysis_freq))
+        self.wait()
+
+        analysis_freq_matrix = get_cosine_dft_matrix(8)
+        dot_product_matrix = np.dot(analysis_freq_matrix.T, analysis_freq_matrix)
+
+        ideal_matrix = 1 * np.eye(8)
+        A_T_A_text = MathTex("A^TA").scale(0.8)
+        ideal_heat_map = get_heat_map_from_matrix(ideal_matrix)
+        ideal_case = Text("Ideal Case", font=REDUCIBLE_FONT).scale(0.6)
+        ideal_group = (
+            VGroup(ideal_case, ideal_heat_map, A_T_A_text)
+            .arrange(DOWN)
+            .scale(0.8)
+            .move_to(LEFT * 3.5 + DOWN * 1.5)
+        )
+        ideal_case.next_to(ideal_heat_map[0], UP, buff=SMALL_BUFF)
+        A_T_A_text.next_to(ideal_heat_map[0], DOWN, buff=SMALL_BUFF)
+        self.play(FadeIn(ideal_group))
+        self.wait()
+
+        actual = Text("Actual", font=REDUCIBLE_FONT).scale(0.6)
+
+        heat_map = get_heat_map_from_matrix(dot_product_matrix)
+
+        right_A_T_A_text = MathTex("A^TA").scale(0.8)
+        actual_group = (
+            VGroup(actual, heat_map, right_A_T_A_text)
+            .arrange(DOWN)
+            .scale(0.8)
+            .move_to(RIGHT * 3.5 + DOWN * 1.5)
+        )
+        actual.next_to(heat_map[0], UP, buff=SMALL_BUFF)
+
+        right_A_T_A_text.next_to(heat_map[0], DOWN, buff=SMALL_BUFF)
+
+        empty_grid = get_grid(rows=8, cols=8, height=3, width=3)
+        empty_grid.scale_to_fit_height(heat_map[0].height).move_to(
+            heat_map[0].get_center()
+        )
+
+        self.play(
+            FadeIn(heat_map[1]),
+            FadeIn(empty_grid),
+            FadeIn(right_A_T_A_text),
+            FadeIn(actual),
+        )
+        self.wait()
+
+        dot_product_tex = self.get_dot_prod(0, 0, dot_product_matrix[0][0])
+        dot_product_tex.move_to(DOWN * 1.5)
+        self.play(FadeIn(dot_product_tex))
+        self.wait()
+        actual_grid = heat_map[0]
+        self.play(Transform(empty_grid[0][0], actual_grid[0][0]))
+        self.wait()
+
+        for row in range(dot_product_matrix.shape[0]):
+            for col in range(dot_product_matrix.shape[1]):
+                if row == 0 and col == 0:
+                    continue
+                new_left_analysis_freq = (
+                    self.get_analysis_freq(row)
+                    .scale(DEFAULT_SCALE)
+                    .move_to(LEFT * 3.5 + UP * 2)
+                )
+                new_right_analysis_freq = (
+                    self.get_analysis_freq(col)
+                    .scale(DEFAULT_SCALE)
+                    .move_to(RIGHT * 3.5 + UP * 2)
+                )
+                new_dot_product_text = self.get_dot_prod(
+                    row, col, dot_product_matrix[row][col]
+                ).move_to(DOWN * 1.5)
+                self.play(
+                    Transform(left_analysis_freq, new_left_analysis_freq),
+                    Transform(right_analysis_freq, new_right_analysis_freq),
+                    Transform(dot_product_tex, new_dot_product_text),
+                )
+                self.wait()
+
+                self.play(Transform(empty_grid[row][col], actual_grid[row][col]))
+                self.wait()
+
+        bad_indices = [(1, 7), (2, 6), (3, 5)]
+        highlight_rect = SurroundingRectangle(
+            empty_grid[1][7], color=REDUCIBLE_CHARM, buff=0
+        )
+        self.play(FadeIn(highlight_rect))
+        self.wait()
+        for row, col in bad_indices:
+            new_left_analysis_freq = (
+                self.get_analysis_freq(row)
+                .scale(DEFAULT_SCALE)
+                .move_to(LEFT * 3.5 + UP * 2)
+            )
+            new_right_analysis_freq = (
+                self.get_analysis_freq(col)
+                .scale(DEFAULT_SCALE)
+                .move_to(RIGHT * 3.5 + UP * 2)
+            )
+            new_dot_product_text = self.get_dot_prod(
+                row, col, dot_product_matrix[row][col]
+            ).move_to(DOWN * 1.5)
+            new_highlight_rect = SurroundingRectangle(
+                empty_grid[row][col], color=REDUCIBLE_CHARM, buff=0
+            )
+            self.play(
+                Transform(left_analysis_freq, new_left_analysis_freq),
+                Transform(right_analysis_freq, new_right_analysis_freq),
+                Transform(dot_product_tex, new_dot_product_text),
+                Transform(highlight_rect, new_highlight_rect),
+            )
+            self.wait()
+
+        self.play(FadeOut(highlight_rect))
+        self.wait()
+
+        good_subset = SurroundingRectangle(
+            VGroup(empty_grid[0][0], empty_grid[3][3]),
+            color=REDUCIBLE_GREEN_LIGHTER,
+            buff=0,
+        )
+        fade_indices = []
+        for i in range(8):
+            for j in range(8):
+                if i < 4 and j < 4:
+                    continue
+                fade_indices.append((i, j))
+        self.play(
+            FadeIn(good_subset),
+            *[empty_grid[i][j].animate.set_fill(opacity=0.4) for i, j in fade_indices],
+        )
+        self.wait()
+
+        self.clear()
+
+        self.show_actual_transform_animation()
+
+    def show_actual_transform_animation(self):
+        NUM_SAMPLES = 8
+        title = (
+            Text("Current Transform Issues", font=REDUCIBLE_FONT)
+            .scale(0.8)
+            .move_to(UP * 3.5)
+        )
+        self.play(Write(title))
+        self.wait()
+
+        time_signal_func = get_cosine_func(freq=1)
+        cosine_dft_matrix = get_cosine_dft_matrix(NUM_SAMPLES)
+
+        time_domain_graph = (
+            display_signal(time_signal_func, num_points=NUM_SAMPLES)
+            .scale(0.8)
+            .move_to(LEFT * 3.5 + UP * 0)
+        )
+
+        fourier_rects = (
+            get_fourier_rects_from_custom_matrix(
+                time_signal_func,
+                cosine_dft_matrix,
+                n_samples=NUM_SAMPLES,
+                full_spectrum=True,
+            )
+            .scale(1.2)
+            .move_to(RIGHT * 3.5 + UP * 0)
+        )
+
+        self.play(FadeIn(time_domain_graph), FadeIn(fourier_rects))
+        self.wait()
+        highlight_rect = None
+        for i, freq in enumerate(range(1, 8)):
+            if i == 0:
+                continue
+            time_signal_func = get_cosine_func(freq=freq)
+            new_time_domain_graph = (
+                display_signal(time_signal_func, num_points=NUM_SAMPLES)
+                .scale(0.8)
+                .move_to(LEFT * 3.5 + UP * 0)
+            )
+
+            new_fourier_rects = (
+                get_fourier_rects_from_custom_matrix(
+                    time_signal_func,
+                    cosine_dft_matrix,
+                    n_samples=NUM_SAMPLES,
+                    full_spectrum=True,
+                )
+                .scale(1.2)
+                .move_to(RIGHT * 3.5 + UP * 0)
+            )
+
+            if i > 4:
+                highlight_rect = SurroundingRectangle(
+                    new_fourier_rects[0][:4], buff=SMALL_BUFF, color=REDUCIBLE_YELLOW
+                )
+                self.play(FadeIn(highlight_rect))
+                self.wait()
+
+            self.play(
+                Transform(time_domain_graph, new_time_domain_graph),
+                Transform(fourier_rects, new_fourier_rects),
+            )
+            self.wait()
+
+    def get_analysis_freq(self, freq):
+        analysis_freq_func = get_cosine_func(freq=freq)
+        analysis_freq_graph = display_signal(
+            analysis_freq_func, color=FREQ_DOMAIN_COLOR
+        )
+
+        sample_value = MathTex(r"\vec{a}_" + str(freq)).scale(0.8)
+        graph_notation = VGroup(sample_value, analysis_freq_graph).arrange(DOWN)
+        return graph_notation
+
+    def get_dot_prod(self, row, col, value, threshold=True):
+        if np.isclose(value, 0):
+            value = 0.0
+        value_string = f"{value:.1f}"
+        dot_product_tex = Tex(
+            r"$\vec{a}_" + str(row) + r"^T \vec{a}_" + str(col) + r" =$ " + value_string
+        ).scale(0.8)
+        return dot_product_tex
 
 
 class TestCases(Scene):

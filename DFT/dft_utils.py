@@ -527,3 +527,60 @@ def get_analysis_frequency_matrix(N, sample_rate, t_min=0, t_max=2 * PI):
     return np.array(
         [[f(s) for s in np.linspace(t_min, t_max, num=N, endpoint=False)] for f in af]
     )
+
+
+def get_heat_map_from_matrix(
+    matrix,
+    height=3,
+    width=3,
+    min_color=REDUCIBLE_PURPLE,
+    max_color=REDUCIBLE_YELLOW,
+    integer_scale=0.3,
+    grid_cell_stroke_width=1,
+    color=WHITE,
+):
+    min_value, max_value = np.min(matrix), np.max(matrix)
+    rows, cols = matrix.shape
+
+    grid = get_grid(
+        rows, cols, height, width, stroke_width=grid_cell_stroke_width, color=color
+    )
+
+    for i in range(rows):
+        for j in range(cols):
+            alpha = (matrix[i][j] - min_value) / (max_value - min_value)
+            grid[i][j].set_fill(
+                interpolate_color(min_color, max_color, alpha), opacity=1
+            )
+
+    scale = Line(grid.get_top(), grid.get_bottom())
+    scale.set_stroke(width=10).set_color(color=[min_color, max_color])
+
+    top_value = Text(str(int(max_value)), font="SF Mono").scale(integer_scale)
+    top_value.next_to(scale, RIGHT, aligned_edge=UP)
+    bottom_value = Text(str(int(min_value)), font="SF Mono").scale(integer_scale)
+    bottom_value.next_to(scale, RIGHT, aligned_edge=DOWN)
+
+    heat_map_scale = VGroup(scale, top_value, bottom_value)
+    heat_map_scale.next_to(grid, LEFT)
+
+    return VGroup(grid, heat_map_scale)
+
+
+def get_grid(rows, cols, height, width, color=WHITE, stroke_width=1):
+    cell_height = height / rows
+    cell_width = width / cols
+    grid = VGroup(
+        *[
+            VGroup(
+                *[
+                    Rectangle(height=cell_height, width=cell_width).set_stroke(
+                        color=color, width=stroke_width
+                    )
+                    for j in range(cols)
+                ]
+            ).arrange(RIGHT, buff=0)
+            for i in range(rows)
+        ]
+    ).arrange(DOWN, buff=0)
+    return grid
