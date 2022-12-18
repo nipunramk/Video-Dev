@@ -2,6 +2,7 @@
 File for various PNG and QOI Helper Functions
 """
 
+from typing import Iterable
 from manim import *
 
 from reducible_colors import *
@@ -119,3 +120,23 @@ def matrix_to_mob(matrix: np.ndarray, h_buff=2.3, v_buff=1.3):
         h_buff=h_buff,
         v_buff=v_buff,
     ).scale(0.3)
+
+
+def focus_on(frame, mobjects, buff=1):
+    """Returns a ready to play animation of the camera focusing on a given mobject"""
+    if isinstance(mobjects, Iterable):
+        vmobject = VGroup(*mobjects)
+    elif isinstance(mobjects, Mobject) or isinstance(mobjects, VGroup):
+        vmobject = mobjects
+    else:
+        raise TypeError(
+            "Mobjects argument can either be a single mobject, a single VGroup or an iterable of mobjects (tuple, list, np.array...)"
+        )
+
+    mob_w = vmobject.width
+    mob_h = vmobject.height
+
+    if mob_w >= mob_h:
+        return frame.animate.set_width(vmobject.width + buff).move_to(vmobject)
+    else:
+        return frame.animate.set_height(vmobject.height + buff).move_to(vmobject)

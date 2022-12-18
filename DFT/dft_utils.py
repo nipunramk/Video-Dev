@@ -93,7 +93,8 @@ def plot_time_domain(
     color=TIME_DOMAIN_COLOR,
 ):
     time_axis = get_time_axis(
-        x_range=[t_min, t_max, t_step], y_range=[y_min, y_max, y_step]
+        x_range=[t_min, t_max, t_step],
+        y_range=[y_min, y_max, y_step],
     )
     graph = time_axis.plot(time_func).set_color(color)
 
@@ -106,6 +107,10 @@ def get_sum_functions(*time_functions):
     all the time functions passed in
     """
     return lambda x: sum([f(x) for f in time_functions])
+
+
+def get_prod_functions(*time_functions):
+    return lambda x: np.prod([f(x) for f in time_functions])
 
 
 def get_cosine_func(amplitude=1, freq=1, phase=0, b=0):
@@ -130,12 +135,14 @@ def inner_prod(time_domain_func, freq_func, x_min=0, x_max=2 * PI, num_points=8)
     return np.dot(y_coords_time, y_coords_freq)
 
 
-def get_sampled_dots(graph, axes, x_min=0, x_max=2 * PI, num_points=8):
+def get_sampled_dots(
+    graph, axes, x_min=0, x_max=2 * PI, num_points=8, radius=DEFAULT_DOT_RADIUS
+):
     x_coords, y_coords = get_sampled_coords(
         graph, x_min=x_min, x_max=x_max, num_points=num_points
     )
     coord_dots = [
-        Dot().move_to(axes.coords_to_point(x_coord, y_coord))
+        Dot(radius=radius).move_to(axes.coords_to_point(x_coord, y_coord))
         for x_coord, y_coord in zip(x_coords, y_coords)
     ]
     return VGroup(*coord_dots)
@@ -213,16 +220,19 @@ def get_fourier_bar_chart(
     bar_width=0.2,
     height_scale=1,
     color=FREQ_DOMAIN_COLOR,
+    full_spectrum=False,
 ):
+
+    spectrum_selection = n_samples if full_spectrum else n_samples // 2
 
     time_range = float(t_max - t_min)
     time_samples = np.vectorize(time_func)(np.linspace(t_min, t_max, n_samples))
     fft_output = np.fft.fft(time_samples)
-    frequencies = np.linspace(0.0, n_samples / (2.0 * time_range), n_samples // 2)
+    frequencies = np.linspace(0.0, n_samples / (2.0 * time_range), spectrum_selection)
 
     graph = VGroup()
 
-    for x, y in zip(frequencies, fft_output[: n_samples // 2]):
+    for x, y in zip(frequencies, fft_output[:spectrum_selection]):
         if x <= f_max + 0.1:
             rect = (
                 Rectangle(height=height_scale * np.abs(y) / n_samples, width=bar_width)
@@ -420,7 +430,7 @@ def get_fourier_rects_n(
     spectrum_selection = n_samples if full_spectrum else n_samples // 2
 
     af_matrix = get_analysis_frequency_matrix(
-        N=n_samples, sample_rate=sample_rate, t_max=t_max
+        N=n_samples, sample_rate=sample_rate, t_max=t_max, full_spectrum=full_spectrum
     )
     sampled_signal = np.array(
         [
@@ -491,7 +501,9 @@ def get_fourier_rects_from_custom_matrix(
         ]
     ).arrange(RIGHT, aligned_edge=DOWN)
 
-    frequency_label = Text("Frequency", font=REDUCIBLE_MONO).scale(font_scale / 1.2)
+    frequency_label = Text("Frequency", font=REDUCIBLE_FONT, weight=BOLD).scale(
+        font_scale / 1.2
+    )
     frequency_label.next_to(rects, DOWN)
 
     return VGroup(rects, frequency_label)
