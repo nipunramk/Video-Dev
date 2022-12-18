@@ -929,27 +929,27 @@ class SolvingPhaseProblem(MovingCameraScene):
     def construct(self):
         reset_frame = self.camera.frame.save_state()
 
-        # self.hacky_sine_waves()
+        self.hacky_sine_waves()
 
-        # self.play(*[FadeOut(mob) for mob in self.mobjects])
-        # self.play(Restore(reset_frame))
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
+        self.play(Restore(reset_frame))
 
-        # self.capture_sine_and_cosine_transforms()
-        # self.play(*[FadeOut(mob) for mob in self.mobjects])
-        # self.play(Restore(reset_frame))
+        self.capture_sine_and_cosine_transforms()
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
+        self.play(Restore(reset_frame))
 
-        # self.sum_up_dft()
-        # self.play(*[FadeOut(mob) for mob in self.mobjects])
-        # self.play(Restore(reset_frame))
+        self.sum_up_dft()
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
+        self.play(Restore(reset_frame))
 
         self.final_tests_dft()
 
     def hacky_sine_waves(self):
         original_frequency = 4
-        t_max = PI
+        t_max = 2 * PI
 
         # samples per second
-        sample_frequency = 40
+        sample_frequency = 16
 
         # total number of samples
         n_samples = sample_frequency
@@ -979,9 +979,7 @@ class SolvingPhaseProblem(MovingCameraScene):
 
             return cos_af_mob
 
-        af_matrix = get_analysis_frequency_matrix(
-            n_samples, sample_rate=sample_frequency, func="sin", t_max=t_max
-        )
+        sin_af_matrix = get_sin_dft_matrix(n_samples)
 
         def show_transform():
             signal_function = get_sine_func(
@@ -991,15 +989,10 @@ class SolvingPhaseProblem(MovingCameraScene):
                 b=vt_b.get_value(),
             )
 
-            sampled_signal = np.array(
-                [
-                    signal_function(v)
-                    for v in np.linspace(0, t_max, num=n_samples, endpoint=False)
-                ]
-            ).reshape(-1, 1)
-
-            rects = get_rectangles_for_matrix_transform(sampled_signal, af_matrix)
-            return rects
+            rects = get_fourier_rects_from_custom_matrix(
+                signal_function, sin_af_matrix, n_samples=n_samples, t_max=t_max
+            )
+            return rects.move_to(DOWN * 3.5, aligned_edge=DOWN)
 
         af_mob = always_redraw(change_af_cos_sin)
         sine_transform = always_redraw(show_transform)
@@ -1013,9 +1006,10 @@ class SolvingPhaseProblem(MovingCameraScene):
         self.wait()
         self.play(
             FadeOut(af_mob),
+            # align the annotation to the bottom of the actual bar, not the labels
             sin_t.animate.set_color(REDUCIBLE_VIOLET)
             .scale(0.5)
-            .next_to(sine_transform, LEFT, aligned_edge=DOWN, buff=0.3),
+            .next_to(sine_transform[0][0][0], LEFT, aligned_edge=DOWN, buff=0.3),
             sin_mob.animate.scale(0.7).shift(UP * 2),
             Write(sine_transform),
         )
@@ -1469,13 +1463,13 @@ class SolvingPhaseProblem(MovingCameraScene):
     def final_tests_dft(self):
         frame = self.camera.frame
         t_min = 0
-        t_max = TAU * 2
+        t_max = 2 * PI
 
         # samples per second
-        sample_frequency = 40
+        n_samples = 16
 
         # total number of samples
-        n_samples = sample_frequency
+        sample_frequency = n_samples
 
         analysis_frequencies = [
             sample_frequency * m / n_samples for m in range(n_samples // 2)
@@ -1530,21 +1524,36 @@ class SolvingPhaseProblem(MovingCameraScene):
             )
             return text_group
 
+        display_signal_axis_lines = (
+            display_signal(
+                get_cosine_func(
+                    amplitude=vt_amplitude.get_value(),
+                    freq=vt_frequency.get_value(),
+                    phase=vt_phase.get_value(),
+                    b=vt_b.get_value(),
+                ),
+                TIME_DOMAIN_COLOR,
+            )
+            .scale(0.6)
+            .move_to(UP * 2)
+        )
+        axis_lines = VGroup(display_signal_axis_lines[0], display_signal_axis_lines[1])
+
         def changing_signal_redraw():
             # for viz purposes, we are going to make the signal's amplitude smaller
             # all the calculations will be done with the actual amplitude, though
             # this helps the redrawing function deal better with the signal
-            amplitude_padding = 0.2
             changing_func = get_cosine_func(
-                amplitude=vt_amplitude.get_value() - amplitude_padding
-                if vt_amplitude.get_value() > amplitude_padding
-                else vt_amplitude.get_value(),
+                amplitude=vt_amplitude.get_value(),
                 freq=vt_frequency.get_value(),
                 phase=vt_phase.get_value(),
                 b=vt_b.get_value(),
             )
+
             displayed_signal = display_signal(changing_func, TIME_DOMAIN_COLOR)
-            return displayed_signal.scale(0.6).move_to(UP * 2, aligned_edge=UP)
+            signal_and_points = VGroup(displayed_signal[2], displayed_signal[3])
+
+            return signal_and_points.scale(0.6).shift(UP * 2)
 
         def updating_transform_redraw():
             signal_function = get_cosine_func(
@@ -1564,6 +1573,11 @@ class SolvingPhaseProblem(MovingCameraScene):
                 .set_color(REDUCIBLE_YELLOW)
             )
 
+        sides_buff = 0.5
+
+        sin_dft_matrix = get_sin_dft_matrix(n_samples)
+        cos_dft_matrix = get_cosine_dft_matrix(n_samples)
+
         def updating_sine_transform_redraw():
             signal_function = get_cosine_func(
                 amplitude=vt_amplitude.get_value(),
@@ -1572,24 +1586,18 @@ class SolvingPhaseProblem(MovingCameraScene):
                 b=vt_b.get_value(),
             )
 
-            sampled_signal = np.array(
-                [
-                    signal_function(v)
-                    for v in np.linspace(t_min, t_max, num=n_samples, endpoint=False)
-                ]
-            ).reshape(-1, 1)
+            rects = get_fourier_rects_from_custom_matrix(
+                signal_function,
+                sin_dft_matrix,
+                n_samples=n_samples,
+                t_max=t_max,
+                rect_width=0.2,
+            ).set_color(REDUCIBLE_CHARM)
 
-            af_matrix = get_analysis_frequency_matrix(
-                N=n_samples, sample_rate=sample_frequency, func="sin"
-            )
+            rects = VGroup(*[r[0] for r in rects[0]])
 
-            rects = get_rectangles_for_matrix_transform(sampled_signal, af_matrix)
-            rects = VGroup(*[r[0] for r in rects])
-
-            return (
-                rects.next_to(freq_analysis, LEFT, aligned_edge=DOWN, buff=-0.6)
-                .stretch_to_fit_width(changing_signal_mob.width)
-                .set_color(REDUCIBLE_CHARM)
+            return rects.next_to(
+                freq_analysis, LEFT, aligned_edge=DOWN, buff=sides_buff
             )
 
         def updating_cosine_transform_redraw():
@@ -1600,23 +1608,19 @@ class SolvingPhaseProblem(MovingCameraScene):
                 b=vt_b.get_value(),
             )
 
-            sampled_signal = np.array(
-                [
-                    signal_function(v)
-                    for v in np.linspace(t_min, t_max, num=n_samples, endpoint=False)
-                ]
-            ).reshape(-1, 1)
-
-            af_matrix = get_analysis_frequency_matrix(
-                N=n_samples, sample_rate=sample_frequency, func="cos"
+            rects = get_fourier_rects_from_custom_matrix(
+                signal_function,
+                cos_dft_matrix,
+                n_samples=n_samples,
+                t_max=t_max,
+                rect_width=0.2,
             )
 
-            rects = get_rectangles_for_matrix_transform(sampled_signal, af_matrix)
-            rects = VGroup(*[r[0] for r in rects])
+            rects = VGroup(*[r[0] for r in rects[0]])
 
             return rects.next_to(
-                freq_analysis, RIGHT, aligned_edge=DOWN, buff=-0.6
-            ).stretch_to_fit_width(changing_signal_mob.width)
+                freq_analysis, RIGHT, aligned_edge=DOWN, buff=sides_buff
+            )
 
         changing_signal_mob = always_redraw(changing_signal_redraw)
         freq_analysis = always_redraw(updating_transform_redraw)
@@ -1645,7 +1649,7 @@ class SolvingPhaseProblem(MovingCameraScene):
 
         self.play(
             Write(changing_signal_mob),
-            FadeIn(freq_analysis, sin_freq_analysis, cos_freq_analysis),
+            FadeIn(freq_analysis, sin_freq_analysis, cos_freq_analysis, axis_lines),
             FadeIn(sin_t, cos_t, complex_t, shift=UP * 0.3),
         )
         self.play(FadeIn(changing_tex_group))
@@ -1675,9 +1679,7 @@ class SolvingPhaseProblem(MovingCameraScene):
             self.play(vt_phase.animate.set_value(i * PI / 2))
             self.wait()
 
-        self.play(
-            vt_phase.animate.set_value(20 * PI / 2), run_time=10, rate_func=linear
-        )
+        self.play(vt_phase.animate.set_value(20 * PI / 2), run_time=5, rate_func=linear)
 
         self.wait()
 
@@ -1711,10 +1713,10 @@ class InterpretDFT(MovingCameraScene):
         t_max = 2 * PI
 
         # samples per second
-        sample_frequency = 10
+        n_samples = 10
 
         # total number of samples
-        n_samples = sample_frequency
+        sample_frequency = n_samples
 
         analysis_frequencies = [
             sample_frequency * m / n_samples for m in range(n_samples)
@@ -1944,9 +1946,11 @@ class InterpretDFT(MovingCameraScene):
                 LaggedStartMap(Write, sampled_points[0]),
                 LaggedStartMap(Write, sampled_points[1]),
                 Transform(points_on_circle, _points_on_circle),
-                run_time=0.7,
+                run_time=1 / (i + 1),
             )
-            self.wait()
+            self.wait(1 / (i + 1))
+
+        self.wait()
 
         og_axis_and_signal = VGroup(
             *plot_time_domain(
@@ -2077,13 +2081,15 @@ class InterpretDFT(MovingCameraScene):
                     for idx in range(n_samples)
                     if idx != i
                 ],
-                run_time=0.7,
+                run_time=1 / (i + 1),
             )
-            self.wait(1.3)
+            self.wait(1 / (i + 1))
 
         vt_frequency = ValueTracker(original_frequency)
         vt_phase = ValueTracker(0)
         vt_amplitude = ValueTracker(0.2)
+
+        dft_matrix = get_dft_matrix(n_samples)
 
         def dft_barchart_redraw():
             cos_func = get_cosine_func(
@@ -2091,16 +2097,19 @@ class InterpretDFT(MovingCameraScene):
                 amplitude=vt_amplitude.get_value(),
                 phase=vt_phase.get_value(),
             )
-            barchart = get_fourier_bar_chart(
+
+            rects = get_fourier_rects_from_custom_matrix(
                 cos_func,
-                t_max=t_max,
+                dft_matrix,
                 n_samples=n_samples,
+                t_max=t_max,
+                rect_scale=0.6,
                 full_spectrum=True,
-                height_scale=4,
             )
+            rects = VGroup(*[r[0] for r in rects[0]])
 
             return (
-                barchart.rotate(-90 * DEGREES)
+                rects.rotate(-90 * DEGREES)
                 .stretch_to_fit_height(dft_matrix_tex.height)
                 .next_to(dft_matrix_tex, RIGHT, buff=0.4)
             )
@@ -2263,3 +2272,98 @@ class InterpretDFT(MovingCameraScene):
             run_time=5,
             rate_func=rate_functions.ease_in_out_sine,
         )
+
+
+class TransitionTemplate(Scene):
+    def construct(self):
+        bg = ImageMobject("assets/transition-bg.png").scale_to_fit_width(
+            config.frame_width
+        )
+        self.add(bg)
+        self.wait()
+
+        transition_points = [
+            # use a list if we want multiple lines
+            ["The Discrete", "Cosine Transform"],
+            "Sampling",
+            ["Time and Frequency", " Domains"],
+            ["Similarity between", "signals"],
+            ["Analysis", "Frequencies"],
+            "Phase Problems",
+            ["Simplifying the", "Discrete Fourier Transform"],
+            "Conclusion",
+        ]
+        for i in range(len(transition_points)):
+            self.transition(
+                transition_name=transition_points[i],
+                index=i + 1,
+                total=len(transition_points),
+            )
+            self.wait()
+
+    def transition(self, transition_name, index, total):
+        """
+        Create transitions easily.
+
+        - Transition name — string, self explanatory
+        - Index correspond to the position of this transition on the video
+        - Total corresponds to the total amount of transitions there will be
+
+        Total will generate a number of nodes and index will highlight that specific
+        node, showing the progress.
+        """
+
+        if isinstance(transition_name, list):
+            subtitles = [
+                Text(t, font=REDUCIBLE_FONT, weight=BOLD).set_stroke(
+                    BLACK, width=9, background=True
+                )
+                for t in transition_name
+            ]
+
+            title = (
+                VGroup(*subtitles)
+                .arrange(DOWN)
+                .scale_to_fit_width(config.frame_width - 3)
+                .shift(UP)
+            )
+        else:
+            title = (
+                MarkupText(transition_name, font=REDUCIBLE_FONT, weight=BOLD)
+                .set_stroke(BLACK, width=10, background=True)
+                .scale_to_fit_width(config.frame_width - 3)
+                .shift(UP)
+            )
+
+        nodes_and_lines = VGroup()
+        for n in range(1, total + 1):
+            if n == index:
+                node = (
+                    Circle()
+                    .scale(0.2)
+                    .set_stroke(REDUCIBLE_YELLOW)
+                    .set_fill(REDUCIBLE_YELLOW_DARKER, opacity=1)
+                )
+                nodes_and_lines.add(node)
+            else:
+                nodes_and_lines.add(
+                    Circle()
+                    .scale(0.2)
+                    .set_stroke(REDUCIBLE_PURPLE)
+                    .set_fill(REDUCIBLE_PURPLE_DARK_FILL, opacity=1)
+                )
+
+            nodes_and_lines.add(Line().set_color(REDUCIBLE_PURPLE))
+
+        nodes_and_lines.remove(nodes_and_lines[-1])
+
+        nodes_and_lines.arrange(RIGHT, buff=0.5).scale_to_fit_width(
+            config.frame_width - 5
+        ).to_edge(DOWN, buff=1)
+
+        self.play(
+            FadeIn(title, shift=UP * 0.3), LaggedStartMap(FadeIn, nodes_and_lines)
+        )
+
+        self.wait()
+        self.play(FadeOut(title), FadeOut(nodes_and_lines))
