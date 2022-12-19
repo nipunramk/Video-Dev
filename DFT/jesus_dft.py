@@ -214,59 +214,84 @@ class IntroTimeFreqDomain(MovingCameraScene):
     def construct(self):
 
         frame = self.camera.frame
-        x_max = TAU * 2
+        t_max = 2 * PI
+        n_samples = 32
 
         freq_1 = 2
         freq_2 = 5
-        freq_3 = 10
+        freq_3 = 7
 
         cos_1 = get_cosine_func(freq=freq_1, amplitude=0.3)
         cos_2 = get_cosine_func(freq=freq_2, amplitude=0.3)
         cos_3 = get_cosine_func(freq=freq_3, amplitude=0.3)
         sum_function = get_sum_functions(cos_1, cos_2, cos_3)
 
-        axes_sum, sum_mob = plot_time_domain(
-            sum_function,
-            t_max=x_max,
-        )
+        display_signal_vg = display_signal(sum_function, num_points=n_samples)
+        sum_mob = VGroup(*display_signal_vg[2:]).set_color(REDUCIBLE_YELLOW)
 
         self.play(Write(sum_mob), run_time=2)
 
         # this would be the "frequency representation"
         sum_dft_graph = (
-            get_fourier_bar_chart(sum_function, height_scale=14.8, n_samples=100)
+            get_fourier_bar_chart(
+                sum_function,
+                height_scale=14.8,
+                bar_width=0.7,
+                t_max=t_max,
+                n_samples=n_samples,
+            )
             .scale(0.4)
             .next_to(sum_mob, DOWN, buff=1)
         )
 
-        _, cos_1_mob = plot_time_domain(
-            cos_1,
-            t_max=x_max,
-        )
-        _, cos_2_mob = plot_time_domain(
-            cos_2,
-            t_max=x_max,
-        )
-        _, cos_3_mob = plot_time_domain(
-            cos_3,
-            t_max=x_max,
-        )
+        cos_1_vg = display_signal(cos_1, num_points=n_samples)
+        cos_1_signal = cos_1_vg[2]
+        cos_1_samples = cos_1_vg[3].set_color(REDUCIBLE_YELLOW)
+        cos_1_mob = VGroup(cos_1_signal, cos_1_samples)
+
+        cos_2_vg = display_signal(cos_2, num_points=n_samples)
+        cos_2_signal = cos_2_vg[2]
+        cos_2_samples = cos_2_vg[3].set_color(REDUCIBLE_YELLOW)
+        cos_2_mob = VGroup(cos_2_signal, cos_2_samples)
+
+        cos_3_vg = display_signal(cos_3, num_points=n_samples)
+        cos_3_signal = cos_3_vg[2]
+        cos_3_samples = cos_3_vg[3].set_color(REDUCIBLE_YELLOW)
+        cos_3_mob = VGroup(cos_3_signal, cos_3_samples)
 
         self.play(
             sum_mob.animate.shift(UP * 0.5), LaggedStartMap(FadeIn, sum_dft_graph)
         )
         cos_1_dft_graph = (
-            get_fourier_bar_chart(cos_1, height_scale=14.8, n_samples=100)
+            get_fourier_bar_chart(
+                cos_1,
+                height_scale=14.8,
+                bar_width=0.7,
+                n_samples=n_samples,
+                t_max=t_max,
+            )
             .scale(0.4)
             .move_to(sum_dft_graph, aligned_edge=DOWN)
         )
         cos_2_dft_graph = (
-            get_fourier_bar_chart(cos_2, height_scale=14.8, n_samples=100)
+            get_fourier_bar_chart(
+                cos_2,
+                height_scale=14.8,
+                bar_width=0.7,
+                n_samples=n_samples,
+                t_max=t_max,
+            )
             .scale(0.4)
             .move_to(sum_dft_graph, aligned_edge=DOWN)
         )
         cos_3_dft_graph = (
-            get_fourier_bar_chart(cos_3, height_scale=14.8, n_samples=100)
+            get_fourier_bar_chart(
+                cos_3,
+                height_scale=14.8,
+                bar_width=0.7,
+                n_samples=n_samples,
+                t_max=t_max,
+            )
             .scale(0.4)
             .move_to(sum_dft_graph, aligned_edge=DOWN)
         )
@@ -300,9 +325,11 @@ class IntroTimeFreqDomain(MovingCameraScene):
         sum_dft_graph_og = sum_dft_graph.copy()
 
         self.play(
-            Transform(sum_mob, decomposed_sum),
+            Transform(sum_mob[0], VGroup(*[s[0] for s in decomposed_sum])),
+            FadeOut(sum_mob[1]),
             FadeIn(text_cos_1, text_cos_2, text_cos_3),
         )
+        self.play(FadeIn(*[s[1] for s in decomposed_sum]))
         self.wait()
         self.play(FadeOut(text_cos_1, text_cos_2, text_cos_3, shift=UP * 0.3))
 
