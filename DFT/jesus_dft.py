@@ -10,7 +10,7 @@ from manim import *
 from dft_utils import *
 from reducible_colors import *
 from math import degrees
-from classes import CustomLabel, LabeledDot
+from classes import CustomLabel, LabeledDot, Module
 
 
 class IntroSampling_002(MovingCameraScene):
@@ -218,8 +218,8 @@ class IntroTimeFreqDomain(MovingCameraScene):
         n_samples = 32
 
         freq_1 = 2
-        freq_2 = 5
-        freq_3 = 7
+        freq_2 = 4
+        freq_3 = 6
 
         cos_1 = get_cosine_func(freq=freq_1, amplitude=0.3)
         cos_2 = get_cosine_func(freq=freq_2, amplitude=0.3)
@@ -329,73 +329,181 @@ class IntroTimeFreqDomain(MovingCameraScene):
             FadeOut(sum_mob[1]),
             FadeIn(text_cos_1, text_cos_2, text_cos_3),
         )
-        self.play(FadeIn(*[s[1] for s in decomposed_sum]))
+
+        # after transform, sum_mob[0] contains our 3 original sine waves
+        pure_sines = sum_mob[0]
+        pure_sine_samples = VGroup(*[s[1] for s in decomposed_sum])
+
+        self.play(LaggedStartMap(FadeIn, pure_sine_samples))
         self.wait()
         self.play(FadeOut(text_cos_1, text_cos_2, text_cos_3, shift=UP * 0.3))
 
         self.wait()
 
+        frame = frame.save_state()
+        self.play(focus_on(frame, [pure_sines, cos_1_dft_graph], buff=6))
+
+        freq_1_txt = Text(f"{str(freq_1)} Hz", weight=BOLD, font=REDUCIBLE_FONT).scale(
+            0.3
+        )
+        freq_2_txt = Text(f"{str(freq_2)} Hz", weight=BOLD, font=REDUCIBLE_FONT).scale(
+            0.3
+        )
+        freq_3_txt = Text(f"{str(freq_3)} Hz", weight=BOLD, font=REDUCIBLE_FONT).scale(
+            0.3
+        )
+
         self.play(
-            sum_mob[1].animate.set_stroke(opacity=0.3),
-            sum_mob[2].animate.set_stroke(opacity=0.3),
+            pure_sines[1].animate.set_stroke(opacity=0.3),
+            cos_2_samples.animate.set_opacity(0.3),
+            pure_sines[2].animate.set_stroke(opacity=0.3),
+            cos_3_samples.animate.set_opacity(0.3),
             Transform(sum_dft_graph, cos_1_dft_graph),
+            FadeIn(
+                freq_1_txt.next_to(cos_1_dft_graph[freq_1], UP, buff=0.3),
+                shift=UP * 0.3,
+            ),
         )
 
         self.wait()
 
         self.play(
-            sum_mob[0].animate.set_stroke(opacity=0.3),
-            sum_mob[1].animate.set_stroke(opacity=1),
+            pure_sines[0].animate.set_stroke(opacity=0.3),
+            cos_1_samples.animate.set_opacity(0.3),
+            pure_sines[1].animate.set_stroke(opacity=1),
+            cos_2_samples.animate.set_opacity(1),
             Transform(sum_dft_graph, cos_2_dft_graph),
+            FadeOut(freq_1_txt, shift=DOWN * 0.3),
+            FadeIn(
+                freq_2_txt.next_to(cos_2_dft_graph[freq_2], UP, buff=0.3),
+                shift=UP * 0.3,
+            ),
         )
 
         self.wait()
 
         self.play(
-            sum_mob[0].animate.set_stroke(opacity=0.3),
-            sum_mob[1].animate.set_stroke(opacity=0.3),
-            sum_mob[2].animate.set_stroke(opacity=1),
+            pure_sines[1].animate.set_stroke(opacity=0.3),
+            cos_2_samples.animate.set_opacity(0.3),
+            pure_sines[2].animate.set_stroke(opacity=1),
+            cos_3_samples.animate.set_opacity(1),
             Transform(sum_dft_graph, cos_3_dft_graph),
+            FadeOut(freq_2_txt, shift=DOWN * 0.3),
+            FadeIn(
+                freq_3_txt.next_to(cos_3_dft_graph[freq_3], UP, buff=0.3),
+                shift=UP * 0.3,
+            ),
         )
 
         self.wait()
 
         self.play(
-            sum_mob[0].animate.set_stroke(opacity=1),
-            sum_mob[1].animate.set_stroke(opacity=1),
-            sum_mob[2].animate.set_stroke(opacity=1),
+            FadeOut(freq_3_txt, shift=DOWN * 0.3),
+            pure_sines[0].animate.set_stroke(opacity=1),
+            cos_1_samples.animate.set_opacity(1),
+            pure_sines[1].animate.set_stroke(opacity=1),
+            cos_2_samples.animate.set_opacity(1),
             Transform(sum_dft_graph, sum_dft_graph_og),
         )
 
+        self.play(Restore(frame))
+
+        self.wait()
+
+        cos_1_scaled = get_sine_func(amplitude=0.1, freq=freq_1)
+        cos_2_scaled = get_sine_func(amplitude=0.2, freq=freq_2)
+        cos_3_scaled = get_sine_func(amplitude=0.3, freq=freq_3)
+
+        pure_sines_scaled = (
+            VGroup(
+                *[
+                    VGroup(
+                        *display_signal(cos_func, num_points=n_samples)[2:]
+                    ).set_color(REDUCIBLE_YELLOW)
+                    for cos_func in [cos_1_scaled, cos_2_scaled, cos_3_scaled]
+                ]
+            )
+            .arrange(DOWN, buff=0.5)
+            .scale(0.8)
+            .move_to(pure_sines)
+        )
+
+        sum_scaled = get_sum_functions(cos_1_scaled, cos_2_scaled, cos_3_scaled)
+        sum_scaled_mob = VGroup(
+            *display_signal(sum_scaled, num_points=n_samples)[2:].set_color(
+                REDUCIBLE_YELLOW
+            )
+        )
+        scaled_dft = (
+            get_fourier_bar_chart(
+                sum_scaled,
+                height_scale=14.8,
+                bar_width=0.7,
+                n_samples=n_samples,
+                t_max=t_max,
+            )
+            .scale(0.4)
+            .move_to(sum_dft_graph, aligned_edge=DOWN)
+        )
+
+        sum_signal_scaled = sum_scaled_mob[0]
+        sum_samples_scaled = sum_scaled_mob[1]
+
+        print(pure_sines[1])
+        self.play(
+            Transform(pure_sines[0], pure_sines_scaled[0][0]),
+            Transform(pure_sines[1], pure_sines_scaled[1][0]),
+            Transform(pure_sines[2], pure_sines_scaled[2][0]),
+            Transform(cos_1_samples, pure_sines_scaled[0][1]),
+            Transform(cos_2_samples, pure_sines_scaled[1][1]),
+            Transform(cos_3_samples, pure_sines_scaled[2][1]),
+            Transform(sum_dft_graph, scaled_dft),
+        )
+
         self.wait()
 
         self.play(
-            sum_mob[0].animate.stretch_to_fit_height(0.3),
-            sum_mob[1].animate.stretch_to_fit_height(0.8),
-            sum_mob[2].animate.stretch_to_fit_height(0.1),
-            sum_dft_graph[3]
-            .animate.stretch_to_fit_height(sum_dft_graph[3].height - 0.3)
-            .move_to(sum_dft_graph[3], aligned_edge=DOWN),
-            sum_dft_graph[8]
-            .animate.stretch_to_fit_height(sum_dft_graph[3].height - 0.1)
-            .move_to(sum_dft_graph[8], aligned_edge=DOWN),
-            sum_dft_graph[16]
-            .animate.stretch_to_fit_height(sum_dft_graph[3].height - 0.6)
-            .move_to(sum_dft_graph[16], aligned_edge=DOWN),
+            Transform(pure_sines, sum_signal_scaled),
+            Transform(pure_sine_samples[0], sum_samples_scaled),
+            Transform(pure_sine_samples[1], sum_samples_scaled),
+            Transform(pure_sine_samples[2], sum_samples_scaled),
         )
         self.wait()
 
-        self.play(Transform(sum_mob, sum_mob_og))
-
-        self.wait()
+        # create a dummy rect with the dimensions of the barchart and position
+        # this dummy rect wherever we want our barchart to land
+        # this gives us 2 things: a target for .move_to, and a mobject
+        # to anticipate the camera movement.
+        aux_dot_camera = Rectangle(width=sum_dft_graph.width).next_to(
+            sum_signal_scaled,
+            RIGHT,
+            buff=5,
+        )
+        self.play(
+            sum_dft_graph.animate.move_to(aux_dot_camera),
+            focus_on(frame, [sum_signal_scaled, aux_dot_camera]),
+        )
 
         freq_repr_txt = (
-            Text("Frequency Domain Representation", font=REDUCIBLE_FONT, weight=BOLD)
-            .scale(0.9)
-            .next_to(sum_mob_og, UP * 0.7, buff=2)
+            Text("Frequency Domain", font=REDUCIBLE_FONT, weight=BOLD)
+            .scale(0.7)
+            .next_to(sum_dft_graph, UP, buff=1)
         )
+        time_domain_txt = (
+            Text("Time Domain", font=REDUCIBLE_FONT, weight=BOLD)
+            .scale(0.7)
+            .next_to(sum_samples_scaled, UP, buff=1)
+        )
+
+        self.play(FadeIn(freq_repr_txt, time_domain_txt, shift=DOWN * 0.3))
+
+        arrow_dft = Arrow(
+            sum_samples_scaled.get_right(), sum_dft_graph.get_left(), buff=1
+        ).set_color(REDUCIBLE_VIOLET)
+
+        dft_label = Module("DFT", text_weight=BOLD).scale(0.4).move_to(arrow_dft)
         self.play(
-            frame.animate.shift(UP * 0.6), FadeIn(freq_repr_txt, shift=DOWN * 0.3)
+            FadeIn(arrow_dft, shift=RIGHT * 0.3), FadeIn(dft_label, shift=RIGHT * 0.3)
         )
 
 
