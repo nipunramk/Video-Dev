@@ -16,28 +16,36 @@ from classes import CustomLabel, LabeledDot
 class IntroSampling_002(MovingCameraScene):
     def construct(self):
         frame = self.camera.frame
-        x_max = TAU
+        x_max = 2 * PI
         frequency = 7
-        num_points = 7
+        n_samples = 7
 
         cosine_signal = get_cosine_func(freq=frequency)
-        axes, signal_mob = plot_time_domain(cosine_signal, t_max=x_max)
-        sampled_dots = get_sampled_dots(
-            signal_mob, axes, x_max=x_max, num_points=num_points
-        ).set_color(REDUCIBLE_YELLOW)
+        display_vg = display_signal(cosine_signal, num_points=n_samples)
+
+        signal_mob = display_vg[2]
+        axis_lines = VGroup(display_vg[0], display_vg[1]).set_opacity(0.4)
+        sampled_dots = display_vg[3].set_color(REDUCIBLE_YELLOW)
+
+        text_config = {
+            "font": REDUCIBLE_FONT,
+            "t2f": {
+                f"{str(frequency)}": REDUCIBLE_MONO,
+                f"{str(n_samples)}": REDUCIBLE_MONO,
+            },
+            "t2w": {
+                f"{str(frequency)}": BOLD,
+                f"{str(n_samples)}": BOLD,
+            },
+        }
 
         freq_txt = (
-            Text("ƒ = " + str(frequency) + " Hz", font=REDUCIBLE_MONO)
-            .next_to(signal_mob, DOWN, aligned_edge=LEFT, buff=1)
+            Text("ƒ = " + str(frequency) + " Hz", **text_config)
             .scale(0.6)
-        )
-        point_n_txt = (
-            Text("N = " + str(num_points), font=REDUCIBLE_MONO)
-            .next_to(signal_mob, DOWN, aligned_edge=RIGHT, buff=1)
-            .scale(0.6)
+            .next_to(axis_lines, DOWN, aligned_edge=LEFT, buff=0.5)
         )
 
-        self.play(Write(signal_mob), run_time=2.5)
+        self.play(Write(signal_mob), FadeIn(axis_lines), run_time=2.5)
 
         self.wait()
 
@@ -51,7 +59,7 @@ class IntroSampling_002(MovingCameraScene):
 
         # aliasing
         # show how any multiple of our original freq is an alias
-        multiples = 5
+        multiples = 4
         original_signal_mob = signal_mob.copy()
         original_freq_txt = freq_txt.copy()
         aliasing_txt = (
@@ -82,7 +90,9 @@ class IntroSampling_002(MovingCameraScene):
             new_freq_txt = (
                 Text(
                     "ƒ = " + str(frequency * m) + " Hz",
-                    font=REDUCIBLE_MONO,
+                    font=REDUCIBLE_FONT,
+                    t2f={f"{str(frequency * m)}": REDUCIBLE_MONO},
+                    t2w={f"{str(frequency * m)}": BOLD},
                 )
                 .scale(0.6)
                 .move_to(freq_txt)
@@ -107,19 +117,29 @@ class IntroSampling_002(MovingCameraScene):
         self.wait()
 
         # double sampling
-        double_sampling = get_sampled_dots(
-            signal_mob, axes, x_max=x_max, num_points=frequency * 2
-        ).set_color(REDUCIBLE_YELLOW)
+        double_sampling_vg = display_signal(cosine_signal, num_points=n_samples * 2)
+        double_sampling = double_sampling_vg[3].set_color(REDUCIBLE_YELLOW)
 
         point_n_txt = (
-            Text("N = " + str(num_points), font=REDUCIBLE_MONO)
-            .next_to(signal_mob, DOWN, aligned_edge=RIGHT, buff=1)
+            Text(
+                "N = " + str(n_samples),
+                font=REDUCIBLE_FONT,
+                t2f={f"{str(n_samples)}": REDUCIBLE_MONO},
+                t2w={f"{str(n_samples)}": BOLD},
+            )
             .scale(0.6)
+            .next_to(signal_mob, DOWN, aligned_edge=RIGHT, buff=0.5)
         )
+
         point_2n_txt = (
-            Text("N = " + str(num_points * 2), font=REDUCIBLE_MONO)
-            .next_to(signal_mob, DOWN, aligned_edge=RIGHT, buff=1)
+            Text(
+                "N = " + str(n_samples * 2),
+                font=REDUCIBLE_FONT,
+                t2f={f"{str(n_samples * 2)}": REDUCIBLE_MONO},
+                t2w={f"{str(n_samples * 2)}": BOLD},
+            )
             .scale(0.6)
+            .next_to(signal_mob, DOWN, aligned_edge=RIGHT, buff=0.5)
         )
 
         # sampling at N = 14
@@ -167,9 +187,14 @@ class IntroSampling_002(MovingCameraScene):
             signal_mob, axes, x_max=x_max, num_points=frequency * 2 + 1
         ).set_color(REDUCIBLE_YELLOW)
         point_shannon_txt = (
-            Text("N = " + str(num_points * 2 + 1), font=REDUCIBLE_MONO)
-            .next_to(signal_mob, DOWN, aligned_edge=RIGHT, buff=1)
+            Text(
+                "N = " + str(n_samples * 2 + 1),
+                font=REDUCIBLE_FONT,
+                t2f={f"{str(n_samples * 2 + 1)}": REDUCIBLE_MONO},
+                t2w={f"{str(n_samples * 2 + 1)}": BOLD},
+            )
             .scale(0.6)
+            .next_to(signal_mob, DOWN, aligned_edge=RIGHT, buff=0.5)
         )
         self.play(
             Transform(sampled_dots, shannon_sampling),
@@ -189,15 +214,24 @@ class IntroSampling_002(MovingCameraScene):
             FadeOut(freq_txt, point_n_txt),
             signal_mob.animate.shift(DOWN * 0.8),
             sampled_dots.animate.shift(DOWN * 0.8),
+            FadeOut(axis_lines),
         )
         axes.shift(DOWN * 0.8)
 
-        shannon_theorem = MathTex(
-            r"f_{s} \Rightarrow f_{\text{\tiny sample rate}} > 2 \cdot f_{s}"
-        ).next_to(shannon_text, DOWN, buff=0.5)
-        shannon_theorem_reverse = MathTex(
-            r"f_{\text{\tiny sample rate}} \Rightarrow f_{s_{+}} < \frac{f_{\text{\tiny sample rate}}}{2}"
-        ).next_to(shannon_theorem, DOWN, buff=0.5)
+        shannon_theorem = (
+            MathTex(
+                r"\text{Given} \ f_{s} \Rightarrow f_{\text{\tiny sample rate}} > 2 \cdot f_{s}"
+            )
+            .scale(0.8)
+            .next_to(shannon_text, DOWN, buff=0.6)
+        )
+        shannon_theorem_reverse = (
+            MathTex(
+                r"\text{Given} \ f_{\text{\tiny sample rate}} \Rightarrow f_{s} < \frac{f_{\text{\tiny sample rate}}}{2}"
+            )
+            .scale(0.8)
+            .next_to(shannon_theorem, DOWN, buff=0.3)
+        )
 
         self.wait()
 
