@@ -527,3 +527,14 @@ def get_analysis_frequency_matrix(N, sample_rate, t_min=0, t_max=2 * PI):
     return np.array(
         [[f(s) for s in np.linspace(t_min, t_max, num=N, endpoint=False)] for f in af]
     )
+
+
+def get_vertical_lines_as_samples(
+    graph, axes, x_min=0, x_max=2 * PI, num_points=8, color=REDUCIBLE_YELLOW
+):
+
+    return VGroup(
+        *axes.get_vertical_lines_to_graph(graph, [x_min, x_max], num_lines=num_points)[
+            :-1
+        ].set_color(color)
+    )

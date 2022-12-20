@@ -375,8 +375,8 @@ class IntroTimeFreqDomain(MovingCameraScene):
 class IntroSimilarityConcept(MovingCameraScene):
     def construct(self):
 
-        original_freq_mob = self.show_similarity_operation()
-        self.show_point_sequence(original_freq_mob)
+        # original_freq_mob = self.show_similarity_operation()
+        # self.show_line_sequence(original_freq_mob)
         self.show_signal_cosines()
 
     def show_similarity_operation(self):
@@ -509,6 +509,7 @@ class IntroSimilarityConcept(MovingCameraScene):
         self.wait()
         self.play(
             FadeOut(changing_analysis_freq_signal),
+            FadeOut(freq_label),
             FadeOut(
                 changing_bar_dot_prod,
                 bg_rect,
@@ -518,58 +519,71 @@ class IntroSimilarityConcept(MovingCameraScene):
             ),
         )
 
-        return original_freq_mob[0]
+        return cos_vg
 
-    def show_point_sequence(self, original_freq_mob):
+    def show_line_sequence(self, cos_vg):
 
-        self.play(original_freq_mob.animate.move_to(ORIGIN))
+        n_samples = 16
+        original_freq = 2
 
-        dots = VGroup(
-            *[
-                Dot(color=WHITE).move_to(original_freq_mob.point_from_proportion(d))
-                for d in np.linspace(0, 1, 3)
-            ]
+        original_freq_mob = cos_vg[2]
+        axis_and_lines = cos_vg[:2]
+        dots = cos_vg[3]
+
+        self.play(
+            original_freq_mob.animate.move_to(ORIGIN),
+            axis_and_lines.animate.set_opacity(0),
+            FadeOut(dots),
+        )
+        axis_and_lines.move_to(ORIGIN)
+
+        vert_samples = get_vertical_lines_as_samples(
+            original_freq_mob, axis_and_lines[0], num_points=n_samples
+        ).set_stroke(width=5)
+
+        axes_small_amp, signal_small_amp = plot_time_domain(
+            get_cosine_func(amplitude=0.7, freq=original_freq), t_max=2 * PI
+        )
+        axes_small_amp.scale(0.7)
+        signal_small_amp.scale(0.7)
+
+        vert_samples_smaller = get_vertical_lines_as_samples(
+            signal_small_amp, axes_small_amp, num_points=n_samples
+        ).set_stroke(width=5)
+        vert_samples_smaller_analysis = vert_samples_smaller.copy().set_color(
+            REDUCIBLE_VIOLET
         )
 
-        for i in range(6, 3 * 10, 3):
-            dots_pos = np.linspace(0, 1, i)
-            new_dots = VGroup(
-                *[
-                    Dot(color=WHITE).move_to(original_freq_mob.point_from_proportion(d))
-                    for d in dots_pos
-                ]
-            )
-            self.play(Transform(dots, new_dots), run_time=4 / i)
-            self.wait(1 / config.frame_rate)
+        self.play(LaggedStartMap(Write, vert_samples))
+        self.wait()
+        self.play(FadeOut(original_freq_mob))
+
+        self.play(Transform(vert_samples, vert_samples_smaller))
+        self.wait()
 
         self.wait()
 
-        self.play(
-            dots.animate.scale(0.7).move_to(ORIGIN).arrange(RIGHT),
-            FadeOut(original_freq_mob),
-        )
-
         left_bracket = (
             Tex("[")
-            .scale_to_fit_height(dots[0].height * 3)
-            .next_to(dots, LEFT, buff=0.2)
+            .scale_to_fit_height(vert_samples[0].height * 2)
+            .next_to(vert_samples, LEFT, buff=0.2)
         )
         right_bracket = (
             Tex("]")
-            .scale_to_fit_height(dots[0].height * 3)
-            .next_to(dots, RIGHT, buff=0.2)
+            .scale_to_fit_height(vert_samples[0].height * 2)
+            .next_to(vert_samples, RIGHT, buff=0.2)
         )
 
-        vector = VGroup(left_bracket, dots, right_bracket)
+        vector = VGroup(left_bracket, vert_samples, right_bracket)
 
         self.play(FadeIn(left_bracket, right_bracket, shift=DOWN * 0.3))
 
         self.wait()
         vector_purple = vector.copy().set_color(REDUCIBLE_VIOLET).shift(DOWN * 1)
 
-        times_symbol = MathTex(r"\times").scale(0.8)
+        times_symbol = MathTex(r"\times").scale(0.8).shift(UP * 0.4)
         self.play(
-            vector.animate.shift(UP * 1).set_color(REDUCIBLE_YELLOW),
+            vector.animate.shift(UP * 1.5).set_color(REDUCIBLE_YELLOW),
             FadeIn(vector_purple, times_symbol),
         )
 
@@ -577,33 +591,51 @@ class IntroSimilarityConcept(MovingCameraScene):
         self.play(*[FadeOut(mob) for mob in self.mobjects])
 
     def show_signal_cosines(self):
-        t_max = TAU * 2
+        t_max = 6 * PI
 
         original_freq = 2
 
         cos_og = get_cosine_func(freq=original_freq, amplitude=1)
 
-        _, original_freq_mob = plot_time_domain(cos_og, t_max=t_max)
+        cos_vg = display_signal(cos_og)
+        original_freq_mob = VGroup(*cos_vg[2:])
         original_freq_mob.set_color(REDUCIBLE_YELLOW).set_stroke(width=12)
 
         analysis_freqs = VGroup()
         for i in range(1, 9):
-            _, af = plot_time_domain(
-                get_cosine_func(freq=i, amplitude=0.3), t_max=t_max
-            )
+            af_vg = display_signal(get_cosine_func(freq=i, amplitude=0.3))
+            af = VGroup(*af_vg[2:])
             af.set_stroke(opacity=1 / i)
+            [d.set_opacity(1 / i) for d in af[1]]
             analysis_freqs.add(af)
 
         analysis_freqs.arrange(DOWN).scale(0.6).set_color(REDUCIBLE_VIOLET)
 
-        original_freq_mob.shift(LEFT * 6)
-        analysis_freqs.shift(RIGHT * 5)
-
         times = MathTex(r"\times").scale(2)
+
+        scene = (
+            VGroup(original_freq_mob, times, analysis_freqs)
+            .arrange(RIGHT, buff=1)
+            .shift(LEFT * 0.5)
+        )
+        analysis_freqs.move_to(original_freq_mob, coor_mask=[0, 1, 0], aligned_edge=UP)
+
+        main_signal_label = (
+            Text("Main signal", font=REDUCIBLE_FONT, weight=BOLD)
+            .scale(0.8)
+            .next_to(original_freq_mob, UP, buff=1.0)
+        )
+        af_label = (
+            Text("Comparison frequencies", font=REDUCIBLE_FONT, weight=BOLD)
+            .scale(0.6)
+            .next_to(main_signal_label, RIGHT)
+            .move_to(analysis_freqs, coor_mask=[1, 0, 0])
+        )
 
         self.play(Write(original_freq_mob))
         self.play(FadeIn(times))
         self.play(LaggedStartMap(FadeIn, analysis_freqs), run_time=2)
+        self.play(FadeIn(main_signal_label, af_label, shift=UP * 0.3))
 
 
 class IntroducePhaseProblem(MovingCameraScene):
