@@ -13,6 +13,73 @@ from math import degrees
 from classes import CustomLabel, LabeledDot
 
 
+class IntroSampling_001(MovingCameraScene):
+    def construct(self):
+        frame = self.camera.frame
+        t_max = 2 * PI
+
+        # samples per second
+        n_samples = 16
+
+        # total number of samples
+        sample_frequency = n_samples
+
+        analysis_frequencies = [
+            sample_frequency * m / n_samples for m in range(n_samples)
+        ]
+        original_frequency = analysis_frequencies[2]
+
+        cos_func = get_cosine_func(freq=original_frequency)
+        cos_vg = display_signal(cos_func, num_points=n_samples)
+        cos_signal = VGroup(*cos_vg[2:]).set_color(REDUCIBLE_YELLOW)
+        axis_and_lines = VGroup(*cos_vg[0:2]).set_opacity(0.3)
+
+        freq_label = (
+            Text(f"ƒ = {original_frequency:.2f} Hz", font=REDUCIBLE_FONT, weight=BOLD)
+            .scale(0.4)
+            .next_to(axis_and_lines, UP, aligned_edge=LEFT)
+        )
+
+        self.play(Write(cos_signal))
+        self.play(Write(axis_and_lines), FadeIn(freq_label, shift=UP * 0.3))
+        self.wait()
+
+        restore_frame = frame.save_state()
+        # self.play(focus_on(frame, axis_and_lines, buff=3))
+        self.wait()
+
+        axis = axis_and_lines[0]
+
+        x_range = axis.x_range
+        cos_func_graph = cos_signal[0].underlying_function
+
+        x_0 = axis.c2p(0, 0)[0]
+        x_max = x_range[1]
+        x_tracker = ValueTracker(0)
+
+        def axis_line_redraw():
+            y_coord = cos_func_graph(x_tracker.get_value())
+            point = axis.coords_to_point(x_tracker.get_value(), y_coord)
+
+            return (
+                axis.get_vertical_line(point)
+                .set_color(REDUCIBLE_VIOLET)
+                .set_stroke(width=8)
+            )
+
+        line_sweep = always_redraw(axis_line_redraw)
+        self.play(Write(line_sweep))
+
+        self.play(
+            x_tracker.animate.set_value(x_max),
+            run_time=5,
+            rate_func=rate_functions.ease_in_out_sine,
+        )
+        self.wait()
+
+        self.play(Restore(restore_frame))
+
+
 class IntroSampling_002(MovingCameraScene):
     def construct(self):
         frame = self.camera.frame
