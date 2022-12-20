@@ -550,9 +550,6 @@ class IntroSimilarityConcept(MovingCameraScene):
         vert_samples_smaller = get_vertical_lines_as_samples(
             signal_small_amp, axes_small_amp, num_points=n_samples
         ).set_stroke(width=5)
-        vert_samples_smaller_analysis = vert_samples_smaller.copy().set_color(
-            REDUCIBLE_VIOLET
-        )
 
         self.play(LaggedStartMap(Write, vert_samples))
         self.wait()
@@ -579,7 +576,9 @@ class IntroSimilarityConcept(MovingCameraScene):
         self.play(FadeIn(left_bracket, right_bracket, shift=DOWN * 0.3))
 
         self.wait()
-        vector_purple = vector.copy().set_color(REDUCIBLE_VIOLET).shift(DOWN * 1)
+        vector_purple = (
+            vector.copy().set_color(REDUCIBLE_VIOLET).flip(LEFT).shift(DOWN * 1)
+        )
 
         times_symbol = MathTex(r"\times").scale(0.8).shift(UP * 0.4)
         self.play(
@@ -591,8 +590,8 @@ class IntroSimilarityConcept(MovingCameraScene):
         self.play(*[FadeOut(mob) for mob in self.mobjects])
 
     def show_signal_cosines(self):
-        t_max = 6 * PI
 
+        frame = self.camera.frame
         original_freq = 2
 
         cos_og = get_cosine_func(freq=original_freq, amplitude=1)
@@ -616,20 +615,28 @@ class IntroSimilarityConcept(MovingCameraScene):
         scene = (
             VGroup(original_freq_mob, times, analysis_freqs)
             .arrange(RIGHT, buff=1)
-            .shift(LEFT * 0.5)
+            .shift(LEFT * 1.0)
         )
+
         analysis_freqs.move_to(original_freq_mob, coor_mask=[0, 1, 0], aligned_edge=UP)
 
         main_signal_label = (
             Text("Main signal", font=REDUCIBLE_FONT, weight=BOLD)
             .scale(0.8)
             .next_to(original_freq_mob, UP, buff=1.0)
+            .shift(RIGHT * 2)
         )
         af_label = (
-            Text("Comparison frequencies", font=REDUCIBLE_FONT, weight=BOLD)
+            Text(
+                "Comparison\nfrequencies",
+                font=REDUCIBLE_FONT,
+                weight=BOLD,
+                line_spacing=1,
+            )
             .scale(0.6)
-            .next_to(main_signal_label, RIGHT)
+            .next_to(main_signal_label, RIGHT, aligned_edge=UP)
             .move_to(analysis_freqs, coor_mask=[1, 0, 0])
+            .shift(LEFT)
         )
 
         self.play(Write(original_freq_mob))
