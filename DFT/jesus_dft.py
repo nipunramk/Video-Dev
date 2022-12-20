@@ -485,16 +485,27 @@ class IntroSimilarityConcept(MovingCameraScene):
         self.play(FadeIn(v_similar_txt, n_similar_txt, shift=DOWN * 0.3))
         self.wait()
 
-        self.play(frequency_tracker.animate.set_value(3.5), run_time=4)
-        self.play(frequency_tracker.animate.set_value(4), run_time=4, rate_func=linear)
         self.play(
-            frequency_tracker.animate.set_value(3.6), run_time=4, rate_func=linear
+            frequency_tracker.animate.set_value(3.5),
+            run_time=4,
+            rate_func=rate_functions.ease_in_out_sine,
+        )
+        self.play(
+            frequency_tracker.animate.set_value(4),
+            run_time=4,
+            rate_func=rate_functions.ease_in_out_sine,
+        )
+        self.play(
+            frequency_tracker.animate.set_value(3.6),
+            run_time=4,
+            rate_func=rate_functions.ease_in_out_sine,
         )
         self.play(
             frequency_tracker.animate.set_value(original_freq),
             run_time=6,
-            rate_func=linear,
+            rate_func=rate_functions.ease_in_out_sine,
         )
+
         self.wait()
         self.play(
             FadeOut(changing_analysis_freq_signal),
@@ -507,7 +518,7 @@ class IntroSimilarityConcept(MovingCameraScene):
             ),
         )
 
-        return original_freq_mob
+        return original_freq_mob[0]
 
     def show_point_sequence(self, original_freq_mob):
 
