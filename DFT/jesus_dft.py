@@ -382,24 +382,37 @@ class IntroSimilarityConcept(MovingCameraScene):
     def show_similarity_operation(self):
 
         frame = self.camera.frame
-        t_max = TAU * 2
+        t_max = 2 * PI
 
         original_freq = 2
+        n_samples = 16
 
-        cos_og = get_cosine_func(freq=original_freq, amplitude=0.3)
+        cos_og = get_cosine_func(freq=original_freq)
 
-        _, original_freq_mob = plot_time_domain(cos_og, t_max=t_max)
+        cos_vg = display_signal(cos_og, num_points=n_samples)
+        original_freq_mob = VGroup(*cos_vg[2:]).set_color(REDUCIBLE_YELLOW)
+        axis_and_lines = VGroup(*cos_vg[:2]).set_opacity(0.4)
 
-        og_fourier = (
-            get_fourier_bar_chart(cos_og, t_max=t_max, height_scale=14.8, n_samples=100)
-            .scale_to_fit_width(original_freq_mob.width)
-            .shift(DOWN * 2)
+        og_fourier = get_fourier_bar_chart(
+            cos_og, t_max=t_max, n_samples=n_samples, height_scale=3, bar_width=0.4
+        ).shift(DOWN * 2)
+
+        freq_label = (
+            Text(f"ƒ = {original_freq:.2f} Hz", font=REDUCIBLE_FONT, weight=BOLD)
+            .scale(0.7)
+            .add_updater(
+                lambda mob: mob.next_to(axis_and_lines, UP, aligned_edge=LEFT, buff=0.5)
+            )
         )
-
         self.play(Write(original_freq_mob), run_time=1.5)
+        self.play(Write(axis_and_lines), FadeIn(freq_label, shift=UP * 0.3))
         self.wait()
 
-        self.play(original_freq_mob.animate.shift(UP * 1.5))
+        self.play(
+            original_freq_mob.animate.scale(0.7).shift(UP * 1),
+            axis_and_lines.animate.scale(0.7).shift(UP * 1),
+            freq_label.animate.scale(0.7),
+        )
         self.wait()
 
         self.play(LaggedStartMap(FadeIn, og_fourier))
@@ -411,11 +424,13 @@ class IntroSimilarityConcept(MovingCameraScene):
         frequency_tracker = ValueTracker(3)
 
         def get_signal_of_frequency():
-            analysis_freq_func = get_cosine_func(
-                freq=frequency_tracker.get_value(), amplitude=0.3
-            )
-            _, new_signal = plot_time_domain(
-                analysis_freq_func, t_max=t_max, color=FREQ_DOMAIN_COLOR
+            analysis_freq_func = get_cosine_func(freq=frequency_tracker.get_value())
+            new_signal = (
+                display_signal(
+                    analysis_freq_func, color=FREQ_DOMAIN_COLOR, num_points=n_samples
+                )[2:]
+                .set_color(FREQ_DOMAIN_COLOR)
+                .scale_to_fit_width(original_freq_mob.width)
             )
             return new_signal.move_to(original_freq_mob)
 
@@ -437,11 +452,11 @@ class IntroSimilarityConcept(MovingCameraScene):
                 .flip()
             )
 
-            barchart[1:].set_opacity(0.0).next_to(
-                original_freq_mob, DOWN, buff=2.4, aligned_edge=LEFT
+            barchart[1:].set_opacity(0).next_to(
+                original_freq_mob, DOWN, buff=1.5, aligned_edge=LEFT
             )
 
-            barchart[0].next_to(original_freq_mob, DOWN, buff=2.4, aligned_edge=LEFT)
+            barchart[0].next_to(original_freq_mob, DOWN, buff=1.5, aligned_edge=LEFT)
 
             return barchart
 
@@ -452,7 +467,7 @@ class IntroSimilarityConcept(MovingCameraScene):
             Rectangle(height=0.3, width=original_freq_mob.width, color=REDUCIBLE_GREEN)
             .set_opacity(0.3)
             .set_stroke(opacity=0.3)
-            .next_to(original_freq_mob, DOWN, buff=2.4)
+            .next_to(original_freq_mob, DOWN, buff=1.5)
         )
         v_similar_txt = (
             Text("Very Similar", font=REDUCIBLE_FONT)
