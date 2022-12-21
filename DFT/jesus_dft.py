@@ -961,6 +961,8 @@ class IntroducePhaseProblem(MovingCameraScene):
             rate_func=rate_functions.ease_in_out_sine,
         )
 
+        self.wait()
+
 
 class SolvingPhaseProblem(MovingCameraScene):
     def construct(self):
