@@ -128,6 +128,11 @@ def get_sampled_coords(graph, x_min=0, x_max=2 * PI, num_points=8):
     return x_coords, y_coords
 
 
+def get_sampled_points(func, x_min=0, x_max=2 * PI, num_points=8):
+    x_coords = np.linspace(x_min, x_max, num=num_points, endpoint=False)
+    return func(x_coords)
+
+
 def inner_prod(time_domain_func, freq_func, x_min=0, x_max=2 * PI, num_points=8):
     x_coords = np.linspace(x_min, x_max, num=num_points, endpoint=False)
     y_coords_time = time_domain_func(x_coords)
@@ -430,7 +435,7 @@ def get_fourier_rects_n(
     spectrum_selection = n_samples if full_spectrum else n_samples // 2
 
     af_matrix = get_analysis_frequency_matrix(
-        N=n_samples, sample_rate=sample_rate, t_max=t_max, full_spectrum=full_spectrum
+        N=n_samples, sample_rate=sample_rate, t_max=t_max
     )
     sampled_signal = np.array(
         [

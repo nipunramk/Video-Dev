@@ -276,11 +276,26 @@ class MatrixDefinition(Scene):
         self.play(graph_notation.animate.scale(DEFAULT_SCALE).shift(LEFT * 3.5))
 
         time_signal_func = get_cosine_func(freq=2)
-        rects = get_fourier_rects_n(time_signal_func, n_samples=16, sample_rate=16)
+        rects = get_fourier_rects_from_custom_matrix(
+            time_signal_func, get_cosine_dft_matrix(16)
+        )
         rects.scale(1.2).move_to(RIGHT * 3.5)
 
         self.play(FadeIn(rects))
         self.wait()
+
+        NUM_SAMPLES = 16
+        cosine_dft_matrix = get_cosine_dft_matrix(NUM_SAMPLES)
+        fourier_rects = (
+            get_fourier_rects_from_custom_matrix(
+                time_signal_func,
+                cosine_dft_matrix,
+                n_samples=NUM_SAMPLES,
+                full_spectrum=True,
+            )
+            .scale(1.2)
+            .move_to(DOWN * 2)
+        )
 
         for increment in range(1, 4):
             new_time_signal_func = get_cosine_func(freq=DEFAULT_FREQ + increment)
@@ -294,7 +309,11 @@ class MatrixDefinition(Scene):
             ).scale_to_fit_height(freq_annotation.height)
 
             new_rects = (
-                get_fourier_rects_n(new_time_signal_func, n_samples=16, sample_rate=16)
+                get_fourier_rects_from_custom_matrix(
+                    new_time_signal_func,
+                    cosine_dft_matrix,
+                    n_samples=16,
+                )
                 .scale_to_fit_height(rects.height)
                 .move_to(rects.get_center())
             )
@@ -1079,7 +1098,9 @@ class TestCases(Scene):
         self.play(FadeIn(combined_func_graph), FadeIn(combined_func_label))
         self.wait()
 
-        fourier_rects, _ = get_fourier_rects_n(combined_func)
+        fourier_rects, _ = get_fourier_rects_from_custom_matrix(
+            combined_func, get_cosine_dft_matrix(16)
+        )
         fourier_rects.next_to(combined_func_label, DOWN)
 
         self.play(FadeIn(fourier_rects))
@@ -1093,9 +1114,15 @@ class TestCases(Scene):
         self.wait()
 
         fourier_rects_copy = fourier_rects.copy()
-        f_rects_1, _ = get_fourier_rects_n(f1)
-        f_rects_2, _ = get_fourier_rects_n(f2)
-        f_rects_3, _ = get_fourier_rects_n(f3)
+        f_rects_1, _ = get_fourier_rects_from_custom_matrix(
+            f1, get_cosine_dft_matrix(16)
+        )
+        f_rects_2, _ = get_fourier_rects_from_custom_matrix(
+            f2, get_cosine_dft_matrix(16)
+        )
+        f_rects_3, _ = get_fourier_rects_from_custom_matrix(
+            f3, get_cosine_dft_matrix(16)
+        )
         f_rects_1.scale_to_fit_width(fourier_rects_copy.width)
         f_rects_2.scale_to_fit_width(fourier_rects_copy.width)
         f_rects_3.scale_to_fit_width(fourier_rects_copy.width)
@@ -1113,4 +1140,27 @@ class TestCases(Scene):
         self.wait()
 
         self.play(LaggedStartMap(FadeIn, [f_rects_1, f_rects_2, f_rects_3]))
+        self.wait()
+
+
+class TestCircleTheory(Scene):
+    def construct(self):
+        dots = VGroup()
+        for phase in np.linspace(0, 2 * PI, 1000):
+            cosine_func = get_cosine_func(freq=DEFAULT_FREQ, phase=phase)
+            analysis_cosine_func = get_cosine_func(freq=DEFAULT_FREQ)
+            analysis_sin_func = get_sine_func(freq=DEFAULT_FREQ)
+            sampled_points = get_sampled_points(cosine_func)
+            sampled_points_cosine_analysis = get_sampled_points(analysis_cosine_func)
+            sampled_points_sin_analysis = get_sampled_points(analysis_sin_func)
+
+            x_coord = (
+                np.dot(sampled_points, sampled_points_cosine_analysis) * 0.5
+            )  # 0.5 to scale down circle
+            y_coord = (
+                np.dot(sampled_points, sampled_points_sin_analysis) * 0.5
+            )  # 0.5 to scale down circle
+            dot = Dot().move_to(RIGHT * x_coord + UP * y_coord)
+            dots.add(dot)
+        self.play(FadeIn(dots))
         self.wait()
