@@ -894,7 +894,6 @@ class IntroducePhaseProblem(MovingCameraScene):
 
     def try_sine_wave(self):
         frame = self.camera.frame
-        t_min = 0
         t_max = 2 * PI
 
         original_freq = 2
@@ -916,9 +915,11 @@ class IntroducePhaseProblem(MovingCameraScene):
                 phase=vt_phase.get_value(),
                 b=vt_b.get_value(),
             )
-            _, phase_ch_cos_mob = plot_time_domain(phase_ch_cos, t_max=t_max)
+            signal_mob = display_signal(phase_ch_cos, num_points=n_samples)[
+                2:
+            ].set_color(REDUCIBLE_YELLOW)
 
-            return phase_ch_cos_mob.scale(0.6).shift(UP * 1.5)
+            return signal_mob.scale(0.6).shift(UP * 1.5)
 
         af_matrix = get_analysis_frequency_matrix(
             N=n_samples, sample_rate=sample_frequency, t_max=t_max
@@ -936,76 +937,96 @@ class IntroducePhaseProblem(MovingCameraScene):
                 signal_function, af_matrix, n_samples=n_samples, t_max=t_max
             )
 
-            return rects.move_to(DOWN * 3.5, aligned_edge=DOWN)
+            return rects.next_to(static_rects, RIGHT, buff=4.5, aligned_edge=DOWN)
 
         changing_sine = always_redraw(sine_cosine_redraw)
-        sampled_dots = VGroup(
-            *[
-                Dot()
-                .move_to(changing_sine.point_from_proportion(p))
-                .set_fill(REDUCIBLE_YELLOW, opacity=1)
-                for p in np.linspace(0, 1, 10)
-            ]
-        )
+        static_rects = get_fourier_rects_from_custom_matrix(
+            get_cosine_func(freq=vt_frequency.get_value()),
+            af_matrix,
+            n_samples=n_samples,
+            t_max=t_max,
+        ).next_to(changing_sine, DOWN, buff=3)
 
         changing_rects = always_redraw(updating_transform_redraw)
 
-        cos_tex = MathTex("cos(x)").scale(0.8).next_to(changing_sine, DOWN, buff=1)
-        sin_tex = MathTex("sin(x)").scale(0.8).next_to(changing_sine, DOWN, buff=1)
+        cos_tex = (
+            Text("cos(x)", font=REDUCIBLE_FONT, weight=BOLD)
+            .scale(0.8)
+            .next_to(changing_sine, DOWN, buff=1)
+        )
+        sin_tex = (
+            Text("sin(x)", font=REDUCIBLE_FONT, weight=BOLD)
+            .scale(0.8)
+            .next_to(changing_sine, DOWN, buff=1)
+        )
+        expected_t = (
+            Text("Expected", font=REDUCIBLE_FONT, weight=BOLD)
+            .scale(0.5)
+            .next_to(changing_sine, UP, buff=0.3)
+        )
 
-        self.play(Write(changing_sine), FadeIn(cos_tex, changing_rects))
-
+        self.play(
+            focus_on(frame, [changing_sine, static_rects], buff=0.7),
+            FadeIn(changing_rects),
+        )
         self.wait()
-
-        self.play(LaggedStartMap(FadeIn, sampled_dots))
+        self.play(
+            Write(changing_sine),
+            FadeIn(cos_tex, static_rects),
+        )
         self.wait()
-        self.play(FadeOut(sampled_dots))
 
         self.play(
             vt_phase.animate.set_value(PI / 2),
             FadeTransform(cos_tex, sin_tex),
             run_time=2,
         )
+        self.wait()
 
-        cos_mob = changing_sine.copy()
-        analysis_freq = get_cosine_func(freq=original_freq)
-        _, analysis_freq_mob = plot_time_domain(analysis_freq, t_max=t_max)
+        changing_sine_actual = changing_sine.copy().next_to(
+            changing_sine, RIGHT, buff=4.5
+        )
+        actual_t = (
+            Text("Actual", font=REDUCIBLE_FONT, weight=BOLD)
+            .scale(0.5)
+            .next_to(changing_sine_actual, UP, buff=0.3)
+        )
+        sin_tex_actual = sin_tex.copy().next_to(changing_sine_actual, DOWN, buff=1)
 
-        analysis_freq_mob.set_color(REDUCIBLE_VIOLET).scale_to_fit_width(
-            changing_sine.width
-        ).move_to(ORIGIN)
-
-        self.play(FadeIn(cos_mob), FadeOut(changing_sine))
         self.play(
-            FadeOut(changing_rects),
-            FadeOut(sin_tex),
-            cos_mob.animate.move_to(ORIGIN),
-            Write(analysis_freq_mob),
-            frame.animate.scale(0.8).shift(DOWN * 0.8),
+            focus_on(
+                frame,
+                [
+                    changing_sine,
+                    changing_sine_actual,
+                    static_rects,
+                    actual_t,
+                    expected_t,
+                ],
+                buff=2,
+            ),
+            FadeIn(changing_sine_actual, sin_tex_actual, actual_t, expected_t),
+            run_time=2,
         )
         self.wait()
 
-        aux_analysis_freq_axis, _ = plot_time_domain(
-            get_cosine_func(freq=original_freq), t_max=t_max
-        )
-        aux_analysis_freq_axis.scale_to_fit_width(analysis_freq_mob.width).move_to(
-            analysis_freq_mob
+        cos_mob = changing_sine.copy()
+        analysis_freq_vg = (
+            display_signal(
+                get_cosine_func(freq=original_freq),
+                num_points=n_samples,
+                color=REDUCIBLE_VIOLET,
+            )
+            .scale_to_fit_width(changing_sine.width)
+            .move_to(ORIGIN)
         )
 
-        aux_signal_axis, sine_wave = plot_time_domain(
-            get_cosine_func(freq=original_freq, phase=vt_phase.get_value()), t_max=t_max
-        )
-        aux_signal_axis.scale_to_fit_width(cos_mob.width).move_to(cos_mob)
-
-        dots_analysis_freq = get_sampled_dots(
-            analysis_freq_mob, aux_analysis_freq_axis, num_points=10
-        ).set_fill(REDUCIBLE_VIOLET)
-        dots_cos_mob = get_sampled_dots(
-            sine_wave, aux_signal_axis, num_points=10
-        ).set_fill(REDUCIBLE_YELLOW)
+        analysis_freq_mob = analysis_freq_vg[2:]
+        axes_and_lines = analysis_freq_vg[:2].set_opacity(0.3)
 
         sampled_dots_af = [
-            analysis_freq(v) for v in np.linspace(0, t_max, 10, endpoint=False)
+            get_cosine_func(freq=original_freq)(v)
+            for v in np.linspace(0, t_max, 10, endpoint=False)
         ]
         sampled_dots_signal = [
             get_cosine_func(freq=original_freq, phase=vt_phase.get_value())(v)
@@ -1015,19 +1036,35 @@ class IntroducePhaseProblem(MovingCameraScene):
             af * s for af, s in zip(sampled_dots_af, sampled_dots_signal)
         ]
 
-        self.play(LaggedStartMap(FadeIn, [*dots_analysis_freq, *dots_cos_mob]))
-        self.wait()
-
         barchart = BarChart(
             prod_per_sample,
             bar_colors=[REDUCIBLE_PURPLE],
             bar_width=1,
-            x_length=dots_analysis_freq.width,
+            x_length=analysis_freq_mob.width,
         )
         barchart.remove(barchart[2])
-        barchart.stretch_to_fit_width(dots_analysis_freq.width).stretch_to_fit_height(
+        barchart.stretch_to_fit_width(analysis_freq_mob.width).stretch_to_fit_height(
             analysis_freq_mob.height * 1.3
         ).next_to(analysis_freq_mob, DOWN, buff=0.5, aligned_edge=LEFT)
+
+        self.play(FadeIn(cos_mob), FadeOut(changing_sine))
+        self.play(
+            FadeOut(
+                sin_tex,
+                sin_tex_actual,
+                static_rects,
+                changing_rects,
+                sin_tex_actual,
+                changing_sine_actual,
+            ),
+            cos_mob.animate.move_to(ORIGIN),
+            Write(analysis_freq_mob),
+            focus_on(frame, [barchart, analysis_freq_mob], buff=2),
+        )
+        self.play(
+            Write(axes_and_lines),
+        )
+        self.wait()
 
         self.play(Write(barchart[1]))
         self.play(LaggedStartMap(FadeIn, barchart[0]))
@@ -1224,6 +1261,8 @@ class IntroducePhaseProblem(MovingCameraScene):
             run_time=10,
             rate_func=rate_functions.ease_in_out_sine,
         )
+
+        self.wait()
 
 
 class SolvingPhaseProblem(MovingCameraScene):
