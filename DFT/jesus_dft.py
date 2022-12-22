@@ -10,34 +10,109 @@ from manim import *
 from dft_utils import *
 from reducible_colors import *
 from math import degrees
-from classes import CustomLabel, LabeledDot
+from classes import CustomLabel, LabeledDot, Module
+
+
+class IntroSampling_001(MovingCameraScene):
+    def construct(self):
+        frame = self.camera.frame
+        t_max = 2 * PI
+
+        # samples per second
+        n_samples = 16
+
+        # total number of samples
+        sample_frequency = n_samples
+
+        analysis_frequencies = [
+            sample_frequency * m / n_samples for m in range(n_samples)
+        ]
+        original_frequency = analysis_frequencies[2]
+
+        cos_func = get_cosine_func(freq=original_frequency)
+        cos_vg = display_signal(cos_func, num_points=n_samples)
+        cos_signal = VGroup(*cos_vg[2:]).set_color(REDUCIBLE_YELLOW)
+        axis_and_lines = VGroup(*cos_vg[0:2]).set_opacity(0.3)
+
+        freq_label = (
+            Text(f"ƒ = {original_frequency:.2f} Hz", font=REDUCIBLE_FONT, weight=BOLD)
+            .scale(0.4)
+            .next_to(axis_and_lines, UP, aligned_edge=LEFT)
+        )
+
+        self.play(Write(cos_signal))
+        self.play(Write(axis_and_lines), FadeIn(freq_label, shift=UP * 0.3))
+        self.wait()
+
+        restore_frame = frame.save_state()
+        # self.play(focus_on(frame, axis_and_lines, buff=3))
+        self.wait()
+
+        axis = axis_and_lines[0]
+
+        x_range = axis.x_range
+        cos_func_graph = cos_signal[0].underlying_function
+
+        x_0 = axis.c2p(0, 0)[0]
+        x_max = x_range[1]
+        x_tracker = ValueTracker(0)
+
+        def axis_line_redraw():
+            y_coord = cos_func_graph(x_tracker.get_value())
+            point = axis.coords_to_point(x_tracker.get_value(), y_coord)
+
+            return (
+                axis.get_vertical_line(point)
+                .set_color(REDUCIBLE_VIOLET)
+                .set_stroke(width=8)
+            )
+
+        line_sweep = always_redraw(axis_line_redraw)
+        self.play(Write(line_sweep))
+
+        self.play(
+            x_tracker.animate.set_value(x_max),
+            run_time=5,
+            rate_func=rate_functions.ease_in_out_sine,
+        )
+        self.wait()
+
+        self.play(Restore(restore_frame))
 
 
 class IntroSampling_002(MovingCameraScene):
     def construct(self):
         frame = self.camera.frame
-        x_max = TAU
+        x_max = 2 * PI
         frequency = 7
-        num_points = 7
+        n_samples = 7
 
         cosine_signal = get_cosine_func(freq=frequency)
-        axes, signal_mob = plot_time_domain(cosine_signal, t_max=x_max)
-        sampled_dots = get_sampled_dots(
-            signal_mob, axes, x_max=x_max, num_points=num_points
-        ).set_color(REDUCIBLE_YELLOW)
+        display_vg = display_signal(cosine_signal, num_points=n_samples)
+
+        signal_mob = display_vg[2]
+        axis_lines = VGroup(display_vg[0], display_vg[1]).set_opacity(0.4)
+        sampled_dots = display_vg[3].set_color(REDUCIBLE_YELLOW)
+
+        text_config = {
+            "font": REDUCIBLE_FONT,
+            "t2f": {
+                f"{str(frequency)}": REDUCIBLE_MONO,
+                f"{str(n_samples)}": REDUCIBLE_MONO,
+            },
+            "t2w": {
+                f"{str(frequency)}": BOLD,
+                f"{str(n_samples)}": BOLD,
+            },
+        }
 
         freq_txt = (
-            Text("ƒ = " + str(frequency) + " Hz", font=REDUCIBLE_MONO)
-            .next_to(signal_mob, DOWN, aligned_edge=LEFT, buff=1)
+            Text("ƒ = " + str(frequency) + " Hz", **text_config)
             .scale(0.6)
-        )
-        point_n_txt = (
-            Text("N = " + str(num_points), font=REDUCIBLE_MONO)
-            .next_to(signal_mob, DOWN, aligned_edge=RIGHT, buff=1)
-            .scale(0.6)
+            .next_to(axis_lines, DOWN, aligned_edge=LEFT, buff=0.5)
         )
 
-        self.play(Write(signal_mob), run_time=2.5)
+        self.play(Write(signal_mob), FadeIn(axis_lines), run_time=2.5)
 
         self.wait()
 
@@ -51,7 +126,7 @@ class IntroSampling_002(MovingCameraScene):
 
         # aliasing
         # show how any multiple of our original freq is an alias
-        multiples = 5
+        multiples = 4
         original_signal_mob = signal_mob.copy()
         original_freq_txt = freq_txt.copy()
         aliasing_txt = (
@@ -82,7 +157,9 @@ class IntroSampling_002(MovingCameraScene):
             new_freq_txt = (
                 Text(
                     "ƒ = " + str(frequency * m) + " Hz",
-                    font=REDUCIBLE_MONO,
+                    font=REDUCIBLE_FONT,
+                    t2f={f"{str(frequency * m)}": REDUCIBLE_MONO},
+                    t2w={f"{str(frequency * m)}": BOLD},
                 )
                 .scale(0.6)
                 .move_to(freq_txt)
@@ -107,19 +184,29 @@ class IntroSampling_002(MovingCameraScene):
         self.wait()
 
         # double sampling
-        double_sampling = get_sampled_dots(
-            signal_mob, axes, x_max=x_max, num_points=frequency * 2
-        ).set_color(REDUCIBLE_YELLOW)
+        double_sampling_vg = display_signal(cosine_signal, num_points=n_samples * 2)
+        double_sampling = double_sampling_vg[3].set_color(REDUCIBLE_YELLOW)
 
         point_n_txt = (
-            Text("N = " + str(num_points), font=REDUCIBLE_MONO)
-            .next_to(signal_mob, DOWN, aligned_edge=RIGHT, buff=1)
+            Text(
+                "N = " + str(n_samples),
+                font=REDUCIBLE_FONT,
+                t2f={f"{str(n_samples)}": REDUCIBLE_MONO},
+                t2w={f"{str(n_samples)}": BOLD},
+            )
             .scale(0.6)
+            .next_to(signal_mob, DOWN, aligned_edge=RIGHT, buff=0.5)
         )
+
         point_2n_txt = (
-            Text("N = " + str(num_points * 2), font=REDUCIBLE_MONO)
-            .next_to(signal_mob, DOWN, aligned_edge=RIGHT, buff=1)
+            Text(
+                "N = " + str(n_samples * 2),
+                font=REDUCIBLE_FONT,
+                t2f={f"{str(n_samples * 2)}": REDUCIBLE_MONO},
+                t2w={f"{str(n_samples * 2)}": BOLD},
+            )
             .scale(0.6)
+            .next_to(signal_mob, DOWN, aligned_edge=RIGHT, buff=0.5)
         )
 
         # sampling at N = 14
@@ -167,9 +254,14 @@ class IntroSampling_002(MovingCameraScene):
             signal_mob, axes, x_max=x_max, num_points=frequency * 2 + 1
         ).set_color(REDUCIBLE_YELLOW)
         point_shannon_txt = (
-            Text("N = " + str(num_points * 2 + 1), font=REDUCIBLE_MONO)
-            .next_to(signal_mob, DOWN, aligned_edge=RIGHT, buff=1)
+            Text(
+                "N = " + str(n_samples * 2 + 1),
+                font=REDUCIBLE_FONT,
+                t2f={f"{str(n_samples * 2 + 1)}": REDUCIBLE_MONO},
+                t2w={f"{str(n_samples * 2 + 1)}": BOLD},
+            )
             .scale(0.6)
+            .next_to(signal_mob, DOWN, aligned_edge=RIGHT, buff=0.5)
         )
         self.play(
             Transform(sampled_dots, shannon_sampling),
@@ -189,15 +281,24 @@ class IntroSampling_002(MovingCameraScene):
             FadeOut(freq_txt, point_n_txt),
             signal_mob.animate.shift(DOWN * 0.8),
             sampled_dots.animate.shift(DOWN * 0.8),
+            FadeOut(axis_lines),
         )
         axes.shift(DOWN * 0.8)
 
-        shannon_theorem = MathTex(
-            r"f_{s} \Rightarrow f_{\text{\tiny sample rate}} > 2 \cdot f_{s}"
-        ).next_to(shannon_text, DOWN, buff=0.5)
-        shannon_theorem_reverse = MathTex(
-            r"f_{\text{\tiny sample rate}} \Rightarrow f_{s_{+}} < \frac{f_{\text{\tiny sample rate}}}{2}"
-        ).next_to(shannon_theorem, DOWN, buff=0.5)
+        shannon_theorem = (
+            MathTex(
+                r"\text{Given} \ f_{s} \Rightarrow f_{\text{\tiny sample rate}} > 2 \cdot f_{s}"
+            )
+            .scale(0.8)
+            .next_to(shannon_text, DOWN, buff=0.6)
+        )
+        shannon_theorem_reverse = (
+            MathTex(
+                r"\text{Given} \ f_{\text{\tiny sample rate}} \Rightarrow f_{s} < \frac{f_{\text{\tiny sample rate}}}{2}"
+            )
+            .scale(0.8)
+            .next_to(shannon_theorem, DOWN, buff=0.3)
+        )
 
         self.wait()
 
@@ -214,59 +315,84 @@ class IntroTimeFreqDomain(MovingCameraScene):
     def construct(self):
 
         frame = self.camera.frame
-        x_max = TAU * 2
+        t_max = 2 * PI
+        n_samples = 32
 
         freq_1 = 2
-        freq_2 = 5
-        freq_3 = 10
+        freq_2 = 4
+        freq_3 = 6
 
         cos_1 = get_cosine_func(freq=freq_1, amplitude=0.3)
         cos_2 = get_cosine_func(freq=freq_2, amplitude=0.3)
         cos_3 = get_cosine_func(freq=freq_3, amplitude=0.3)
         sum_function = get_sum_functions(cos_1, cos_2, cos_3)
 
-        axes_sum, sum_mob = plot_time_domain(
-            sum_function,
-            t_max=x_max,
-        )
+        display_signal_vg = display_signal(sum_function, num_points=n_samples)
+        sum_mob = VGroup(*display_signal_vg[2:]).set_color(REDUCIBLE_YELLOW)
 
         self.play(Write(sum_mob), run_time=2)
 
         # this would be the "frequency representation"
         sum_dft_graph = (
-            get_fourier_bar_chart(sum_function, height_scale=14.8, n_samples=100)
+            get_fourier_bar_chart(
+                sum_function,
+                height_scale=14.8,
+                bar_width=0.7,
+                t_max=t_max,
+                n_samples=n_samples,
+            )
             .scale(0.4)
             .next_to(sum_mob, DOWN, buff=1)
         )
 
-        _, cos_1_mob = plot_time_domain(
-            cos_1,
-            t_max=x_max,
-        )
-        _, cos_2_mob = plot_time_domain(
-            cos_2,
-            t_max=x_max,
-        )
-        _, cos_3_mob = plot_time_domain(
-            cos_3,
-            t_max=x_max,
-        )
+        cos_1_vg = display_signal(cos_1, num_points=n_samples)
+        cos_1_signal = cos_1_vg[2]
+        cos_1_samples = cos_1_vg[3].set_color(REDUCIBLE_YELLOW)
+        cos_1_mob = VGroup(cos_1_signal, cos_1_samples)
+
+        cos_2_vg = display_signal(cos_2, num_points=n_samples)
+        cos_2_signal = cos_2_vg[2]
+        cos_2_samples = cos_2_vg[3].set_color(REDUCIBLE_YELLOW)
+        cos_2_mob = VGroup(cos_2_signal, cos_2_samples)
+
+        cos_3_vg = display_signal(cos_3, num_points=n_samples)
+        cos_3_signal = cos_3_vg[2]
+        cos_3_samples = cos_3_vg[3].set_color(REDUCIBLE_YELLOW)
+        cos_3_mob = VGroup(cos_3_signal, cos_3_samples)
 
         self.play(
             sum_mob.animate.shift(UP * 0.5), LaggedStartMap(FadeIn, sum_dft_graph)
         )
         cos_1_dft_graph = (
-            get_fourier_bar_chart(cos_1, height_scale=14.8, n_samples=100)
+            get_fourier_bar_chart(
+                cos_1,
+                height_scale=14.8,
+                bar_width=0.7,
+                n_samples=n_samples,
+                t_max=t_max,
+            )
             .scale(0.4)
             .move_to(sum_dft_graph, aligned_edge=DOWN)
         )
         cos_2_dft_graph = (
-            get_fourier_bar_chart(cos_2, height_scale=14.8, n_samples=100)
+            get_fourier_bar_chart(
+                cos_2,
+                height_scale=14.8,
+                bar_width=0.7,
+                n_samples=n_samples,
+                t_max=t_max,
+            )
             .scale(0.4)
             .move_to(sum_dft_graph, aligned_edge=DOWN)
         )
         cos_3_dft_graph = (
-            get_fourier_bar_chart(cos_3, height_scale=14.8, n_samples=100)
+            get_fourier_bar_chart(
+                cos_3,
+                height_scale=14.8,
+                bar_width=0.7,
+                n_samples=n_samples,
+                t_max=t_max,
+            )
             .scale(0.4)
             .move_to(sum_dft_graph, aligned_edge=DOWN)
         )
@@ -300,75 +426,185 @@ class IntroTimeFreqDomain(MovingCameraScene):
         sum_dft_graph_og = sum_dft_graph.copy()
 
         self.play(
-            Transform(sum_mob, decomposed_sum),
+            Transform(sum_mob[0], VGroup(*[s[0] for s in decomposed_sum])),
+            FadeOut(sum_mob[1]),
             FadeIn(text_cos_1, text_cos_2, text_cos_3),
         )
+
+        # after transform, sum_mob[0] contains our 3 original sine waves
+        pure_sines = sum_mob[0]
+        pure_sine_samples = VGroup(*[s[1] for s in decomposed_sum])
+
+        self.play(LaggedStartMap(FadeIn, pure_sine_samples))
         self.wait()
         self.play(FadeOut(text_cos_1, text_cos_2, text_cos_3, shift=UP * 0.3))
 
         self.wait()
 
+        frame = frame.save_state()
+        self.play(focus_on(frame, [pure_sines, cos_1_dft_graph], buff=6))
+
+        freq_1_txt = Text(f"{str(freq_1)} Hz", weight=BOLD, font=REDUCIBLE_FONT).scale(
+            0.3
+        )
+        freq_2_txt = Text(f"{str(freq_2)} Hz", weight=BOLD, font=REDUCIBLE_FONT).scale(
+            0.3
+        )
+        freq_3_txt = Text(f"{str(freq_3)} Hz", weight=BOLD, font=REDUCIBLE_FONT).scale(
+            0.3
+        )
+
         self.play(
-            sum_mob[1].animate.set_stroke(opacity=0.3),
-            sum_mob[2].animate.set_stroke(opacity=0.3),
+            pure_sines[1].animate.set_stroke(opacity=0.3),
+            cos_2_samples.animate.set_opacity(0.3),
+            pure_sines[2].animate.set_stroke(opacity=0.3),
+            cos_3_samples.animate.set_opacity(0.3),
             Transform(sum_dft_graph, cos_1_dft_graph),
+            FadeIn(
+                freq_1_txt.next_to(cos_1_dft_graph[freq_1], UP, buff=0.3),
+                shift=UP * 0.3,
+            ),
         )
 
         self.wait()
 
         self.play(
-            sum_mob[0].animate.set_stroke(opacity=0.3),
-            sum_mob[1].animate.set_stroke(opacity=1),
+            pure_sines[0].animate.set_stroke(opacity=0.3),
+            cos_1_samples.animate.set_opacity(0.3),
+            pure_sines[1].animate.set_stroke(opacity=1),
+            cos_2_samples.animate.set_opacity(1),
             Transform(sum_dft_graph, cos_2_dft_graph),
+            FadeOut(freq_1_txt, shift=DOWN * 0.3),
+            FadeIn(
+                freq_2_txt.next_to(cos_2_dft_graph[freq_2], UP, buff=0.3),
+                shift=UP * 0.3,
+            ),
         )
 
         self.wait()
 
         self.play(
-            sum_mob[0].animate.set_stroke(opacity=0.3),
-            sum_mob[1].animate.set_stroke(opacity=0.3),
-            sum_mob[2].animate.set_stroke(opacity=1),
+            pure_sines[1].animate.set_stroke(opacity=0.3),
+            cos_2_samples.animate.set_opacity(0.3),
+            pure_sines[2].animate.set_stroke(opacity=1),
+            cos_3_samples.animate.set_opacity(1),
             Transform(sum_dft_graph, cos_3_dft_graph),
+            FadeOut(freq_2_txt, shift=DOWN * 0.3),
+            FadeIn(
+                freq_3_txt.next_to(cos_3_dft_graph[freq_3], UP, buff=0.3),
+                shift=UP * 0.3,
+            ),
         )
 
         self.wait()
 
         self.play(
-            sum_mob[0].animate.set_stroke(opacity=1),
-            sum_mob[1].animate.set_stroke(opacity=1),
-            sum_mob[2].animate.set_stroke(opacity=1),
+            FadeOut(freq_3_txt, shift=DOWN * 0.3),
+            pure_sines[0].animate.set_stroke(opacity=1),
+            cos_1_samples.animate.set_opacity(1),
+            pure_sines[1].animate.set_stroke(opacity=1),
+            cos_2_samples.animate.set_opacity(1),
             Transform(sum_dft_graph, sum_dft_graph_og),
         )
 
+        self.play(Restore(frame))
+
+        self.wait()
+
+        cos_1_scaled = get_sine_func(amplitude=0.1, freq=freq_1)
+        cos_2_scaled = get_sine_func(amplitude=0.2, freq=freq_2)
+        cos_3_scaled = get_sine_func(amplitude=0.3, freq=freq_3)
+
+        pure_sines_scaled = (
+            VGroup(
+                *[
+                    VGroup(
+                        *display_signal(cos_func, num_points=n_samples)[2:]
+                    ).set_color(REDUCIBLE_YELLOW)
+                    for cos_func in [cos_1_scaled, cos_2_scaled, cos_3_scaled]
+                ]
+            )
+            .arrange(DOWN, buff=0.5)
+            .scale(0.8)
+            .move_to(pure_sines)
+        )
+
+        sum_scaled = get_sum_functions(cos_1_scaled, cos_2_scaled, cos_3_scaled)
+        sum_scaled_mob = VGroup(
+            *display_signal(sum_scaled, num_points=n_samples)[2:].set_color(
+                REDUCIBLE_YELLOW
+            )
+        )
+        scaled_dft = (
+            get_fourier_bar_chart(
+                sum_scaled,
+                height_scale=14.8,
+                bar_width=0.7,
+                n_samples=n_samples,
+                t_max=t_max,
+            )
+            .scale(0.4)
+            .move_to(sum_dft_graph, aligned_edge=DOWN)
+        )
+
+        sum_signal_scaled = sum_scaled_mob[0]
+        sum_samples_scaled = sum_scaled_mob[1]
+
+        print(pure_sines[1])
+        self.play(
+            Transform(pure_sines[0], pure_sines_scaled[0][0]),
+            Transform(pure_sines[1], pure_sines_scaled[1][0]),
+            Transform(pure_sines[2], pure_sines_scaled[2][0]),
+            Transform(cos_1_samples, pure_sines_scaled[0][1]),
+            Transform(cos_2_samples, pure_sines_scaled[1][1]),
+            Transform(cos_3_samples, pure_sines_scaled[2][1]),
+            Transform(sum_dft_graph, scaled_dft),
+        )
+
         self.wait()
 
         self.play(
-            sum_mob[0].animate.stretch_to_fit_height(0.3),
-            sum_mob[1].animate.stretch_to_fit_height(0.8),
-            sum_mob[2].animate.stretch_to_fit_height(0.1),
-            sum_dft_graph[3]
-            .animate.stretch_to_fit_height(sum_dft_graph[3].height - 0.3)
-            .move_to(sum_dft_graph[3], aligned_edge=DOWN),
-            sum_dft_graph[8]
-            .animate.stretch_to_fit_height(sum_dft_graph[3].height - 0.1)
-            .move_to(sum_dft_graph[8], aligned_edge=DOWN),
-            sum_dft_graph[16]
-            .animate.stretch_to_fit_height(sum_dft_graph[3].height - 0.6)
-            .move_to(sum_dft_graph[16], aligned_edge=DOWN),
+            Transform(pure_sines, sum_signal_scaled),
+            Transform(pure_sine_samples[0], sum_samples_scaled),
+            Transform(pure_sine_samples[1], sum_samples_scaled),
+            Transform(pure_sine_samples[2], sum_samples_scaled),
         )
         self.wait()
 
-        self.play(Transform(sum_mob, sum_mob_og))
-
-        self.wait()
+        # create a dummy rect with the dimensions of the barchart and position
+        # this dummy rect wherever we want our barchart to land
+        # this gives us 2 things: a target for .move_to, and a mobject
+        # to anticipate the camera movement.
+        aux_dot_camera = Rectangle(width=sum_dft_graph.width).next_to(
+            sum_signal_scaled,
+            RIGHT,
+            buff=5,
+        )
+        self.play(
+            sum_dft_graph.animate.move_to(aux_dot_camera),
+            focus_on(frame, [sum_signal_scaled, aux_dot_camera]),
+        )
 
         freq_repr_txt = (
-            Text("Frequency Domain Representation", font=REDUCIBLE_FONT, weight=BOLD)
-            .scale(0.9)
-            .next_to(sum_mob_og, UP * 0.7, buff=2)
+            Text("Frequency Domain", font=REDUCIBLE_FONT, weight=BOLD)
+            .scale(0.7)
+            .next_to(sum_dft_graph, UP, buff=1)
         )
+        time_domain_txt = (
+            Text("Time Domain", font=REDUCIBLE_FONT, weight=BOLD)
+            .scale(0.7)
+            .next_to(sum_samples_scaled, UP, buff=1)
+        )
+
+        self.play(FadeIn(freq_repr_txt, time_domain_txt, shift=DOWN * 0.3))
+
+        arrow_dft = Arrow(
+            sum_samples_scaled.get_right(), sum_dft_graph.get_left(), buff=1
+        ).set_color(REDUCIBLE_VIOLET)
+
+        dft_label = Module("DFT", text_weight=BOLD).scale(0.4).move_to(arrow_dft)
         self.play(
-            frame.animate.shift(UP * 0.6), FadeIn(freq_repr_txt, shift=DOWN * 0.3)
+            FadeIn(arrow_dft, shift=RIGHT * 0.3), FadeIn(dft_label, shift=RIGHT * 0.3)
         )
 
 
@@ -376,30 +612,43 @@ class IntroSimilarityConcept(MovingCameraScene):
     def construct(self):
 
         original_freq_mob = self.show_similarity_operation()
-        self.show_point_sequence(original_freq_mob)
+        self.show_line_sequence(original_freq_mob)
         self.show_signal_cosines()
 
     def show_similarity_operation(self):
 
         frame = self.camera.frame
-        t_max = TAU * 2
+        t_max = 2 * PI
 
         original_freq = 2
+        n_samples = 16
 
-        cos_og = get_cosine_func(freq=original_freq, amplitude=0.3)
+        cos_og = get_cosine_func(freq=original_freq)
 
-        _, original_freq_mob = plot_time_domain(cos_og, t_max=t_max)
+        cos_vg = display_signal(cos_og, num_points=n_samples)
+        original_freq_mob = VGroup(*cos_vg[2:]).set_color(REDUCIBLE_YELLOW)
+        axis_and_lines = VGroup(*cos_vg[:2]).set_opacity(0.4)
 
-        og_fourier = (
-            get_fourier_bar_chart(cos_og, t_max=t_max, height_scale=14.8, n_samples=100)
-            .scale_to_fit_width(original_freq_mob.width)
-            .shift(DOWN * 2)
+        og_fourier = get_fourier_bar_chart(
+            cos_og, t_max=t_max, n_samples=n_samples, height_scale=3, bar_width=0.4
+        ).shift(DOWN * 2)
+
+        freq_label = (
+            Text(f"ƒ = {original_freq:.2f} Hz", font=REDUCIBLE_FONT, weight=BOLD)
+            .scale(0.7)
+            .add_updater(
+                lambda mob: mob.next_to(axis_and_lines, UP, aligned_edge=LEFT, buff=0.5)
+            )
         )
-
         self.play(Write(original_freq_mob), run_time=1.5)
+        self.play(Write(axis_and_lines), FadeIn(freq_label, shift=UP * 0.3))
         self.wait()
 
-        self.play(original_freq_mob.animate.shift(UP * 1.5))
+        self.play(
+            original_freq_mob.animate.scale(0.7).shift(UP * 1),
+            axis_and_lines.animate.scale(0.7).shift(UP * 1),
+            freq_label.animate.scale(0.7),
+        )
         self.wait()
 
         self.play(LaggedStartMap(FadeIn, og_fourier))
@@ -411,11 +660,13 @@ class IntroSimilarityConcept(MovingCameraScene):
         frequency_tracker = ValueTracker(3)
 
         def get_signal_of_frequency():
-            analysis_freq_func = get_cosine_func(
-                freq=frequency_tracker.get_value(), amplitude=0.3
-            )
-            _, new_signal = plot_time_domain(
-                analysis_freq_func, t_max=t_max, color=FREQ_DOMAIN_COLOR
+            analysis_freq_func = get_cosine_func(freq=frequency_tracker.get_value())
+            new_signal = (
+                display_signal(
+                    analysis_freq_func, color=FREQ_DOMAIN_COLOR, num_points=n_samples
+                )[2:]
+                .set_color(FREQ_DOMAIN_COLOR)
+                .scale_to_fit_width(original_freq_mob.width)
             )
             return new_signal.move_to(original_freq_mob)
 
@@ -437,11 +688,11 @@ class IntroSimilarityConcept(MovingCameraScene):
                 .flip()
             )
 
-            barchart[1:].set_opacity(0.0).next_to(
-                original_freq_mob, DOWN, buff=2.4, aligned_edge=LEFT
+            barchart[1:].set_opacity(0).next_to(
+                original_freq_mob, DOWN, buff=1.5, aligned_edge=LEFT
             )
 
-            barchart[0].next_to(original_freq_mob, DOWN, buff=2.4, aligned_edge=LEFT)
+            barchart[0].next_to(original_freq_mob, DOWN, buff=1.5, aligned_edge=LEFT)
 
             return barchart
 
@@ -452,7 +703,7 @@ class IntroSimilarityConcept(MovingCameraScene):
             Rectangle(height=0.3, width=original_freq_mob.width, color=REDUCIBLE_GREEN)
             .set_opacity(0.3)
             .set_stroke(opacity=0.3)
-            .next_to(original_freq_mob, DOWN, buff=2.4)
+            .next_to(original_freq_mob, DOWN, buff=1.5)
         )
         v_similar_txt = (
             Text("Very Similar", font=REDUCIBLE_FONT)
@@ -470,19 +721,31 @@ class IntroSimilarityConcept(MovingCameraScene):
         self.play(FadeIn(v_similar_txt, n_similar_txt, shift=DOWN * 0.3))
         self.wait()
 
-        self.play(frequency_tracker.animate.set_value(3.5), run_time=4)
-        self.play(frequency_tracker.animate.set_value(4), run_time=4, rate_func=linear)
         self.play(
-            frequency_tracker.animate.set_value(3.6), run_time=4, rate_func=linear
+            frequency_tracker.animate.set_value(3.5),
+            run_time=4,
+            rate_func=rate_functions.ease_in_out_sine,
+        )
+        self.play(
+            frequency_tracker.animate.set_value(4),
+            run_time=4,
+            rate_func=rate_functions.ease_in_out_sine,
+        )
+        self.play(
+            frequency_tracker.animate.set_value(3.6),
+            run_time=4,
+            rate_func=rate_functions.ease_in_out_sine,
         )
         self.play(
             frequency_tracker.animate.set_value(original_freq),
             run_time=6,
-            rate_func=linear,
+            rate_func=rate_functions.ease_in_out_sine,
         )
+
         self.wait()
         self.play(
             FadeOut(changing_analysis_freq_signal),
+            FadeOut(freq_label),
             FadeOut(
                 changing_bar_dot_prod,
                 bg_rect,
@@ -492,58 +755,70 @@ class IntroSimilarityConcept(MovingCameraScene):
             ),
         )
 
-        return original_freq_mob
+        return cos_vg
 
-    def show_point_sequence(self, original_freq_mob):
+    def show_line_sequence(self, cos_vg):
 
-        self.play(original_freq_mob.animate.move_to(ORIGIN))
+        n_samples = 16
+        original_freq = 2
 
-        dots = VGroup(
-            *[
-                Dot(color=WHITE).move_to(original_freq_mob.point_from_proportion(d))
-                for d in np.linspace(0, 1, 3)
-            ]
+        original_freq_mob = cos_vg[2]
+        axis_and_lines = cos_vg[:2]
+        dots = cos_vg[3]
+
+        self.play(
+            original_freq_mob.animate.move_to(ORIGIN),
+            axis_and_lines.animate.set_opacity(0),
+            FadeOut(dots),
         )
+        axis_and_lines.move_to(ORIGIN)
 
-        for i in range(6, 3 * 10, 3):
-            dots_pos = np.linspace(0, 1, i)
-            new_dots = VGroup(
-                *[
-                    Dot(color=WHITE).move_to(original_freq_mob.point_from_proportion(d))
-                    for d in dots_pos
-                ]
-            )
-            self.play(Transform(dots, new_dots), run_time=4 / i)
-            self.wait(1 / config.frame_rate)
+        vert_samples = get_vertical_lines_as_samples(
+            original_freq_mob, axis_and_lines[0], num_points=n_samples
+        ).set_stroke(width=5)
+
+        axes_small_amp, signal_small_amp = plot_time_domain(
+            get_cosine_func(amplitude=0.7, freq=original_freq), t_max=2 * PI
+        )
+        axes_small_amp.scale(0.7)
+        signal_small_amp.scale(0.7)
+
+        vert_samples_smaller = get_vertical_lines_as_samples(
+            signal_small_amp, axes_small_amp, num_points=n_samples
+        ).set_stroke(width=5)
+
+        self.play(LaggedStartMap(Write, vert_samples))
+        self.wait()
+        self.play(FadeOut(original_freq_mob))
+
+        self.play(Transform(vert_samples, vert_samples_smaller))
+        self.wait()
 
         self.wait()
 
-        self.play(
-            dots.animate.scale(0.7).move_to(ORIGIN).arrange(RIGHT),
-            FadeOut(original_freq_mob),
-        )
-
         left_bracket = (
             Tex("[")
-            .scale_to_fit_height(dots[0].height * 3)
-            .next_to(dots, LEFT, buff=0.2)
+            .scale_to_fit_height(vert_samples[0].height * 2)
+            .next_to(vert_samples, LEFT, buff=0.2)
         )
         right_bracket = (
             Tex("]")
-            .scale_to_fit_height(dots[0].height * 3)
-            .next_to(dots, RIGHT, buff=0.2)
+            .scale_to_fit_height(vert_samples[0].height * 2)
+            .next_to(vert_samples, RIGHT, buff=0.2)
         )
 
-        vector = VGroup(left_bracket, dots, right_bracket)
+        vector = VGroup(left_bracket, vert_samples, right_bracket)
 
         self.play(FadeIn(left_bracket, right_bracket, shift=DOWN * 0.3))
 
         self.wait()
-        vector_purple = vector.copy().set_color(REDUCIBLE_VIOLET).shift(DOWN * 1)
+        vector_purple = (
+            vector.copy().set_color(REDUCIBLE_VIOLET).flip(LEFT).shift(DOWN * 1)
+        )
 
-        times_symbol = MathTex(r"\times").scale(0.8)
+        times_symbol = MathTex(r"\times").scale(0.8).shift(UP * 0.4)
         self.play(
-            vector.animate.shift(UP * 1).set_color(REDUCIBLE_YELLOW),
+            vector.animate.shift(UP * 1.5).set_color(REDUCIBLE_YELLOW),
             FadeIn(vector_purple, times_symbol),
         )
 
@@ -551,33 +826,59 @@ class IntroSimilarityConcept(MovingCameraScene):
         self.play(*[FadeOut(mob) for mob in self.mobjects])
 
     def show_signal_cosines(self):
-        t_max = TAU * 2
 
+        frame = self.camera.frame
         original_freq = 2
 
         cos_og = get_cosine_func(freq=original_freq, amplitude=1)
 
-        _, original_freq_mob = plot_time_domain(cos_og, t_max=t_max)
+        cos_vg = display_signal(cos_og)
+        original_freq_mob = VGroup(*cos_vg[2:])
         original_freq_mob.set_color(REDUCIBLE_YELLOW).set_stroke(width=12)
 
         analysis_freqs = VGroup()
         for i in range(1, 9):
-            _, af = plot_time_domain(
-                get_cosine_func(freq=i, amplitude=0.3), t_max=t_max
-            )
+            af_vg = display_signal(get_cosine_func(freq=i, amplitude=0.3))
+            af = VGroup(*af_vg[2:])
             af.set_stroke(opacity=1 / i)
+            [d.set_opacity(1 / i) for d in af[1]]
             analysis_freqs.add(af)
 
         analysis_freqs.arrange(DOWN).scale(0.6).set_color(REDUCIBLE_VIOLET)
 
-        original_freq_mob.shift(LEFT * 6)
-        analysis_freqs.shift(RIGHT * 5)
-
         times = MathTex(r"\times").scale(2)
+
+        scene = (
+            VGroup(original_freq_mob, times, analysis_freqs)
+            .arrange(RIGHT, buff=1)
+            .shift(LEFT * 1.0)
+        )
+
+        analysis_freqs.move_to(original_freq_mob, coor_mask=[0, 1, 0], aligned_edge=UP)
+
+        main_signal_label = (
+            Text("Main signal", font=REDUCIBLE_FONT, weight=BOLD)
+            .scale(0.8)
+            .next_to(original_freq_mob, UP, buff=1.0)
+            .shift(RIGHT * 2)
+        )
+        af_label = (
+            Text(
+                "Comparison\nfrequencies",
+                font=REDUCIBLE_FONT,
+                weight=BOLD,
+                line_spacing=1,
+            )
+            .scale(0.6)
+            .next_to(main_signal_label, RIGHT, aligned_edge=UP)
+            .move_to(analysis_freqs, coor_mask=[1, 0, 0])
+            .shift(LEFT)
+        )
 
         self.play(Write(original_freq_mob))
         self.play(FadeIn(times))
         self.play(LaggedStartMap(FadeIn, analysis_freqs), run_time=2)
+        self.play(FadeIn(main_signal_label, af_label, shift=UP * 0.3))
 
 
 class IntroducePhaseProblem(MovingCameraScene):
@@ -593,7 +894,6 @@ class IntroducePhaseProblem(MovingCameraScene):
 
     def try_sine_wave(self):
         frame = self.camera.frame
-        t_min = 0
         t_max = 2 * PI
 
         original_freq = 2
@@ -615,9 +915,11 @@ class IntroducePhaseProblem(MovingCameraScene):
                 phase=vt_phase.get_value(),
                 b=vt_b.get_value(),
             )
-            _, phase_ch_cos_mob = plot_time_domain(phase_ch_cos, t_max=t_max)
+            signal_mob = display_signal(phase_ch_cos, num_points=n_samples)[
+                2:
+            ].set_color(REDUCIBLE_YELLOW)
 
-            return phase_ch_cos_mob.scale(0.6).shift(UP * 1.5)
+            return signal_mob.scale(0.6).shift(UP * 1.5)
 
         af_matrix = get_analysis_frequency_matrix(
             N=n_samples, sample_rate=sample_frequency, t_max=t_max
@@ -635,76 +937,96 @@ class IntroducePhaseProblem(MovingCameraScene):
                 signal_function, af_matrix, n_samples=n_samples, t_max=t_max
             )
 
-            return rects.move_to(DOWN * 3.5, aligned_edge=DOWN)
+            return rects.next_to(static_rects, RIGHT, buff=4.5, aligned_edge=DOWN)
 
         changing_sine = always_redraw(sine_cosine_redraw)
-        sampled_dots = VGroup(
-            *[
-                Dot()
-                .move_to(changing_sine.point_from_proportion(p))
-                .set_fill(REDUCIBLE_YELLOW, opacity=1)
-                for p in np.linspace(0, 1, 10)
-            ]
-        )
+        static_rects = get_fourier_rects_from_custom_matrix(
+            get_cosine_func(freq=vt_frequency.get_value()),
+            af_matrix,
+            n_samples=n_samples,
+            t_max=t_max,
+        ).next_to(changing_sine, DOWN, buff=3)
 
         changing_rects = always_redraw(updating_transform_redraw)
 
-        cos_tex = MathTex("cos(x)").scale(0.8).next_to(changing_sine, DOWN, buff=1)
-        sin_tex = MathTex("sin(x)").scale(0.8).next_to(changing_sine, DOWN, buff=1)
+        cos_tex = (
+            Text("cos(x)", font=REDUCIBLE_FONT, weight=BOLD)
+            .scale(0.8)
+            .next_to(changing_sine, DOWN, buff=1)
+        )
+        sin_tex = (
+            Text("sin(x)", font=REDUCIBLE_FONT, weight=BOLD)
+            .scale(0.8)
+            .next_to(changing_sine, DOWN, buff=1)
+        )
+        expected_t = (
+            Text("Expected", font=REDUCIBLE_FONT, weight=BOLD)
+            .scale(0.5)
+            .next_to(changing_sine, UP, buff=0.3)
+        )
 
-        self.play(Write(changing_sine), FadeIn(cos_tex, changing_rects))
-
+        self.play(
+            focus_on(frame, [changing_sine, static_rects], buff=0.7),
+            FadeIn(changing_rects),
+        )
         self.wait()
-
-        self.play(LaggedStartMap(FadeIn, sampled_dots))
+        self.play(
+            Write(changing_sine),
+            FadeIn(cos_tex, static_rects),
+        )
         self.wait()
-        self.play(FadeOut(sampled_dots))
 
         self.play(
             vt_phase.animate.set_value(PI / 2),
             FadeTransform(cos_tex, sin_tex),
             run_time=2,
         )
+        self.wait()
 
-        cos_mob = changing_sine.copy()
-        analysis_freq = get_cosine_func(freq=original_freq)
-        _, analysis_freq_mob = plot_time_domain(analysis_freq, t_max=t_max)
+        changing_sine_actual = changing_sine.copy().next_to(
+            changing_sine, RIGHT, buff=4.5
+        )
+        actual_t = (
+            Text("Actual", font=REDUCIBLE_FONT, weight=BOLD)
+            .scale(0.5)
+            .next_to(changing_sine_actual, UP, buff=0.3)
+        )
+        sin_tex_actual = sin_tex.copy().next_to(changing_sine_actual, DOWN, buff=1)
 
-        analysis_freq_mob.set_color(REDUCIBLE_VIOLET).scale_to_fit_width(
-            changing_sine.width
-        ).move_to(ORIGIN)
-
-        self.play(FadeIn(cos_mob), FadeOut(changing_sine))
         self.play(
-            FadeOut(changing_rects),
-            FadeOut(sin_tex),
-            cos_mob.animate.move_to(ORIGIN),
-            Write(analysis_freq_mob),
-            frame.animate.scale(0.8).shift(DOWN * 0.8),
+            focus_on(
+                frame,
+                [
+                    changing_sine,
+                    changing_sine_actual,
+                    static_rects,
+                    actual_t,
+                    expected_t,
+                ],
+                buff=2,
+            ),
+            FadeIn(changing_sine_actual, sin_tex_actual, actual_t, expected_t),
+            run_time=2,
         )
         self.wait()
 
-        aux_analysis_freq_axis, _ = plot_time_domain(
-            get_cosine_func(freq=original_freq), t_max=t_max
-        )
-        aux_analysis_freq_axis.scale_to_fit_width(analysis_freq_mob.width).move_to(
-            analysis_freq_mob
+        cos_mob = changing_sine.copy()
+        analysis_freq_vg = (
+            display_signal(
+                get_cosine_func(freq=original_freq),
+                num_points=n_samples,
+                color=REDUCIBLE_VIOLET,
+            )
+            .scale_to_fit_width(changing_sine.width)
+            .move_to(ORIGIN)
         )
 
-        aux_signal_axis, sine_wave = plot_time_domain(
-            get_cosine_func(freq=original_freq, phase=vt_phase.get_value()), t_max=t_max
-        )
-        aux_signal_axis.scale_to_fit_width(cos_mob.width).move_to(cos_mob)
-
-        dots_analysis_freq = get_sampled_dots(
-            analysis_freq_mob, aux_analysis_freq_axis, num_points=10
-        ).set_fill(REDUCIBLE_VIOLET)
-        dots_cos_mob = get_sampled_dots(
-            sine_wave, aux_signal_axis, num_points=10
-        ).set_fill(REDUCIBLE_YELLOW)
+        analysis_freq_mob = analysis_freq_vg[2:]
+        axes_and_lines = analysis_freq_vg[:2].set_opacity(0.3)
 
         sampled_dots_af = [
-            analysis_freq(v) for v in np.linspace(0, t_max, 10, endpoint=False)
+            get_cosine_func(freq=original_freq)(v)
+            for v in np.linspace(0, t_max, 10, endpoint=False)
         ]
         sampled_dots_signal = [
             get_cosine_func(freq=original_freq, phase=vt_phase.get_value())(v)
@@ -714,19 +1036,35 @@ class IntroducePhaseProblem(MovingCameraScene):
             af * s for af, s in zip(sampled_dots_af, sampled_dots_signal)
         ]
 
-        self.play(LaggedStartMap(FadeIn, [*dots_analysis_freq, *dots_cos_mob]))
-        self.wait()
-
         barchart = BarChart(
             prod_per_sample,
             bar_colors=[REDUCIBLE_PURPLE],
             bar_width=1,
-            x_length=dots_analysis_freq.width,
+            x_length=analysis_freq_mob.width,
         )
         barchart.remove(barchart[2])
-        barchart.stretch_to_fit_width(dots_analysis_freq.width).stretch_to_fit_height(
+        barchart.stretch_to_fit_width(analysis_freq_mob.width).stretch_to_fit_height(
             analysis_freq_mob.height * 1.3
         ).next_to(analysis_freq_mob, DOWN, buff=0.5, aligned_edge=LEFT)
+
+        self.play(FadeIn(cos_mob), FadeOut(changing_sine))
+        self.play(
+            FadeOut(
+                sin_tex,
+                sin_tex_actual,
+                static_rects,
+                changing_rects,
+                sin_tex_actual,
+                changing_sine_actual,
+            ),
+            cos_mob.animate.move_to(ORIGIN),
+            Write(analysis_freq_mob),
+            focus_on(frame, [barchart, analysis_freq_mob], buff=2),
+        )
+        self.play(
+            Write(axes_and_lines),
+        )
+        self.wait()
 
         self.play(Write(barchart[1]))
         self.play(LaggedStartMap(FadeIn, barchart[0]))
@@ -923,6 +1261,8 @@ class IntroducePhaseProblem(MovingCameraScene):
             run_time=10,
             rate_func=rate_functions.ease_in_out_sine,
         )
+
+        self.wait()
 
 
 class SolvingPhaseProblem(MovingCameraScene):
