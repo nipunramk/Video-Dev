@@ -2837,4 +2837,111 @@ class ProposeDFTSimplification(MovingCameraScene):
             complex_point.animate.move_to(complex_circle.point_from_proportion(0)),
         )
 
+        eulers_formula = (
+            MathTex(r"e^{ix} = cos x + i \ sin x")
+            .scale(0.9)
+            .set_stroke(width=4, background=True)
+        )
+        self.play(
+            Write(eulers_formula),
+            focus_on(frame, eulers_formula, buff=2),
+            number_plane.animate.set_opacity(0.3),
+            complex_circle.animate.set_stroke(opacity=0.3),
+            complex_point.animate.set_opacity(0.3),
+            FadeOut(point_tag, shift=UP * 0.3),
+        )
+        self.wait()
+
+        self.play(
+            FadeOut(eulers_formula, shift=UP * 0.3),
+            focus_on(frame, number_plane, buff=2),
+            number_plane.animate.set_opacity(1),
+            complex_circle.animate.set_stroke(opacity=1),
+            complex_point.animate.set_opacity(1),
+        )
+        self.wait()
+
+        np_center = number_plane.c2p(0, 0)
+        vector = Arrow(
+            np_center,
+            complex_point,
+            buff=0,
+            max_tip_length_to_length_ratio=0.1,
+            max_stroke_width_to_length_ratio=2,
+        ).set_color(REDUCIBLE_YELLOW)
+
+        self.play(Write(vector))
+
+        complex_point_up = (
+            Dot()
+            .move_to(complex_circle.point_from_proportion(0.33))
+            .set_color(REDUCIBLE_YELLOW)
+        )
+        vector_up = Arrow(
+            np_center,
+            complex_point_up,
+            buff=0,
+            max_tip_length_to_length_ratio=0.1,
+            max_stroke_width_to_length_ratio=2,
+        ).set_color(REDUCIBLE_YELLOW)
+
+        complex_point_dl = (
+            Dot()
+            .move_to(complex_circle.point_from_proportion(0.65))
+            .set_color(REDUCIBLE_YELLOW)
+        )
+        vector_dl = Arrow(
+            np_center,
+            complex_point_dl,
+            buff=0,
+            max_tip_length_to_length_ratio=0.1,
+            max_stroke_width_to_length_ratio=2,
+        ).set_color(REDUCIBLE_YELLOW)
+
+        self.play(
+            FadeIn(complex_point_up, scale=1.5),
+            FadeIn(complex_point_dl, scale=1.5),
+            Write(vector_up),
+            Write(vector_dl),
+        )
+
+        self.wait()
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
+
+        matrix_elements = []
+        power = 0
+        samples_matrix = 8
+        for i in range(samples_matrix):
+            row = []
+            for j in range(samples_matrix):
+                if i == 0 or j == 0:
+                    power = 0
+                else:
+                    power = i * j
+
+                power_index = f"{power}"
+                row.append(r"\omega^{" + power_index + "}")
+
+            matrix_elements.append(row)
+
+        dft_matrix_tex = Matrix(matrix_elements).shift(DOWN * 3)
+        omega_definition = MathTex(
+            r"\text{where} \ \omega = e ^{-\frac{2 \pi i}{N}}"
+        ).next_to(dft_matrix_tex, UP)
+        title = (
+            Text("The DFT Matrix", font=REDUCIBLE_FONT, weight=BOLD)
+            .scale(1.2)
+            .next_to(omega_definition, UP, buff=2)
+        )
+
+        self.play(Restore(reset_frame))
+        self.play(
+            LaggedStart(
+                FadeIn(dft_matrix_tex, shift=UP * 0.3),
+                FadeIn(omega_definition, shift=UP * 0.3),
+                FadeIn(title, shift=UP * 0.3),
+                lag_ratio=0.5,
+            )
+        )
+
         self.wait()
