@@ -2788,6 +2788,7 @@ class ProposeDFTSimplification(MovingCameraScene):
         self.play(FadeIn(complex_point, scale=1.5), FadeIn(point_tag, shift=UP * 0.3))
         self.wait()
 
+        opacities = 0.2
         cos_af_matrix = (
             VGroup(
                 *[
@@ -2801,9 +2802,9 @@ class ProposeDFTSimplification(MovingCameraScene):
             .arrange(DOWN)
             .scale(0.5)
             .shift(RIGHT * 2)
-            .set_stroke(opacity=0.4)
+            .set_stroke(opacity=opacities)
         )
-        [signal[1].set_opacity(0.4) for signal in cos_af_matrix]
+        [signal[1].set_opacity(opacities) for signal in cos_af_matrix]
 
         sin_af_matrix = (
             VGroup(
@@ -2818,9 +2819,9 @@ class ProposeDFTSimplification(MovingCameraScene):
             .arrange(DOWN)
             .scale(0.5)
             .shift(LEFT * 2)
-            .set_stroke(opacity=0.4)
+            .set_stroke(opacity=opacities)
         )
-        [signal[1].set_opacity(0.4) for signal in sin_af_matrix]
+        [signal[1].set_opacity(opacities) for signal in sin_af_matrix]
 
         self.add(cos_af_matrix, sin_af_matrix)
         self.bring_to_back(cos_af_matrix, sin_af_matrix)
