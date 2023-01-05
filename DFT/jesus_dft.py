@@ -2707,3 +2707,134 @@ class TransitionTemplate(Scene):
 
         self.wait()
         self.play(FadeOut(title), FadeOut(nodes_and_lines))
+
+
+class ProposeDFTSimplification(MovingCameraScene):
+    def construct(self):
+        reset_frame = self.camera.frame.save_state()
+        frame = self.camera.frame
+
+        original_frequency = 4
+        t_max = 2 * PI
+
+        # samples per second
+        sample_frequency = 16
+
+        # total number of samples
+        n_samples = sample_frequency
+
+        sin_f = get_sine_func(freq=original_frequency)
+        cos_f = get_cosine_func(freq=original_frequency)
+        _, sin_mob = plot_time_domain(sin_f, t_max=t_max, color=REDUCIBLE_YELLOW)
+        _, cos_mob = plot_time_domain(cos_f, t_max=t_max, color=REDUCIBLE_VIOLET)
+
+        sin_t = (
+            Text("sin(x)", font=REDUCIBLE_FONT, weight=BOLD)
+            .set_color(REDUCIBLE_YELLOW)
+            .scale(0.5)
+            .next_to(sin_mob, UP, buff=0.2, aligned_edge=LEFT)
+        )
+        cos_t = (
+            Text("cos(x)", font=REDUCIBLE_FONT, weight=BOLD)
+            .set_color(REDUCIBLE_VIOLET)
+            .scale(0.5)
+            .next_to(sin_t, RIGHT, buff=0.2)
+        )
+
+        self.play(
+            Write(sin_mob.set_stroke(width=6)),
+            Write(cos_mob.set_stroke(width=6)),
+            run_time=2,
+        )
+
+        self.play(FadeIn(sin_t, cos_t, shift=UP * 0.3))
+        self.wait()
+
+        number_plane = NumberPlane(
+            x_length=5,
+            y_length=5,
+            x_range=[-2, 2],
+            y_range=[-2, 2],
+            background_line_style={"stroke_color": REDUCIBLE_VIOLET},
+        )
+
+        np_radius = Line(number_plane.c2p(0, 0), number_plane.c2p(0, 1)).height
+
+        complex_circle = (
+            Circle(np_radius)
+            .set_color(REDUCIBLE_YELLOW)
+            .move_to(number_plane.c2p(0, 0))
+        )
+
+        self.play(FadeOut(sin_mob, cos_mob), FadeOut(sin_t, cos_t, shift=UP * 0.3))
+        self.wait()
+
+        self.play(Write(number_plane), focus_on(frame, number_plane, buff=5))
+        self.play(Write(complex_circle))
+        self.wait()
+
+        complex_point = (
+            Dot()
+            .move_to(complex_circle.point_from_proportion(0.9))
+            .set_color(REDUCIBLE_YELLOW)
+        )
+        point_tag = (
+            MathTex("a+bi")
+            .set_stroke(width=6, color=BLACK, background=True)
+            .scale(0.7)
+            .next_to(complex_point, RIGHT)
+        )
+
+        self.play(FadeIn(complex_point, scale=1.5), FadeIn(point_tag, shift=UP * 0.3))
+        self.wait()
+
+        cos_af_matrix = (
+            VGroup(
+                *[
+                    display_signal(
+                        get_cosine_func(freq=f, amplitude=0.12),
+                        num_points=n_samples,
+                    )[2:].set_color(REDUCIBLE_VIOLET)
+                    for i, f in enumerate(range(n_samples // 2))
+                ]
+            )
+            .arrange(DOWN)
+            .scale(0.5)
+            .shift(RIGHT * 2)
+            .set_stroke(opacity=0.4)
+        )
+        [signal[1].set_opacity(0.4) for signal in cos_af_matrix]
+
+        sin_af_matrix = (
+            VGroup(
+                *[
+                    display_signal(
+                        get_sine_func(freq=f, amplitude=0.12),
+                        num_points=n_samples,
+                    )[2:].set_color(REDUCIBLE_CHARM)
+                    for i, f in enumerate(range(n_samples // 2))
+                ]
+            )
+            .arrange(DOWN)
+            .scale(0.5)
+            .shift(LEFT * 2)
+            .set_stroke(opacity=0.4)
+        )
+        [signal[1].set_opacity(0.4) for signal in sin_af_matrix]
+
+        self.add(cos_af_matrix, sin_af_matrix)
+        self.bring_to_back(cos_af_matrix, sin_af_matrix)
+
+        self.play(
+            FadeIn(cos_af_matrix, sin_af_matrix, shift=UP * 0.3),
+            focus_on(frame, [cos_af_matrix, sin_af_matrix], buff=3),
+        )
+
+        self.wait()
+
+        self.play(
+            FadeOut(cos_af_matrix, sin_af_matrix, shift=UP * 0.3),
+            complex_point.animate.move_to(complex_circle.point_from_proportion(0)),
+        )
+
+        self.wait()
