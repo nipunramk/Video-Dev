@@ -16,6 +16,9 @@ class AnalysisFrequencies(Scene):
 
         time_domain_graph = self.show_signal(time_signal_func)
 
+        self.play(FadeIn(time_domain_graph))
+        self.wait()
+
         self.play(time_domain_graph.animate.scale(DEFAULT_SCALE).shift(LEFT * 3.5))
         self.wait()
 
@@ -132,7 +135,7 @@ class AnalysisFrequencies(Scene):
 
     def show_signal(self, time_signal_func, color=TIME_DOMAIN_COLOR):
         time_axis, graph = plot_time_domain(time_signal_func, t_max=2 * PI, color=color)
-        sampled_points_dots = get_sampled_dots(graph, time_axis)
+        sampled_points_dots = get_sampled_dots(graph, time_axis, color=color)
         sampled_points_vert_lines = get_vertical_dashed_lines_for_samples(
             graph, time_axis, color=color
         )
@@ -230,21 +233,25 @@ class AnalysisFrequencies(Scene):
         self.add(changing_analysis_freq_signal)
 
         bar_chart = always_redraw(get_dot_prod_bar_graph)
-        self.add(bar_chart)
+        label = MathTex(r"\vec{y} \cdot \vec{a}").scale(0.6).move_to(UP * changing_analysis_freq_signal.get_bottom()[1] - SMALL_BUFF + LEFT * (MED_SMALL_BUFF - 0.02))
+        self.play(
+            FadeIn(bar_chart),
+            FadeIn(label)
+        )
         self.wait()
 
-        self.play(frequency_tracker.animate.set_value(0), run_time=4, rate_func=linear)
+        self.play(frequency_tracker.animate.set_value(0), run_time=14, rate_func=linear)
         self.wait()
 
-        self.play(frequency_tracker.animate.set_value(1), run_time=2, rate_func=linear)
+        self.play(frequency_tracker.animate.set_value(1), run_time=4, rate_func=linear)
         self.wait()
-        self.play(frequency_tracker.animate.set_value(2), run_time=2, rate_func=linear)
+        self.play(frequency_tracker.animate.set_value(2), run_time=4, rate_func=linear)
         self.wait()
-        self.play(frequency_tracker.animate.set_value(3), run_time=2, rate_func=linear)
+        self.play(frequency_tracker.animate.set_value(3), run_time=4, rate_func=linear)
         self.wait()
-        self.play(frequency_tracker.animate.set_value(4), run_time=2, rate_func=linear)
+        self.play(frequency_tracker.animate.set_value(4), run_time=4, rate_func=linear)
         self.wait()
-        self.play(frequency_tracker.animate.set_value(5), run_time=2, rate_func=linear)
+        self.play(frequency_tracker.animate.set_value(5), run_time=4, rate_func=linear)
         self.wait()
 
 
@@ -364,6 +371,11 @@ class MatrixDefinition(Scene):
         dot_product_gen.next_to(analysis_freq_graph, UP, buff=buff)
 
         analysis_freq_with_dot_prod = VGroup(dot_product_gen, analysis_freq_graph)
+
+        self.play(
+            FadeIn(dot_product_gen)
+        )
+        self.wait()
 
         analysis_freq_with_dot_prod_0 = analysis_freq_with_dot_prod.copy().scale(0.5)
 
@@ -575,7 +587,7 @@ class MatrixDefinition(Scene):
         return VGroup(left_arrow, text, right_arrow)
 
 
-class IntroduceOrthogonality(Scene):
+class IntroduceOrthogonalityEnd2(Scene):
     def construct(self):
         left_analysis_freq = (
             self.get_analysis_freq(0).scale(DEFAULT_SCALE).move_to(LEFT * 3.5 + UP * 2)
@@ -640,7 +652,7 @@ class IntroduceOrthogonality(Scene):
         actual_grid = heat_map[0]
         self.play(Transform(empty_grid[0][0], actual_grid[0][0]))
         self.wait()
-
+        count = 0
         for row in range(dot_product_matrix.shape[0]):
             for col in range(dot_product_matrix.shape[1]):
                 if row == 0 and col == 0:
@@ -662,11 +674,14 @@ class IntroduceOrthogonality(Scene):
                     Transform(left_analysis_freq, new_left_analysis_freq),
                     Transform(right_analysis_freq, new_right_analysis_freq),
                     Transform(dot_product_tex, new_dot_product_text),
+                    Transform(empty_grid[row][col], actual_grid[row][col])
                 )
-                self.wait()
+                if count < 8:
+                    self.wait()
+                else:
+                    self.wait(1 / self.camera.frame_rate)
 
-                self.play(Transform(empty_grid[row][col], actual_grid[row][col]))
-                self.wait()
+                count += 1
 
         bad_indices = [(1, 7), (2, 6), (3, 5)]
         highlight_rect = SurroundingRectangle(
@@ -685,6 +700,11 @@ class IntroduceOrthogonality(Scene):
                 .scale(DEFAULT_SCALE)
                 .move_to(RIGHT * 3.5 + UP * 2)
             )
+
+            for dot in new_left_analysis_freq[1][-1].set_color(REDUCIBLE_CHARM):
+                dot.scale(1.1)
+            for dot in new_right_analysis_freq[1][-1].set_color(REDUCIBLE_CHARM):
+                dot.scale(1.1)
             new_dot_product_text = self.get_dot_prod(
                 row, col, dot_product_matrix[row][col]
             ).move_to(DOWN * 1.5)
@@ -730,8 +750,6 @@ class IntroduceOrthogonality(Scene):
             .scale(0.8)
             .move_to(UP * 3.5)
         )
-        self.play(Write(title))
-        self.wait()
 
         time_signal_func = get_cosine_func(freq=1)
         cosine_dft_matrix = get_cosine_dft_matrix(NUM_SAMPLES)
@@ -753,7 +771,7 @@ class IntroduceOrthogonality(Scene):
             .move_to(RIGHT * 3.5 + UP * 0)
         )
 
-        self.play(FadeIn(time_domain_graph), FadeIn(fourier_rects))
+        self.play(Write(title), FadeIn(time_domain_graph), FadeIn(fourier_rects))
         self.wait()
         highlight_rect = None
         for i, freq in enumerate(range(1, 8)):
@@ -777,7 +795,7 @@ class IntroduceOrthogonality(Scene):
                 .move_to(RIGHT * 3.5 + UP * 0)
             )
 
-            if i > 4:
+            if i == 5:
                 highlight_rect = SurroundingRectangle(
                     new_fourier_rects[0][:4], buff=SMALL_BUFF, color=REDUCIBLE_YELLOW
                 )
@@ -789,6 +807,91 @@ class IntroduceOrthogonality(Scene):
                 Transform(fourier_rects, new_fourier_rects),
             )
             self.wait()
+
+        self.play(
+            FadeOut(time_domain_graph),
+            FadeOut(fourier_rects),
+            FadeOut(highlight_rect)
+        )
+        self.wait()
+
+        analysis_freq_matrix = get_cosine_dft_matrix(8)
+        dot_product_matrix = np.dot(analysis_freq_matrix.T, analysis_freq_matrix)
+
+        heat_map = get_heat_map_from_matrix(dot_product_matrix)
+
+        matrix = self.get_matrix()
+        A_T_A_text = MathTex("A^TA").scale(0.8)
+        A_T_A_text.next_to(heat_map[0], DOWN)
+
+        heat_map_with_label = VGroup(heat_map, A_T_A_text)
+        matrix_and_heat_map = VGroup(matrix, heat_map_with_label).arrange(RIGHT, buff=2)
+
+        self.play(FadeIn(matrix_and_heat_map))
+        self.wait()
+
+        equal_rows = VGroup(
+            MathTex(r"\vec{a}_1 = \vec{a}_7").scale(0.8),
+            MathTex(r"\vec{a}_2 = \vec{a}_6").scale(0.8),
+            MathTex(r"\vec{a}_3 = \vec{a}_5").scale(0.8)
+        ).arrange(DOWN).move_to(DOWN * 3)
+
+        self.play(
+            FadeIn(equal_rows)
+        )
+        self.wait()
+
+        non_invertible_text = Text("Non-invertible", font=REDUCIBLE_FONT).scale(0.7).next_to(title, DOWN, buff=0.5)
+        self.play(
+            FadeIn(non_invertible_text)
+        )
+        self.wait()
+
+
+    def get_matrix(self):
+        row0 = self.get_row_tex(0)
+        row1 = self.get_row_tex(1)
+        row2 = self.get_row_tex(2)
+        vdots = MathTex(r"\vdots")
+        row7 = self.get_row_tex(7)
+
+        rows = VGroup(row0, row1, row2, vdots, row7).arrange(DOWN).move_to(DOWN * 2)
+        bracket_pair = MathTex("[", "]")
+        bracket_pair.scale(2)
+        bracket_v_buff = MED_SMALL_BUFF
+        bracket_h_buff = MED_SMALL_BUFF
+        bracket_pair.stretch_to_fit_height(rows.height + 2 * bracket_v_buff)
+        l_bracket, r_bracket = bracket_pair.split()
+        l_bracket.next_to(rows, LEFT, bracket_h_buff)
+        r_bracket.next_to(rows, RIGHT, bracket_h_buff)
+        brackets = VGroup(l_bracket, r_bracket)
+
+        return VGroup(brackets, rows)
+
+    def get_row_tex(self, index):
+        latex_text = r"a_{" + str(index) + r"}^T"
+        text = MathTex(latex_text).scale(0.8)
+        left_arrow = (
+            Arrow(
+                RIGHT * 2,
+                ORIGIN,
+                stroke_width=3,
+                max_tip_length_to_length_ratio=0.15,
+            )
+            .next_to(text, LEFT)
+            .set_color(WHITE)
+        )
+        right_arrow = (
+            Arrow(
+                ORIGIN,
+                RIGHT * 2,
+                stroke_width=3,
+                max_tip_length_to_length_ratio=0.15,
+            )
+            .next_to(text, RIGHT)
+            .set_color(WHITE)
+        )
+        return VGroup(left_arrow, text, right_arrow)
 
     def get_analysis_freq(self, freq):
         analysis_freq_func = get_cosine_func(freq=freq)
@@ -1163,4 +1266,8 @@ class TestCircleTheory(Scene):
             dot = Dot().move_to(RIGHT * x_coord + UP * y_coord)
             dots.add(dot)
         self.play(FadeIn(dots))
+        self.wait()
+
+class BlankScreen(Scene):
+    def construct(self):
         self.wait()
