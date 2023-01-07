@@ -2148,6 +2148,10 @@ class InterpretDFT(MovingCameraScene):
         )
         self.wait()
 
+        orthogonal = Text("Orthogonal", font=REDUCIBLE_FONT, weight=BOLD).scale(0.7)
+        self.play(dft_matrix_tex[0].animate.set_opacity(0.3), Write(orthogonal))
+        self.wait()
+
         cos_af_matrix = VGroup(
             *[
                 VGroup(
@@ -2183,7 +2187,11 @@ class InterpretDFT(MovingCameraScene):
 
         self.play(LaggedStartMap(Write, cos_af_matrix))
         self.wait()
-        self.play(FadeOut(dft_matrix_tex[0]), LaggedStartMap(Write, sin_af_matrix))
+        self.play(
+            FadeOut(dft_matrix_tex[0]),
+            FadeOut(orthogonal),
+            LaggedStartMap(Write, sin_af_matrix),
+        )
         self.wait()
 
         legend = (
@@ -2634,8 +2642,8 @@ class InterpretDFT(MovingCameraScene):
         )
         self.wait()
         self.play(
-            vt_phase.animate.set_value(4 * 2 * PI),
-            run_time=10,
+            vt_phase.animate.set_value(12 * 2 * PI),
+            run_time=70,
             rate_func=rate_functions.ease_in_out_sine,
         )
         self.wait()
