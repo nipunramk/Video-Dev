@@ -1164,3 +1164,832 @@ class TestCircleTheory(Scene):
             dots.add(dot)
         self.play(FadeIn(dots))
         self.wait()
+
+
+class RevampedInterpretDFT(MovingCameraScene):
+    def construct(self):
+        frame = self.camera.frame
+
+        n_samples = 10
+
+        cos_af_matrix = (
+            VGroup(
+                *[
+                    display_signal(
+                        get_cosine_func(freq=f, amplitude=0.12),
+                        num_points=n_samples,
+                    )[2:].set_color(REDUCIBLE_VIOLET)
+                    for i, f in enumerate(range(n_samples))
+                ]
+            )
+            .arrange(DOWN)
+            .scale(0.5)
+            .shift(LEFT * 3.5)
+        )
+
+        sin_af_matrix = (
+            VGroup(
+                *[
+                    display_signal(
+                        get_sine_func(freq=f, amplitude=0.12),
+                        num_points=n_samples,
+                    )[2:].set_color(REDUCIBLE_CHARM)
+                    for i, f in enumerate(range(n_samples))
+                ]
+            )
+            .arrange(DOWN)
+            .scale(0.5)
+            .shift(RIGHT * 3.5)
+        )
+
+        self.play(FadeIn(cos_af_matrix, sin_af_matrix))
+        self.wait()
+
+        matrix_elements = []
+        power = 0
+        for i in range(n_samples):
+            row = []
+            for j in range(n_samples):
+                if i == 0 or j == 0:
+                    power = 0
+                else:
+                    power = i * j
+
+                power_index = f"{power}"
+                row.append(r"\omega^{" + power_index + "}")
+
+            matrix_elements.append(row)
+
+        dft_matrix_tex = Matrix(matrix_elements).shift(DOWN * 3)
+        dft_matrix_tex.scale(0.8).move_to(ORIGIN).shift(DOWN * 0.5)
+
+        t_max = 2 * PI
+        # samples per second
+        n_samples = 10
+
+        # total number of samples
+        sample_frequency = n_samples
+
+        analysis_frequencies = [
+            sample_frequency * m / n_samples for m in range(n_samples)
+        ]
+
+        comb_cos_af_matrix = VGroup(
+            *[
+                VGroup(
+                    *plot_time_domain(
+                        get_cosine_func(freq=f, amplitude=0.13), t_max=t_max
+                    )
+                )
+                .stretch_to_fit_width(dft_matrix_tex[0].width)
+                .move_to(dft_matrix_tex[0][i * n_samples], aligned_edge=LEFT)
+                for i, f in enumerate(range(n_samples))
+            ]
+        )
+
+        comb_sin_af_matrix = VGroup(
+            *[
+                VGroup(
+                    *plot_time_domain(
+                        get_sine_func(freq=f, amplitude=0.13), t_max=t_max
+                    )
+                )
+                .stretch_to_fit_width(dft_matrix_tex[0].width)
+                .move_to(dft_matrix_tex[0][i * n_samples], aligned_edge=LEFT)
+                for i, f in enumerate(analysis_frequencies)
+            ]
+        )
+
+        [af[0].set_opacity(0) for af in comb_cos_af_matrix]
+        [af[0].set_opacity(0) for af in comb_sin_af_matrix]
+
+        for sin_mob, cos_mob in zip(comb_sin_af_matrix, comb_cos_af_matrix):
+            sin_mob[1].set_color(REDUCIBLE_CHARM)
+            cos_mob[1].set_color(REDUCIBLE_VIOLET)
+
+        self.play(FadeOut(cos_af_matrix), FadeOut(sin_af_matrix))
+
+        self.play(FadeIn(dft_matrix_tex[1]), FadeIn(dft_matrix_tex[2]))
+        # self.wait()
+        # self.play(FadeOut(dft_matrix_tex[0]))
+        # self.wait()
+        self.play(FadeIn(comb_cos_af_matrix))
+        self.wait()
+        self.play(FadeIn(comb_sin_af_matrix))
+        self.wait()
+
+        sampled_points_cos_af = VGroup(
+            *[
+                get_sampled_dots(
+                    signal,
+                    axis,
+                    x_max=t_max,
+                    num_points=n_samples,
+                    radius=DEFAULT_DOT_RADIUS,
+                ).set_color(REDUCIBLE_VIOLET)
+                for axis, signal in comb_cos_af_matrix
+            ]
+        )
+        sampled_points_sin_af = VGroup(
+            *[
+                get_sampled_dots(
+                    signal,
+                    axis,
+                    x_max=t_max,
+                    num_points=n_samples,
+                    radius=DEFAULT_DOT_RADIUS,
+                ).set_color(REDUCIBLE_CHARM)
+                for axis, signal in comb_sin_af_matrix
+            ]
+        )
+
+        self.play(FadeIn(sampled_points_cos_af), FadeIn(sampled_points_sin_af))
+        self.wait()
+
+        number_plane = (
+            ComplexPlane(
+                x_length=5,
+                y_length=5,
+                x_range=[-2, 2],
+                y_range=[-2, 2],
+                background_line_style={"stroke_color": REDUCIBLE_VIOLET},
+            )
+            .set_opacity(0.7)
+            .next_to(dft_matrix_tex, RIGHT, buff=1)
+        )
+        print("number plane center", number_plane.get_center())
+        np_radius = Line(number_plane.c2p(0, 0), number_plane.c2p(0, 1)).height
+
+        complex_circle = (
+            Circle(np_radius)
+            .set_color(REDUCIBLE_YELLOW)
+            .move_to(number_plane.c2p(0, 0))
+        )
+        print("complex circle center", complex_circle.get_center())
+        print("complex circle radius", np_radius)
+
+        indices = VGroup(
+            *[
+                Text(str(f), font=REDUCIBLE_MONO)
+                .scale(0.7)
+                .next_to(comb_cos_af_matrix[f][0], LEFT)
+                for f in range(n_samples)
+            ]
+        ).next_to(dft_matrix_tex, LEFT, buff=0.5)
+        m_t = (
+            Text("m", font=REDUCIBLE_FONT, weight=BOLD, slant=ITALIC)
+            .scale(0.7)
+            .next_to(indices, UP, buff=0.6)
+        )
+
+        self.play(
+            FadeIn(indices, m_t),
+            focus_on(frame, [number_plane, indices, dft_matrix_tex]),
+        )
+        self.wait()
+        self.play(
+            Write(number_plane),
+            Write(complex_circle),
+        )
+        self.wait()
+
+        self.show_freq_interpret(
+            comb_cos_af_matrix,
+            comb_sin_af_matrix,
+            sampled_points_cos_af,
+            sampled_points_sin_af,
+            complex_circle,
+            indices,
+        )
+
+    def show_freq_interpret(
+        self,
+        cos_af_matrix,
+        sin_af_matrix,
+        sampled_points_cos_af,
+        sampled_points_sin_af,
+        complex_circle,
+        indices,
+    ):
+        i = None
+        num_samples = len(indices)
+        for freq, index_tex in enumerate(indices):
+            cos_signal = cos_af_matrix[freq][1]
+            sin_signal = sin_af_matrix[freq][1]
+            cos_sampled_pts = sampled_points_cos_af[freq]
+            sin_sampled_pts = sampled_points_sin_af[freq]
+
+            other_cos_signals = [
+                cos_af_matrix[j][1] for j in range(len(indices)) if freq != j
+            ]
+            other_sin_signals = [
+                sin_af_matrix[j][1] for j in range(len(indices)) if freq != j
+            ]
+            other_cos_sampled_pts = [
+                sampled_points_cos_af[j] for j in range(len(indices)) if freq != j
+            ]
+            other_sin_sampled_pts = [
+                sampled_points_sin_af[j] for j in range(len(indices)) if freq != j
+            ]
+            other_indices = [indices[j] for j in range(len(indices)) if freq != j]
+
+            self.play(
+                cos_signal.animate.set_stroke(opacity=1),
+                sin_signal.animate.set_stroke(opacity=1),
+                cos_sampled_pts.animate.set_opacity(1),
+                sin_sampled_pts.animate.set_opacity(1),
+                *[
+                    pt.animate.set_color(REDUCIBLE_VIOLET).set_opacity(0.3)
+                    for pt in other_cos_sampled_pts
+                ],
+                *[
+                    pt.animate.set_color(REDUCIBLE_CHARM).set_opacity(0.3)
+                    for pt in other_sin_sampled_pts
+                ],
+                *[
+                    signal.animate.set_stroke(opacity=0.3)
+                    for signal in other_cos_signals + other_sin_signals
+                ],
+                index_tex.animate.set_opacity(1),
+                *[id_tex.animate.set_opacity(0.3) for id_tex in other_indices],
+            )
+            self.wait()
+
+            points_on_circle = VGroup(
+                *[
+                    Dot()
+                    .set_color(REDUCIBLE_YELLOW)
+                    .move_to(
+                        complex_circle.point_from_proportion(
+                            1 - (freq * k / num_samples) % 1
+                        )
+                    )
+                    for k in range(num_samples)
+                ]
+            )
+
+            self.play(
+                *[
+                    TransformFromCopy(VGroup(cos_pt, sin_pt), circle_pt)
+                    for cos_pt, sin_pt, circle_pt in zip(
+                        cos_sampled_pts, sin_sampled_pts, points_on_circle
+                    )
+                ],
+                run_time=2,
+            )
+            self.wait()
+
+            if freq != 0:
+                self.animate_frequency_connection(
+                    complex_circle, cos_sampled_pts, sin_sampled_pts, points_on_circle
+                )
+
+            self.play(
+                *[
+                    pt.animate.set_opacity(1).set_color(REDUCIBLE_VIOLET)
+                    for pt in cos_sampled_pts
+                ],
+                *[
+                    pt.animate.set_opacity(1).set_color(REDUCIBLE_CHARM)
+                    for pt in sin_sampled_pts
+                ],
+            )
+            self.wait()
+
+    def animate_frequency_connection(
+        self, complex_circle, cos_pts, sin_pts, points_on_circle
+    ):
+        vector = Arrow(
+            complex_circle.get_center(),
+            complex_circle.get_right(),
+            buff=0,
+            max_tip_length_to_length_ratio=0.1,
+            max_stroke_width_to_length_ratio=2,
+        ).set_color(REDUCIBLE_YELLOW)
+
+        for k in range(len(points_on_circle)):
+            cos_pt, sin_pt, point_on_circle = (
+                cos_pts[k],
+                sin_pts[k],
+                points_on_circle[k],
+            )
+            other_cos_pts = [cos_pts[j] for j in range(len(points_on_circle)) if j != k]
+            other_sin_pts = [sin_pts[j] for j in range(len(points_on_circle)) if j != k]
+            self.play(
+                cos_pt.animate.set_opacity(1).set_color(REDUCIBLE_YELLOW),
+                sin_pt.animate.set_opacity(1).set_color(REDUCIBLE_YELLOW),
+                *[
+                    pt.animate.set_color(REDUCIBLE_VIOLET).set_opacity(0.3)
+                    for pt in other_cos_pts
+                ],
+                *[
+                    pt.animate.set_color(REDUCIBLE_CHARM).set_opacity(0.3)
+                    for pt in other_sin_pts
+                ],
+                Flash(point_on_circle),
+            )
+
+
+class RevampedInterpretDFTArrowAnimation(MovingCameraScene):
+    def construct(self):
+        frame = self.camera.frame
+
+        n_samples = 10
+
+        cos_af_matrix = (
+            VGroup(
+                *[
+                    display_signal(
+                        get_cosine_func(freq=f, amplitude=0.12),
+                        num_points=n_samples,
+                    )[2:].set_color(REDUCIBLE_VIOLET)
+                    for i, f in enumerate(range(n_samples))
+                ]
+            )
+            .arrange(DOWN)
+            .scale(0.5)
+            .shift(LEFT * 3.5)
+        )
+
+        sin_af_matrix = (
+            VGroup(
+                *[
+                    display_signal(
+                        get_sine_func(freq=f, amplitude=0.12),
+                        num_points=n_samples,
+                    )[2:].set_color(REDUCIBLE_CHARM)
+                    for i, f in enumerate(range(n_samples))
+                ]
+            )
+            .arrange(DOWN)
+            .scale(0.5)
+            .shift(RIGHT * 3.5)
+        )
+
+        self.play(FadeIn(cos_af_matrix, sin_af_matrix))
+        self.wait()
+
+        matrix_elements = []
+        power = 0
+        for i in range(n_samples):
+            row = []
+            for j in range(n_samples):
+                if i == 0 or j == 0:
+                    power = 0
+                else:
+                    power = i * j
+
+                power_index = f"{power}"
+                row.append(r"\omega^{" + power_index + "}")
+
+            matrix_elements.append(row)
+
+        dft_matrix_tex = Matrix(matrix_elements).shift(DOWN * 3)
+        dft_matrix_tex.scale(0.8).move_to(ORIGIN).shift(DOWN * 0.5)
+
+        t_max = 2 * PI
+        # samples per second
+        n_samples = 10
+
+        # total number of samples
+        sample_frequency = n_samples
+
+        analysis_frequencies = [
+            sample_frequency * m / n_samples for m in range(n_samples)
+        ]
+
+        comb_cos_af_matrix = VGroup(
+            *[
+                VGroup(
+                    *plot_time_domain(
+                        get_cosine_func(freq=f, amplitude=0.13), t_max=t_max
+                    )
+                )
+                .stretch_to_fit_width(dft_matrix_tex[0].width)
+                .move_to(dft_matrix_tex[0][i * n_samples], aligned_edge=LEFT)
+                for i, f in enumerate(range(n_samples))
+            ]
+        )
+
+        comb_sin_af_matrix = VGroup(
+            *[
+                VGroup(
+                    *plot_time_domain(
+                        get_sine_func(freq=f, amplitude=0.13), t_max=t_max
+                    )
+                )
+                .stretch_to_fit_width(dft_matrix_tex[0].width)
+                .move_to(dft_matrix_tex[0][i * n_samples], aligned_edge=LEFT)
+                for i, f in enumerate(analysis_frequencies)
+            ]
+        )
+
+        [af[0].set_opacity(0) for af in comb_cos_af_matrix]
+        [af[0].set_opacity(0) for af in comb_sin_af_matrix]
+
+        for sin_mob, cos_mob in zip(comb_sin_af_matrix, comb_cos_af_matrix):
+            sin_mob[1].set_color(REDUCIBLE_CHARM)
+            cos_mob[1].set_color(REDUCIBLE_VIOLET)
+
+        self.play(FadeOut(cos_af_matrix), FadeOut(sin_af_matrix))
+
+        self.play(FadeIn(dft_matrix_tex[1]), FadeIn(dft_matrix_tex[2]))
+        # self.wait()
+        # self.play(FadeOut(dft_matrix_tex[0]))
+        # self.wait()
+        self.play(FadeIn(comb_cos_af_matrix))
+        self.wait()
+        self.play(FadeIn(comb_sin_af_matrix))
+        self.wait()
+
+        sampled_points_cos_af = VGroup(
+            *[
+                get_sampled_dots(
+                    signal,
+                    axis,
+                    x_max=t_max,
+                    num_points=n_samples,
+                    radius=DEFAULT_DOT_RADIUS,
+                ).set_color(REDUCIBLE_VIOLET)
+                for axis, signal in comb_cos_af_matrix
+            ]
+        )
+        sampled_points_sin_af = VGroup(
+            *[
+                get_sampled_dots(
+                    signal,
+                    axis,
+                    x_max=t_max,
+                    num_points=n_samples,
+                    radius=DEFAULT_DOT_RADIUS,
+                ).set_color(REDUCIBLE_CHARM)
+                for axis, signal in comb_sin_af_matrix
+            ]
+        )
+
+        self.play(FadeIn(sampled_points_cos_af), FadeIn(sampled_points_sin_af))
+        self.wait()
+
+        number_plane = (
+            ComplexPlane(
+                x_length=5,
+                y_length=5,
+                x_range=[-2, 2],
+                y_range=[-2, 2],
+                background_line_style={"stroke_color": REDUCIBLE_VIOLET},
+            )
+            .set_opacity(0.7)
+            .next_to(dft_matrix_tex, RIGHT, buff=1)
+        )
+        print("number plane center", number_plane.get_center())
+        np_radius = Line(number_plane.c2p(0, 0), number_plane.c2p(0, 1)).height
+
+        complex_circle = (
+            Circle(np_radius)
+            .set_color(REDUCIBLE_YELLOW)
+            .move_to(number_plane.c2p(0, 0))
+        )
+        print("complex circle center", complex_circle.get_center())
+        print("complex circle radius", np_radius)
+
+        indices = VGroup(
+            *[
+                Text(str(f), font=REDUCIBLE_MONO)
+                .scale(0.7)
+                .next_to(comb_cos_af_matrix[f][0], LEFT)
+                for f in range(n_samples)
+            ]
+        ).next_to(dft_matrix_tex, LEFT, buff=0.5)
+        m_t = (
+            Text("m", font=REDUCIBLE_FONT, weight=BOLD, slant=ITALIC)
+            .scale(0.7)
+            .next_to(indices, UP, buff=0.6)
+        )
+
+        self.play(
+            FadeIn(indices, m_t),
+            focus_on(frame, [number_plane, indices, dft_matrix_tex]),
+        )
+        self.wait()
+        self.play(
+            Write(number_plane),
+            Write(complex_circle),
+        )
+        self.wait()
+
+        vector = Arrow(
+            complex_circle.get_center(),
+            complex_circle.get_right(),
+            buff=0,
+            max_tip_length_to_length_ratio=0.1,
+            max_stroke_width_to_length_ratio=2,
+        ).set_color(REDUCIBLE_YELLOW)
+
+        self.clear()
+        self.wait()
+
+        self.play(FadeIn(vector))
+        self.wait()
+
+        self.play(
+            Rotate(vector, angle=-1 * TAU, about_point=complex_circle.get_center()),
+            rate_func=linear,
+            run_time=10,
+        )
+        self.wait()
+        self.play(
+            Rotate(vector, angle=-2 * TAU, about_point=complex_circle.get_center()),
+            rate_func=linear,
+            run_time=10,
+        )
+        self.wait()
+        self.play(
+            Rotate(vector, angle=-3 * TAU, about_point=complex_circle.get_center()),
+            rate_func=linear,
+            run_time=10,
+        )
+        self.wait()
+        self.play(
+            Rotate(vector, angle=-4 * TAU, about_point=complex_circle.get_center()),
+            rate_func=linear,
+            run_time=10,
+        )
+        self.wait()
+        self.play(
+            Rotate(vector, angle=-5 * TAU, about_point=complex_circle.get_center()),
+            rate_func=linear,
+            run_time=10,
+        )
+        self.wait()
+        self.play(
+            Rotate(vector, angle=-6 * TAU, about_point=complex_circle.get_center()),
+            rate_func=linear,
+            run_time=10,
+        )
+        self.wait()
+        self.play(
+            Rotate(vector, angle=-7 * TAU, about_point=complex_circle.get_center()),
+            rate_func=linear,
+            run_time=10,
+        )
+        self.wait()
+        self.play(
+            Rotate(vector, angle=-8 * TAU, about_point=complex_circle.get_center()),
+            rate_func=linear,
+            run_time=10,
+        )
+        self.wait()
+        self.play(
+            Rotate(vector, angle=-9 * TAU, about_point=complex_circle.get_center()),
+            rate_func=linear,
+            run_time=10,
+        )
+        self.wait()
+
+
+class RevampedInterpretDFTComplexNumber(MovingCameraScene):
+    def construct(self):
+        frame = self.camera.frame
+
+        n_samples = 10
+
+        cos_af_matrix = (
+            VGroup(
+                *[
+                    display_signal(
+                        get_cosine_func(freq=f, amplitude=0.12),
+                        num_points=n_samples,
+                    )[2:].set_color(REDUCIBLE_VIOLET)
+                    for i, f in enumerate(range(n_samples))
+                ]
+            )
+            .arrange(DOWN)
+            .scale(0.5)
+            .shift(LEFT * 3.5)
+        )
+
+        sin_af_matrix = (
+            VGroup(
+                *[
+                    display_signal(
+                        get_sine_func(freq=f, amplitude=0.12),
+                        num_points=n_samples,
+                    )[2:].set_color(REDUCIBLE_CHARM)
+                    for i, f in enumerate(range(n_samples))
+                ]
+            )
+            .arrange(DOWN)
+            .scale(0.5)
+            .shift(RIGHT * 3.5)
+        )
+
+        self.play(FadeIn(cos_af_matrix, sin_af_matrix))
+        self.wait()
+
+        matrix_elements = []
+        power = 0
+        for i in range(n_samples):
+            row = []
+            for j in range(n_samples):
+                if i == 0 or j == 0:
+                    power = 0
+                else:
+                    power = i * j
+
+                power_index = f"{power}"
+                row.append(r"\omega^{" + power_index + "}")
+
+            matrix_elements.append(row)
+
+        dft_matrix_tex = Matrix(matrix_elements).shift(DOWN * 3)
+        dft_matrix_tex.scale(0.8).move_to(ORIGIN).shift(DOWN * 0.5)
+
+        t_max = 2 * PI
+        # samples per second
+        n_samples = 10
+
+        # total number of samples
+        sample_frequency = n_samples
+
+        analysis_frequencies = [
+            sample_frequency * m / n_samples for m in range(n_samples)
+        ]
+
+        comb_cos_af_matrix = VGroup(
+            *[
+                VGroup(
+                    *plot_time_domain(
+                        get_cosine_func(freq=f, amplitude=0.13), t_max=t_max
+                    )
+                )
+                .stretch_to_fit_width(dft_matrix_tex[0].width)
+                .move_to(dft_matrix_tex[0][i * n_samples], aligned_edge=LEFT)
+                for i, f in enumerate(range(n_samples))
+            ]
+        )
+
+        comb_sin_af_matrix = VGroup(
+            *[
+                VGroup(
+                    *plot_time_domain(
+                        get_sine_func(freq=f, amplitude=0.13), t_max=t_max
+                    )
+                )
+                .stretch_to_fit_width(dft_matrix_tex[0].width)
+                .move_to(dft_matrix_tex[0][i * n_samples], aligned_edge=LEFT)
+                for i, f in enumerate(analysis_frequencies)
+            ]
+        )
+
+        [af[0].set_opacity(0) for af in comb_cos_af_matrix]
+        [af[0].set_opacity(0) for af in comb_sin_af_matrix]
+
+        for sin_mob, cos_mob in zip(comb_sin_af_matrix, comb_cos_af_matrix):
+            sin_mob[1].set_color(REDUCIBLE_CHARM)
+            cos_mob[1].set_color(REDUCIBLE_VIOLET)
+
+        self.play(FadeOut(cos_af_matrix), FadeOut(sin_af_matrix))
+
+        self.play(FadeIn(dft_matrix_tex[1]), FadeIn(dft_matrix_tex[2]))
+        # self.wait()
+        # self.play(FadeOut(dft_matrix_tex[0]))
+        # self.wait()
+        self.play(FadeIn(comb_cos_af_matrix))
+        self.wait()
+        self.play(FadeIn(comb_sin_af_matrix))
+        self.wait()
+
+        sampled_points_cos_af = VGroup(
+            *[
+                get_sampled_dots(
+                    signal,
+                    axis,
+                    x_max=t_max,
+                    num_points=n_samples,
+                    radius=DEFAULT_DOT_RADIUS,
+                ).set_color(REDUCIBLE_VIOLET)
+                for axis, signal in comb_cos_af_matrix
+            ]
+        )
+        sampled_points_sin_af = VGroup(
+            *[
+                get_sampled_dots(
+                    signal,
+                    axis,
+                    x_max=t_max,
+                    num_points=n_samples,
+                    radius=DEFAULT_DOT_RADIUS,
+                ).set_color(REDUCIBLE_CHARM)
+                for axis, signal in comb_sin_af_matrix
+            ]
+        )
+
+        self.play(FadeIn(sampled_points_cos_af), FadeIn(sampled_points_sin_af))
+        self.wait()
+
+        number_plane = (
+            ComplexPlane(
+                x_length=5,
+                y_length=5,
+                x_range=[-2, 2],
+                y_range=[-2, 2],
+                background_line_style={"stroke_color": REDUCIBLE_VIOLET},
+            )
+            .set_opacity(0.7)
+            .next_to(dft_matrix_tex, RIGHT, buff=1)
+        )
+        print("number plane center", number_plane.get_center())
+        np_radius = Line(number_plane.c2p(0, 0), number_plane.c2p(0, 1)).height
+
+        complex_circle = (
+            Circle(np_radius)
+            .set_color(REDUCIBLE_YELLOW)
+            .move_to(number_plane.c2p(0, 0))
+        )
+        print("complex circle center", complex_circle.get_center())
+        print("complex circle radius", np_radius)
+
+        indices = VGroup(
+            *[
+                Text(str(f), font=REDUCIBLE_MONO)
+                .scale(0.7)
+                .next_to(comb_cos_af_matrix[f][0], LEFT)
+                for f in range(n_samples)
+            ]
+        ).next_to(dft_matrix_tex, LEFT, buff=0.5)
+        m_t = (
+            Text("m", font=REDUCIBLE_FONT, weight=BOLD, slant=ITALIC)
+            .scale(0.7)
+            .next_to(indices, UP, buff=0.6)
+        )
+
+        self.play(
+            FadeIn(indices, m_t),
+            focus_on(frame, [number_plane, indices, dft_matrix_tex]),
+        )
+        self.wait()
+        self.play(
+            Write(number_plane),
+            Write(complex_circle),
+        )
+        self.wait()
+
+        vector = Arrow(
+            complex_circle.get_center(),
+            complex_circle.get_right(),
+            buff=0,
+            max_tip_length_to_length_ratio=0.1,
+            max_stroke_width_to_length_ratio=2,
+        ).set_color(REDUCIBLE_YELLOW)
+
+        self.clear()
+        self.wait()
+
+        complex_number = (
+            MathTex("a + bi").scale(0.8).next_to(complex_circle, DOWN, buff=2)
+        )
+        self.play(FadeIn(complex_number))
+        self.wait()
+        sin_cos_complex_num = (
+            MathTex(r"\cos(\theta) + i \sin(\theta)")
+            .scale(0.8)
+            .move_to(complex_number.get_center())
+        )
+        self.play(FadeTransform(complex_number, sin_cos_complex_num))
+        self.wait()
+        euler_formula = (
+            VGroup(MathTex(r"e^{i \theta} =").scale(0.8), sin_cos_complex_num.copy())
+            .arrange(RIGHT)
+            .move_to(sin_cos_complex_num.get_center())
+        )
+        self.play(
+            FadeIn(euler_formula[0], shift=RIGHT),
+            ReplacementTransform(sin_cos_complex_num, euler_formula[1]),
+        )
+        self.wait()
+
+        points_on_circle = VGroup(
+            *[
+                Dot()
+                .set_color(REDUCIBLE_YELLOW)
+                .move_to(complex_circle.point_from_proportion((k / 10) % 1))
+                for k in range(10)
+            ]
+        )
+
+        # self.play(FadeIn(points_on_circle))
+        # self.wait()
+
+        all_exponentials = []
+        for i, pt in enumerate(points_on_circle):
+            unit_v = normalize(pt.get_center() - complex_circle.get_center())
+            string = r"e^{\frac{2 \pi i (" + str(i) + r")}{10}"
+            text = (
+                MathTex(string)
+                .scale(0.6)
+                .next_to(pt, direction=unit_v, buff=SMALL_BUFF * 1.5)
+            )
+            all_exponentials.append(text)
+
+        self.play(LaggedStartMap(FadeIn, all_exponentials))
+        self.wait()
