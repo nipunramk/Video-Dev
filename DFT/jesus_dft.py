@@ -2946,3 +2946,45 @@ class ProposeDFTSimplification(MovingCameraScene):
         )
 
         self.wait()
+
+
+class ComplexSinusoid(MovingCameraScene):
+    def construct(self):
+        frame = self.camera.frame
+        t_max = 2 * PI
+
+        # samples per second
+        n_samples = 10
+
+        # total number of samples
+        sample_frequency = n_samples
+
+        vt_phase = ValueTracker(0)
+        freq_1 = 3
+        freq_2 = 5
+        freq_3 = 7
+
+        def shifting_sum_sinusoid():
+            freq_1_f = get_cosine_func(
+                freq=freq_1, amplitude=0.3, phase=vt_phase.get_value()
+            )
+            freq_2_f = get_cosine_func(
+                freq=freq_2, amplitude=0.3, phase=vt_phase.get_value()
+            )
+            freq_3_f = get_cosine_func(
+                freq=freq_3, amplitude=0.3, phase=vt_phase.get_value()
+            )
+
+            sum_f = get_sum_functions(freq_1_f, freq_2_f, freq_3_f)
+
+            sum_display = plot_time_domain(sum_f, t_max=t_max)[1]
+
+            sum_display.set_stroke(width=5)
+
+            return sum_display
+
+        shifting_sum_sinusoid_mob = always_redraw(shifting_sum_sinusoid)
+
+        self.play(FadeIn(shifting_sum_sinusoid_mob))
+
+        self.play(vt_phase.animate.set_value(300), run_time=80, rate_func=linear)
