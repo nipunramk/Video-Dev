@@ -1298,7 +1298,7 @@ class IntroducePhaseProblemP2(MovingCameraScene):
         self.wait()
 
 
-class SolvingPhaseProblem(MovingCameraScene):
+class SolvingPhaseProblemBalance(MovingCameraScene):
     def construct(self):
         reset_frame = self.camera.frame.save_state()
 
@@ -1407,6 +1407,8 @@ class SolvingPhaseProblem(MovingCameraScene):
         self.wait()
 
         self.play(vt_phase.animate.set_value(PI / 2))
+        self.wait()
+        self.play(vt_phase.animate.set_value(6 * PI), run_time=8, rate_func=rate_functions.ease_in_out_sine,)
         self.wait()
 
     def capture_sine_and_cosine_transforms(self):
@@ -2091,7 +2093,7 @@ class SolvingPhaseProblem(MovingCameraScene):
         return VGroup(*mobs)
 
 
-class InterpretDFT(MovingCameraScene):
+class InterpretDFTP3(MovingCameraScene):
     def construct(self):
         reset_frame = self.camera.frame.save_state()
 
@@ -2430,16 +2432,16 @@ class InterpretDFT(MovingCameraScene):
 
         self.play(FadeOut(points_on_circle))
 
-        current_dot = LabeledDot(0).move_to(number_plane.n2p(dft_on_signal[0]))
+        current_dot = LabeledDot(0, color=REDUCIBLE_VIOLET, label_color=WHITE).move_to(number_plane.n2p(dft_on_signal[0]))
         for i in range(n_samples):
             point = dft_on_signal[i]
 
-            _current_dot = LabeledDot(i, label_color=WHITE).move_to(
+            _current_dot = LabeledDot(i, color=REDUCIBLE_VIOLET, label_color=WHITE).set_color(REDUCIBLE_VIOLET).move_to(
                 number_plane.n2p(point)
             )
 
             self.play(
-                Transform(current_dot, _current_dot),
+                Transform(current_dot, _current_dot) if i != 0 else FadeIn(current_dot),
                 indices[i].animate.set_opacity(1),
                 cos_af_matrix[i][1].animate.set_stroke(opacity=1),
                 *[
@@ -2479,9 +2481,9 @@ class InterpretDFT(MovingCameraScene):
                     for idx in range(n_samples)
                     if idx != i
                 ],
-                run_time=1 / (i + 1),
+                run_time=1,
             )
-            self.wait(1 / (i + 1))
+            self.wait(0.1)
 
         vt_frequency = ValueTracker(original_frequency)
         vt_phase = ValueTracker(0)
@@ -2601,7 +2603,7 @@ class InterpretDFT(MovingCameraScene):
 
             complex_points = VGroup(
                 *[
-                    LabeledDot(str(i), label_color=WHITE).move_to(
+                    LabeledDot(str(i), color=REDUCIBLE_VIOLET, label_color=WHITE).move_to(
                         number_plane.n2p(point)
                     )
                     for i, point in list(enumerate(dft_on_signal))[::-1]
@@ -2649,27 +2651,35 @@ class InterpretDFT(MovingCameraScene):
         self.wait()
         self.play(
             vt_frequency.animate.set_value(analysis_frequencies[0]),
-            run_time=5,
+            run_time=6,
             rate_func=rate_functions.ease_in_out_sine,
         )
         self.wait()
         self.play(
             vt_frequency.animate.set_value(analysis_frequencies[1]),
-            run_time=5,
+            run_time=6,
             rate_func=rate_functions.ease_in_out_sine,
         )
         self.wait()
         self.play(
             vt_frequency.animate.set_value(analysis_frequencies[2]),
-            run_time=5,
+            run_time=6,
             rate_func=rate_functions.ease_in_out_sine,
         )
         self.wait()
         self.play(
             vt_frequency.animate.set_value(analysis_frequencies[3]),
-            run_time=5,
+            run_time=6,
             rate_func=rate_functions.ease_in_out_sine,
         )
+        self.wait()
+
+        self.play(
+            vt_frequency.animate.set_value(analysis_frequencies[4]),
+            run_time=6,
+            rate_func=rate_functions.ease_in_out_sine,
+        )
+        self.wait()
 
 
 class TransitionTemplate(Scene):
@@ -2682,14 +2692,11 @@ class TransitionTemplate(Scene):
 
         transition_points = [
             # use a list if we want multiple lines
-            ["The Discrete", "Cosine Transform"],
-            "Sampling",
-            ["Time and Frequency", " Domains"],
-            ["Similarity between", "signals"],
-            ["Analysis", "Frequencies"],
-            "Phase Problems",
-            ["Simplifying the", "Discrete Fourier Transform"],
-            "Conclusion",
+            ["Defining", "Ideal Behavior"],
+            ["Defining an", "Initial Transform"], # cross out and show it is wrong
+            ["Where Does Our", "Transform Break?"],
+            ["Solving The", "Phase Problem"],
+            ["Defining The", "True DFT"],
         ]
         for i in range(len(transition_points)):
             self.transition(
@@ -2697,6 +2704,7 @@ class TransitionTemplate(Scene):
                 index=i + 1,
                 total=len(transition_points),
             )
+
             self.wait()
 
     def transition(self, transition_name, index, total):
@@ -2763,5 +2771,49 @@ class TransitionTemplate(Scene):
             FadeIn(title, shift=UP * 0.3), LaggedStartMap(FadeIn, nodes_and_lines)
         )
 
+        cross = None
+        if index == 2:
+            cross = Cross(title[-1], color=REDUCIBLE_CHARM)
+            self.play(Write(cross))
+            self.wait()
+
+        additional_anim = [FadeOut(cross)] if cross is not None else []
+
+        self.play(FadeOut(title), FadeOut(nodes_and_lines), *additional_anim)
+
+class BalanceScene(Scene):
+    def construct(self):
+        left_rect = ScreenRectangle(height=3).move_to(LEFT * 3.5)
+        right_rect = ScreenRectangle(height=3).move_to(RIGHT * 3.5)
+
+        cosine_analysis_frequencies = Text("Cosine Analysis Freq", font=REDUCIBLE_FONT).scale(0.7).next_to(left_rect, UP)
+        sine_analysis_frequencies = Text("Sine Analysis Freq", font=REDUCIBLE_FONT).scale(0.7).next_to(right_rect, UP)
+
+        sin_breaks = Text("Sine signals break", font=REDUCIBLE_FONT).scale(0.6).next_to(left_rect, DOWN)
+        cos_breaks = Text("Cosine signals break", font=REDUCIBLE_FONT).scale(0.6).next_to(right_rect, DOWN)
+
+        self.play(FadeIn(left_rect), FadeIn(right_rect), FadeIn(cosine_analysis_frequencies), FadeIn(sine_analysis_frequencies))
         self.wait()
-        self.play(FadeOut(title), FadeOut(nodes_and_lines))
+        self.play(FadeIn(sin_breaks), FadeIn(cos_breaks))
+        self.wait()
+
+
+class PreviewDFT(Scene):
+    def construct(self):
+        screen_rect = ScreenRectangle(height=4.5)
+        self.play(FadeIn(screen_rect))
+        self.wait()
+        coming_up = Text("Coming up ...", font=REDUCIBLE_FONT).scale(0.7)
+        coming_up.next_to(screen_rect, DOWN)
+        self.play(Write(coming_up))
+        self.wait()
+
+class DFTTitle(Scene):
+    def construct(self):
+        discrete_fourier_t = Text("Discrete Fourier Transform (DFT)", font=REDUCIBLE_FONT, weight=BOLD).to_edge(UP)
+        self.play(FadeIn(discrete_fourier_t, shift=UP))
+        self.wait()
+
+
+
+

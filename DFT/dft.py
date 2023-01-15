@@ -913,7 +913,7 @@ class IntroduceOrthogonalityEnd2(Scene):
         return dot_product_tex
 
 
-class TestCases(Scene):
+class TestCasesInsert(Scene):
     def construct(self):
         NUM_SAMPLES = 16
         time_signal_func = get_cosine_func(freq=DEFAULT_FREQ)
@@ -1112,9 +1112,17 @@ class TestCases(Scene):
         self.play(vt_frequency.animate.set_value(2), run_time=4)
         self.wait()
 
-        self.play(vt_b.animate.set_value(0.5), run_time=2)
+        changing_time_domain_graph.clear_updaters()
+
+        self.play(
+            changing_time_domain_graph.animate.shift(UP * 0.5),
+            vt_b.animate.set_value(0.5), run_time=2
+        )
         self.wait()
-        self.play(vt_b.animate.set_value(0), run_time=2)
+        self.play(
+            changing_time_domain_graph.animate.shift(DOWN * 0.5),
+            vt_b.animate.set_value(0),
+            run_time=2)
         self.wait()
 
         self.play(
@@ -1477,6 +1485,8 @@ class RevampedInterpretDFT(MovingCameraScene):
         i = None
         num_samples = len(indices)
         for freq, index_tex in enumerate(indices):
+            if freq in [6, 7, 8]:
+                continue
             cos_signal = cos_af_matrix[freq][1]
             sin_signal = sin_af_matrix[freq][1]
             cos_sampled_pts = sampled_points_cos_af[freq]
@@ -1556,6 +1566,7 @@ class RevampedInterpretDFT(MovingCameraScene):
                     pt.animate.set_opacity(1).set_color(REDUCIBLE_CHARM)
                     for pt in sin_sampled_pts
                 ],
+                FadeOut(points_on_circle)
             )
             self.wait()
 
@@ -2093,9 +2104,82 @@ class RevampedInterpretDFTComplexNumber(MovingCameraScene):
                 .next_to(pt, direction=unit_v, buff=SMALL_BUFF * 1.5)
             )
             all_exponentials.append(text)
+        all_exponentials[0].shift(DOWN * 0.2)
+        all_exponentials[5].shift(DOWN * 0.2)
 
         self.play(LaggedStartMap(FadeIn, all_exponentials))
+        self.wait()
 
 class BlankScreen(Scene):
     def construct(self):
         self.wait()
+
+class FFTMention(Scene):
+    def construct(self):
+        config["assets_dir"] = "assets"
+        BACKGROUND_IMG = ImageMobject("bg-video.png").scale_to_fit_width(config.frame_width)
+        self.add(BACKGROUND_IMG)
+        title = Text("Fast Fourier Transform (FFT)", font=REDUCIBLE_FONT, weight=BOLD).scale(0.8)
+        title.to_edge(UP)
+        self.play(Write(title))
+        self.wait()
+
+        screen_rect = ScreenRectangle(height=4.5)
+
+        self.play(FadeIn(screen_rect))
+        self.wait()
+        self.play(FadeOut(screen_rect), FadeOut(title))
+        self.wait()
+
+        left_rect = ScreenRectangle(height=3).move_to(LEFT * 3.5)
+        right_rect = ScreenRectangle(height=3).move_to(RIGHT * 3.5)
+
+
+        fft_text = Text("FFT Video", font=REDUCIBLE_FONT).scale(0.6).next_to(left_rect, UP)
+        fft_video = Text("Polynomial Multiplication", font=REDUCIBLE_FONT).scale(0.5)
+        fft_video.next_to(left_rect, DOWN)
+
+
+        dft_text = Text("DFT Video", font=REDUCIBLE_FONT).scale(0.6).next_to(right_rect, UP)
+        dft_video = Text("Signal Processing", font=REDUCIBLE_FONT).scale(0.5)
+        dft_video.next_to(right_rect, DOWN)
+
+        self.play(FadeIn(left_rect), FadeIn(right_rect), FadeIn(fft_text), FadeIn(dft_text))
+        self.wait()
+
+        self.play(Write(fft_video))
+        self.wait()
+
+        self.play(Write(dft_video))
+        self.wait()
+
+class DFTRecap(Scene):
+    def construct(self):
+        config["assets_dir"] = "assets"
+        BACKGROUND_IMG = ImageMobject("bg-video.png").scale_to_fit_width(config.frame_width)
+        self.add(BACKGROUND_IMG)
+
+        title = Text("DFT Recap", font=REDUCIBLE_FONT, weight=BOLD).scale(0.8)
+        title.to_edge(UP)
+        screen_rect = ScreenRectangle(height=4.5)
+        self.play(Write(title), FadeIn(screen_rect))
+        self.wait()
+
+        step_1 = Text("1. Similarity Between Signals", font=REDUCIBLE_FONT).scale(0.6).next_to(screen_rect, DOWN)
+        step_2 = Text("2. Cosine Analysis Frequencies", font=REDUCIBLE_FONT).scale(0.6).next_to(screen_rect, DOWN)
+        step_3 = Text("3. Phase Issues", font=REDUCIBLE_FONT).scale(0.6).next_to(screen_rect, DOWN)
+        step_4 = Text("4. Cosine and Sine Analysis Frequencies", font=REDUCIBLE_FONT).scale(0.6).next_to(screen_rect, DOWN)
+        step_5 = Text("5. Simplification Using Complex Numbers", font=REDUCIBLE_FONT).scale(0.6).next_to(screen_rect, DOWN)
+
+        self.play(Write(step_1))
+        self.wait()
+        self.play(ReplacementTransform(step_1, step_2))
+        self.wait()
+        self.play(ReplacementTransform(step_2, step_3))
+        self.wait()
+        self.play(ReplacementTransform(step_3, step_4))
+        self.wait()
+        self.play(ReplacementTransform(step_4, step_5))
+        self.wait()
+
+
