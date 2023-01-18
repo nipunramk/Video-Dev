@@ -141,7 +141,7 @@ def inner_prod(time_domain_func, freq_func, x_min=0, x_max=2 * PI, num_points=8)
 
 
 def get_sampled_dots(
-    graph, axes, x_min=0, x_max=2 * PI, num_points=8, radius=DEFAULT_DOT_RADIUS
+    graph, axes, x_min=0, x_max=2 * PI, num_points=8, radius=DEFAULT_DOT_RADIUS, color=REDUCIBLE_YELLOW
 ):
     x_coords, y_coords = get_sampled_coords(
         graph, x_min=x_min, x_max=x_max, num_points=num_points
@@ -150,7 +150,7 @@ def get_sampled_dots(
         Dot(radius=radius).move_to(axes.coords_to_point(x_coord, y_coord))
         for x_coord, y_coord in zip(x_coords, y_coords)
     ]
-    return VGroup(*coord_dots)
+    return VGroup(*coord_dots).set_color(color)
 
 
 def get_vertical_bars_for_samples(
@@ -298,7 +298,7 @@ def make_row_vector(values, h_buff=0.6, scale=0.6):
 
 def display_signal(time_signal_func, color=TIME_DOMAIN_COLOR, num_points=8):
     time_axis, graph = plot_time_domain(time_signal_func, t_max=2 * PI, color=color)
-    sampled_points_dots = get_sampled_dots(graph, time_axis, num_points=num_points)
+    sampled_points_dots = get_sampled_dots(graph, time_axis, num_points=num_points, color=color)
     sampled_points_vert_lines = get_vertical_dashed_lines_for_samples(
         graph, time_axis, color=color, num_points=num_points
     )
