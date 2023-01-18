@@ -902,10 +902,10 @@ class IntroducePhaseProblemP2(MovingCameraScene):
         frame = self.camera.frame.save_state()
         self.try_sine_wave()
 
-        self.play(*[FadeOut(mob) for mob in self.mobjects])
-        self.play(Restore(frame))
+        # self.play(*[FadeOut(mob) for mob in self.mobjects])
+        # self.play(Restore(frame))
 
-        self.test_cases_again()
+        # self.test_cases_again()
 
     def try_sine_wave(self):
         frame = self.camera.frame
@@ -992,7 +992,7 @@ class IntroducePhaseProblemP2(MovingCameraScene):
         self.wait()
 
         self.play(
-            vt_phase.animate.set_value(PI / 2),
+            vt_phase.animate.set_value(-PI / 2),
             FadeTransform(cos_tex, sin_tex),
             run_time=2,
         )
@@ -1041,11 +1041,11 @@ class IntroducePhaseProblemP2(MovingCameraScene):
 
         sampled_dots_af = [
             get_cosine_func(freq=original_freq)(v)
-            for v in np.linspace(0, t_max, 10, endpoint=False)
+            for v in np.linspace(0, t_max, num=n_samples, endpoint=False)
         ]
         sampled_dots_signal = [
             get_cosine_func(freq=original_freq, phase=vt_phase.get_value())(v)
-            for v in np.linspace(0, t_max, 10, endpoint=False)
+            for v in np.linspace(0, t_max, num=n_samples, endpoint=False)
         ]
         prod_per_sample = [
             af * s for af, s in zip(sampled_dots_af, sampled_dots_signal)
@@ -1058,9 +1058,11 @@ class IntroducePhaseProblemP2(MovingCameraScene):
             x_length=analysis_freq_mob.width,
         )
         barchart.remove(barchart[2])
-        barchart.stretch_to_fit_width(analysis_freq_mob.width).stretch_to_fit_height(
-            analysis_freq_mob.height * 1.3
-        ).next_to(analysis_freq_mob, DOWN, buff=0.5, aligned_edge=LEFT)
+        barchart.stretch_to_fit_width(
+            analysis_freq_mob.width - 0.2
+        ).stretch_to_fit_height(analysis_freq_mob.height * 1.3).next_to(
+            analysis_freq_mob, DOWN, buff=0.5, aligned_edge=LEFT
+        )
 
         self.play(FadeIn(cos_mob), FadeOut(changing_sine))
         self.play(
@@ -1094,24 +1096,27 @@ class IntroducePhaseProblemP2(MovingCameraScene):
         )
         self.wait()
 
-        barchart_label = Tex(r"sin$(x) \cdot$ cos$(x)$").scale(0.6)
+        barchart_label = Tex(r"sin$(x) \ \cdot$ cos$(x)$").scale(0.6)
         barchart_label.next_to(barchart, LEFT)
 
         self.play(Write(barchart[1]), Write(barchart_label))
         self.play(LaggedStartMap(FadeIn, barchart[0]))
         self.wait()
 
+        # bar_chart_colors = [
+        #     REDUCIBLE_YELLOW,
+        #     REDUCIBLE_BLUE,
+        #     REDUCIBLE_YELLOW,
+        #     REDUCIBLE_YELLOW,
+        #     REDUCIBLE_BLUE,
+        #     REDUCIBLE_YELLOW,
+        #     REDUCIBLE_BLUE,
+        #     REDUCIBLE_YELLOW,
+        #     REDUCIBLE_YELLOW,
+        #     REDUCIBLE_BLUE,
+        # ]
         bar_chart_colors = [
-            REDUCIBLE_YELLOW,
-            REDUCIBLE_BLUE,
-            REDUCIBLE_YELLOW,
-            REDUCIBLE_YELLOW,
-            REDUCIBLE_BLUE,
-            REDUCIBLE_YELLOW,
-            REDUCIBLE_BLUE,
-            REDUCIBLE_YELLOW,
-            REDUCIBLE_YELLOW,
-            REDUCIBLE_BLUE,
+            REDUCIBLE_YELLOW if p > 0 else REDUCIBLE_BLUE for p in prod_per_sample
         ]
 
         self.play(
