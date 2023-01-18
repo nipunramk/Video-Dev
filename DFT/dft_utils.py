@@ -543,7 +543,8 @@ def get_vertical_lines_as_samples(
             :-1
         ].set_color(color)
     )
-    
+
+
 def get_heat_map_from_matrix(
     matrix,
     height=3,
