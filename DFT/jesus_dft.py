@@ -80,7 +80,7 @@ class IntroSampling_001(MovingCameraScene):
         self.play(
             x_tracker.animate.set_value(x_range[0]),
             run_time=5,
-            rate_func=rate_functions.ease_in_out_sine
+            rate_func=rate_functions.ease_in_out_sine,
         )
         self.wait()
 
@@ -90,10 +90,7 @@ class IntroSampling_001(MovingCameraScene):
         self.play(Restore(restore_frame))
         self.wait()
 
-        self.play(
-            Write(sampled_dots),
-            Write(axis_and_lines[1])
-        )
+        self.play(Write(sampled_dots), Write(axis_and_lines[1]))
         self.wait()
 
 
@@ -232,7 +229,7 @@ class IntroSampling_002_insert(MovingCameraScene):
         self.play(
             Transform(sampled_dots, double_sampling),
             FadeTransform(point_n_txt, point_2n_txt),
-            run_time=2
+            run_time=2,
         )
         point_n_txt = point_2n_txt
         self.wait()
@@ -304,16 +301,12 @@ class IntroSampling_002_insert(MovingCameraScene):
         axes.shift(DOWN * 0.8)
 
         shannon_theorem = (
-            MathTex(
-                r"\text{Given} \ f \Rightarrow N > 2 \cdot f"
-            )
+            MathTex(r"\text{Given} \ f \Rightarrow N > 2 \cdot f")
             .scale(0.8)
             .next_to(shannon_text, DOWN, buff=0.6)
         )
         shannon_theorem_reverse = (
-            MathTex(
-                r"\text{Given} \ N \text{ samples} \Rightarrow f < \frac{N}{2}"
-            )
+            MathTex(r"\text{Given} \ N \text{ samples} \Rightarrow f < \frac{N}{2}")
             .scale(0.8)
             .next_to(shannon_theorem, DOWN, buff=0.3)
         )
@@ -999,7 +992,7 @@ class IntroducePhaseProblemP2(MovingCameraScene):
         self.wait()
 
         self.play(
-            vt_phase.animate.set_value(PI / 2),
+            vt_phase.animate.set_value(-PI / 2),
             FadeTransform(cos_tex, sin_tex),
             run_time=2,
         )
@@ -1057,11 +1050,11 @@ class IntroducePhaseProblemP2(MovingCameraScene):
 
         sampled_dots_af = [
             get_cosine_func(freq=original_freq)(v)
-            for v in np.linspace(0, t_max, 10, endpoint=False)
+            for v in np.linspace(0, t_max, num=n_samples, endpoint=False)
         ]
         sampled_dots_signal = [
             get_cosine_func(freq=original_freq, phase=vt_phase.get_value())(v)
-            for v in np.linspace(0, t_max, 10, endpoint=False)
+            for v in np.linspace(0, t_max, num=n_samples, endpoint=False)
         ]
         prod_per_sample = [
             af * s for af, s in zip(sampled_dots_af, sampled_dots_signal)
@@ -1074,9 +1067,11 @@ class IntroducePhaseProblemP2(MovingCameraScene):
             x_length=analysis_freq_mob.width,
         )
         barchart.remove(barchart[2])
-        barchart.stretch_to_fit_width(analysis_freq_mob.width).stretch_to_fit_height(
-            analysis_freq_mob.height * 1.3
-        ).next_to(analysis_freq_mob, DOWN, buff=0.5, aligned_edge=LEFT)
+        barchart.stretch_to_fit_width(
+            analysis_freq_mob.width - 0.2
+        ).stretch_to_fit_height(analysis_freq_mob.height * 1.3).next_to(
+            analysis_freq_mob, DOWN, buff=0.5, aligned_edge=LEFT
+        )
 
         self.play(FadeIn(cos_mob), FadeOut(changing_sine))
         self.play(
@@ -1110,19 +1105,27 @@ class IntroducePhaseProblemP2(MovingCameraScene):
         )
         self.wait()
 
-        barchart_label = Tex(r"sin$(x) \cdot$ cos$(x)$").scale(0.6)
+        barchart_label = Tex(r"sin$(x) \ \cdot$ cos$(x)$").scale(0.6)
         barchart_label.next_to(barchart, LEFT)
 
         self.play(Write(barchart[1]), Write(barchart_label))
         self.play(LaggedStartMap(FadeIn, barchart[0]))
         self.wait()
 
+        # bar_chart_colors = [
+        #     REDUCIBLE_YELLOW,
+        #     REDUCIBLE_BLUE,
+        #     REDUCIBLE_YELLOW,
+        #     REDUCIBLE_YELLOW,
+        #     REDUCIBLE_BLUE,
+        #     REDUCIBLE_YELLOW,
+        #     REDUCIBLE_BLUE,
+        #     REDUCIBLE_YELLOW,
+        #     REDUCIBLE_YELLOW,
+        #     REDUCIBLE_BLUE,
+        # ]
         bar_chart_colors = [
-        REDUCIBLE_YELLOW, REDUCIBLE_BLUE, 
-        REDUCIBLE_YELLOW, REDUCIBLE_YELLOW,
-        REDUCIBLE_BLUE, REDUCIBLE_YELLOW,
-        REDUCIBLE_BLUE, REDUCIBLE_YELLOW,
-        REDUCIBLE_YELLOW, REDUCIBLE_BLUE,
+            REDUCIBLE_YELLOW if p > 0 else REDUCIBLE_BLUE for p in prod_per_sample
         ]
 
         self.play(
@@ -1135,7 +1138,6 @@ class IntroducePhaseProblemP2(MovingCameraScene):
 
         for bar in barchart[0]:
             self.add_foreground_mobject(bar)
-
 
         self.play(
             barchart.animate.change_bar_values(
@@ -1418,7 +1420,11 @@ class SolvingPhaseProblemBalance(MovingCameraScene):
 
         self.play(vt_phase.animate.set_value(PI / 2))
         self.wait()
-        self.play(vt_phase.animate.set_value(6 * PI), run_time=8, rate_func=rate_functions.ease_in_out_sine,)
+        self.play(
+            vt_phase.animate.set_value(6 * PI),
+            run_time=8,
+            rate_func=rate_functions.ease_in_out_sine,
+        )
         self.wait()
 
     def capture_sine_and_cosine_transforms(self):
@@ -2043,7 +2049,12 @@ class SolvingPhaseProblemBalance(MovingCameraScene):
             .next_to(cos_freq_analysis, DOWN, buff=0.3)
         )
         complex_t = (
-            Text("||(cos(x), sin(x))||", font=REDUCIBLE_FONT, weight=BOLD, t2c={"cos(x)": REDUCIBLE_VIOLET, "sin(x)": REDUCIBLE_CHARM})
+            Text(
+                "||(cos(x), sin(x))||",
+                font=REDUCIBLE_FONT,
+                weight=BOLD,
+                t2c={"cos(x)": REDUCIBLE_VIOLET, "sin(x)": REDUCIBLE_CHARM},
+            )
             .set_color(REDUCIBLE_YELLOW)
             .scale(0.4)
             .next_to(freq_analysis, DOWN, buff=0.3)
@@ -2442,12 +2453,16 @@ class InterpretDFTP3(MovingCameraScene):
 
         self.play(FadeOut(points_on_circle))
 
-        current_dot = LabeledDot(0, color=REDUCIBLE_VIOLET, label_color=WHITE).move_to(number_plane.n2p(dft_on_signal[0]))
+        current_dot = LabeledDot(0, color=REDUCIBLE_VIOLET, label_color=WHITE).move_to(
+            number_plane.n2p(dft_on_signal[0])
+        )
         for i in range(n_samples):
             point = dft_on_signal[i]
 
-            _current_dot = LabeledDot(i, color=REDUCIBLE_VIOLET, label_color=WHITE).set_color(REDUCIBLE_VIOLET).move_to(
-                number_plane.n2p(point)
+            _current_dot = (
+                LabeledDot(i, color=REDUCIBLE_VIOLET, label_color=WHITE)
+                .set_color(REDUCIBLE_VIOLET)
+                .move_to(number_plane.n2p(point))
             )
 
             self.play(
@@ -2613,9 +2628,9 @@ class InterpretDFTP3(MovingCameraScene):
 
             complex_points = VGroup(
                 *[
-                    LabeledDot(str(i), color=REDUCIBLE_VIOLET, label_color=WHITE).move_to(
-                        number_plane.n2p(point)
-                    )
+                    LabeledDot(
+                        str(i), color=REDUCIBLE_VIOLET, label_color=WHITE
+                    ).move_to(number_plane.n2p(point))
                     for i, point in list(enumerate(dft_on_signal))[::-1]
                 ]
             )
@@ -2703,7 +2718,7 @@ class TransitionTemplate(Scene):
         transition_points = [
             # use a list if we want multiple lines
             ["Defining", "Ideal Behavior"],
-            ["Defining an", "Initial Transform"], # cross out and show it is wrong
+            ["Defining an", "Initial Transform"],  # cross out and show it is wrong
             ["Where Does Our", "Transform Break?"],
             ["Solving The", "Phase Problem"],
             ["Defining The", "True DFT"],
@@ -2791,19 +2806,323 @@ class TransitionTemplate(Scene):
 
         self.play(FadeOut(title), FadeOut(nodes_and_lines), *additional_anim)
 
+
 class BalanceScene(Scene):
     def construct(self):
         left_rect = ScreenRectangle(height=3).move_to(LEFT * 3.5)
         right_rect = ScreenRectangle(height=3).move_to(RIGHT * 3.5)
 
-        cosine_analysis_frequencies = Text("Cosine Analysis Freq", font=REDUCIBLE_FONT).scale(0.7).next_to(left_rect, UP)
-        sine_analysis_frequencies = Text("Sine Analysis Freq", font=REDUCIBLE_FONT).scale(0.7).next_to(right_rect, UP)
+        cosine_analysis_frequencies = (
+            Text("Cosine Analysis Freq", font=REDUCIBLE_FONT)
+            .scale(0.7)
+            .next_to(left_rect, UP)
+        )
+        sine_analysis_frequencies = (
+            Text("Sine Analysis Freq", font=REDUCIBLE_FONT)
+            .scale(0.7)
+            .next_to(right_rect, UP)
+        )
 
-        sin_breaks = Text("Sine signals break", font=REDUCIBLE_FONT).scale(0.6).next_to(left_rect, DOWN)
-        cos_breaks = Text("Cosine signals break", font=REDUCIBLE_FONT).scale(0.6).next_to(right_rect, DOWN)
+        sin_breaks = (
+            Text("Sine signals break", font=REDUCIBLE_FONT)
+            .scale(0.6)
+            .next_to(left_rect, DOWN)
+        )
+        cos_breaks = (
+            Text("Cosine signals break", font=REDUCIBLE_FONT)
+            .scale(0.6)
+            .next_to(right_rect, DOWN)
+        )
 
-        self.play(FadeIn(left_rect), FadeIn(right_rect), FadeIn(cosine_analysis_frequencies), FadeIn(sine_analysis_frequencies))
+        self.play(
+            FadeIn(left_rect),
+            FadeIn(right_rect),
+            FadeIn(cosine_analysis_frequencies),
+            FadeIn(sine_analysis_frequencies),
+        )
         self.wait()
+        self.play(FadeOut(title), FadeOut(nodes_and_lines))
+
+
+class ProposeDFTSimplification(MovingCameraScene):
+    def construct(self):
+        reset_frame = self.camera.frame.save_state()
+        frame = self.camera.frame
+
+        original_frequency = 4
+        t_max = 2 * PI
+
+        # samples per second
+        sample_frequency = 16
+
+        # total number of samples
+        n_samples = sample_frequency
+
+        sin_f = get_sine_func(freq=original_frequency)
+        cos_f = get_cosine_func(freq=original_frequency)
+        _, sin_mob = plot_time_domain(sin_f, t_max=t_max, color=REDUCIBLE_YELLOW)
+        _, cos_mob = plot_time_domain(cos_f, t_max=t_max, color=REDUCIBLE_VIOLET)
+
+        sin_t = (
+            Text("sin(x)", font=REDUCIBLE_FONT, weight=BOLD)
+            .set_color(REDUCIBLE_YELLOW)
+            .scale(0.5)
+            .next_to(sin_mob, UP, buff=0.2, aligned_edge=LEFT)
+        )
+        cos_t = (
+            Text("cos(x)", font=REDUCIBLE_FONT, weight=BOLD)
+            .set_color(REDUCIBLE_VIOLET)
+            .scale(0.5)
+            .next_to(sin_t, RIGHT, buff=0.2)
+        )
+
+        self.play(
+            Write(sin_mob.set_stroke(width=6)),
+            Write(cos_mob.set_stroke(width=6)),
+            run_time=2,
+        )
+
+        self.play(FadeIn(sin_t, cos_t, shift=UP * 0.3))
+        self.wait()
+
+        number_plane = NumberPlane(
+            x_length=5,
+            y_length=5,
+            x_range=[-2, 2],
+            y_range=[-2, 2],
+            background_line_style={"stroke_color": REDUCIBLE_VIOLET},
+        )
+
+        np_radius = Line(number_plane.c2p(0, 0), number_plane.c2p(0, 1)).height
+
+        complex_circle = (
+            Circle(np_radius)
+            .set_color(REDUCIBLE_YELLOW)
+            .move_to(number_plane.c2p(0, 0))
+        )
+
+        self.play(FadeOut(sin_mob, cos_mob), FadeOut(sin_t, cos_t, shift=UP * 0.3))
+        self.wait()
+
+        self.play(Write(number_plane), focus_on(frame, number_plane, buff=5))
+        self.play(Write(complex_circle))
+        self.wait()
+
+        complex_point = (
+            Dot()
+            .move_to(complex_circle.point_from_proportion(0.9))
+            .set_color(REDUCIBLE_YELLOW)
+        )
+        point_tag = (
+            MathTex("a+bi")
+            .set_stroke(width=6, color=BLACK, background=True)
+            .scale(0.7)
+            .next_to(complex_point, RIGHT)
+        )
+
+        self.play(FadeIn(complex_point, scale=1.5), FadeIn(point_tag, shift=UP * 0.3))
+        self.wait()
+
+        opacities = 0.2
+        cos_af_matrix = (
+            VGroup(
+                *[
+                    display_signal(
+                        get_cosine_func(freq=f, amplitude=0.12),
+                        num_points=n_samples,
+                    )[2:].set_color(REDUCIBLE_VIOLET)
+                    for i, f in enumerate(range(n_samples // 2))
+                ]
+            )
+            .arrange(DOWN)
+            .scale(0.5)
+            .shift(RIGHT * 2)
+            .set_stroke(opacity=opacities)
+        )
+        [signal[1].set_opacity(opacities) for signal in cos_af_matrix]
+
+        sin_af_matrix = (
+            VGroup(
+                *[
+                    display_signal(
+                        get_sine_func(freq=f, amplitude=0.12),
+                        num_points=n_samples,
+                    )[2:].set_color(REDUCIBLE_CHARM)
+                    for i, f in enumerate(range(n_samples // 2))
+                ]
+            )
+            .arrange(DOWN)
+            .scale(0.5)
+            .shift(LEFT * 2)
+            .set_stroke(opacity=opacities)
+        )
+        [signal[1].set_opacity(opacities) for signal in sin_af_matrix]
+
+        self.add(cos_af_matrix, sin_af_matrix)
+        self.bring_to_back(cos_af_matrix, sin_af_matrix)
+
+        self.play(
+            FadeIn(cos_af_matrix, sin_af_matrix, shift=UP * 0.3),
+            focus_on(frame, [cos_af_matrix, sin_af_matrix], buff=3),
+        )
+
+        self.wait()
+
+        self.play(
+            FadeOut(cos_af_matrix, sin_af_matrix, shift=UP * 0.3),
+            complex_point.animate.move_to(complex_circle.point_from_proportion(0)),
+        )
+
+        eulers_formula = (
+            MathTex(r"e^{ix} = cos x + i \ sin x")
+            .scale(0.9)
+            .set_stroke(width=4, background=True)
+        )
+        self.play(
+            Write(eulers_formula),
+            focus_on(frame, eulers_formula, buff=2),
+            number_plane.animate.set_opacity(0.3),
+            complex_circle.animate.set_stroke(opacity=0.3),
+            complex_point.animate.set_opacity(0.3),
+            FadeOut(point_tag, shift=UP * 0.3),
+        )
+        self.wait()
+
+        self.play(
+            FadeOut(eulers_formula, shift=UP * 0.3),
+            focus_on(frame, number_plane, buff=2),
+            number_plane.animate.set_opacity(1),
+            complex_circle.animate.set_stroke(opacity=1),
+            complex_point.animate.set_opacity(1),
+        )
+        self.wait()
+
+        np_center = number_plane.c2p(0, 0)
+        vector = Arrow(
+            np_center,
+            complex_point,
+            buff=0,
+            max_tip_length_to_length_ratio=0.1,
+            max_stroke_width_to_length_ratio=2,
+        ).set_color(REDUCIBLE_YELLOW)
+
+        self.play(Write(vector))
+
+        complex_point_up = (
+            Dot()
+            .move_to(complex_circle.point_from_proportion(0.33))
+            .set_color(REDUCIBLE_YELLOW)
+        )
+        vector_up = Arrow(
+            np_center,
+            complex_point_up,
+            buff=0,
+            max_tip_length_to_length_ratio=0.1,
+            max_stroke_width_to_length_ratio=2,
+        ).set_color(REDUCIBLE_YELLOW)
+
+        complex_point_dl = (
+            Dot()
+            .move_to(complex_circle.point_from_proportion(0.65))
+            .set_color(REDUCIBLE_YELLOW)
+        )
+        vector_dl = Arrow(
+            np_center,
+            complex_point_dl,
+            buff=0,
+            max_tip_length_to_length_ratio=0.1,
+            max_stroke_width_to_length_ratio=2,
+        ).set_color(REDUCIBLE_YELLOW)
+
+        self.play(
+            FadeIn(complex_point_up, scale=1.5),
+            FadeIn(complex_point_dl, scale=1.5),
+            Write(vector_up),
+            Write(vector_dl),
+        )
+
+        self.wait()
+        self.play(*[FadeOut(mob) for mob in self.mobjects])
+
+        matrix_elements = []
+        power = 0
+        samples_matrix = 8
+        for i in range(samples_matrix):
+            row = []
+            for j in range(samples_matrix):
+                if i == 0 or j == 0:
+                    power = 0
+                else:
+                    power = i * j
+
+                power_index = f"{power}"
+                row.append(r"\omega^{" + power_index + "}")
+
+            matrix_elements.append(row)
+
+        dft_matrix_tex = Matrix(matrix_elements).shift(DOWN * 3)
+        omega_definition = MathTex(
+            r"\text{where} \ \omega = e ^{-\frac{2 \pi i}{N}}"
+        ).next_to(dft_matrix_tex, UP)
+        title = (
+            Text("The DFT Matrix", font=REDUCIBLE_FONT, weight=BOLD)
+            .scale(1.2)
+            .next_to(omega_definition, UP, buff=2)
+        )
+
+        self.play(Restore(reset_frame))
+        self.play(
+            LaggedStart(
+                FadeIn(dft_matrix_tex, shift=UP * 0.3),
+                FadeIn(omega_definition, shift=UP * 0.3),
+                FadeIn(title, shift=UP * 0.3),
+                lag_ratio=0.5,
+            )
+        )
+
+        self.wait()
+
+
+class ComplexSinusoid(MovingCameraScene):
+    def construct(self):
+        frame = self.camera.frame
+        t_max = 2 * PI
+
+        # samples per second
+        n_samples = 10
+
+        # total number of samples
+        sample_frequency = n_samples
+
+        vt_phase = ValueTracker(0)
+        freq_1 = 3
+        freq_2 = 5
+        freq_3 = 7
+
+        def shifting_sum_sinusoid():
+            freq_1_f = get_cosine_func(
+                freq=freq_1, amplitude=0.3, phase=vt_phase.get_value()
+            )
+            freq_2_f = get_cosine_func(
+                freq=freq_2, amplitude=0.3, phase=vt_phase.get_value()
+            )
+            freq_3_f = get_cosine_func(
+                freq=freq_3, amplitude=0.3, phase=vt_phase.get_value()
+            )
+
+            sum_f = get_sum_functions(freq_1_f, freq_2_f, freq_3_f)
+
+            sum_display = plot_time_domain(sum_f, t_max=t_max)[1]
+
+            sum_display.set_stroke(width=5)
+
+            return sum_display
+
+        shifting_sum_sinusoid_mob = always_redraw(shifting_sum_sinusoid)
+
+        self.play(FadeIn(shifting_sum_sinusoid_mob))
+
+        self.play(vt_phase.animate.set_value(300), run_time=80, rate_func=linear)
         self.play(FadeIn(sin_breaks), FadeIn(cos_breaks))
         self.wait()
 
@@ -2818,12 +3137,9 @@ class PreviewDFT(Scene):
         self.play(Write(coming_up))
         self.wait()
 
+
 class DFTTitle(Scene):
     def construct(self):
         discrete_fourier_t = Text("Discrete Fourier Transform (DFT)", font=REDUCIBLE_FONT, weight=BOLD).to_edge(UP)
         self.play(FadeIn(discrete_fourier_t, direction=UP))
         self.wait()
-
-
-
-
