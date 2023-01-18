@@ -1032,11 +1032,20 @@ class IntroducePhaseProblemP2(MovingCameraScene):
         )
         self.wait()
 
-        cos_mob = changing_sine.copy()
+        cos_mob = (
+            display_signal(
+            get_sine_func(freq=original_freq),
+            num_points=10,
+            color=REDUCIBLE_YELLOW,
+        )
+        .scale_to_fit_width(changing_sine.width)
+        .move_to(ORIGIN)
+        )
+
         analysis_freq_vg = (
             display_signal(
                 get_cosine_func(freq=original_freq),
-                num_points=n_samples,
+                num_points=10,
                 color=REDUCIBLE_VIOLET,
             )
             .scale_to_fit_width(changing_sine.width)
@@ -1113,7 +1122,8 @@ class IntroducePhaseProblemP2(MovingCameraScene):
         REDUCIBLE_YELLOW, REDUCIBLE_YELLOW,
         REDUCIBLE_BLUE, REDUCIBLE_YELLOW,
         REDUCIBLE_BLUE, REDUCIBLE_YELLOW,
-        REDUCIBLE_YELLOW, REDUCIBLE_BLUE]
+        REDUCIBLE_YELLOW, REDUCIBLE_BLUE,
+        ]
 
         self.play(
             *[
@@ -2811,7 +2821,7 @@ class PreviewDFT(Scene):
 class DFTTitle(Scene):
     def construct(self):
         discrete_fourier_t = Text("Discrete Fourier Transform (DFT)", font=REDUCIBLE_FONT, weight=BOLD).to_edge(UP)
-        self.play(FadeIn(discrete_fourier_t, shift=UP))
+        self.play(FadeIn(discrete_fourier_t, direction=UP))
         self.wait()
 
 

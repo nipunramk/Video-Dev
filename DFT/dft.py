@@ -587,7 +587,7 @@ class MatrixDefinition(Scene):
         return VGroup(left_arrow, text, right_arrow)
 
 
-class IntroduceOrthogonalityEnd2(Scene):
+class IntroduceOrthogonalityEnd3(Scene):
     def construct(self):
         left_analysis_freq = (
             self.get_analysis_freq(0).scale(DEFAULT_SCALE).move_to(LEFT * 3.5 + UP * 2)
@@ -701,9 +701,9 @@ class IntroduceOrthogonalityEnd2(Scene):
                 .move_to(RIGHT * 3.5 + UP * 2)
             )
 
-            for dot in new_left_analysis_freq[1][-1].set_color(REDUCIBLE_CHARM):
+            for dot in new_left_analysis_freq[1][-1].set_color(REDUCIBLE_YELLOW):
                 dot.scale(1.1)
-            for dot in new_right_analysis_freq[1][-1].set_color(REDUCIBLE_CHARM):
+            for dot in new_right_analysis_freq[1][-1].set_color(REDUCIBLE_YELLOW):
                 dot.scale(1.1)
             new_dot_product_text = self.get_dot_prod(
                 row, col, dot_product_matrix[row][col]
@@ -2182,4 +2182,139 @@ class DFTRecap(Scene):
         self.play(ReplacementTransform(step_4, step_5))
         self.wait()
 
+class ComplexSinusoid(MovingCameraScene):
+    def construct(self):
+        frame = self.camera.frame
+        t_max = 2 * PI
+
+        # samples per second
+        n_samples = 10
+
+        # total number of samples
+        sample_frequency = n_samples
+
+        vt_phase = ValueTracker(0)
+        frequencies = [1.5, 2.3, 3, 4.1, 5, 6.5]
+        initial_phases = [PI / 2, PI / 2, 0, 0, 0, PI / 2]
+
+        def shifting_sum_sinusoid():
+            frequency_funcs = [
+                get_cosine_func(
+                    freq=freq, amplitude=0.3, phase=initial_phase + vt_phase.get_value()
+                )
+                for freq, initial_phase in zip(frequencies, initial_phases)
+            ]
+
+            sum_f = get_sum_functions(*frequency_funcs)
+
+            sum_display = plot_time_domain(sum_f, t_max=t_max)[1]
+
+            sum_display.set_stroke(width=5)
+
+            return sum_display
+
+        shifting_sum_sinusoid_mob = always_redraw(shifting_sum_sinusoid)
+
+        self.play(FadeIn(shifting_sum_sinusoid_mob))
+
+        self.play(vt_phase.animate.set_value(400), run_time=24, rate_func=linear)
+
+
+class ChangingSpectrum(Scene):
+    def construct(self):
+        np.random.seed(24)
+        self.num_rects = 20
+        sampler_tracker = ValueTracker(self.num_rects)
+
+        def get_rects():
+            heights = self.sample_heights(sampler_value=sampler_tracker.get_value())
+            return (
+                VGroup(
+                    *[
+                        Rectangle(width=MED_SMALL_BUFF, height=h)
+                        .set_color(REDUCIBLE_VIOLET)
+                        .set_fill(color=REDUCIBLE_VIOLET, opacity=1)
+                        for h in heights
+                    ]
+                )
+                .arrange(RIGHT, aligned_edge=DOWN)
+                .move_to(DOWN * 1.5, aligned_edge=DOWN)
+            )
+
+        rects = always_redraw(get_rects)
+        self.play(FadeIn(rects))
+        self.play(sampler_tracker.animate.set_value(1), run_time=15)
+
+    def sample_heights(self, sampler_value=20):
+        rectangle_id_to_height_range = self.update_id_to_height_range(sampler_value)
+        # print(rectangle_id_to_height_range)
+        heights = []
+        for id, height_range in rectangle_id_to_height_range.items():
+            lower, upper = height_range
+            heights.append(np.random.uniform(lower, upper))
+        return heights
+
+    def update_id_to_height_range(self, sampler_value):
+        """
+        Fundamental idea: skew the heights of rect id's below sampler value gradually higher
+        while rect id's above sampler values gradually become smaller
+        """
+        default_heights = {i: [3, 4] for i in range(self.num_rects)}
+        if sampler_value > 17:
+            return default_heights
+        lower_adjust, upper_adjust = 0.1 + 1 / sampler_value, 0.1 + 1 / sampler_value
+        for i, height_range in default_heights.items():
+            lower, upper = height_range
+            if i < sampler_value or i < 4:
+                default_heights[i] = [lower + lower_adjust, upper + upper_adjust]
+            else:
+                factor = max(0.5 / sampler_value * self.num_rects, 1)
+                adj = 1 + (1 - i / self.num_rects)
+                bring_down_lower = lower_adjust * factor
+                bring_down_upper = upper_adjust * factor
+                default_heights[i] = [
+                    max(lower - bring_down_lower, 0.2),
+                    max(upper - bring_down_upper, 0.1),
+                ]
+
+        return default_heights
+
+class NordVpn(Scene):
+    def construct(self):
+        nordvpn = Text("nordvpn.com/reducible", font=REDUCIBLE_FONT)
+        nordvpn.move_to(DOWN * 2.5)
+
+        self.play(Write(nordvpn))
+        self.wait()
+        two_year_plan = Text("Two year plan + one bonus month FREE!", font=REDUCIBLE_FONT).scale(0.8)
+        two_year_plan[-5:-1].set_color(REDUCIBLE_YELLOW)
+        two_year_plan.next_to(nordvpn, DOWN)
+        self.play(Write(two_year_plan))
+        self.wait()
+
+class SponsorshipDescriptors(Scene):
+    def construct(self):
+        web_act = Text("Web Activity", font=REDUCIBLE_FONT).scale(0.7)
+        online_profile = Text("Advertising Profile", font=REDUCIBLE_FONT).scale(0.7)
+        web_act.move_to(DOWN * 2 + LEFT * 3.5)
+        online_profile.move_to(DOWN * 2 + RIGHT * 3)
+
+        self.play(FadeIn(web_act), FadeIn(online_profile))
+        self.wait()
+
+class Patreons(Scene):
+    def construct(self):
+        thanks = Tex("Special Thanks to These Patreons").scale(1.2)
+        patreons = ["Burt Humburg", "Winston Durand", r"Adam D\v{r}ínek", "kerrytazi",  "Andreas", "Matt Q", "Brian Cloutier", "Nicolas Berube"]
+        patreon_text = VGroup(thanks, VGroup(*[Tex(name).scale(0.9) for name in patreons]).arrange_in_grid(rows=4, buff=(0.75, 0.25)))
+        patreon_text.arrange(DOWN)
+        patreon_text.to_edge(DOWN)
+
+        self.play(
+            Write(patreon_text[0])
+        )
+        self.play(
+            *[Write(text) for text in patreon_text[1]]
+        )
+        self.wait()
 
