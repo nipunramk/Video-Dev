@@ -51,49 +51,79 @@ class TestingSeams(Scene):
 
 class AllPossibleSeams(Scene):
     def construct(self):
-        pixel_array = np.random.randint(20, 200, (4, 4))
+        pixel_array = np.random.randint(20, 200, (5, 5))
         pix_arr_mob = PixelArray(img=pixel_array, color_mode="GRAY").scale(0.7)
-        self.play(FadeIn(pix_arr_mob))
 
-        for c in range(pixel_array.shape[1]):
-            all_seams = self.generate_all_possible_seams(pixel_array.shape)
+        self.generate_all_possible_seams(top_pixel=1, shape=(3, 3))
 
-            first_pixel_mob_surr_rect = SurroundingRectangle(pix_arr_mob[0, c])
-            col_marker = pix_arr_mob[0, c].copy().set_fill(REDUCIBLE_VIOLET)
+    def generate_all_possible_seams(self, top_pixel=2, shape: tuple = (5, 5)):
+        """
+        Generate all possible seams for a single top pixel. That is, given the start of the seam,
+        the top pixel, what are all the possible seams under it.
+        """
 
-            self.play(Write(first_pixel_mob_surr_rect), Write(col_marker))
+        all_combinations = product([-1, 0, 1], repeat=shape[0])
+        filtered_combinations = filter(lambda x: x[0] == 0, all_combinations)
 
-            last_col = c
-            for seam in all_seams:
-                marked_pixels = VGroup()
-                print(seam)
-                for row_index, col_offset in enumerate(seam):
+        def overall_seam_span(arr):
+            """
+            Returns the maximum, or overall span of a given seam.
+            If a seam is defined by a top pixel and an array of [-1,0,1] values that define
+            what is the offset with respect to the last column, return how much a given sequence
+            extends either to the left (negative value) or right (positive)
 
-                    # clamp the value of current col to be within the bounds of our array
-                    current_col = last_col + col_offset
+            For example, the sequence [0, -1, -1, -1, -1, 1, 1] should output -4, since
+            there are 4 consecutive steps to the left.
+            """
+            arrays = []
+            sub_array = []
+            # Traverse the array
+            for i in range(len(arr) - 1):
+                # If element is same as previous
+                # increment temp value
+                if arr[i] == arr[i + 1]:
+                    sub_array.append(arr[i])
+                    print("sub: ", sub_array)
+                else:
+                    sub_array.append(arr[i])
+                    arrays.append(sub_array)
 
-                    # we skip every invalid combination, otherwise it'd be animated
-                    # such a waste of cpu time
-                    if current_col > pixel_array.shape[1] or current_col < 0:
-                        continue
+                    sub_array = []
 
-                    print(row_index, current_col)
+            # this means we were already done with the last sequence
+            # of equal elements. thus, the last element must be different
+            # and included in its own array. otherwise, the element belong to the
+            # last subarray created and we proceed as usual.
+            if len(sub_array) == 0:
+                arrays.append([arr[-1]])
+            else:
+                sub_array.append(arr[-1])
+                arrays.append(sub_array)
 
-                    current_pixel_mob = pix_arr_mob[row_index + 1, current_col]
-                    current_pixel_surr_rect = SurroundingRectangle(current_pixel_mob)
-                    curr_marked_pixel = current_pixel_mob.copy().set_fill(
-                        REDUCIBLE_YELLOW, opacity=0.3
-                    )
+            sums = list(map(sum, arrays))
+            absolutes = list(map(abs, sums))
+            biggest_absolute = np.argmax(absolutes)
 
-                    marked_pixels.add(curr_marked_pixel)
-                    self.play(
-                        Transform(first_pixel_mob_surr_rect, current_pixel_surr_rect),
-                        FadeIn(curr_marked_pixel),
-                    )
+            return sums[biggest_absolute]
 
-                    last_col = current_col
+        def valid_combination(x):
+            right_leeway = (shape[1] - 1) - top_pixel
+            left_leeway = top_pixel
+            print("rl:", right_leeway, "ll:", left_leeway)
 
-                self.play(FadeOut(marked_pixels, first_pixel_mob_surr_rect))
+            span = overall_seam_span(x)
+            print(span)
 
-    def generate_all_possible_seams(self, shape: tuple):
-        return product([-1, 0, 1], repeat=shape[0] - 1)
+            # means we go more to the left
+            if np.sign(span) == -1:
+                return abs(span) <= left_leeway
+            else:
+                return abs(span) <= right_leeway
+
+        valid_combinations = filter(valid_combination, filtered_combinations)
+
+        print(list(valid_combinations))
+
+        # print(list(valid_combinations))
+
+        return filtered_combinations
