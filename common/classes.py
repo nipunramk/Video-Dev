@@ -28,7 +28,7 @@ class Pixel(Square):
             self.set_stroke(BLACK, width=0)
 
         self.set_fill(color, opacity=1)
-        self.color_value = (
+        self.n = (
             n  # color property name is taken by manim, we need to use a different name
         )
 
