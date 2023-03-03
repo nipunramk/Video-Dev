@@ -16,7 +16,7 @@ from classes import *
 np.random.seed(1)
 
 
-class TestingSeams(Scene):
+class ShowRandomSeam(Scene):
     def construct(self):
         pixel_array = np.random.randint(20, 200, (10, 10))
         pix_arr_mob = PixelArray(img=pixel_array, color_mode="GRAY").scale(0.7)
@@ -54,10 +54,69 @@ class TestingSeams(Scene):
 
 class AllPossibleSeams(Scene):
     def construct(self):
-        pixel_array = np.random.randint(20, 200, (4, 4))
-        pix_arr_mob = PixelArray(
-            img=pixel_array, color_mode="GRAY", include_numbers=True
-        ).scale(0.7)
-        self.add(pix_arr_mob.scale(2))
+        pixel_array = np.random.randint(20, 100, (6, 6))
+        pix_arr_mob = (
+            PixelArray(img=pixel_array, color_mode="GRAY", include_numbers=True)
+            .scale(1.3)
+            .set_opacity(0.8)
+        )
 
-        all_seams = generate_all_seams_recursively(pixel_array, top_pixel=2)
+        self.play(FadeIn(pix_arr_mob))
+
+        start = 2
+
+        all_seams = generate_all_seams_recursively(pixel_array, top_pixel=start)
+
+        first_pixel_mob_surr_rect = SurroundingRectangle(pix_arr_mob[0, start])
+        first_pixel_mob = pix_arr_mob[0, start].copy()
+        self.play(
+            Write(first_pixel_mob_surr_rect),
+            first_pixel_mob.animate.set_fill(REDUCIBLE_YELLOW, opacity=1),
+        )
+
+        all_paths_grid = VGroup()
+        for seam in all_seams:
+            marked_pixels = VGroup()
+            for coord in seam:
+
+                current_pixel_mob = pix_arr_mob[coord].copy()
+                marked_pixels.add(current_pixel_mob)
+
+                current_pixel_surr_rect = SurroundingRectangle(
+                    current_pixel_mob, buff=0.01
+                )
+                self.play(
+                    Transform(first_pixel_mob_surr_rect, current_pixel_surr_rect),
+                    current_pixel_mob.animate.set_fill(REDUCIBLE_YELLOW, opacity=0.7),
+                    run_time=1 / config.frame_rate,
+                )
+
+            all_paths_grid.add(
+                VGroup(pix_arr_mob.copy().set_opacity(0.1), marked_pixels)
+            )
+
+            self.play(FadeOut(marked_pixels), run_time=1 / config.frame_rate)
+
+        self.play(FadeOut(first_pixel_mob_surr_rect, first_pixel_mob))
+
+        self.play(FadeOut(pix_arr_mob))
+
+        self.add(
+            all_paths_grid.arrange_in_grid(buff=1).scale_to_fit_height(
+                config.frame_height - 0.5
+            )
+        )
+        self.add(
+            Text(
+                str(
+                    len(all_paths_grid),
+                )
+                + " total paths",
+                font=REDUCIBLE_FONT,
+                weight=BOLD,
+            )
+            .scale(0.4)
+            .next_to(all_paths_grid, RIGHT, aligned_edge=DOWN)
+        )
+
+        self.wait()
