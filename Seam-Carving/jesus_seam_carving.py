@@ -12,6 +12,8 @@ import numpy as np
 config["assets_dir"] = "assets"
 from classes import *
 
+np.random.seed(1)
+
 
 class TestingSeams(Scene):
     def construct(self):
@@ -51,10 +53,13 @@ class TestingSeams(Scene):
 
 class AllPossibleSeams(Scene):
     def construct(self):
-        pixel_array = np.random.randint(20, 200, (3, 3))
-        pix_arr_mob = PixelArray(img=pixel_array, color_mode="GRAY").scale(0.7)
+        pixel_array = np.random.randint(20, 200, (5, 5))
+        pix_arr_mob = PixelArray(
+            img=pixel_array, color_mode="GRAY", include_numbers=True
+        ).scale(0.7)
+        self.add(pix_arr_mob.scale(2))
 
-        self.generate_all_seams_recursively(pixel_array, top_pixel=1)
+        self.generate_all_seams_recursively(pixel_array, top_pixel=3)
 
     def generate_all_possible_seams(self, top_pixel=2, shape: tuple = (5, 5)):
         """
@@ -132,25 +137,33 @@ class AllPossibleSeams(Scene):
         rows, cols = pixel_array.shape
 
         def traverse(arr, seams: list, r, c):
+
             # If the current position is the bottom-right corner of
             # the matrix
-            if r <= rows - 1:
+            if r >= rows - 1:
                 # Print the value at that position
-                seams.append(arr[r][c])
+                seams.append(arr[r, c])
                 # End the recursion
                 return
 
             # Print the value at the current position
-            seams.append(arr[r][c])
-            print(arr[r, c])
+            seams.append(arr[r, c])
+            print(r, c, arr[r, c])
 
             # If the end of the current row has not been reached
-            if r < rows:
-                traverse(arr, seams, r + 1, c)
-                if c > 0:
-                    traverse(arr, seams, r + 1, c - 1)
-                if c < cols:
-                    traverse(arr, seams, r + 1, c + 1)
+            if c - 1 >= 0:
+                traverse(arr, seams, r + 1, c - 1)
+            # else:
+            #     # seams.append(arr[r, c])
+            #     return
+
+            traverse(arr, seams, r + 1, c)
+
+            if c + 1 < cols:
+                traverse(arr, seams, r + 1, c + 1)
+            # else:
+            #     # seams.append(arr[r, c])
+            #     return
 
         seams = []
         traverse(pixel_array, seams, 0, top_pixel)
