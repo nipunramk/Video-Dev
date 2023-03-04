@@ -5,8 +5,8 @@ from typing import Iterable, List
 from manim.mobject.geometry.tips import ArrowTriangleFilledTip
 
 
-class Pixel(Square):
-    def __init__(self, n, color_mode: str, outline=True):
+class Pixel(VGroup):
+    def __init__(self, n, color_mode: str, outline=True, include_numbers=True):
         assert color_mode in ("RGB", "GRAY"), "Color modes are RGB and GRAY"
 
         if color_mode == "RGB":
@@ -16,15 +16,23 @@ class Pixel(Square):
                 n = abs(n)
             color = g2h(n / 255)
 
-        super().__init__(side_length=1)
+        self.pixel = Square(side_length=1)
+        self.pixel.set_fill(color, opacity=1)
+        self.n = n
+
         if outline:
-            self.set_stroke(BLACK, width=0.2)
-
+            self.pixel.set_stroke(color, width=0.3)
         else:
-            self.set_stroke(color, width=0.2)
+            self.pixel.set_stroke(BLACK, width=0.0)
 
-        self.set_fill(color, opacity=1)
-        self.color = color
+        self.number = (
+            Text(str(n), font="SF Mono", weight=MEDIUM)
+            .scale(0.7)
+            .set_color(g2h(1) if abs(n) < 180 else g2h(0))
+            .set_stroke(opacity=1 if include_numbers else 0)
+        )
+
+        super().__init__(self.pixel, self.number)
 
 
 class PixelArray(VGroup):
@@ -37,6 +45,9 @@ class PixelArray(VGroup):
         outline=True,
     ):
         self.img = img
+        self.color_mode = color_mode
+        self.include_numbers = include_numbers
+
         if len(img.shape) == 3:
             rows, cols, channels = img.shape
         else:
@@ -48,23 +59,13 @@ class PixelArray(VGroup):
         self.numbers = VGroup()
         for row in img:
             for p in row:
-                if include_numbers:
-                    number = (
-                        Text(str(p), font="SF Mono", weight=MEDIUM)
-                        .scale(0.7)
-                        .set_color(g2h(1) if abs(p) < 180 else g2h(0))
-                        .set_stroke(opacity=0)
+                self.pixels.add(
+                    Pixel(
+                        p,
+                        color_mode=self.color_mode,
+                        include_numbers=self.include_numbers,
                     )
-
-                    self.numbers.add(number)
-
-                    new_pix = VGroup(Pixel(p, color_mode, outline=outline), number)
-                    if p < 0:
-                        new_pix[1].scale(0.8)
-
-                    self.pixels.add(new_pix)
-                else:
-                    self.pixels.add(Pixel(p, color_mode, outline=outline))
+                )
 
         super().__init__(*self.pixels)
         self.arrange_in_grid(rows, cols, buff=buff)
@@ -81,12 +82,25 @@ class PixelArray(VGroup):
         else:
             return self.dict[value]
 
-    def update_index(self, index) -> Animation:
+    def update_index(self, index, new_value=1) -> Animation:
         if isinstance(index, tuple):
             i, j = index
             one_d_index = get_1d_index(i, j, self.img)
-            index = self.dict[one_d_index]
-            print(index)
+            pixel_mob = self.dict[one_d_index]
+        elif isinstance(index, int):
+            pixel_mob = self.dict[index]
+        else:
+            raise TypeError("index must be either a tuple or an integer")
+
+        new_pixel = VGroup(
+            Pixel(new_value, color_mode=self.color_mode)
+            .scale_to_fit_height(pixel_mob.height)
+            .move_to(pixel_mob),
+        )
+        animation = FadeTransform(pixel_mob, new_pixel)
+        pixel_mob = new_pixel
+
+        return animation
 
 
 class Byte(VGroup):
