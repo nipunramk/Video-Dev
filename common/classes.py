@@ -82,7 +82,7 @@ class PixelArray(VGroup):
         else:
             return self.dict[value]
 
-    def update_index(self, index, new_value=1) -> Animation:
+    def update_index(self, index, new_value) -> Animation:
         if isinstance(index, tuple):
             i, j = index
             one_d_index = get_1d_index(i, j, self.img)
