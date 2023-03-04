@@ -186,22 +186,7 @@ class BuildDynamicArray(Scene):
                     .set_opacity(0.3)
                 )
 
-                new_array[1, 1] = pixel
-                updated_array_mob = (
-                    PixelArray(new_array, color_mode="GRAY", include_numbers=True)
-                    .scale_to_fit_height(new_array_mob.height)
-                    .move_to(new_array_mob)
-                )
-                new_array_mob.update_index((1, 2))
-
-                self.play(
-                    Transform(
-                        new_array_mob,
-                        updated_array_mob,
-                    )
-                )
-
-                new_array_mob = updated_array_mob
+                self.play(new_array_mob.update_index((row, pixel), pixel))
 
                 self.play(
                     FadeIn(curr_pix),
