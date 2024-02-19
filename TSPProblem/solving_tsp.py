@@ -6,6 +6,9 @@ import copy
 sys.path.insert(1, "common/")
 
 from manim import *
+import manim
+
+print("Manim version:", manim.__version__)
 from manim.mobject.geometry.tips import ArrowTriangleFilledTip
 from reducible_colors import *
 from functions import *
@@ -13,12 +16,13 @@ import itertools
 from solver_utils import *
 from typing import Hashable, Iterable
 from classes import *
+from manim import LabeledDot
 
 np.random.seed(23)
 
 config["assets_dir"] = "assets"
 
-BACKGROUND_IMG = ImageMobject("bg-75.png").scale_to_fit_width(config.frame_width)
+BACKGROUND_IMG = ImageMobject("bg-video.png").scale_to_fit_width(config.frame_width)
 
 
 class TSPGraph(Graph):
