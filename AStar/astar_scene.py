@@ -18,6 +18,12 @@ from manim import (
     RIGHT,
     UP,
     DOWN,
+    Arrow,
+    ORIGIN,
+    Write,
+    DashedLine,
+    SurroundingRectangle,
+    MEDIUM,
 )
 from astar_utils import get_random_layout, solve_astar, euclidean_distance
 from heapq import heappush, heappop
@@ -53,6 +59,8 @@ class AGraph(Graph):
             "color": REDUCIBLE_VIOLET,
             "stroke_width": 3,
         },
+        edge_type=Line,
+        edge_buff=None,
         labels=True,
         label_scale=0.6,
         label_color=WHITE,
@@ -94,13 +102,16 @@ class AGraph(Graph):
         else:
             self.dist_matrix = dist_matrix
 
-    def get_all_edges(self, edge_type: TipableVMobject = Line, buff=None):
-        edge_dict = {}
+        self.edge_dict = {}
         for edge in self.edges:
             u, v = edge
-            edge_dict[edge] = self.create_edge(u, v, edge_type=edge_type, buff=buff)
-            edge_dict[(v, u)] = edge_dict[edge]
-        return edge_dict
+            self.edge_dict[edge] = self.create_edge(
+                u, v, edge_type=edge_type, buff=edge_buff
+            )
+            self.edge_dict[(v, u)] = self.edge_dict[edge]
+
+    def get_all_edges(self):
+        return self.edge_dict
 
     def get_neighbors(self, vertex):
         return [
@@ -224,7 +235,9 @@ class AstarAnimationTools(Scene):
             )
             path_mobjects.append(all_edges[(u, v)])
 
-        path_mobjects.append(get_glowing_surround_circle(graph.vertices[path[-1]]))
+        path_mobjects.append(
+            get_glowing_surround_circle(graph.vertices[path[-1]], color=color)
+        )
         return path_mobjects
 
     def show_nodes_expanded(
@@ -300,6 +313,50 @@ class AstarAnimationTools(Scene):
                         h_func(graph.vertices[neighbor], graph.vertices[goal]),
                     )
                     heappush(heap, (f_score[neighbor], neighbor_node))
+
+    def filter_layout(self, layout, min_distance_between_points=0.2):
+        filtered_layout = {}
+        new_index = 0
+        for v in layout:
+            if all(
+                np.linalg.norm(layout[v] - layout[u]) > min_distance_between_points
+                for u in filtered_layout
+            ):
+                filtered_layout[new_index] = layout[v]
+                new_index += 1
+        return filtered_layout
+
+    def get_large_random_graph(
+        self,
+        N,
+        dist_threshold=3,
+        p=0.3,
+        min_distance_between_points=0.2,
+        vertex_config={
+            "stroke_color": REDUCIBLE_PURPLE,
+            "stroke_width": 3,
+            "fill_color": REDUCIBLE_PURPLE_DARK_FILL,
+            "fill_opacity": 1,
+        },
+        labels=False,
+    ):
+        layout = get_random_layout(N)
+        layout = self.filter_layout(
+            layout, min_distance_between_points=min_distance_between_points
+        )
+        vertices = list(layout.keys())
+        edges = []
+        for u in vertices:
+            for v in vertices:
+                if (
+                    u != v
+                    and np.linalg.norm(layout[u] - layout[v]) < dist_threshold
+                    and np.random.rand() < p
+                ):
+                    edges.append((u, v))
+        return AGraph(
+            vertices, edges, layout=layout, labels=labels, vertex_config=vertex_config
+        )
 
     def construct(self):
         # Test methods here on an example graph
@@ -487,3 +544,301 @@ class AstarTester(Scene):
             graph, 1, 6, g_func=lambda u, v: 0, h_func=euclidean_distance
         )
         print("Shortest path and cost:", greedy_shortest_path, greedy_cost)
+
+
+class UCSLargeGraph(AstarAnimationTools):
+
+    def construct(self):
+        # 23 -> 45
+        large_graph = self.get_large_random_graph(
+            60, dist_threshold=3, p=0.5, min_distance_between_points=0.4
+        )
+        self.play(FadeIn(large_graph))
+        self.wait()
+        for mob in large_graph.vertices.values():
+            self.add_foreground_mobject(mob)
+
+        start = self.show_start(23, large_graph, color=REDUCIBLE_CHARM)
+        self.play(FadeIn(*start))
+        self.wait()
+
+        goal = self.show_goal(45, large_graph, color=REDUCIBLE_GREEN)
+        self.play(FadeIn(*goal))
+        self.wait()
+        # UCS nodes exampled
+        nodes_expanded = self.show_nodes_expanded(
+            large_graph, 23, 45, h_func=lambda u, v: 0
+        )
+        animations = []
+        # exclude the first animation becase we already highlighted the start node
+        for mob in nodes_expanded[1:]:
+            if isinstance(mob, TipableVMobject):
+                animations.append(mob.animate.set_stroke(REDUCIBLE_YELLOW, width=4))
+            else:
+                animations.append(FadeIn(mob))
+
+        self.play(
+            LaggedStart(*animations),
+            run_time=30,
+        )
+        self.wait()
+        path, _ = solve_astar(large_graph, 23, 45, h_func=lambda u, v: 0)
+        # show optimal path
+        optimal_path = self.show_path(path, large_graph, color=REDUCIBLE_GREEN_LIGHTER)
+        animations = []
+        for mob in optimal_path:
+            if isinstance(mob, TipableVMobject):
+                animations.append(
+                    mob.animate.set_stroke(REDUCIBLE_GREEN_LIGHTER, width=4)
+                )
+            else:
+                animations.append(FadeIn(mob))
+        self.play(LaggedStart(*animations), run_time=5)
+        self.wait()
+
+
+class GreedyApproachVsUCSBroad(AstarAnimationTools):
+    def construct(self):
+        large_graph = self.get_large_random_graph(
+            60, dist_threshold=3, p=0.5, min_distance_between_points=0.4
+        )
+        self.play(FadeIn(large_graph))
+        self.wait()
+        for mob in large_graph.vertices.values():
+            self.add_foreground_mobject(mob)
+
+        start = self.show_start(23, large_graph, color=REDUCIBLE_CHARM)
+        self.play(FadeIn(*start))
+        self.wait()
+
+        goal = self.show_goal(45, large_graph, color=REDUCIBLE_GREEN)
+        self.play(FadeIn(*goal))
+        self.wait()
+        # Greedy nodes exampled
+        nodes_expanded = self.show_nodes_expanded(
+            large_graph,
+            23,
+            45,
+            g_func=lambda u, v: 0,
+            h_func=euclidean_distance,
+        )
+        animations = []
+        # exclude the first animation becase we already highlighted the start node
+        for mob in nodes_expanded[1:]:
+            if isinstance(mob, TipableVMobject):
+                animations.append(mob.animate.set_stroke(REDUCIBLE_YELLOW, width=4))
+            else:
+                animations.append(FadeIn(mob))
+
+        self.play(
+            LaggedStart(*animations),
+            run_time=30,
+        )
+        self.wait()
+        path, _ = solve_astar(
+            large_graph, 23, 45, g_func=lambda u, v: 0, h_func=euclidean_distance
+        )
+        # show greedy path
+        greedy_path = self.show_path(path, large_graph, color=REDUCIBLE_ORANGE)
+        animations = []
+        for mob in greedy_path:
+            if isinstance(mob, TipableVMobject):
+                animations.append(mob.animate.set_stroke(REDUCIBLE_ORANGE, width=4))
+            else:
+                animations.append(FadeIn(mob))
+        self.play(LaggedStart(*animations), run_time=5)
+        self.wait()
+
+
+class GreedyApproach(AstarAnimationTools):
+    def construct(self):
+        graph = self.get_large_random_graph(
+            25,
+            dist_threshold=3,
+            p=0.7,
+            min_distance_between_points=1,
+            vertex_config={
+                "stroke_color": REDUCIBLE_PURPLE,
+                "stroke_width": 3,
+                "fill_color": REDUCIBLE_PURPLE_DARK_FILL,
+                "fill_opacity": 1,
+                "radius": 0.2,  # make these slightly larger
+            },
+            labels=False,
+        )
+        self.play(FadeIn(graph))
+        self.wait()
+
+        # for mob in graph.vertices.values():
+        #     self.add_foreground_mobject(mob)
+
+        # show general direction of path from start to end
+        start, end = 15, 11
+
+        begin = self.show_start(start, graph, color=REDUCIBLE_CHARM)
+        self.play(FadeIn(*begin))
+        self.wait()
+
+        goal = self.show_goal(end, graph, color=REDUCIBLE_GREEN)
+        self.play(FadeIn(*goal))
+        self.wait()
+
+        arrow = (
+            Arrow(graph.vertices[start].get_center(), graph.vertices[end].get_center())
+            .scale(0.5)
+            .set_color(REDUCIBLE_YELLOW)
+        )
+        self.play(FadeIn(arrow))
+        self.wait()
+        self.play(FadeOut(arrow))
+        self.wait()
+
+        l1 = self.show_eucledian_distance(start, end, graph)
+        l2 = self.show_eucledian_distance(3, end, graph)
+        l3 = self.show_eucledian_distance(8, end, graph)
+        l4 = self.show_eucledian_distance(12, end, graph)
+
+        remaining_labels = []
+        for vertex in graph.vertices:
+            if vertex not in [start, 3, 8, 12]:
+                distance = euclidean_distance(
+                    graph.vertices[vertex], graph.vertices[end]
+                )
+                label = Text(
+                    f"{distance:.1f}",
+                    font=REDUCIBLE_MONO,
+                    color=WHITE,
+                )
+                label.move_to(graph.vertices[vertex].get_center())
+                label.scale_to_fit_height(graph.vertices[vertex].height * 0.25)
+                remaining_labels.append(label)
+        self.play(*[FadeIn(label) for label in remaining_labels])
+        self.wait()
+
+        all_labels = [l1, l2, l3, l4] + remaining_labels
+        for mob in list(graph.vertices.values()) + all_labels:
+            self.add_foreground_mobject(mob)
+
+        # Greedy nodes example
+        self.show_greedy_example(start, end, graph)
+
+        # shift all mobjects in frame by 1.5 units to the left
+        self.play(*[mob.animate.shift(LEFT * 1.5) for mob in self.mobjects])
+        self.wait()
+        # explain why greedy approach is not optimal
+        scale = 0.35
+        label_B = (
+            Text("B", font=REDUCIBLE_MONO, color=WHITE)
+            .scale(scale)
+            .next_to(graph.vertices[1], LEFT)
+        )
+        label_A = (
+            Text("A", font=REDUCIBLE_MONO, color=WHITE)
+            .scale(scale)
+            .next_to(graph.vertices[4], DOWN)
+        )
+        label_C = (
+            Text("C", font=REDUCIBLE_MONO, color=WHITE)
+            .scale(scale)
+            .next_to(graph.vertices[6], RIGHT)
+        )
+        label_G = (
+            Text("G", font=REDUCIBLE_MONO, color=WHITE)
+            .scale(scale)
+            .next_to(graph.vertices[11], RIGHT)
+        )
+
+        self.play(FadeIn(label_A), FadeIn(label_B), FadeIn(label_C), FadeIn(label_G))
+        surround_rect = SurroundingRectangle(
+            VGroup(graph.vertices[1], graph.vertices[6]), color=REDUCIBLE_YELLOW
+        )
+        self.play(Write(surround_rect))
+        self.wait()
+        reason = Text(
+            "Greedy approach chose C from A instead of B",
+            font=REDUCIBLE_FONT,
+            weight=MEDIUM,
+            color=WHITE,
+        )
+        reason.scale(0.5).move_to(RIGHT * 3.5 + UP * 3)
+        self.play(FadeIn(reason))
+        self.wait()
+
+        explanation = Text(
+            "Dist(C, G) < Dist(B, G)", font=REDUCIBLE_MONO, weight=MEDIUM, color=WHITE
+        ).scale(0.3)
+        explanation.next_to(reason, DOWN)
+        self.play(FadeIn(explanation))
+        self.wait()
+
+        reason2 = (
+            Text(
+                "Does not account for Dist(A, B) and Dist(A, C)",
+                font=REDUCIBLE_MONO,
+                weight=MEDIUM,
+                color=WHITE,
+            )
+            .scale(0.3)
+            .next_to(explanation, DOWN)
+        )
+
+        self.play(FadeIn(reason2))
+        self.wait()
+
+    def show_eucledian_distance(self, start, end, graph):
+        # dotted line between start and end
+        line = DashedLine(
+            graph.vertices[start].get_center(),
+            graph.vertices[end].get_center(),
+            stroke_width=2,
+            stroke_color=REDUCIBLE_YELLOW,
+            stroke_opacity=0.5,
+        )
+        # label for the distance
+        distance = euclidean_distance(graph.vertices[start], graph.vertices[end])
+        label = Text(
+            f"{distance:.1f}",
+            font=REDUCIBLE_MONO,
+            color=WHITE,
+        )
+        label.move_to(graph.vertices[start].get_center())
+        label.scale_to_fit_height(graph.vertices[start].height * 0.25)
+        self.play(Write(line))
+        self.play(FadeIn(label))
+        self.wait()
+        self.remove(line)
+        return label
+
+    def show_greedy_example(self, start, end, graph):
+        # Greedy nodes exampled
+        nodes_expanded = self.show_nodes_expanded(
+            graph, start, end, g_func=lambda u, v: 0, h_func=euclidean_distance
+        )
+        animations = []
+        # exclude the first animation becase we already highlighted the start node
+        for mob in nodes_expanded[1:]:
+            if isinstance(mob, TipableVMobject):
+                animations.append(mob.animate.set_stroke(REDUCIBLE_YELLOW, width=4))
+            else:
+                animations.append(FadeIn(mob))
+
+        for anim in animations:
+            self.play(anim)
+        self.wait()
+
+        optimal_path, _ = solve_astar(graph, start, end, h_func=euclidean_distance)
+        # show optimal path
+        optimal_path = self.show_path(
+            optimal_path, graph, color=REDUCIBLE_GREEN_LIGHTER
+        )
+        animations = []
+        for mob in optimal_path:
+            if isinstance(mob, TipableVMobject):
+                animations.append(
+                    mob.animate.set_stroke(REDUCIBLE_GREEN_LIGHTER, width=4)
+                )
+            else:
+                animations.append(FadeIn(mob))
+        self.play(LaggedStart(*animations), run_time=5)
+
+        self.wait()
