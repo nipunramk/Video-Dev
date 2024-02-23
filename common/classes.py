@@ -10,6 +10,10 @@ class Pixel(Square):
         assert color_mode in ("RGB", "GRAY"), "Color modes are RGB and GRAY"
 
         if color_mode == "RGB":
+            if not isinstance(n, Iterable):
+                raise TypeError(
+                    "The value passed for Pixel in RGB was not an array of R, G and B values. Make sure the input image has shape m x n x 3 or change the mode to GRAY"
+                )
             color = rgb_to_hex(n / 255)
         else:
             if isinstance(n, np.int16) or n < 0:
@@ -18,13 +22,15 @@ class Pixel(Square):
 
         super().__init__(side_length=1)
         if outline:
-            self.set_stroke(BLACK, width=0.2)
+            self.set_stroke(BLACK, 1, opacity=1)
 
         else:
-            self.set_stroke(color, width=0.2)
+            self.set_stroke(BLACK, width=0)
 
         self.set_fill(color, opacity=1)
-        self.color = color
+        self.n = (
+            n  # color property name is taken by manim, we need to use a different name
+        )
 
 
 class PixelArray(VGroup):
@@ -35,7 +41,11 @@ class PixelArray(VGroup):
         color_mode="RGB",
         buff=0,
         outline=True,
+        fit_to_frame=True,
     ):
+
+        assert color_mode in ("RGB", "GRAY"), "Color modes are RGB and GRAY"
+
         self.img = img
         if len(img.shape) == 3:
             rows, cols, channels = img.shape
@@ -68,6 +78,12 @@ class PixelArray(VGroup):
 
         super().__init__(*self.pixels)
         self.arrange_in_grid(rows, cols, buff=buff)
+
+        if fit_to_frame:
+            # sometimes, these mobjects can be very large and it's inconvenient
+            # having to rescale them manually every time.
+            self.scale_to_fit_height(config.frame_height - 0.5)
+            self.scale_to_fit_width(config.frame_width - 0.5)
 
         self.dict = {index: p for index, p in enumerate(self)}
 
