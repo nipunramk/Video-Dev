@@ -24,6 +24,17 @@ from manim import (
     DashedLine,
     SurroundingRectangle,
     MEDIUM,
+    DL,
+    UL,
+    UR,
+    DR,
+    SMALL_BUFF,
+    MED_SMALL_BUFF,
+    MED_LARGE_BUFF,
+    DEFAULT_MOBJECT_TO_MOBJECT_BUFFER,
+    ArcBetweenPoints,
+    PI,
+    DashedVMobject,
 )
 from astar_utils import get_random_layout, solve_astar, euclidean_distance
 from heapq import heappush, heappop
@@ -64,9 +75,11 @@ class AGraph(Graph):
         labels=True,
         label_scale=0.6,
         label_color=WHITE,
+        edge_to_prop={},
         **kwargs,
     ):
         self.edges = edges
+        self.edge_to_prop = edge_to_prop
         if labels:
             labels = {
                 k: CustomLabel(str(k), scale=label_scale).set_color(label_color)
@@ -139,21 +152,28 @@ class AGraph(Graph):
         dist_label_dict = {}
         for edge, edge_mob in self.get_all_edges().items():
             u, v = edge
+            if (v, u) in dist_label_dict:
+                continue
             dist_label = self.get_dist_label(
                 edge_mob,
                 self.dist_matrix[u][v],
                 scale=scale,
                 num_decimal_places=num_decimal_places,
+                proportion=(
+                    self.edge_to_prop[edge] if edge in self.edge_to_prop else 0.5
+                ),
             )
             dist_label_dict[edge] = dist_label
         return dist_label_dict
 
-    def get_dist_label(self, edge_mob, distance, scale=0.3, num_decimal_places=1):
+    def get_dist_label(
+        self, edge_mob, distance, scale=0.3, num_decimal_places=1, proportion=0.5
+    ):
         return (
             Text(str(np.round(distance, num_decimal_places)), font=REDUCIBLE_MONO)
             .set_stroke(BLACK, width=8, background=True, opacity=0.8)
             .scale(scale)
-            .move_to(edge_mob.point_from_proportion(0.5))
+            .move_to(edge_mob.point_from_proportion(proportion))
         )
 
     def get_dist_matrix(self):
@@ -596,6 +616,33 @@ class UCSLargeGraph(AstarAnimationTools):
         self.play(LaggedStart(*animations), run_time=5)
         self.wait()
 
+        la_node = large_graph.vertices[39]
+        dallas_node = large_graph.vertices[23]
+        nyc_node = large_graph.vertices[45]
+
+        dallas_text = Text("Dallas", font=REDUCIBLE_MONO, color=WHITE).scale(0.3)
+        la_text = Text("Los Angeles", font=REDUCIBLE_MONO, color=WHITE).scale(0.3)
+        nyc_text = Text("New York City", font=REDUCIBLE_MONO, color=WHITE).scale(0.3)
+
+        dallas_arrow = Arrow(UL, dallas_node.get_center()).set_color(WHITE)
+        nyc_arrow = Arrow(
+            nyc_node.get_center() + DR * 1, nyc_node.get_center()
+        ).set_color(WHITE)
+        la_arrow = Arrow(la_node.get_center() + UL * 1, la_node.get_center()).set_color(
+            WHITE
+        )
+
+        dallas_text.next_to(dallas_arrow, UL)
+        nyc_text.next_to(nyc_arrow, DOWN).shift(RIGHT * SMALL_BUFF * 3)
+        la_text.next_to(la_arrow, UL, buff=SMALL_BUFF)
+
+        self.play(FadeIn(dallas_arrow), FadeIn(dallas_text))
+        self.wait()
+        self.play(FadeIn(la_arrow), FadeIn(la_text))
+        self.wait()
+        self.play(FadeIn(nyc_arrow), FadeIn(nyc_text))
+        self.wait()
+
 
 class GreedyApproachVsUCSBroad(AstarAnimationTools):
     def construct(self):
@@ -647,6 +694,102 @@ class GreedyApproachVsUCSBroad(AstarAnimationTools):
             else:
                 animations.append(FadeIn(mob))
         self.play(LaggedStart(*animations), run_time=5)
+        self.wait()
+
+        key_difference = (
+            Text(
+                "The greedy approach does not bother exploring westward",
+                font=REDUCIBLE_FONT,
+                color=WHITE,
+            )
+            .scale(0.5)
+            .move_to(UP * 3.5)
+        )
+
+        self.play(
+            FadeIn(key_difference),
+            *[mob.animate.shift(DOWN * 0.2) for mob in self.mobjects],
+        )
+        self.wait()
+
+        self.clear()
+        self.wait()
+
+        greedy_title = (
+            Text("Greedy Approach", font=REDUCIBLE_FONT).scale(0.7).move_to(UP * 3.5)
+        )
+        con = (
+            Text("- Not guaranteed to find the shortest path", font=REDUCIBLE_FONT)
+            .scale(0.5)
+            .next_to(greedy_title, DOWN)
+        )
+        pro = (
+            Text("- Finds path quickly", font=REDUCIBLE_FONT)
+            .scale(0.5)
+            .next_to(con, DOWN)
+        )
+
+        details = (
+            VGroup(con, pro)
+            .arrange(DOWN, aligned_edge=LEFT)
+            .next_to(greedy_title, DOWN)
+        )
+        self.play(FadeIn(greedy_title), FadeIn(details))
+        self.wait()
+
+        self.play(
+            greedy_title.animate.shift(LEFT * 3.5), details.animate.shift(LEFT * 3.5)
+        )
+        self.wait()
+
+        ucs_title = (
+            Text("Uniform Cost Search", font=REDUCIBLE_FONT)
+            .scale(0.7)
+            .move_to(RIGHT * 3.5 + UP * 3.5)
+        )
+        pro = (
+            Text("- Guaranteed to find the shortest path", font=REDUCIBLE_FONT)
+            .scale(0.5)
+            .next_to(ucs_title, DOWN)
+        )
+        con = Text("- Can be slow", font=REDUCIBLE_FONT).scale(0.5).next_to(pro, DOWN)
+        ucs_details = (
+            VGroup(pro, con).arrange(DOWN, aligned_edge=LEFT).next_to(ucs_title, DOWN)
+        )
+        self.play(FadeIn(ucs_title), FadeIn(ucs_details))
+        self.wait()
+
+        # Create a line with greedy approach on the left, and UCS on the right
+        # midpoint is A* search
+        line = Line(LEFT * 4.5, RIGHT * 4.5, color=REDUCIBLE_PURPLE).move_to(DOWN * 2.5)
+        left_tick = (
+            Line(UP * 0.1, DOWN * 0.1)
+            .move_to(line.get_start())
+            .set_color(REDUCIBLE_VIOLET)
+        )
+        right_tick = (
+            Line(UP * 0.1, DOWN * 0.1)
+            .move_to(line.get_end())
+            .set_color(REDUCIBLE_VIOLET)
+        )
+        greedy_approach = greedy_title.copy().scale(0.7).next_to(left_tick, DOWN)
+        ucs_approach = ucs_title.copy().scale(0.7).next_to(right_tick, DOWN)
+        self.play(
+            FadeIn(line),
+            FadeIn(left_tick),
+            FadeIn(right_tick),
+        )
+        self.wait()
+        self.play(FadeIn(greedy_approach), FadeIn(ucs_approach))
+        middle_tick = (
+            Line(UP * 0.1, DOWN * 0.1)
+            .move_to(line.get_center())
+            .set_color(REDUCIBLE_GREEN)
+        )
+        astar_text = (
+            Text("A* Search", font=REDUCIBLE_FONT).scale(0.5).next_to(middle_tick, DOWN)
+        )
+        self.play(FadeIn(middle_tick), FadeIn(astar_text))
         self.wait()
 
 
@@ -841,4 +984,106 @@ class GreedyApproach(AstarAnimationTools):
                 animations.append(FadeIn(mob))
         self.play(LaggedStart(*animations), run_time=5)
 
+        self.wait()
+
+
+class MotivateUniformCostSearch(AstarAnimationTools):
+    def construct(self):
+        # from https://docs.manim.community/en/stable/reference/manim.mobject.graph.Graph.html#manim.mobject.graph.Graph
+        edges = []
+        partitions = []
+        c = 0
+        layers = [2, 3, 3, 2]  # the number of neurons in each layer
+
+        for i in layers:
+            partitions.append(list(range(c + 1, c + i + 1)))
+            c += i
+        for i, v in enumerate(layers[1:]):
+            last = sum(layers[: i + 1])
+            for j in range(v):
+                for k in range(last - layers[i], last):
+                    edges.append((k + 1, j + last + 1))
+
+        vertices = np.arange(1, sum(layers) + 1)
+
+        graph = Graph(
+            vertices,
+            edges,
+            layout="partite",
+            partitions=partitions,
+            layout_scale=3,
+            vertex_config={"radius": 0.20},
+            labels=True,
+        )
+        # zero index
+        new_vertices = [v - 1 for v in vertices]
+        new_edges = [(u - 1, v - 1) for u, v in edges]
+        new_edges.remove((1, 2))
+        new_edges.remove((0, 4))
+        new_edges.remove((4, 5))
+        new_edges.remove((2, 7))
+
+        layout_with_small_amount_of_noise = {
+            v
+            - 1: graph.vertices[v].get_center()
+            + np.array([np.random.normal(-0.2, 0.2), np.random.normal(-0.2, 0.2), 0])
+            for v in graph.vertices
+        }
+        # some minor adjustments
+        layout_with_small_amount_of_noise[0] += LEFT * 0.5
+        layout_with_small_amount_of_noise[1] += LEFT * 0.5
+        layout_with_small_amount_of_noise[2] += LEFT * 0.2
+        layout_with_small_amount_of_noise[3] += LEFT * 0.5
+        layout_with_small_amount_of_noise[8] += RIGHT * 0.5
+        layout_with_small_amount_of_noise[9] += RIGHT * 0.5
+
+        graph = AGraph(
+            new_vertices,
+            new_edges,
+            layout=layout_with_small_amount_of_noise,
+            labels=True,
+            edge_to_prop={
+                (2, 6): 0.2,
+                (3, 5): 0.2,
+                (3, 7): 0.3,
+                (5, 8): 0.75,
+                (5, 9): 0.3,
+                (6, 8): 0.7,
+                (6, 9): 0.2,
+                (7, 8): 0.8,
+            },
+        )
+        dist_label_dict = graph.get_edge_weight_labels()
+        self.play(
+            FadeIn(graph),
+            *[FadeIn(label) for label in dist_label_dict.values()],
+        )
+
+        self.wait()
+
+        start = self.show_start(0, graph, color=REDUCIBLE_CHARM)
+        self.play(FadeIn(*start))
+        self.wait()
+        goal = self.show_goal(8, graph, color=REDUCIBLE_GREEN)
+        self.play(FadeIn(*goal))
+        self.wait()
+
+        # show neighbors of goal node
+        neighbors = self.show_neighbors(8, graph)
+        self.play(FadeIn(*neighbors))
+        self.wait()
+
+        # make a curved arc that splits the graph between node 8 and it's neighbords (5, 6, and 7)
+        arc = ArcBetweenPoints(
+            graph.vertices[8].get_center(), graph.vertices[5].get_center()
+        )
+        start = arc.point_from_proportion(0.5)
+        end = graph.vertices[9].get_center() + UP * 0.5
+
+        arc_split = (
+            DashedVMobject(ArcBetweenPoints(start, end, angle=PI / 2))
+            .shift(RIGHT * SMALL_BUFF)
+            .set_color(REDUCIBLE_GREEN_LIGHTER)
+        )
+        self.play(FadeIn(arc_split))
         self.wait()
