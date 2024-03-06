@@ -36,8 +36,15 @@ from manim import (
     PI,
     DashedVMobject,
     Indicate,
-    Transform, TransformFromCopy, Tex, Brace, GrowFromCenter,
-    Square, Rectangle, ReplacementTransform
+    ShowPassingFlash,
+    Transform,
+    TransformFromCopy,
+    Tex,
+    Brace,
+    GrowFromCenter,
+    Square,
+    Rectangle,
+    ReplacementTransform,
 )
 from astar_utils import get_random_layout, solve_astar, euclidean_distance
 from heapq import heappush, heappop
@@ -209,6 +216,7 @@ class AStarNode:
     def __eq__(self, other):
         return self.vertex == other.vertex and self.f_score == other.f_score
 
+
 class AstarAnimationTools(Scene):
     """
     This is a scene that provides tools for animating A* search
@@ -266,7 +274,14 @@ class AstarAnimationTools(Scene):
         return path_mobjects
 
     def show_nodes_expanded(
-        self, graph, start, goal, g_func=None, h_func=None, color=REDUCIBLE_YELLOW, include_heap_mobs=False,
+        self,
+        graph,
+        start,
+        goal,
+        g_func=None,
+        h_func=None,
+        color=REDUCIBLE_YELLOW,
+        include_heap_mobs=False,
     ):
         """
         Runs astar algorithm and incrementally adds mobjects of vertices and edges that are expanded that later scenes can render
@@ -279,6 +294,8 @@ class AstarAnimationTools(Scene):
 
         # The set of currently discovered nodes that are not evaluated yet.
         # Initially, only the start node is known.
+
+        # TODO, just make the heap a sorted list and pop off the first element. This will make it easier to animate
         heap = []
         start_node = AStarNode(
             start, None, 0, h_func(graph.vertices[start], graph.vertices[goal])
@@ -286,7 +303,7 @@ class AstarAnimationTools(Scene):
         heappush(
             heap, (h_func(graph.vertices[start], graph.vertices[goal]), start_node)
         )
-        heap_mob = self.make_heap(heap.copy())
+        heap_mob = self.make_heap(heap.copy(), graph)
         heap_state = (heap, heap_mob)
 
         # For each node, which node it can most efficiently be reached from.
@@ -305,7 +322,12 @@ class AstarAnimationTools(Scene):
         while len(heap) > 0:
             current = heappop(heap)[1]
             if include_heap_mobs:
-                mobjects.append((sorted(heap, key=lambda x: x[0]), self.make_heap(heap.copy())))
+                mobjects.append(
+                    (
+                        sorted(heap, key=lambda x: (x[0], x[1].vertex)),
+                        self.make_heap(heap.copy(), graph),
+                    )
+                )
             if current.prev_node is None:
                 mobjects.append(
                     get_glowing_surround_circle(graph.vertices[current.vertex])
@@ -344,10 +366,15 @@ class AstarAnimationTools(Scene):
                         h_func(graph.vertices[neighbor], graph.vertices[goal]),
                     )
                     heappush(heap, (f_score[neighbor], neighbor_node))
-            
+
             if include_heap_mobs:
                 # DEBUG HERE
-                mobjects.append((sorted(heap, key=lambda x: x[0]), self.make_heap(heap.copy())))
+                mobjects.append(
+                    (
+                        sorted(heap, key=lambda x: (x[0], x[1].vertex)),
+                        self.make_heap(heap.copy(), graph),
+                    )
+                )
 
     def filter_layout(self, layout, min_distance_between_points=0.2):
         filtered_layout = {}
@@ -392,7 +419,7 @@ class AstarAnimationTools(Scene):
         return AGraph(
             vertices, edges, layout=layout, labels=labels, vertex_config=vertex_config
         )
-    
+
     def get_current_path(self, node):
         path = [node.vertex]
         while node.prev_node is not None:
@@ -401,33 +428,64 @@ class AstarAnimationTools(Scene):
         return path[::-1]
 
     def make_heap_node(self, node, weight, color=WHITE):
+        print("Weight", weight)
         current_path = self.get_current_path(node)
         node = node.vertex
         node_rect = Rectangle(height=0.7, width=1.1, color=color)
-        node = Text(str(node), font=REDUCIBLE_MONO, color=color).scale(0.5).move_to(node_rect)
+        node = (
+            Text(str(node), font=REDUCIBLE_MONO, color=color)
+            .scale(0.5)
+            .move_to(node_rect)
+        )
         weight_rectange = Rectangle(width=node_rect.width, height=0.3, color=color)
         weight = round(weight, 1)
-        weight = Text(str(weight), font=REDUCIBLE_MONO, color=color).scale(0.3).move_to(weight_rectange)
+        weight = (
+            Text(str(weight), font=REDUCIBLE_MONO, color=color)
+            .scale(0.3)
+            .move_to(weight_rectange)
+        )
         node_mob = VGroup(node, node_rect)
         weight_mob = VGroup(weight, weight_rectange)
         path_rect = Rectangle(width=node_rect.width, height=0.3, color=color)
-        path_text = Text("->".join(map(str, current_path)), font=REDUCIBLE_MONO, color=color).scale(0.3).move_to(path_rect)
+        path_text = (
+            Text("->".join(map(str, current_path)), font=REDUCIBLE_MONO, color=color)
+            .scale(0.3)
+            .move_to(path_rect)
+        )
         if path_text.width > path_rect.width:
             path_text.scale_to_fit_width(path_rect.width - SMALL_BUFF * 2)
         path_mob = VGroup(path_text, path_rect)
         if len(current_path) > 1:
             return VGroup(path_mob, weight_mob, node_mob).arrange(DOWN, buff=0)
         return VGroup(weight_mob, node_mob).arrange(DOWN, buff=0)
-    
-    def make_heap(self, heap, color=WHITE, buff_between_items=MED_SMALL_BUFF):
-        heap = sorted(heap, key=lambda x: x[0])
+
+    def get_rounded_path_weight(self, path, graph):
+        total_weight = 0
+        for i in range(len(path) - 1):
+            u, v = path[i], path[i + 1]
+            total_weight += round(graph.dist_matrix[u][v], 1)
+        return round(total_weight, 1)
+
+    def make_heap(
+        self, heap, graph, color=WHITE, buff_between_items=MED_SMALL_BUFF, round=True
+    ):
+        # modify weights to be rounded to 1 decimal place
+        modified_heap = []
+        for _, node in heap:
+            current_path = self.get_current_path(node)
+            if round:
+                modified_heap.append(
+                    (self.get_rounded_path_weight(current_path, graph), node)
+                )
+            else:
+                modified_heap.append((node.f_score, node))
+        heap = sorted(modified_heap, key=lambda x: (x[0], x[1].vertex))
         heap_mobs = []
         for weight, node in heap:
             heap_mobs.append(self.make_heap_node(node, weight, color=color))
         if len(heap_mobs) > 1:
-            return VGroup(*heap_mobs).arrange(DOWN, buff=buff_between_items)
-        return VGroup(*heap_mobs)
-
+            return VGroup(*heap_mobs).arrange(DOWN, buff=buff_between_items), heap
+        return VGroup(*heap_mobs), heap
 
     def construct(self):
         # Test methods here on an example graph
@@ -1108,7 +1166,7 @@ class MotivateUniformCostSearch(AstarAnimationTools):
 
     def construct(self):
         graph = self.get_graph()
-        
+
         dist_label_dict = graph.get_edge_weight_labels()
         self.play(
             FadeIn(graph),
@@ -1171,9 +1229,7 @@ class MotivateUniformCostSearch(AstarAnimationTools):
         # ignore start because it's already highlighted
         for mob in optimal_path[1:]:
             if isinstance(mob, TipableVMobject):
-                animations.append(
-                    mob.animate.set_stroke(REDUCIBLE_YELLOW, width=4)
-                )
+                animations.append(mob.animate.set_stroke(REDUCIBLE_YELLOW, width=4))
             else:
                 animations.append(FadeIn(mob))
         self.play(LaggedStart(*animations), run_time=3)
@@ -1189,15 +1245,17 @@ class MotivateUniformCostSearch(AstarAnimationTools):
                 if i == 0:
                     # set stroke to a gradient of ORANGE and YELLOW
                     animations.append(
-                        mob.animate.set_stroke(color=[REDUCIBLE_ORANGE, REDUCIBLE_YELLOW], width=4)
+                        mob.animate.set_stroke(
+                            color=[REDUCIBLE_ORANGE, REDUCIBLE_YELLOW], width=4
+                        )
                     )
                 else:
-                    animations.append(
-                        mob.animate.set_stroke(REDUCIBLE_ORANGE, width=4)
-                    )
+                    animations.append(mob.animate.set_stroke(REDUCIBLE_ORANGE, width=4))
             else:
                 if i == 1:
-                    mob = get_glowing_surround_circle(graph.vertices[3], color=REDUCIBLE_ORANGE, buff_max=0.075)
+                    mob = get_glowing_surround_circle(
+                        graph.vertices[3], color=REDUCIBLE_ORANGE, buff_max=0.075
+                    )
                 animations.append(FadeIn(mob))
         self.play(LaggedStart(*animations), run_time=3)
         self.wait()
@@ -1205,10 +1263,13 @@ class MotivateUniformCostSearch(AstarAnimationTools):
         # shift up all mobjects by 1 unit
         self.play(*[mob.animate.shift(UP * 1.5) for mob in self.mobjects])
         self.wait()
-        
 
-        defintions1 = Tex(r"$\text{Let } C(A \rightarrow B) \text{ be the cost of the shortest path from } A \text{ to } B$")
-        definiions2 = Tex(r"$\text{Let } d(A, B) \text{ be the distance of the edge between } A \text{ and } B$")
+        defintions1 = Tex(
+            r"$\text{Let } C(A \rightarrow B) \text{ be the cost of the shortest path from } A \text{ to } B$"
+        )
+        definiions2 = Tex(
+            r"$\text{Let } d(A, B) \text{ be the distance of the edge between } A \text{ and } B$"
+        )
         defintions1.scale(0.65).next_to(graph, DOWN)
         definiions2.scale(0.65).next_to(defintions1, DOWN)
         self.play(FadeIn(defintions1))
@@ -1216,11 +1277,21 @@ class MotivateUniformCostSearch(AstarAnimationTools):
         self.play(FadeIn(definiions2))
         self.wait()
 
-        cost_function = Tex(r"$C(0 \rightarrow 8) = min\{$", 
-                            r"$C(0 \rightarrow 5)$", r"$\, + \,$", r"$d(5, 8)$", r"$,$", 
-                            r"$\: C(0 \rightarrow 6)$", r"$\, + \,$", r"$d(6, 8)$", r"$,$", 
-                            r"$\: C(0 \rightarrow 7)$", r"$\, + \,$", r"$d(7, 8)$", 
-                            r"$\}$")
+        cost_function = Tex(
+            r"$C(0 \rightarrow 8) = min\{$",
+            r"$C(0 \rightarrow 5)$",
+            r"$\, + \,$",
+            r"$d(5, 8)$",
+            r"$,$",
+            r"$\: C(0 \rightarrow 6)$",
+            r"$\, + \,$",
+            r"$d(6, 8)$",
+            r"$,$",
+            r"$\: C(0 \rightarrow 7)$",
+            r"$\, + \,$",
+            r"$d(7, 8)$",
+            r"$\}$",
+        )
         cost_function.scale(0.65).next_to(definiions2, DOWN)
         self.play(Write(cost_function))
         self.wait()
@@ -1228,7 +1299,7 @@ class MotivateUniformCostSearch(AstarAnimationTools):
         self.play(
             cost_function[1].animate.set_color(REDUCIBLE_GREEN_LIGHTER),
             cost_function[5].animate.set_color(REDUCIBLE_YELLOW),
-            cost_function[9].animate.set_color(REDUCIBLE_ORANGE)
+            cost_function[9].animate.set_color(REDUCIBLE_ORANGE),
         )
         self.wait()
 
@@ -1257,14 +1328,22 @@ class MotivateUniformCostSearch(AstarAnimationTools):
 
         self.play(*[FadeIn(c_0_5[0]), FadeIn(c_0_6[0]), FadeIn(c_0_7[0])])
         self.wait()
-        self.play(*[Transform(c_0_5[0], c_0_5[1]), Transform(c_0_6[0], c_0_6[1]), Transform(c_0_7[0], c_0_7[1])])
+        self.play(
+            *[
+                Transform(c_0_5[0], c_0_5[1]),
+                Transform(c_0_6[0], c_0_6[1]),
+                Transform(c_0_7[0], c_0_7[1]),
+            ]
+        )
         self.wait()
 
         brace4 = Brace(cost_function[3], DOWN)
         brace5 = Brace(cost_function[7], DOWN)
         brace6 = Brace(cost_function[11], DOWN)
 
-        self.play(GrowFromCenter(brace4), GrowFromCenter(brace5), GrowFromCenter(brace6))
+        self.play(
+            GrowFromCenter(brace4), GrowFromCenter(brace5), GrowFromCenter(brace6)
+        )
         self.wait()
         d_5_8 = Tex("2.8").scale(0.65).next_to(brace4, DOWN, buff=SMALL_BUFF)
         d_6_8 = Tex("2.8").scale(0.65).next_to(brace5, DOWN, buff=SMALL_BUFF)
@@ -1283,36 +1362,221 @@ class MotivateUniformCostSearch(AstarAnimationTools):
         self.wait()
         shift_up = UP * 0.3
 
-        self.play(FadeOut(braces1), FadeOut(braces2), FadeOut(braces3), FadeOut(brace4), FadeOut(brace5), FadeOut(brace6),
-                  TransformFromCopy(cost_function[0][-4:], min_func), 
-                  TransformFromCopy(cost_function[2], plus1), 
-                  TransformFromCopy(cost_function[6], plus2), 
-                  TransformFromCopy(cost_function[10], plus3),
-                  TransformFromCopy(cost_function[-1], end_bracket),
-                  TransformFromCopy(cost_function[4], comma1),
-                  TransformFromCopy(cost_function[8], comma2),
-                  c_0_5[0].animate.shift(shift_up),
-                  c_0_6[0].animate.shift(shift_up),
-                  c_0_7[0].animate.shift(shift_up),
-                  d_5_8.animate.shift(shift_up),
-                  d_6_8.animate.shift(shift_up),
-                  d_7_8.animate.shift(shift_up),
-                  )
+        self.play(
+            FadeOut(braces1),
+            FadeOut(braces2),
+            FadeOut(braces3),
+            FadeOut(brace4),
+            FadeOut(brace5),
+            FadeOut(brace6),
+            TransformFromCopy(cost_function[0][-4:], min_func),
+            TransformFromCopy(cost_function[2], plus1),
+            TransformFromCopy(cost_function[6], plus2),
+            TransformFromCopy(cost_function[10], plus3),
+            TransformFromCopy(cost_function[-1], end_bracket),
+            TransformFromCopy(cost_function[4], comma1),
+            TransformFromCopy(cost_function[8], comma2),
+            c_0_5[0].animate.shift(shift_up),
+            c_0_6[0].animate.shift(shift_up),
+            c_0_7[0].animate.shift(shift_up),
+            d_5_8.animate.shift(shift_up),
+            d_6_8.animate.shift(shift_up),
+            d_7_8.animate.shift(shift_up),
+        )
 
         self.wait()
 
-        animations = [graph.edge_dict[(5, 8)].shift(UP * 1.5).animate.set_stroke(color=REDUCIBLE_GREEN_LIGHTER, width=4),
-                      FadeIn(get_glowing_surround_circle(graph.vertices[8], color=REDUCIBLE_GREEN_LIGHTER)),]
-        final_path_cost = Tex(" = 7.2").scale(0.65).next_to(min_func, DOWN, aligned_edge=LEFT)
+        animations = [
+            graph.edge_dict[(5, 8)]
+            .shift(UP * 1.5)
+            .animate.set_stroke(color=REDUCIBLE_GREEN_LIGHTER, width=4),
+            FadeIn(
+                get_glowing_surround_circle(
+                    graph.vertices[8], color=REDUCIBLE_GREEN_LIGHTER
+                )
+            ),
+        ]
+        final_path_cost = (
+            Tex(" = 7.2").scale(0.65).next_to(min_func, DOWN, aligned_edge=LEFT)
+        )
         self.play(FadeIn(final_path_cost), LaggedStart(*animations))
         self.wait()
 
 
 class UniformCostSearchDetailDemo(MotivateUniformCostSearch):
 
+    def get_graph(self):
+        # from https://docs.manim.community/en/stable/reference/manim.mobject.graph.Graph.html#manim.mobject.graph.Graph
+        edges = []
+        partitions = []
+        c = 0
+        layers = [2, 3, 3, 2]  # the number of neurons in each layer
+
+        for i in layers:
+            partitions.append(list(range(c + 1, c + i + 1)))
+            c += i
+        for i, v in enumerate(layers[1:]):
+            last = sum(layers[: i + 1])
+            for j in range(v):
+                for k in range(last - layers[i], last):
+                    edges.append((k + 1, j + last + 1))
+
+        vertices = np.arange(1, sum(layers) + 1)
+
+        graph = Graph(
+            vertices,
+            edges,
+            layout="partite",
+            partitions=partitions,
+            layout_scale=3,
+            vertex_config={"radius": 0.20},
+            labels=True,
+        )
+        # zero index
+        new_vertices = [v - 1 for v in vertices]
+        new_edges = [(u - 1, v - 1) for u, v in edges]
+        new_edges.remove((1, 2))
+        new_edges.remove((0, 4))
+        new_edges.remove((4, 5))
+        new_edges.remove((2, 7))
+
+        layout_with_small_amount_of_noise = {
+            v
+            - 1: graph.vertices[v].get_center()
+            + np.array([np.random.normal(-0.2, 0.2), np.random.normal(-0.2, 0.2), 0])
+            for v in graph.vertices
+        }
+        # some minor adjustments
+        layout_with_small_amount_of_noise[0] += LEFT * 0.5
+        layout_with_small_amount_of_noise[1] += LEFT * 0.5
+        layout_with_small_amount_of_noise[2] += LEFT * 0.2
+        layout_with_small_amount_of_noise[3] += LEFT * 0.5
+        layout_with_small_amount_of_noise[8] += RIGHT * 0.5
+        layout_with_small_amount_of_noise[9] += RIGHT * 0.5
+
+        graph = AGraph(
+            new_vertices,
+            new_edges,
+            layout=layout_with_small_amount_of_noise,
+            labels=True,
+            edge_to_prop={
+                (2, 6): 0.2,
+                (3, 5): 0.2,
+                (3, 7): 0.3,
+                (5, 8): 0.75,
+                (5, 9): 0.3,
+                (6, 8): 0.7,
+                (6, 9): 0.2,
+                (7, 8): 0.8,
+            },
+        )
+        return graph
+
+    def show_nodes_expanded(
+        self,
+        graph,
+        start,
+        goal,
+        g_func=None,
+        h_func=None,
+        color=REDUCIBLE_YELLOW,
+        include_heap_mobs=False,
+        round=True,
+    ):
+        """
+        Runs astar algorithm and incrementally adds mobjects of vertices and edges that are expanded that later scenes can render
+        Include custom version of this for the heap animations
+        """
+        # A* algorithm
+        # https://en.wikipedia.org/wiki/A*_search_algorithm
+
+        # The set of nodes already evaluated
+        closed_set = set()
+
+        # The set of currently discovered nodes that are not evaluated yet.
+        # Initially, only the start node is known.
+
+        # TODO, just make the heap a sorted list and pop off the first element. This will make it easier to animate
+        heap = []
+        start_node = AStarNode(
+            start, None, 0, h_func(graph.vertices[start], graph.vertices[goal])
+        )
+        heap.append((h_func(graph.vertices[start], graph.vertices[goal]), start_node))
+        heap_mob, heap = self.make_heap(heap.copy(), graph, round=round)
+        heap_state = (heap.copy(), heap_mob)
+
+        # For each node, which node it can most efficiently be reached from.
+        # If a node can be reached from many nodes, came_from will eventually contain the
+        # most efficient previous step.
+        came_from = {}
+        g_score = {v: float("inf") for v in graph.vertices}
+        g_score[start] = 0
+        f_score = {v: float("inf") for v in graph.vertices}
+        f_score[start] = h_func(graph.vertices[start], graph.vertices[goal])
+
+        mobjects = []
+        if include_heap_mobs:
+            mobjects.append(heap_state)
+        all_edges = graph.get_all_edges()
+        while len(heap) > 0:
+            current = heap.pop(0)[1]
+            if include_heap_mobs:
+                heap_mob, heap = self.make_heap(heap.copy(), graph, round=round)
+                mobjects.append(
+                    (sorted(heap, key=lambda x: (x[0], x[1].vertex)), heap_mob)
+                )
+            if current.prev_node is None:
+                mobjects.append(
+                    get_glowing_surround_circle(graph.vertices[current.vertex])
+                )
+            else:
+                incoming_edge = all_edges[(current.prev_node.vertex, current.vertex)]
+                mobjects.append(incoming_edge)
+                mobjects.append(
+                    get_glowing_surround_circle(graph.vertices[current.vertex])
+                )
+
+            if current.vertex == goal:
+                return mobjects
+
+            closed_set.add(current.vertex)
+            for neighbor in graph.get_neighbors(current.vertex):
+                if neighbor in closed_set:
+                    continue
+
+                tentative_g_score = (
+                    g_score[current.vertex]
+                    + graph.dist_matrix[current.vertex][neighbor]
+                    if g_func is None
+                    else g_func(current.vertex, neighbor)
+                )
+                if tentative_g_score < g_score[neighbor]:
+                    came_from[neighbor] = current.vertex
+                    g_score[neighbor] = tentative_g_score
+                    f_score[neighbor] = g_score[neighbor] + h_func(
+                        graph.vertices[neighbor], graph.vertices[goal]
+                    )
+                    neighbor_node = AStarNode(
+                        neighbor,
+                        current,
+                        g_score[neighbor],
+                        h_func(graph.vertices[neighbor], graph.vertices[goal]),
+                    )
+                    heap.append((f_score[neighbor], neighbor_node))
+
+            if include_heap_mobs:
+                heap_mob, heap = self.make_heap(heap.copy(), graph, round=round)
+                # DEBUG HERE
+                mobjects.append(
+                    (
+                        sorted(heap, key=lambda x: (x[0], x[1].vertex)),
+                        heap_mob,
+                    )
+                )
+
     def construct(self):
         graph = self.get_graph()
-        
+
         dist_label_dict = graph.get_edge_weight_labels()
         self.play(
             FadeIn(graph),
@@ -1330,7 +1594,9 @@ class UniformCostSearchDetailDemo(MotivateUniformCostSearch):
         self.play(FadeIn(*goal))
         self.wait()
 
-        nodes_expanded = self.show_nodes_expanded(graph, 0, 8, h_func=lambda u, v: 0, include_heap_mobs=True)
+        nodes_expanded = self.show_nodes_expanded(
+            graph, 0, 8, h_func=lambda u, v: 0, include_heap_mobs=True
+        )
         edge_animations = []
         vertex_animations = []
         heap_mobjects = []
@@ -1338,7 +1604,9 @@ class UniformCostSearchDetailDemo(MotivateUniformCostSearch):
         count_vertex = 0
         for mob in nodes_expanded:
             if isinstance(mob, TipableVMobject):
-                edge_animations.append(mob.animate.set_stroke(REDUCIBLE_YELLOW, width=4))
+                edge_animations.append(
+                    mob.animate.set_stroke(REDUCIBLE_YELLOW, width=4)
+                )
             elif isinstance(mob, tuple):
                 heaps.append(mob[0])
                 heap_mobjects.append(mob[1].scale(0.8).move_to(LEFT * 6).to_edge(UP))
@@ -1346,22 +1614,85 @@ class UniformCostSearchDetailDemo(MotivateUniformCostSearch):
                 if count_vertex > 0:
                     vertex_animations.append(FadeIn(mob))
                 count_vertex += 1
-        for edge_anim, vertex_anim in zip(edge_animations, vertex_animations):
-            self.play(edge_anim, vertex_anim)
 
         heap_animations = []
         heap_animations.append([FadeIn(heap_mobjects[0])])
-        assert len(heaps) == len(heap_mobjects), "Heaps and heap mobjects are not of the same length"
+        assert len(heaps) == len(
+            heap_mobjects
+        ), "Heaps and heap mobjects are not of the same length"
         for i in range(1, len(heaps)):
             previous_heap, current_heap = heaps[i - 1], heaps[i]
             previous_heap_mob, current_heap_mob = heap_mobjects[i - 1], heap_mobjects[i]
-            heap_animations.append(self.get_heap_animations(previous_heap, current_heap, previous_heap_mob, current_heap_mob))
-        
-        for animation_group in heap_animations:
-            self.play(*animation_group)
-            
+            heap_animations.append(
+                self.get_heap_animations(
+                    previous_heap, current_heap, previous_heap_mob, current_heap_mob
+                )
+            )
 
-    def get_heap_animations(self, previous_heap, new_heap, previous_heap_mob, new_heap_mob):
+        self.play(*heap_animations[0])
+        self.wait()
+        self.play(*heap_animations[1])
+        self.wait()
+        neighbor_order = [0, 3, 2, 1, 5, 6, 7, 5, 4]
+        neighbor_mobs = self.show_neighbors(
+            neighbor_order[0], graph, color=REDUCIBLE_ORANGE
+        )
+        self.play(*[ShowPassingFlash(mob, time_width=2) for mob in neighbor_mobs])
+        self.play(*heap_animations[2])
+        self.wait()
+
+        heap_animations_start = 3
+        neighbor_order_index = 1
+        for edge_anim, vertex_anim in zip(edge_animations, vertex_animations):
+            if heap_animations_start == len(heap_animations) - 1:
+
+                final_mob = (
+                    heap_mobjects[-2][0]
+                    .copy()
+                    .next_to(graph.vertices[8], RIGHT, buff=MED_LARGE_BUFF)
+                )
+
+                self.play(
+                    edge_anim,
+                    vertex_anim,
+                    Transform(heap_mobjects[-2][0], final_mob),
+                    *[heap_animations[-1][0], heap_animations[-1][1]],
+                )
+            else:
+                self.play(
+                    edge_anim, vertex_anim, *heap_animations[heap_animations_start]
+                )
+            heap_animations_start += 1
+            if neighbor_order_index < len(neighbor_order):
+                neighbor_mobs = self.show_neighbors(
+                    neighbor_order[neighbor_order_index], graph, color=REDUCIBLE_ORANGE
+                )
+                neighbor_order_index += 1
+                self.play(
+                    *[ShowPassingFlash(mob, time_width=2) for mob in neighbor_mobs]
+                )
+
+            if heap_animations_start >= len(heap_animations):
+                break
+            self.play(*heap_animations[heap_animations_start])
+            self.wait()
+            heap_animations_start += 1
+
+        optimal = self.show_path([0, 2, 5, 8], graph, color=REDUCIBLE_GREEN_LIGHTER)
+        animations = []
+        for mob in optimal:
+            if isinstance(mob, TipableVMobject):
+                animations.append(
+                    mob.animate.set_stroke(REDUCIBLE_GREEN_LIGHTER, width=4)
+                )
+            else:
+                animations.append(FadeIn(mob))
+        self.play(LaggedStart(*animations), run_time=3)
+        self.wait()
+
+    def get_heap_animations(
+        self, previous_heap, new_heap, previous_heap_mob, new_heap_mob
+    ):
         animations = []
         for prev_element, prev_mob in zip(previous_heap, previous_heap_mob):
             for new_element, new_mob in zip(new_heap, new_heap_mob):
@@ -1379,3 +1710,272 @@ class UniformCostSearchDetailDemo(MotivateUniformCostSearch):
             if new_element[1] not in previous_heap_astar_nodes:
                 animations.append(FadeIn(new_mob))
         return animations
+
+
+class GreedyApproachVsUCSDetailed(UniformCostSearchDetailDemo):
+
+    def construct(self):
+        graph = self.get_graph()
+        dist_label_dict = graph.get_edge_weight_labels()
+        self.play(
+            FadeIn(graph),
+            *[FadeIn(label) for label in dist_label_dict.values()],
+        )
+
+        self.wait()
+        for label in dist_label_dict.values():
+            self.add_foreground_mobject(label)
+
+        start = self.show_start(0, graph, color=REDUCIBLE_CHARM)
+        self.play(FadeIn(*start))
+        self.wait()
+        goal = self.show_goal(8, graph, color=REDUCIBLE_GREEN)
+        self.play(FadeIn(*goal))
+        self.wait()
+
+        definition = (
+            Text(
+                "Let h(n) be the estimate of distance between node n and the goal",
+                font=REDUCIBLE_MONO,
+            )
+            .scale(0.5)
+            .to_edge(UP)
+        )
+        euclidean_distance_text = (
+            Text("h(n) = Euclidean Distance(n, goal)", font=REDUCIBLE_MONO)
+            .scale(0.5)
+            .move_to(definition.get_center())
+        )
+        self.play(FadeIn(definition))
+        self.wait()
+        self.play(ReplacementTransform(definition, euclidean_distance_text))
+        self.wait()
+
+        node_to_text_direction = {
+            0: UP,
+            1: DOWN,
+            2: UP,
+            3: DOWN,
+            4: DOWN,
+            5: UP,
+            6: UP,
+            7: DOWN,
+            8: UP,
+            9: DOWN,
+        }
+        heuristic_text_per_node = [
+            Text(
+                f"h({i}) = {euclidean_distance(graph.vertices[i], graph.vertices[8]):.1f}",
+                font=REDUCIBLE_MONO,
+            )
+            .scale(0.2)
+            .next_to(
+                graph.vertices[i], node_to_text_direction[i], buff=SMALL_BUFF * 1.5
+            )
+            for i in graph.vertices
+        ]
+        self.play(*[FadeIn(text) for text in heuristic_text_per_node])
+        self.wait()
+
+        nodes_expanded_ucs = self.show_nodes_expanded(
+            graph,
+            0,
+            8,
+            h_func=lambda u, v: 0,
+            include_heap_mobs=True,
+            round=False,
+        )
+        heap_mobjects = []
+        for mob in nodes_expanded_ucs:
+            if isinstance(mob, tuple):
+                heap_mobjects.append(mob[1].scale(0.8).move_to(LEFT * 5))
+
+        # make glowing surround circles around nodes 2 and 3
+        glowing_surround_2 = get_glowing_surround_circle(
+            graph.vertices[2], color=REDUCIBLE_ORANGE
+        )
+        glowing_surround_3 = get_glowing_surround_circle(
+            graph.vertices[3], color=REDUCIBLE_ORANGE
+        )
+        self.play(FadeIn(glowing_surround_2), FadeIn(glowing_surround_3))
+        self.wait()
+
+        ucs_example_heap = heap_mobjects[2].copy()
+
+        ucs_heap = (
+            Text("UCS Heap", font=REDUCIBLE_FONT)
+            .scale(0.5)
+            .move_to(heap_mobjects[2].get_center() + UP * 1.5)
+        )
+        self.play(FadeIn(ucs_heap), FadeIn(ucs_example_heap))
+        self.wait()
+
+        # make an arrow between the edge weight label (0, 2) and the second heap mob
+        arrow1 = Arrow(
+            dist_label_dict[(0, 2)].get_center(),
+            ucs_example_heap[1][1].get_center(),
+            color=REDUCIBLE_YELLOW,
+            stroke_width=4,
+            max_tip_length_to_length_ratio=0.1,
+            buff=SMALL_BUFF * 2,
+        )
+
+        # make an arrow between the edge weight label (0, 3) and the first heap mob
+        arrow2 = Arrow(
+            dist_label_dict[(0, 3)].get_center(),
+            ucs_example_heap[0][1].get_center(),
+            color=REDUCIBLE_YELLOW,
+            stroke_width=4,
+            max_tip_length_to_length_ratio=0.1,
+            buff=SMALL_BUFF * 2,
+        )
+        self.play(FadeIn(arrow1), FadeIn(arrow2))
+        self.wait()
+
+        nodes_expanded = self.show_nodes_expanded(
+            graph,
+            0,
+            8,
+            g_func=lambda u, v: 0,
+            h_func=euclidean_distance,
+            include_heap_mobs=True,
+            round=False,
+        )
+        edge_animations = []
+        vertex_animations = []
+        heap_mobjects = []
+        heaps = []
+        count_vertex = 0
+        for mob in nodes_expanded:
+            if isinstance(mob, TipableVMobject):
+                edge_animations.append(
+                    mob.animate.set_stroke(REDUCIBLE_YELLOW, width=4)
+                )
+            elif isinstance(mob, tuple):
+                heaps.append(mob[0])
+                heap_mobjects.append(mob[1].scale(0.8).move_to(RIGHT * 6).to_edge(UP))
+            else:
+                if count_vertex > 0:
+                    vertex_animations.append(FadeIn(mob))
+                count_vertex += 1
+
+        heap_animations = []
+        heap_animations.append([FadeIn(heap_mobjects[0])])
+        assert len(heaps) == len(
+            heap_mobjects
+        ), "Heaps and heap mobjects are not of the same length"
+        for i in range(1, len(heaps)):
+            previous_heap, current_heap = heaps[i - 1], heaps[i]
+            previous_heap_mob, current_heap_mob = heap_mobjects[i - 1], heap_mobjects[i]
+            heap_animations.append(
+                self.get_heap_animations(
+                    previous_heap, current_heap, previous_heap_mob, current_heap_mob
+                )
+            )
+
+        example_heap = heap_mobjects[2].copy().move_to(RIGHT * 5)
+        greedy_heap = (
+            Text("Greedy Heap", font=REDUCIBLE_FONT)
+            .scale(0.5)
+            .move_to(example_heap.get_center() + UP * 1.5)
+        )
+
+        self.play(FadeIn(greedy_heap), FadeIn(example_heap))
+        self.wait()
+
+        arrow3 = Arrow(
+            heuristic_text_per_node[2].get_right(),
+            example_heap[0][1].get_center(),
+            color=REDUCIBLE_YELLOW,
+            stroke_width=4,
+            max_tip_length_to_length_ratio=0.05,
+            buff=SMALL_BUFF * 2,
+        )
+
+        arrow4 = Arrow(
+            heuristic_text_per_node[3].get_right(),
+            example_heap[1][1].get_center(),
+            color=REDUCIBLE_YELLOW,
+            stroke_width=4,
+            max_tip_length_to_length_ratio=0.05,
+            buff=SMALL_BUFF * 2,
+        )
+        self.play(FadeIn(arrow3), FadeIn(arrow4))
+        self.wait()
+
+        self.play(
+            FadeOut(ucs_heap),
+            FadeOut(ucs_example_heap),
+            FadeOut(arrow1),
+            FadeOut(arrow2),
+            FadeOut(greedy_heap),
+            FadeOut(example_heap),
+            FadeOut(arrow3),
+            FadeOut(arrow4),
+            FadeOut(glowing_surround_2),
+            FadeOut(glowing_surround_3),
+        )
+
+        self.play(*heap_animations[0])
+        self.wait()
+        self.play(*heap_animations[1])
+        self.wait()
+        neighbor_order = [0, 2, 6]
+        neighbor_mobs = self.show_neighbors(
+            neighbor_order[0], graph, color=REDUCIBLE_ORANGE
+        )
+        self.play(*[ShowPassingFlash(mob, time_width=2) for mob in neighbor_mobs])
+        self.play(*heap_animations[2])
+        self.wait()
+
+        heap_animations_start = 3
+        neighbor_order_index = 1
+        for edge_anim, vertex_anim in zip(edge_animations, vertex_animations):
+            if heap_animations_start == len(heap_animations) - 1:
+
+                final_mob = (
+                    heap_mobjects[-2][0]
+                    .copy()
+                    .next_to(graph.vertices[8], RIGHT, buff=MED_LARGE_BUFF)
+                )
+
+                self.play(
+                    edge_anim,
+                    vertex_anim,
+                    Transform(heap_mobjects[-2][0], final_mob),
+                    *[
+                        heap_animations[-1][0],
+                        heap_animations[-1][1],
+                        heap_animations[-1][2],
+                        heap_animations[-1][3],
+                    ],
+                )
+            else:
+                self.play(
+                    edge_anim, vertex_anim, *heap_animations[heap_animations_start]
+                )
+            heap_animations_start += 1
+            if neighbor_order_index < len(neighbor_order):
+                neighbor_mobs = self.show_neighbors(
+                    neighbor_order[neighbor_order_index], graph, color=REDUCIBLE_ORANGE
+                )
+                neighbor_order_index += 1
+                self.play(
+                    *[ShowPassingFlash(mob, time_width=2) for mob in neighbor_mobs]
+                )
+
+            if heap_animations_start >= len(heap_animations):
+                break
+            self.play(*heap_animations[heap_animations_start])
+            self.wait()
+            heap_animations_start += 1
+
+        greedy = self.show_path([0, 2, 6, 8], graph, color=REDUCIBLE_ORANGE)
+        animations = []
+        for mob in greedy:
+            if isinstance(mob, TipableVMobject):
+                animations.append(mob.animate.set_stroke(REDUCIBLE_ORANGE, width=4))
+            else:
+                animations.append(FadeIn(mob))
+        self.play(LaggedStart(*animations), run_time=3)
+        self.wait()
