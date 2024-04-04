@@ -1979,3 +1979,8 @@ class GreedyApproachVsUCSDetailed(UniformCostSearchDetailDemo):
                 animations.append(FadeIn(mob))
         self.play(LaggedStart(*animations), run_time=3)
         self.wait()
+
+
+class CombiningApproaches(UniformCostSearchDetailDemo):
+    def construct(self):
+        pass
