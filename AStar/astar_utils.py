@@ -78,6 +78,10 @@ def euclidean_distance(v1, v2):
     return np.linalg.norm(v1.get_center() - v2.get_center())
 
 
+def manhattan_distance(v1, v2):
+    return np.sum(np.abs(v1.get_center() - v2.get_center()))
+
+
 def get_random_layout(N):
     random_points_in_frame = get_random_points_in_frame(N)
     return {v: point for v, point in zip(range(N), random_points_in_frame)}

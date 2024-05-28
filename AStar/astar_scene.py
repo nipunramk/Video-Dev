@@ -45,8 +45,21 @@ from manim import (
     Square,
     Rectangle,
     ReplacementTransform,
+    ThreeDScene,
+    NumberPlane,
+    DEGREES,
+    OUT,
+    IN,
+    MoveToTarget,
+    BOLD,
+    Triangle,
 )
-from astar_utils import get_random_layout, solve_astar, euclidean_distance
+from astar_utils import (
+    get_random_layout,
+    solve_astar,
+    euclidean_distance,
+    manhattan_distance,
+)
 from heapq import heappush, heappop
 import sys
 
@@ -427,23 +440,39 @@ class AstarAnimationTools(Scene):
             node = node.prev_node
         return path[::-1]
 
-    def make_heap_node(self, node, weight, color=WHITE):
-        print("Weight", weight)
+    def make_heap_node(self, node, weight, color=WHITE, patches={}):
         current_path = self.get_current_path(node)
-        node = node.vertex
+        node_v = node.vertex
         node_rect = Rectangle(height=0.7, width=1.1, color=color)
         node = (
-            Text(str(node), font=REDUCIBLE_MONO, color=color)
+            Text(str(node_v), font=REDUCIBLE_MONO, color=color)
             .scale(0.5)
             .move_to(node_rect)
         )
         weight_rectange = Rectangle(width=node_rect.width, height=0.3, color=color)
         weight = round(weight, 1)
-        weight = (
-            Text(str(weight), font=REDUCIBLE_MONO, color=color)
-            .scale(0.3)
-            .move_to(weight_rectange)
-        )
+        if node_v not in patches:
+            weight = (
+                Text(str(weight), font=REDUCIBLE_MONO, color=color)
+                .scale(0.3)
+                .move_to(weight_rectange)
+            )
+        else:
+            # patches weight at the display level
+            print(
+                "Patching weight for node ",
+                node_v,
+                " to ",
+                patches[node_v],
+                "instead of ",
+                weight,
+            )
+            weight = (
+                Text(str(patches[node_v]), font=REDUCIBLE_MONO, color=color)
+                .scale(0.3)
+                .move_to(weight_rectange)
+            )
+
         node_mob = VGroup(node, node_rect)
         weight_mob = VGroup(weight, weight_rectange)
         path_rect = Rectangle(width=node_rect.width, height=0.3, color=color)
@@ -467,7 +496,13 @@ class AstarAnimationTools(Scene):
         return round(total_weight, 1)
 
     def make_heap(
-        self, heap, graph, color=WHITE, buff_between_items=MED_SMALL_BUFF, round=True
+        self,
+        heap,
+        graph,
+        color=WHITE,
+        buff_between_items=MED_SMALL_BUFF,
+        round=True,
+        patches={},
     ):
         # modify weights to be rounded to 1 decimal place
         modified_heap = []
@@ -482,7 +517,9 @@ class AstarAnimationTools(Scene):
         heap = sorted(modified_heap, key=lambda x: (x[0], x[1].vertex))
         heap_mobs = []
         for weight, node in heap:
-            heap_mobs.append(self.make_heap_node(node, weight, color=color))
+            heap_mobs.append(
+                self.make_heap_node(node, weight, color=color, patches=patches)
+            )
         if len(heap_mobs) > 1:
             return VGroup(*heap_mobs).arrange(DOWN, buff=buff_between_items), heap
         return VGroup(*heap_mobs), heap
@@ -678,6 +715,8 @@ class AstarTester(Scene):
 class UCSLargeGraph(AstarAnimationTools):
 
     def construct(self):
+        bg = ImageMobject("assets/bg-video.png").scale_to_fit_width(config.frame_width)
+        self.add(bg)
         # 23 -> 45
         large_graph = self.get_large_random_graph(
             60, dist_threshold=3, p=0.5, min_distance_between_points=0.4
@@ -755,6 +794,8 @@ class UCSLargeGraph(AstarAnimationTools):
 
 class GreedyApproachVsUCSBroad(AstarAnimationTools):
     def construct(self):
+        bg = ImageMobject("assets/bg-video.png").scale_to_fit_width(config.frame_width)
+        self.add(bg)
         large_graph = self.get_large_random_graph(
             60, dist_threshold=3, p=0.5, min_distance_between_points=0.4
         )
@@ -904,6 +945,8 @@ class GreedyApproachVsUCSBroad(AstarAnimationTools):
 
 class GreedyApproach(AstarAnimationTools):
     def construct(self):
+        bg = ImageMobject("assets/bg-video.png").scale_to_fit_width(config.frame_width)
+        self.add(bg)
         graph = self.get_large_random_graph(
             25,
             dist_threshold=3,
@@ -1165,6 +1208,8 @@ class MotivateUniformCostSearch(AstarAnimationTools):
         return graph
 
     def construct(self):
+        bg = ImageMobject("assets/bg-video.png").scale_to_fit_width(config.frame_width)
+        self.add(bg)
         graph = self.get_graph()
 
         dist_label_dict = graph.get_edge_weight_labels()
@@ -1482,6 +1527,7 @@ class UniformCostSearchDetailDemo(MotivateUniformCostSearch):
         color=REDUCIBLE_YELLOW,
         include_heap_mobs=False,
         round=True,
+        patches={},  # patches to apply to the heap
     ):
         """
         Runs astar algorithm and incrementally adds mobjects of vertices and edges that are expanded that later scenes can render
@@ -1502,7 +1548,9 @@ class UniformCostSearchDetailDemo(MotivateUniformCostSearch):
             start, None, 0, h_func(graph.vertices[start], graph.vertices[goal])
         )
         heap.append((h_func(graph.vertices[start], graph.vertices[goal]), start_node))
-        heap_mob, heap = self.make_heap(heap.copy(), graph, round=round)
+        heap_mob, heap = self.make_heap(
+            heap.copy(), graph, round=round, patches=patches
+        )
         heap_state = (heap.copy(), heap_mob)
 
         # For each node, which node it can most efficiently be reached from.
@@ -1519,9 +1567,12 @@ class UniformCostSearchDetailDemo(MotivateUniformCostSearch):
             mobjects.append(heap_state)
         all_edges = graph.get_all_edges()
         while len(heap) > 0:
+            print(f_score)
             current = heap.pop(0)[1]
             if include_heap_mobs:
-                heap_mob, heap = self.make_heap(heap.copy(), graph, round=round)
+                heap_mob, heap = self.make_heap(
+                    heap.copy(), graph, round=round, patches=patches
+                )
                 mobjects.append(
                     (sorted(heap, key=lambda x: (x[0], x[1].vertex)), heap_mob)
                 )
@@ -1565,8 +1616,11 @@ class UniformCostSearchDetailDemo(MotivateUniformCostSearch):
                     heap.append((f_score[neighbor], neighbor_node))
 
             if include_heap_mobs:
-                heap_mob, heap = self.make_heap(heap.copy(), graph, round=round)
+                heap_mob, heap = self.make_heap(
+                    heap.copy(), graph, round=round, patches=patches
+                )
                 # DEBUG HERE
+                print([(x[0], x[1].vertex) for x in heap])
                 mobjects.append(
                     (
                         sorted(heap, key=lambda x: (x[0], x[1].vertex)),
@@ -1575,6 +1629,8 @@ class UniformCostSearchDetailDemo(MotivateUniformCostSearch):
                 )
 
     def construct(self):
+        bg = ImageMobject("assets/bg-video.png").scale_to_fit_width(config.frame_width)
+        self.add(bg)
         graph = self.get_graph()
 
         dist_label_dict = graph.get_edge_weight_labels()
@@ -1712,9 +1768,53 @@ class UniformCostSearchDetailDemo(MotivateUniformCostSearch):
         return animations
 
 
+class IntroduceUniformCostSearch(UniformCostSearchDetailDemo):
+    def construct(self):
+        bg = ImageMobject("assets/bg-video.png").scale_to_fit_width(config.frame_width)
+        self.add(bg)
+        graph = self.get_graph()
+        self.play(FadeIn(graph))
+        self.wait()
+        title = (
+            Text("Uniform Cost Search", font=REDUCIBLE_FONT, weight=BOLD)
+            .scale(0.8)
+            .to_edge(UP)
+        )
+        self.play(Write(title))
+        self.wait()
+        start = self.show_start(0, graph, color=REDUCIBLE_CHARM)
+        self.play(FadeIn(*start))
+        goal = self.show_goal(8, graph, color=REDUCIBLE_GREEN)
+        self.play(FadeIn(*goal))
+        self.wait()
+        nodes_expanded = self.show_nodes_expanded(
+            graph, 0, 8, h_func=lambda u, v: 0, include_heap_mobs=False
+        )
+        for mob in nodes_expanded:
+            if isinstance(mob, TipableVMobject):
+                self.play(mob.animate.set_stroke(REDUCIBLE_YELLOW, width=4))
+            else:
+                self.play(FadeIn(mob))
+        self.wait()
+
+        optimal = self.show_path([0, 2, 5, 8], graph, color=REDUCIBLE_GREEN_LIGHTER)
+        animations = []
+        for mob in optimal:
+            if isinstance(mob, TipableVMobject):
+                animations.append(
+                    mob.animate.set_stroke(REDUCIBLE_GREEN_LIGHTER, width=4)
+                )
+            else:
+                animations.append(FadeIn(mob))
+        self.play(LaggedStart(*animations), run_time=3)
+        self.wait()
+
+
 class GreedyApproachVsUCSDetailed(UniformCostSearchDetailDemo):
 
     def construct(self):
+        bg = ImageMobject("assets/bg-video.png").scale_to_fit_width(config.frame_width)
+        self.add(bg)
         graph = self.get_graph()
         dist_label_dict = graph.get_edge_weight_labels()
         self.play(
@@ -1983,4 +2083,987 @@ class GreedyApproachVsUCSDetailed(UniformCostSearchDetailDemo):
 
 class CombiningApproaches(UniformCostSearchDetailDemo):
     def construct(self):
-        pass
+        bg = ImageMobject("assets/bg-video.png").scale_to_fit_width(config.frame_width)
+        self.add(bg)
+        graph = self.get_graph()
+        dist_label_dict = graph.get_edge_weight_labels()
+        self.play(
+            FadeIn(graph),
+            *[FadeIn(label) for label in dist_label_dict.values()],
+        )
+
+        node_to_text_direction = {
+            0: UP,
+            1: DOWN,
+            2: UP,
+            3: DOWN,
+            4: DOWN,
+            5: UP,
+            6: UP,
+            7: DOWN,
+            8: UP,
+            9: DOWN,
+        }
+        heuristic_text_per_node = [
+            Text(
+                f"h({i}) = {euclidean_distance(graph.vertices[i], graph.vertices[8]):.1f}",
+                font=REDUCIBLE_MONO,
+            )
+            .scale(0.2)
+            .next_to(
+                graph.vertices[i], node_to_text_direction[i], buff=SMALL_BUFF * 1.5
+            )
+            for i in graph.vertices
+        ]
+        self.play(*[FadeIn(text) for text in heuristic_text_per_node])
+        self.wait()
+
+        start = self.show_start(0, graph, color=REDUCIBLE_CHARM)
+        self.play(FadeIn(*start))
+        self.wait()
+        goal = self.show_goal(8, graph, color=REDUCIBLE_GREEN)
+        self.play(FadeIn(*goal))
+        self.wait()
+
+        heap_node_ucs = self.get_custom_heap_node("n", "g(n)", [0, "...", "n"])
+        heap_node_greedy = self.get_custom_heap_node("n", "h(n)", [0, "...", "n"])
+        heap_node_astar = self.get_custom_heap_node("n", "f(n)", [0, "...", "n"]).scale(
+            1.5
+        )
+
+        heap_node_ucs.move_to(LEFT * 5)
+        heap_node_greedy.move_to(RIGHT * 5)
+
+        self.play(
+            FadeIn(heap_node_ucs),
+            FadeIn(heap_node_greedy),
+        )
+        self.wait()
+        g_n_def = (
+            Text("g(n) = cost from start to node n", font=REDUCIBLE_MONO)
+            .scale(0.5)
+            .to_edge(UP)
+        )
+        h_n_def = (
+            Text("h(n) = estimate from node n to goal", font=REDUCIBLE_MONO)
+            .scale(0.5)
+            .next_to(g_n_def, DOWN)
+        )
+
+        self.play(FadeIn(g_n_def), FadeIn(h_n_def))
+        self.wait()
+
+        f_n_def = (
+            Text("f(n) = g(n) + h(n)", font=REDUCIBLE_MONO).scale(0.5).to_edge(DOWN)
+        )
+
+        self.play(
+            FadeIn(f_n_def),
+            FadeIn(heap_node_astar),
+            graph.animate.set_opacity(0.5),
+            *[label.animate.set_opacity(0.5) for label in dist_label_dict.values()],
+            *[text.animate.set_opacity(0.5) for text in heuristic_text_per_node],
+        )
+        self.wait()
+
+        self.play(
+            FadeOut(f_n_def),
+            FadeOut(heap_node_astar),
+            FadeOut(heap_node_ucs),
+            FadeOut(heap_node_greedy),
+            FadeOut(g_n_def),
+            FadeOut(h_n_def),
+            graph.animate.set_opacity(1),
+            *[label.animate.set_opacity(1) for label in dist_label_dict.values()],
+            *[text.animate.set_opacity(1) for text in heuristic_text_per_node],
+        )
+        self.wait()
+
+        for label in dist_label_dict.values():
+            self.add_foreground_mobject(label)
+
+        # easy way to deal with the fact that displayed numbers are rounded,
+        # we patch to what the displayed numbers add to
+        patches = {3: 7.6, 5: 7.2, 8: 7.2}
+        nodes_expanded = self.show_nodes_expanded(
+            graph,
+            0,
+            8,
+            h_func=euclidean_distance,
+            include_heap_mobs=True,
+            round=False,
+            patches=patches,
+        )
+        edge_animations = []
+        vertex_animations = []
+        heap_mobjects = []
+        heaps = []
+        count_vertex = 0
+        for mob in nodes_expanded:
+            if isinstance(mob, TipableVMobject):
+                edge_animations.append(
+                    mob.animate.set_stroke(REDUCIBLE_YELLOW, width=4)
+                )
+            elif isinstance(mob, tuple):
+                heaps.append(mob[0])
+                heap_mobjects.append(mob[1].scale(0.8).move_to(LEFT * 6).to_edge(UP))
+            else:
+                if count_vertex > 0:
+                    vertex_animations.append(FadeIn(mob))
+                count_vertex += 1
+
+        heap_animations = []
+        heap_animations.append([FadeIn(heap_mobjects[0])])
+        assert len(heaps) == len(
+            heap_mobjects
+        ), "Heaps and heap mobjects are not of the same length"
+        for i in range(1, len(heaps)):
+            previous_heap, current_heap = heaps[i - 1], heaps[i]
+            previous_heap_mob, current_heap_mob = heap_mobjects[i - 1], heap_mobjects[i]
+            heap_animations.append(
+                self.get_heap_animations(
+                    previous_heap, current_heap, previous_heap_mob, current_heap_mob
+                )
+            )
+
+        self.play(*heap_animations[0])
+        self.wait()
+        self.play(*heap_animations[1])
+        self.wait()
+
+        neighbor_order = [0, 2, 5]
+        neighbor_mobs = self.show_neighbors(
+            neighbor_order[0], graph, color=REDUCIBLE_ORANGE
+        )
+        self.play(*[ShowPassingFlash(mob, time_width=2) for mob in neighbor_mobs])
+        self.play(*heap_animations[2])
+        self.wait()
+
+        heap_animations_start = 3
+        neighbor_order_index = 1
+        for edge_anim, vertex_anim in zip(edge_animations, vertex_animations):
+            if heap_animations_start == len(heap_animations) - 1:
+
+                final_mob = (
+                    heap_mobjects[-2][0]
+                    .copy()
+                    .next_to(graph.vertices[8], RIGHT, buff=MED_LARGE_BUFF)
+                )
+
+                self.play(
+                    edge_anim,
+                    vertex_anim,
+                    Transform(heap_mobjects[-2][0], final_mob),
+                    *[
+                        heap_animations[-1][0],
+                        heap_animations[-1][1],
+                        heap_animations[-1][2],
+                    ],
+                )
+            else:
+                self.play(
+                    edge_anim, vertex_anim, *heap_animations[heap_animations_start]
+                )
+            heap_animations_start += 1
+            if neighbor_order_index < len(neighbor_order):
+                neighbor_mobs = self.show_neighbors(
+                    neighbor_order[neighbor_order_index], graph, color=REDUCIBLE_ORANGE
+                )
+                neighbor_order_index += 1
+                self.play(
+                    *[ShowPassingFlash(mob, time_width=2) for mob in neighbor_mobs]
+                )
+
+            if heap_animations_start >= len(heap_animations):
+                break
+            self.play(*heap_animations[heap_animations_start])
+            self.wait()
+            heap_animations_start += 1
+
+        optimal = self.show_path([0, 2, 5, 8], graph, color=REDUCIBLE_GREEN_LIGHTER)
+        animations = []
+        for mob in optimal:
+            if isinstance(mob, TipableVMobject):
+                animations.append(
+                    mob.animate.set_stroke(REDUCIBLE_GREEN_LIGHTER, width=4)
+                )
+            else:
+                animations.append(FadeIn(mob))
+        self.play(LaggedStart(*animations), run_time=3)
+        self.wait()
+
+    def get_custom_heap_node(self, node, weight, current_path, color=WHITE):
+        node_rect = Rectangle(height=0.7, width=1.1, color=color)
+        node = (
+            Text(str(node), font=REDUCIBLE_MONO, color=color)
+            .scale(0.5)
+            .move_to(node_rect)
+        )
+        weight_rectange = Rectangle(width=node_rect.width, height=0.3, color=color)
+        weight = (
+            Text(str(weight), font=REDUCIBLE_MONO, color=color)
+            .scale(0.3)
+            .move_to(weight_rectange)
+        )
+        node_mob = VGroup(node, node_rect)
+        weight_mob = VGroup(weight, weight_rectange)
+        path_rect = Rectangle(width=node_rect.width, height=0.3, color=color)
+        path_text = (
+            Text("->".join(map(str, current_path)), font=REDUCIBLE_MONO, color=color)
+            .scale(0.3)
+            .move_to(path_rect)
+        )
+        if path_text.width > path_rect.width:
+            path_text.scale_to_fit_width(path_rect.width - SMALL_BUFF * 2)
+        path_mob = VGroup(path_text, path_rect)
+        if len(current_path) > 1:
+            return VGroup(path_mob, weight_mob, node_mob).arrange(DOWN, buff=0)
+        return VGroup(weight_mob, node_mob).arrange(DOWN, buff=0)
+
+
+class IntroduceAStarSearch1(AstarAnimationTools):
+    def construct(self):
+        bg = ImageMobject("assets/bg-video.png").scale_to_fit_width(config.frame_width)
+        self.add(bg)
+        self.show_astar_on_large_graph()
+
+    def show_astar_on_large_graph(self):
+        # 23 -> 45
+        large_graph = self.get_large_random_graph(
+            60,
+            dist_threshold=3,
+            p=0.4,
+            min_distance_between_points=0.4,
+            # labels=True,
+        )
+        start_v, goal_v = 11, 45
+        self.play(FadeIn(large_graph))
+        self.wait()
+        for mob in large_graph.vertices.values():
+            self.add_foreground_mobject(mob)
+
+        start = self.show_start(start_v, large_graph, color=REDUCIBLE_CHARM)
+        self.play(FadeIn(*start))
+        self.wait()
+
+        goal = self.show_goal(goal_v, large_graph, color=REDUCIBLE_GREEN)
+        self.play(FadeIn(*goal))
+        self.wait()
+        # A* nodes exampled
+        nodes_expanded = self.show_nodes_expanded(
+            large_graph, start_v, goal_v, h_func=euclidean_distance
+        )
+        animations = []
+        # exclude the first animation becase we already highlighted the start node
+        for mob in nodes_expanded[1:]:
+            if isinstance(mob, TipableVMobject):
+                animations.append(mob.animate.set_stroke(REDUCIBLE_YELLOW, width=4))
+            else:
+                animations.append(FadeIn(mob))
+
+        self.play(
+            LaggedStart(*animations),
+            run_time=30,
+        )
+        self.wait()
+        path, _ = solve_astar(large_graph, start_v, goal_v, h_func=euclidean_distance)
+        # show optimal path
+        optimal_path = self.show_path(path, large_graph, color=REDUCIBLE_GREEN_LIGHTER)
+        animations = []
+        for mob in optimal_path:
+            if isinstance(mob, TipableVMobject):
+                animations.append(
+                    mob.animate.set_stroke(REDUCIBLE_GREEN_LIGHTER, width=4)
+                )
+            else:
+                animations.append(FadeIn(mob))
+        self.play(LaggedStart(*animations), run_time=5)
+        self.wait()
+
+
+class IntroduceAStarSearch2(ThreeDScene, AstarAnimationTools):
+    def construct(self):
+        bg = ImageMobject("assets/bg-video.png").scale_to_fit_width(config.frame_width)
+        self.add(bg)
+        graph = self.get_graph()
+        self.play(FadeIn(graph))
+        self.add_foreground_mobject(graph)
+        self.wait()
+
+        number_plane = NumberPlane(
+            background_line_style={
+                "stroke_color": REDUCIBLE_VIOLET,
+                "stroke_width": 4,
+                "stroke_opacity": 0.3,
+            }
+        )
+        self.play(FadeIn(number_plane))
+        self.wait()
+
+        self.move_camera(phi=55 * DEGREES, theta=-55 * DEGREES)
+        self.wait()
+        start_v, end_v = 0, 8
+
+        scale_factor = 0.3
+        node_to_heuristic = {}
+        for v in graph.vertices:
+            node_to_heuristic[v] = (
+                euclidean_distance(graph.vertices[v], graph.vertices[end_v])
+                * scale_factor
+            )
+
+        start = self.show_start(start_v, graph, color=REDUCIBLE_CHARM)
+
+        end = self.show_goal(end_v, graph, color=REDUCIBLE_GREEN)
+        self.play(FadeIn(*start), FadeIn(*end))
+        self.wait()
+        # lift up the vertices
+        for v in graph.vertices:
+            graph.vertices[v].generate_target()
+            graph.vertices[v].target.shift(OUT * node_to_heuristic[v])
+
+        lines_between_node_and_target = []
+        for v in graph.vertices:
+            lines_between_node_and_target.append(
+                DashedLine(
+                    graph.vertices[v].get_center(),
+                    graph.vertices[v].target.get_center(),
+                    color=REDUCIBLE_YELLOW,
+                )
+            )
+        # animate vertices being moved up
+        self.play(
+            *[MoveToTarget(graph.vertices[v]) for v in graph.vertices],
+            *[start[0].animate.shift(OUT * node_to_heuristic[start_v])],
+            run_time=3,
+        )
+        self.wait()
+        self.play(*[Write(line) for line in lines_between_node_and_target])
+        self.wait()
+
+        arrow = Arrow(
+            graph.vertices[start_v].get_center(), graph.vertices[end_v].get_center()
+        )
+        arrow.set_color(REDUCIBLE_YELLOW)
+
+        self.play(Write(arrow))
+        self.wait()
+        # nodes_expanded = self.show_nodes_expanded(
+        #     graph, start_v, end_v, h_func=euclidean_distance
+        # )
+        # animations = []
+        # for mob in nodes_expanded:
+        #     if isinstance(mob, TipableVMobject):
+        #         animations.append(mob.animate.set_stroke(REDUCIBLE_YELLOW, width=4))
+        #     else:
+        #         animations.append(FadeIn(mob))
+        # self.play(LaggedStart(*animations), run_time=3)
+
+        # path, _ = solve_astar(graph, start_v, end_v, h_func=euclidean_distance)
+        # optimal_path = self.show_path(path, graph, color=REDUCIBLE_GREEN_LIGHTER)
+        # animations = []
+        # for mob in optimal_path:
+        #     if isinstance(mob, TipableVMobject):
+        #         animations.append(
+        #             mob.animate.set_stroke(REDUCIBLE_GREEN_LIGHTER, width=4)
+        #         )
+        #     else:
+        #         animations.append(FadeIn(mob))
+        # self.play(LaggedStart(*animations), run_time=3)
+        # self.wait()
+
+    def get_graph(self):
+        # from https://docs.manim.community/en/stable/reference/manim.mobject.graph.Graph.html#manim.mobject.graph.Graph
+        edges = []
+        partitions = []
+        c = 0
+        layers = [2, 3, 3, 2]  # the number of neurons in each layer
+
+        for i in layers:
+            partitions.append(list(range(c + 1, c + i + 1)))
+            c += i
+        for i, v in enumerate(layers[1:]):
+            last = sum(layers[: i + 1])
+            for j in range(v):
+                for k in range(last - layers[i], last):
+                    edges.append((k + 1, j + last + 1))
+
+        vertices = np.arange(1, sum(layers) + 1)
+
+        graph = Graph(
+            vertices,
+            edges,
+            layout="partite",
+            partitions=partitions,
+            layout_scale=3,
+            vertex_config={"radius": 0.20},
+            labels=True,
+        )
+        # zero index
+        new_vertices = [v - 1 for v in vertices]
+        new_edges = [(u - 1, v - 1) for u, v in edges]
+        new_edges.remove((1, 2))
+        new_edges.remove((0, 4))
+        new_edges.remove((4, 5))
+        new_edges.remove((2, 7))
+
+        layout_with_small_amount_of_noise = {
+            v
+            - 1: graph.vertices[v].get_center()
+            + np.array([np.random.normal(-0.2, 0.2), np.random.normal(-0.2, 0.2), 0])
+            for v in graph.vertices
+        }
+        # some minor adjustments
+        layout_with_small_amount_of_noise[0] += LEFT * 0.5
+        layout_with_small_amount_of_noise[1] += LEFT * 0.5
+        layout_with_small_amount_of_noise[2] += LEFT * 0.2
+        layout_with_small_amount_of_noise[3] += LEFT * 0.5
+        layout_with_small_amount_of_noise[8] += RIGHT * 0.5
+        layout_with_small_amount_of_noise[9] += RIGHT * 0.5
+
+        graph = AGraph(
+            new_vertices,
+            new_edges,
+            layout=layout_with_small_amount_of_noise,
+            labels=True,
+            edge_to_prop={
+                (2, 6): 0.2,
+                (3, 5): 0.2,
+                (3, 7): 0.3,
+                (5, 8): 0.75,
+                (5, 9): 0.3,
+                (6, 8): 0.7,
+                (6, 9): 0.2,
+                (7, 8): 0.8,
+            },
+        )
+        return graph
+
+
+class AStarOptimality(AstarAnimationTools):
+    def construct(self):
+        bg = ImageMobject("assets/bg-video.png").scale_to_fit_width(config.frame_width)
+        self.add(bg)
+        self.random_heuristic_example()
+
+    def get_graph(self):
+        vertices = list(range(9))
+        edges = [
+            (0, 1),
+            (0, 3),
+            (0, 4),
+            (1, 2),
+            (1, 4),
+            (1, 5),
+            (2, 5),
+            (3, 4),
+            (3, 6),
+            (3, 7),
+            (4, 5),
+            (4, 7),
+            (4, 8),
+            (5, 8),
+            (6, 7),
+            (7, 8),
+        ]
+        layout = {
+            0: LEFT * 4 + UP * 2.5,
+            1: LEFT * 3.5,
+            2: LEFT * 2.9 + DOWN * 2.5,
+            3: LEFT * 0.2 + UP * 2.5,
+            4: RIGHT * 0.1 + DOWN * 0.7,
+            5: DOWN * 2.5 + LEFT * 0.1,
+            6: RIGHT * 2.5 + UP * 2.7,
+            7: RIGHT * 3.5 + DOWN * 0.1,
+            8: RIGHT * 2.3 + DOWN * 2.5,
+        }
+        graph = AGraph(vertices, edges, layout=layout, labels=True)
+        return graph
+
+    def random_heuristic_example(self):
+        graph = self.get_graph()
+        self.play(FadeIn(graph))
+        self.wait()
+
+        dist_label_dict = graph.get_edge_weight_labels()
+        self.play(*[FadeIn(label) for label in dist_label_dict.values()])
+        for label in dist_label_dict.values():
+            self.add_foreground_mobject(label)
+        self.wait()
+
+        start_v, end_v = 1, 8
+        start = self.show_start(start_v, graph, color=REDUCIBLE_CHARM)
+        end = self.show_goal(end_v, graph, color=REDUCIBLE_GREEN)
+        self.play(FadeIn(*start), FadeIn(*end))
+        self.wait()
+        optimal_path, _ = solve_astar(graph, start_v, end_v, h_func=euclidean_distance)
+        optimal = self.show_path(optimal_path, graph, color=REDUCIBLE_GREEN_LIGHTER)
+        animations = []
+        for mob in optimal:
+            if isinstance(mob, TipableVMobject):
+                animations.append(
+                    mob.animate.set_stroke(REDUCIBLE_GREEN_LIGHTER, width=4)
+                )
+            else:
+                animations.append(FadeIn(mob))
+        self.play(LaggedStart(*animations), run_time=3)
+        self.wait()
+
+        node_to_text_direction = {
+            0: UP,
+            1: LEFT * 2.5,
+            2: LEFT * 2,
+            3: UP,
+            4: UR,
+            5: DOWN,
+            6: RIGHT,
+            7: RIGHT,
+            8: RIGHT * 1.5,
+        }
+        heuristic_text_per_node = {
+            i: VGroup(
+                Text(
+                    f"h({i}) = ",
+                    font=REDUCIBLE_MONO,
+                ),
+                Text("?", font=REDUCIBLE_MONO),
+            )
+            .arrange(RIGHT, buff=MED_SMALL_BUFF)
+            .scale(0.2)
+            .next_to(
+                graph.vertices[i], node_to_text_direction[i], buff=SMALL_BUFF * 1.5
+            )
+            for i in graph.vertices
+        }
+
+        self.play(*[FadeIn(text) for text in heuristic_text_per_node.values()])
+
+        for i, text in heuristic_text_per_node.items():
+            text.id = i
+        vertex_to_h = {}
+
+        # add an updater to the heuristic text to update to random values every frame
+        def update_heuristic_text(mob):
+            val = np.random.uniform(1, 10)
+            if mob.id == 4:
+                # this just gets a good example easier to generate
+                val = min(9.9, val + 6)
+            vertex_to_h[mob.id] = val
+            new_text = Text(f"{val:.1f}", font=REDUCIBLE_MONO).scale(0.2)
+            mob[1].become(new_text.next_to(mob[0], RIGHT, buff=SMALL_BUFF))
+
+        for text in heuristic_text_per_node.values():
+            text.add_updater(update_heuristic_text)
+            self.add(text)
+
+        self.wait()
+
+        self.wait(3, frozen_frame=False)
+        # clear the updaters
+        for text in heuristic_text_per_node.values():
+            text.clear_updaters()
+
+        self.wait()
+        labeled_dot_to_h = {}
+        print(vertex_to_h)
+        for i, text in heuristic_text_per_node.items():
+            labeled_dot_to_h[graph.vertices[i]] = vertex_to_h[i]
+        nodes_expanded = self.show_nodes_expanded(
+            graph, start_v, end_v, h_func=lambda u, v: labeled_dot_to_h[u]
+        )
+        mobs_to_undo_animate = set()
+        animations = []
+        for mob in nodes_expanded:
+            if isinstance(mob, TipableVMobject):
+                animations.append(mob.animate.set_stroke(REDUCIBLE_YELLOW, width=4))
+            else:
+                animations.append(FadeIn(mob))
+            mobs_to_undo_animate.add(mob)
+        for anim in animations:
+            self.play(anim)
+
+        self.wait()
+        path, _ = solve_astar(
+            graph, start_v, end_v, h_func=lambda u, v: labeled_dot_to_h[u]
+        )
+        incorrect_path = self.show_path(path, graph, color=REDUCIBLE_CHARM)
+        animations = []
+        for mob in incorrect_path:
+            if isinstance(mob, TipableVMobject):
+                animations.append(mob.animate.set_stroke(REDUCIBLE_CHARM, width=4))
+            else:
+                animations.append(FadeIn(mob))
+            mobs_to_undo_animate.add(mob)
+        self.play(LaggedStart(*animations), run_time=3)
+        self.wait()
+        undo_animations = []
+        for mob in mobs_to_undo_animate:
+            if isinstance(mob, TipableVMobject):
+                undo_animations.append(
+                    mob.animate.set_stroke(REDUCIBLE_VIOLET, width=4)
+                )
+            else:
+                undo_animations.append(FadeOut(mob))
+
+        self.wait()
+        new_heuristic_text_per_node = {
+            i: VGroup(
+                Text(
+                    f"h({i}) = ",
+                    font=REDUCIBLE_MONO,
+                ),
+                Text("?", font=REDUCIBLE_MONO),
+            )
+            .arrange(RIGHT, buff=MED_SMALL_BUFF)
+            .scale(0.2)
+            .next_to(
+                graph.vertices[i], node_to_text_direction[i], buff=SMALL_BUFF * 1.5
+            )
+            for i in graph.vertices
+        }
+
+        self.play(
+            *undo_animations,
+            *[
+                Transform(text, new_text)
+                for text, new_text in zip(
+                    heuristic_text_per_node.values(),
+                    new_heuristic_text_per_node.values(),
+                )
+            ],
+        )
+        self.wait()
+
+        manhattan_dist_heuristic = Text(
+            "h(n) = Manhattan Distance(n, goal)", font=REDUCIBLE_MONO
+        ).scale(0.5)
+        manhattan_dist_heuristic.move_to(UP * 3.5)
+        self.play(FadeIn(manhattan_dist_heuristic))
+        self.wait()
+
+        manhattan_dist_0_8 = self.get_manhattan_distance_dashed_lines(graph, 0, end_v)
+        self.play(Write(manhattan_dist_0_8))
+        self.wait()
+        man_heuristic_text_per_node = {
+            i: VGroup(
+                Text(
+                    f"h({i}) = ",
+                    font=REDUCIBLE_MONO,
+                ),
+                Text(
+                    f"{manhattan_distance(graph.vertices[i], graph.vertices[end_v]):.1f}",
+                    font=REDUCIBLE_MONO,
+                ),
+            )
+            .arrange(RIGHT, buff=MED_LARGE_BUFF)
+            .scale(0.2)
+            .next_to(
+                graph.vertices[i], node_to_text_direction[i], buff=SMALL_BUFF * 1.5
+            )
+            for i in graph.vertices
+        }
+
+        self.play(Transform(heuristic_text_per_node[0], man_heuristic_text_per_node[0]))
+        self.wait()
+
+        self.play(
+            *[
+                Transform(heuristic_text_per_node[i], man_heuristic_text_per_node[i])
+                for i in range(1, 9)
+            ],
+            FadeOut(manhattan_dist_0_8),
+        )
+        self.wait()
+
+        nodes_expanded = self.show_nodes_expanded(
+            graph, start_v, end_v, h_func=manhattan_distance
+        )
+        animations = []
+        for mob in nodes_expanded:
+            if isinstance(mob, TipableVMobject):
+                animations.append(mob.animate.set_stroke(REDUCIBLE_YELLOW, width=4))
+            else:
+                animations.append(FadeIn(mob))
+        self.play(LaggedStart(*animations), run_time=3)
+        self.wait()
+
+        surround_rect = SurroundingRectangle(
+            VGroup(graph.vertices[4], graph.vertices[5]), color=REDUCIBLE_ORANGE
+        )
+        self.play(Write(surround_rect))
+        self.wait()
+
+        heap_node_4 = self.make_heap_node(
+            AStarNode(4, prev_node=None, g_score=3.7, h_score=4.0), 7.7
+        )
+        heap_node_5 = self.make_heap_node(
+            AStarNode(5, prev_node=None, g_score=4.2, h_score=2.4), 6.6
+        )
+        heap_nodes = VGroup(heap_node_4, heap_node_5).arrange(DOWN)
+        heap_nodes.scale(0.8).move_to(LEFT * 5.5 + DOWN * 2.5)
+        self.play(FadeIn(heap_node_4), FadeIn(heap_node_5))
+        self.wait()
+
+        h_4 = (
+            Text("h(4) = 4.0 >> d(4, 8) = 2.8", font=REDUCIBLE_MONO)
+            .scale(0.5)
+            .move_to(DOWN * 3.5)
+        )
+        self.play(FadeIn(h_4))
+        self.wait()
+
+        euclid_heuristic_text_per_node = {
+            i: VGroup(
+                Text(
+                    f"h({i}) = ",
+                    font=REDUCIBLE_MONO,
+                ),
+                Text(
+                    f"{euclidean_distance(graph.vertices[i], graph.vertices[end_v]):.1f}",
+                    font=REDUCIBLE_MONO,
+                ),
+            )
+            .arrange(RIGHT, buff=MED_LARGE_BUFF)
+            .scale(0.2)
+            .next_to(
+                graph.vertices[i], node_to_text_direction[i], buff=SMALL_BUFF * 1.5
+            )
+            for i in graph.vertices
+        }
+        self.play(FadeOut(h_4), FadeOut(surround_rect), FadeOut(heap_nodes))
+
+        euclidean_dist_heuristic = Text(
+            "h(n) = Euclidean Distance(n, goal)", font=REDUCIBLE_MONO
+        ).scale(0.5)
+        euclidean_dist_heuristic.move_to(UP * 3.5)
+        self.play(
+            *[
+                Transform(heuristic_text_per_node[i], euclid_heuristic_text_per_node[i])
+                for i in range(9)
+            ],
+            ReplacementTransform(manhattan_dist_heuristic, euclidean_dist_heuristic),
+        )
+        self.wait()
+
+        underestimate = Text(
+            "Euclidean Distance(n , goal) <= Optimal Distance(n, goal)",
+            font=REDUCIBLE_MONO,
+        ).scale(0.5)
+        underestimate.move_to(DOWN * 3.5)
+        self.play(FadeIn(underestimate))
+        self.wait()
+
+    def get_manhattan_distance_dashed_lines(self, graph, start_v, end_v):
+        start_point = graph.vertices[start_v].get_center()
+        end_point = graph.vertices[end_v].get_center()
+        v_line = DashedLine(
+            start_point,
+            start_point[0] * RIGHT + end_point[1] * UP,
+            color=REDUCIBLE_YELLOW,
+        )
+        h_line = DashedLine(
+            start_point[0] * RIGHT + end_point[1] * UP,
+            end_point,
+            color=REDUCIBLE_YELLOW,
+        )
+        return VGroup(v_line, h_line)
+
+
+class HeuristicAdmissibaility(AstarAnimationTools):
+    def construct(self):
+        bg = ImageMobject("assets/bg-video.png").scale_to_fit_width(config.frame_width)
+        self.add(bg)
+        title = Text(
+            "Admissibility of Heuristics", font=REDUCIBLE_FONT, weight=BOLD
+        ).scale(0.8)
+        title.to_edge(UP)
+        self.play(Write(title))
+        self.wait()
+
+        defintion = Tex(r"$h(n) \leq \text{Optimal Distance}(n, \text{goal})$").scale(
+            0.7
+        )
+        defintion.next_to(title, DOWN * 2)
+        self.play(FadeIn(defintion))
+        self.wait()
+
+        key_idea = Tex(
+            r"If $h(n)$ is $\textbf{admissible}$, then A* is $\textbf{optimal}$"
+        ).scale(0.7)
+        key_idea.next_to(defintion, DOWN)
+        self.play(Write(key_idea))
+        self.wait()
+
+        # generate a line that goes across the screen with two ticks at the end points
+        line = Line(LEFT * 5.5, RIGHT * 5.5)
+        tick1 = Line(UP * 0.2, DOWN * 0.2).move_to(line.get_start())
+        tick2 = Line(UP * 0.2, DOWN * 0.2).move_to(line.get_end())
+        ticks = VGroup(tick1, tick2)
+        line_with_ticks = VGroup(line, ticks).set_color(REDUCIBLE_VIOLET)
+        line_with_ticks.move_to(DOWN * 2.5)
+
+        admissible_heur_range = Text(
+            "Admissible Heuristic Range", font=REDUCIBLE_FONT
+        ).scale(0.5)
+        admissible_heur_range.next_to(line_with_ticks, UP)
+
+        self.play(FadeIn(line_with_ticks), FadeIn(admissible_heur_range))
+        self.wait()
+
+        # now have a small triangle that is displayed below the left tick
+        # and then moves to the right tick
+        triangle = Triangle(
+            fill_color=REDUCIBLE_YELLOW, stroke_color=REDUCIBLE_YELLOW, fill_opacity=1
+        )
+        triangle.scale(0.2)
+        triangle.next_to(tick1, DOWN)
+        self.play(FadeIn(triangle))
+        self.wait()
+
+        h_0 = Text("h(n) = 0", font=REDUCIBLE_MONO).scale(0.3).next_to(triangle, DOWN)
+        self.play(FadeIn(h_0))
+        self.wait()
+
+        self.play(triangle.animate.next_to(tick2, DOWN))
+        self.wait(2)
+
+        h_optimal = (
+            Text("h(n) = Optimal", font=REDUCIBLE_MONO)
+            .scale(0.3)
+            .next_to(triangle, DOWN)
+        )
+        self.play(FadeIn(h_optimal))
+        self.wait()
+
+        self.play(triangle.animate.shift(LEFT * 7.5))
+        self.play(triangle.animate.shift(RIGHT * 4))
+        self.play(triangle.animate.shift(LEFT * 2))
+        self.wait()
+
+
+class PIPShowMultipleOptimalPaths(AstarAnimationTools):
+    def construct(self):
+        bg = ImageMobject("assets/bg-video.png").scale_to_fit_width(config.frame_width)
+        self.add(bg)
+        graph = self.get_graph()
+        original_graph = graph.copy()
+        self.add(graph)
+        mobjects = self.show_start(0, graph, color=REDUCIBLE_CHARM)
+        goal = self.show_goal(8, graph, color=REDUCIBLE_GREEN)
+        self.play(FadeIn(*mobjects, *goal))
+        self.wait()
+
+        optimal_path, _ = solve_astar(graph, 0, 8, h_func=euclidean_distance)
+        mobjects = self.show_path(optimal_path, graph)
+        animations = []
+        for mob in mobjects:
+            if isinstance(mob, TipableVMobject):
+                animations.append(mob.animate.set_stroke(REDUCIBLE_YELLOW, width=8))
+            else:
+                animations.append(FadeIn(mob))
+        self.play(*animations)
+        self.wait()
+        self.clear()
+        graph = original_graph.copy()
+        self.add(graph)
+        mobjects = self.show_start(0, graph, color=REDUCIBLE_CHARM)
+        goal = self.show_goal(7, graph, color=REDUCIBLE_GREEN)
+        self.play(FadeIn(*mobjects, *goal))
+        self.wait()
+        optimal_path, _ = solve_astar(graph, 0, 7, h_func=euclidean_distance)
+        mobjects = self.show_path(optimal_path, graph)
+        animations = []
+        for mob in mobjects:
+            if isinstance(mob, TipableVMobject):
+                animations.append(mob.animate.set_stroke(REDUCIBLE_YELLOW, width=8))
+            else:
+                animations.append(FadeIn(mob))
+        self.play(*animations)
+        self.wait()
+
+        self.clear()
+        graph = original_graph.copy()
+        self.add(graph)
+        self.wait()
+
+        mobjects = self.show_start(0, graph, color=REDUCIBLE_CHARM)
+        goal = self.show_goal(4, graph, color=REDUCIBLE_GREEN)
+        self.play(FadeIn(*mobjects, *goal))
+        self.wait()
+        optimal_path, _ = solve_astar(graph, 0, 4, h_func=euclidean_distance)
+        mobjects = self.show_path(optimal_path, graph)
+        animations = []
+        for mob in mobjects:
+            if isinstance(mob, TipableVMobject):
+                animations.append(mob.animate.set_stroke(REDUCIBLE_YELLOW, width=8))
+            else:
+                animations.append(FadeIn(mob))
+        self.play(*animations)
+        self.wait()
+
+    def get_graph(self):
+        # from https://docs.manim.community/en/stable/reference/manim.mobject.graph.Graph.html#manim.mobject.graph.Graph
+        edges = []
+        partitions = []
+        c = 0
+        layers = [2, 3, 3, 2]  # the number of neurons in each layer
+
+        for i in layers:
+            partitions.append(list(range(c + 1, c + i + 1)))
+            c += i
+        for i, v in enumerate(layers[1:]):
+            last = sum(layers[: i + 1])
+            for j in range(v):
+                for k in range(last - layers[i], last):
+                    edges.append((k + 1, j + last + 1))
+
+        vertices = np.arange(1, sum(layers) + 1)
+
+        graph = Graph(
+            vertices,
+            edges,
+            layout="partite",
+            partitions=partitions,
+            layout_scale=3,
+            vertex_config={"radius": 0.20},
+            labels=True,
+        )
+        # zero index
+        new_vertices = [v - 1 for v in vertices]
+        new_edges = [(u - 1, v - 1) for u, v in edges]
+        new_edges.remove((1, 2))
+        new_edges.remove((0, 4))
+        new_edges.remove((4, 5))
+        new_edges.remove((2, 7))
+
+        layout_with_small_amount_of_noise = {
+            v
+            - 1: graph.vertices[v].get_center()
+            + np.array([np.random.normal(-0.2, 0.2), np.random.normal(-0.2, 0.2), 0])
+            for v in graph.vertices
+        }
+        # some minor adjustments
+        layout_with_small_amount_of_noise[0] += LEFT * 0.5
+        layout_with_small_amount_of_noise[1] += LEFT * 0.5
+        layout_with_small_amount_of_noise[2] += LEFT * 0.2
+        layout_with_small_amount_of_noise[3] += LEFT * 0.5
+        layout_with_small_amount_of_noise[8] += RIGHT * 0.5
+        layout_with_small_amount_of_noise[9] += RIGHT * 0.5
+
+        graph = AGraph(
+            new_vertices,
+            new_edges,
+            layout=layout_with_small_amount_of_noise,
+            labels=True,
+            edge_to_prop={
+                (2, 6): 0.2,
+                (3, 5): 0.2,
+                (3, 7): 0.3,
+                (5, 8): 0.75,
+                (5, 9): 0.3,
+                (6, 8): 0.7,
+                (6, 9): 0.2,
+                (7, 8): 0.8,
+            },
+        )
+        return graph
