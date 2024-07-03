@@ -53,6 +53,8 @@ from manim import (
     MoveToTarget,
     BOLD,
     Triangle,
+    ScreenRectangle,
+    linear,
 )
 from astar_utils import (
     get_random_layout,
@@ -712,11 +714,111 @@ class AstarTester(Scene):
         print("Shortest path and cost:", greedy_shortest_path, greedy_cost)
 
 
+class UCSLargeGraphMiniExample(AstarAnimationTools):
+    def construct(self):
+        np.random.seed(26)
+        large_graph = self.get_large_random_graph(
+            60,
+            dist_threshold=3,
+            p=0.5,
+            min_distance_between_points=0.4,
+            # labels=True,
+        )
+        self.play(FadeIn(large_graph))
+        for v in large_graph.vertices.values():
+            self.add_foreground_mobject(v)
+        start = self.show_start(15, large_graph, color=REDUCIBLE_CHARM)
+        self.play(FadeIn(*start))
+        goal = self.show_goal(40, large_graph, color=REDUCIBLE_GREEN)
+        self.play(FadeIn(*goal))
+        # UCS nodes exampled
+        nodes_expanded = self.show_nodes_expanded(
+            large_graph, 15, 40, h_func=lambda u, v: 0
+        )
+        animations = []
+        # exclude the first animation becase we already highlighted the start node
+        for mob in nodes_expanded[1:]:
+            if isinstance(mob, TipableVMobject):
+                animations.append(mob.animate.set_stroke(REDUCIBLE_YELLOW, width=4))
+            else:
+                animations.append(FadeIn(mob))
+
+        self.play(
+            LaggedStart(*animations),
+            run_time=12,
+        )
+        self.wait()
+        path, _ = solve_astar(large_graph, 15, 40, h_func=lambda u, v: 0)
+        # show optimal path
+        optimal_path = self.show_path(path, large_graph, color=REDUCIBLE_GREEN_LIGHTER)
+        animations = []
+        for mob in optimal_path:
+            if isinstance(mob, TipableVMobject):
+                animations.append(
+                    mob.animate.set_stroke(REDUCIBLE_GREEN_LIGHTER, width=4)
+                )
+            else:
+                animations.append(FadeIn(mob))
+        self.play(LaggedStart(*animations), run_time=5)
+        self.wait()
+
+
+class GreedyLargeGraphMiniExample(AstarAnimationTools):
+    def construct(self):
+        np.random.seed(26)
+        large_graph = self.get_large_random_graph(
+            60,
+            dist_threshold=3,
+            p=0.5,
+            min_distance_between_points=0.4,
+            # labels=True,
+        )
+        self.play(FadeIn(large_graph))
+        for v in large_graph.vertices.values():
+            self.add_foreground_mobject(v)
+        start = self.show_start(15, large_graph, color=REDUCIBLE_CHARM)
+        self.play(FadeIn(*start))
+        goal = self.show_goal(40, large_graph, color=REDUCIBLE_GREEN)
+        self.play(FadeIn(*goal))
+        self.wait()
+
+        nodes_expanded = self.show_nodes_expanded(
+            large_graph,
+            15,
+            40,
+            g_func=lambda u, v: 0,
+            h_func=euclidean_distance,
+        )
+        animations = []
+        # exclude the first animation becase we already highlighted the start node
+        for mob in nodes_expanded[1:]:
+            if isinstance(mob, TipableVMobject):
+                animations.append(mob.animate.set_stroke(REDUCIBLE_YELLOW, width=4))
+            else:
+                animations.append(FadeIn(mob))
+
+        for animation in animations:
+            self.play(animation)
+        path, _ = solve_astar(
+            large_graph, 15, 40, g_func=lambda u, v: 0, h_func=euclidean_distance
+        )
+        # show greedy path
+        greedy_path = self.show_path(path, large_graph, color=REDUCIBLE_ORANGE)
+        animations = []
+        for mob in greedy_path:
+            if isinstance(mob, TipableVMobject):
+                animations.append(mob.animate.set_stroke(REDUCIBLE_ORANGE, width=4))
+            else:
+                animations.append(FadeIn(mob))
+        self.play(LaggedStart(*animations), run_time=5)
+        self.wait()
+
+
 class UCSLargeGraph(AstarAnimationTools):
 
     def construct(self):
-        bg = ImageMobject("assets/bg-video.png").scale_to_fit_width(config.frame_width)
-        self.add(bg)
+        # bg = ImageMobject("assets/bg-video.png").scale_to_fit_width(config.frame_width)
+        # self.add(bg)
         # 23 -> 45
         large_graph = self.get_large_random_graph(
             60, dist_threshold=3, p=0.5, min_distance_between_points=0.4
@@ -768,6 +870,9 @@ class UCSLargeGraph(AstarAnimationTools):
         dallas_node = large_graph.vertices[23]
         nyc_node = large_graph.vertices[45]
 
+        self.clear()
+        self.wait()
+
         dallas_text = Text("Dallas", font=REDUCIBLE_MONO, color=WHITE).scale(0.3)
         la_text = Text("Los Angeles", font=REDUCIBLE_MONO, color=WHITE).scale(0.3)
         nyc_text = Text("New York City", font=REDUCIBLE_MONO, color=WHITE).scale(0.3)
@@ -786,16 +891,16 @@ class UCSLargeGraph(AstarAnimationTools):
 
         self.play(FadeIn(dallas_arrow), FadeIn(dallas_text))
         self.wait()
-        self.play(FadeIn(la_arrow), FadeIn(la_text))
-        self.wait()
         self.play(FadeIn(nyc_arrow), FadeIn(nyc_text))
+        self.wait()
+        self.play(FadeIn(la_arrow), FadeIn(la_text))
         self.wait()
 
 
 class GreedyApproachVsUCSBroad(AstarAnimationTools):
     def construct(self):
-        bg = ImageMobject("assets/bg-video.png").scale_to_fit_width(config.frame_width)
-        self.add(bg)
+        # bg = ImageMobject("assets/bg-video.png").scale_to_fit_width(config.frame_width)
+        # self.add(bg)
         large_graph = self.get_large_random_graph(
             60, dist_threshold=3, p=0.5, min_distance_between_points=0.4
         )
@@ -827,11 +932,8 @@ class GreedyApproachVsUCSBroad(AstarAnimationTools):
             else:
                 animations.append(FadeIn(mob))
 
-        self.play(
-            LaggedStart(*animations),
-            run_time=30,
-        )
-        self.wait()
+        for animation in animations:
+            self.play(animation)
         path, _ = solve_astar(
             large_graph, 23, 45, g_func=lambda u, v: 0, h_func=euclidean_distance
         )
@@ -865,6 +967,9 @@ class GreedyApproachVsUCSBroad(AstarAnimationTools):
         self.clear()
         self.wait()
 
+
+class GreedyVsUCSBroadText(Scene):
+    def construct(self):
         greedy_title = (
             Text("Greedy Approach", font=REDUCIBLE_FONT).scale(0.7).move_to(UP * 3.5)
         )
@@ -884,11 +989,20 @@ class GreedyApproachVsUCSBroad(AstarAnimationTools):
             .arrange(DOWN, aligned_edge=LEFT)
             .next_to(greedy_title, DOWN)
         )
-        self.play(FadeIn(greedy_title), FadeIn(details))
+        self.play(FadeIn(greedy_title))
+        screen_rect = ScreenRectangle(height=3.5)
+        self.play(FadeIn(screen_rect))
+        self.wait()
+        self.play(FadeIn(con))
+        self.wait()
+        self.play(FadeIn(pro))
         self.wait()
 
         self.play(
-            greedy_title.animate.shift(LEFT * 3.5), details.animate.shift(LEFT * 3.5)
+            greedy_title.animate.shift(LEFT * 3.5),
+            details.animate.shift(LEFT * 3.5),
+            screen_rect.animate.shift(LEFT * 3.5),
+            rate_func=linear,
         )
         self.wait()
 
@@ -906,7 +1020,12 @@ class GreedyApproachVsUCSBroad(AstarAnimationTools):
         ucs_details = (
             VGroup(pro, con).arrange(DOWN, aligned_edge=LEFT).next_to(ucs_title, DOWN)
         )
-        self.play(FadeIn(ucs_title), FadeIn(ucs_details))
+        screen_rect2 = screen_rect.copy().move_to(RIGHT * 3.5)
+        self.play(FadeIn(ucs_title), FadeIn(screen_rect2))
+        self.wait()
+        self.play(FadeIn(pro))
+        self.wait()
+        self.play(FadeIn(con))
         self.wait()
 
         # Create a line with greedy approach on the left, and UCS on the right
@@ -928,9 +1047,10 @@ class GreedyApproachVsUCSBroad(AstarAnimationTools):
             FadeIn(line),
             FadeIn(left_tick),
             FadeIn(right_tick),
+            FadeIn(greedy_approach),
+            FadeIn(ucs_approach),
         )
         self.wait()
-        self.play(FadeIn(greedy_approach), FadeIn(ucs_approach))
         middle_tick = (
             Line(UP * 0.1, DOWN * 0.1)
             .move_to(line.get_center())
@@ -945,8 +1065,8 @@ class GreedyApproachVsUCSBroad(AstarAnimationTools):
 
 class GreedyApproach(AstarAnimationTools):
     def construct(self):
-        bg = ImageMobject("assets/bg-video.png").scale_to_fit_width(config.frame_width)
-        self.add(bg)
+        # bg = ImageMobject("assets/bg-video.png").scale_to_fit_width(config.frame_width)
+        # self.add(bg)
         graph = self.get_large_random_graph(
             25,
             dist_threshold=3,
@@ -1208,8 +1328,8 @@ class MotivateUniformCostSearch(AstarAnimationTools):
         return graph
 
     def construct(self):
-        bg = ImageMobject("assets/bg-video.png").scale_to_fit_width(config.frame_width)
-        self.add(bg)
+        # bg = ImageMobject("assets/bg-video.png").scale_to_fit_width(config.frame_width)
+        # self.add(bg)
         graph = self.get_graph()
 
         dist_label_dict = graph.get_edge_weight_labels()
@@ -1629,8 +1749,8 @@ class UniformCostSearchDetailDemo(MotivateUniformCostSearch):
                 )
 
     def construct(self):
-        bg = ImageMobject("assets/bg-video.png").scale_to_fit_width(config.frame_width)
-        self.add(bg)
+        # bg = ImageMobject("assets/bg-video.png").scale_to_fit_width(config.frame_width)
+        # self.add(bg)
         graph = self.get_graph()
 
         dist_label_dict = graph.get_edge_weight_labels()
@@ -1768,13 +1888,8 @@ class UniformCostSearchDetailDemo(MotivateUniformCostSearch):
         return animations
 
 
-class IntroduceUniformCostSearch(UniformCostSearchDetailDemo):
+class UniformCostSearchTitle(Scene):
     def construct(self):
-        bg = ImageMobject("assets/bg-video.png").scale_to_fit_width(config.frame_width)
-        self.add(bg)
-        graph = self.get_graph()
-        self.play(FadeIn(graph))
-        self.wait()
         title = (
             Text("Uniform Cost Search", font=REDUCIBLE_FONT, weight=BOLD)
             .scale(0.8)
@@ -1782,6 +1897,16 @@ class IntroduceUniformCostSearch(UniformCostSearchDetailDemo):
         )
         self.play(Write(title))
         self.wait()
+
+
+class IntroduceUniformCostSearch(UniformCostSearchDetailDemo):
+    def construct(self):
+        # bg = ImageMobject("assets/bg-video.png").scale_to_fit_width(config.frame_width)
+        # self.add(bg)
+        graph = self.get_graph()
+        self.play(FadeIn(graph))
+        self.wait()
+
         start = self.show_start(0, graph, color=REDUCIBLE_CHARM)
         self.play(FadeIn(*start))
         goal = self.show_goal(8, graph, color=REDUCIBLE_GREEN)
@@ -1813,8 +1938,8 @@ class IntroduceUniformCostSearch(UniformCostSearchDetailDemo):
 class GreedyApproachVsUCSDetailed(UniformCostSearchDetailDemo):
 
     def construct(self):
-        bg = ImageMobject("assets/bg-video.png").scale_to_fit_width(config.frame_width)
-        self.add(bg)
+        # bg = ImageMobject("assets/bg-video.png").scale_to_fit_width(config.frame_width)
+        # self.add(bg)
         graph = self.get_graph()
         dist_label_dict = graph.get_edge_weight_labels()
         self.play(
@@ -1833,24 +1958,6 @@ class GreedyApproachVsUCSDetailed(UniformCostSearchDetailDemo):
         self.play(FadeIn(*goal))
         self.wait()
 
-        definition = (
-            Text(
-                "Let h(n) be the estimate of distance between node n and the goal",
-                font=REDUCIBLE_MONO,
-            )
-            .scale(0.5)
-            .to_edge(UP)
-        )
-        euclidean_distance_text = (
-            Text("h(n) = Euclidean Distance(n, goal)", font=REDUCIBLE_MONO)
-            .scale(0.5)
-            .move_to(definition.get_center())
-        )
-        self.play(FadeIn(definition))
-        self.wait()
-        self.play(ReplacementTransform(definition, euclidean_distance_text))
-        self.wait()
-
         node_to_text_direction = {
             0: UP,
             1: DOWN,
@@ -1863,19 +1970,6 @@ class GreedyApproachVsUCSDetailed(UniformCostSearchDetailDemo):
             8: UP,
             9: DOWN,
         }
-        heuristic_text_per_node = [
-            Text(
-                f"h({i}) = {euclidean_distance(graph.vertices[i], graph.vertices[8]):.1f}",
-                font=REDUCIBLE_MONO,
-            )
-            .scale(0.2)
-            .next_to(
-                graph.vertices[i], node_to_text_direction[i], buff=SMALL_BUFF * 1.5
-            )
-            for i in graph.vertices
-        ]
-        self.play(*[FadeIn(text) for text in heuristic_text_per_node])
-        self.wait()
 
         nodes_expanded_ucs = self.show_nodes_expanded(
             graph,
@@ -1930,6 +2024,20 @@ class GreedyApproachVsUCSDetailed(UniformCostSearchDetailDemo):
             buff=SMALL_BUFF * 2,
         )
         self.play(FadeIn(arrow1), FadeIn(arrow2))
+        self.wait()
+
+        heuristic_text_per_node = [
+            Text(
+                f"h({i}) = {euclidean_distance(graph.vertices[i], graph.vertices[8]):.1f}",
+                font=REDUCIBLE_MONO,
+            )
+            .scale(0.2)
+            .next_to(
+                graph.vertices[i], node_to_text_direction[i], buff=SMALL_BUFF * 1.5
+            )
+            for i in graph.vertices
+        ]
+        self.play(*[FadeIn(text) for text in heuristic_text_per_node])
         self.wait()
 
         nodes_expanded = self.show_nodes_expanded(
@@ -2001,6 +2109,24 @@ class GreedyApproachVsUCSDetailed(UniformCostSearchDetailDemo):
             buff=SMALL_BUFF * 2,
         )
         self.play(FadeIn(arrow3), FadeIn(arrow4))
+        self.wait()
+
+        definition = (
+            Text(
+                "Let h(n) be the estimate of distance between node n and the goal",
+                font=REDUCIBLE_MONO,
+            )
+            .scale(0.5)
+            .to_edge(UP)
+        )
+        euclidean_distance_text = (
+            Text("h(n) = Euclidean Distance(n, goal)", font=REDUCIBLE_MONO)
+            .scale(0.5)
+            .move_to(definition.get_center())
+        )
+        self.play(FadeIn(definition))
+        self.wait()
+        self.play(ReplacementTransform(definition, euclidean_distance_text))
         self.wait()
 
         self.play(
@@ -2081,10 +2207,41 @@ class GreedyApproachVsUCSDetailed(UniformCostSearchDetailDemo):
         self.wait()
 
 
+class GreedyAndUCSSidebySide(Scene):
+    def construct(self):
+        # put two screen rectangles on the left and right side of the screen
+        left_rect = ScreenRectangle(height=3.5).move_to(LEFT * 3.5)
+        right_rect = ScreenRectangle(height=3.5).move_to(RIGHT * 3.5)
+        ucs = (
+            Text("Uniform Cost Search", font=REDUCIBLE_FONT)
+            .scale(0.65)
+            .next_to(left_rect, UP)
+        )
+        greedy = (
+            Text("Greedy Search", font=REDUCIBLE_FONT)
+            .scale(0.65)
+            .next_to(right_rect, UP)
+        )
+        ucs_summary = (
+            Text("Uses cost to arrive at node", font=REDUCIBLE_FONT)
+            .scale(0.45)
+            .next_to(left_rect, DOWN)
+        )
+        greedy_summary = (
+            Text("Uses estimated cost to goal", font=REDUCIBLE_FONT)
+            .scale(0.45)
+            .next_to(right_rect, DOWN)
+        )
+
+        self.play(FadeIn(left_rect), FadeIn(right_rect), FadeIn(ucs), FadeIn(greedy))
+        self.play(FadeIn(ucs_summary), FadeIn(greedy_summary))
+        self.wait()
+
+
 class CombiningApproaches(UniformCostSearchDetailDemo):
     def construct(self):
-        bg = ImageMobject("assets/bg-video.png").scale_to_fit_width(config.frame_width)
-        self.add(bg)
+        # bg = ImageMobject("assets/bg-video.png").scale_to_fit_width(config.frame_width)
+        # self.add(bg)
         graph = self.get_graph()
         dist_label_dict = graph.get_edge_weight_labels()
         self.play(
@@ -2321,10 +2478,19 @@ class CombiningApproaches(UniformCostSearchDetailDemo):
         return VGroup(weight_mob, node_mob).arrange(DOWN, buff=0)
 
 
+class AstarTitle(Scene):
+    def construct(self):
+        title = Text("A* Search", font=REDUCIBLE_FONT, weight=BOLD).scale(1).to_edge(UP)
+        self.play(Write(title))
+        self.wait()
+        self.play(FadeOut(title))
+        self.wait()
+
+
 class IntroduceAStarSearch1(AstarAnimationTools):
     def construct(self):
-        bg = ImageMobject("assets/bg-video.png").scale_to_fit_width(config.frame_width)
-        self.add(bg)
+        # bg = ImageMobject("assets/bg-video.png").scale_to_fit_width(config.frame_width)
+        # self.add(bg)
         self.show_astar_on_large_graph()
 
     def show_astar_on_large_graph(self):
@@ -2363,7 +2529,7 @@ class IntroduceAStarSearch1(AstarAnimationTools):
 
         self.play(
             LaggedStart(*animations),
-            run_time=30,
+            run_time=10,
         )
         self.wait()
         path, _ = solve_astar(large_graph, start_v, goal_v, h_func=euclidean_distance)
@@ -2383,8 +2549,8 @@ class IntroduceAStarSearch1(AstarAnimationTools):
 
 class IntroduceAStarSearch2(ThreeDScene, AstarAnimationTools):
     def construct(self):
-        bg = ImageMobject("assets/bg-video.png").scale_to_fit_width(config.frame_width)
-        self.add(bg)
+        # bg = ImageMobject("assets/bg-video.png").scale_to_fit_width(config.frame_width)
+        # self.add(bg)
         graph = self.get_graph()
         self.play(FadeIn(graph))
         self.add_foreground_mobject(graph)
@@ -2542,8 +2708,8 @@ class IntroduceAStarSearch2(ThreeDScene, AstarAnimationTools):
 
 class AStarOptimality(AstarAnimationTools):
     def construct(self):
-        bg = ImageMobject("assets/bg-video.png").scale_to_fit_width(config.frame_width)
-        self.add(bg)
+        # bg = ImageMobject("assets/bg-video.png").scale_to_fit_width(config.frame_width)
+        # self.add(bg)
         self.random_heuristic_example()
 
     def get_graph(self):
@@ -2871,8 +3037,8 @@ class AStarOptimality(AstarAnimationTools):
 
 class HeuristicAdmissibaility(AstarAnimationTools):
     def construct(self):
-        bg = ImageMobject("assets/bg-video.png").scale_to_fit_width(config.frame_width)
-        self.add(bg)
+        # bg = ImageMobject("assets/bg-video.png").scale_to_fit_width(config.frame_width)
+        # self.add(bg)
         title = Text(
             "Admissibility of Heuristics", font=REDUCIBLE_FONT, weight=BOLD
         ).scale(0.8)
@@ -2883,7 +3049,7 @@ class HeuristicAdmissibaility(AstarAnimationTools):
         defintion = Tex(r"$h(n) \leq \text{Optimal Distance}(n, \text{goal})$").scale(
             0.7
         )
-        defintion.next_to(title, DOWN * 2)
+        defintion.next_to(title, DOWN * 1.5)
         self.play(FadeIn(defintion))
         self.wait()
 
@@ -2905,7 +3071,7 @@ class HeuristicAdmissibaility(AstarAnimationTools):
         admissible_heur_range = Text(
             "Admissible Heuristic Range", font=REDUCIBLE_FONT
         ).scale(0.5)
-        admissible_heur_range.next_to(line_with_ticks, UP)
+        admissible_heur_range.next_to(line_with_ticks, UP).shift(DOWN * SMALL_BUFF * 2)
 
         self.play(FadeIn(line_with_ticks), FadeIn(admissible_heur_range))
         self.wait()
@@ -2924,14 +3090,27 @@ class HeuristicAdmissibaility(AstarAnimationTools):
         self.play(FadeIn(h_0))
         self.wait()
 
+        screen_rect = ScreenRectangle(height=2.7).shift(DOWN * SMALL_BUFF)
+        # ucs = (
+        #     Text("Uniform Cost Search", font=REDUCIBLE_FONT)
+        #     .scale(0.5)
+        #     .next_to(screen_rect, DOWN)
+        # )
+        self.play(FadeIn(screen_rect))
+        self.wait()
+
         self.play(triangle.animate.next_to(tick2, DOWN))
-        self.wait(2)
 
         h_optimal = (
             Text("h(n) = Optimal", font=REDUCIBLE_MONO)
             .scale(0.3)
             .next_to(triangle, DOWN)
         )
+        # impractical = (
+        #     Text("Impractical", font=REDUCIBLE_FONT)
+        #     .scale(0.5)
+        #     .next_to(screen_rect, DOWN)
+        # )
         self.play(FadeIn(h_optimal))
         self.wait()
 
@@ -2943,8 +3122,8 @@ class HeuristicAdmissibaility(AstarAnimationTools):
 
 class PIPShowMultipleOptimalPaths(AstarAnimationTools):
     def construct(self):
-        bg = ImageMobject("assets/bg-video.png").scale_to_fit_width(config.frame_width)
-        self.add(bg)
+        # bg = ImageMobject("assets/bg-video.png").scale_to_fit_width(config.frame_width)
+        # self.add(bg)
         graph = self.get_graph()
         original_graph = graph.copy()
         self.add(graph)
