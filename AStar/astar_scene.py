@@ -55,6 +55,9 @@ from manim import (
     Triangle,
     ScreenRectangle,
     linear,
+    Create,
+    Circle,
+    LaggedStartMap,
 )
 from astar_utils import (
     get_random_layout,
@@ -74,6 +77,7 @@ from functions import get_glowing_surround_rect, get_glowing_surround_circle
 import numpy as np
 
 np.random.seed(23)
+config["assets_dir"] = "assets"
 
 # assets/bg-video.png is background image for general scenes
 # assets/transition-bg.png is background image for transition scenes
@@ -297,6 +301,7 @@ class AstarAnimationTools(Scene):
         h_func=None,
         color=REDUCIBLE_YELLOW,
         include_heap_mobs=False,
+        use_heappop=True,
     ):
         """
         Runs astar algorithm and incrementally adds mobjects of vertices and edges that are expanded that later scenes can render
@@ -335,7 +340,10 @@ class AstarAnimationTools(Scene):
             mobjects.append(heap_state)
         all_edges = graph.get_all_edges()
         while len(heap) > 0:
-            current = heappop(heap)[1]
+            if use_heappop:
+                current = heappop(heap)[1]
+            else:
+                current = heap.pop(0)[1]
             if include_heap_mobs:
                 mobjects.append(
                     (
@@ -2274,180 +2282,238 @@ class CombiningApproaches(UniformCostSearchDetailDemo):
         ]
         self.play(*[FadeIn(text) for text in heuristic_text_per_node])
         self.wait()
-
-        start = self.show_start(0, graph, color=REDUCIBLE_CHARM)
-        self.play(FadeIn(*start))
+        self.clear()
         self.wait()
-        goal = self.show_goal(8, graph, color=REDUCIBLE_GREEN)
-        self.play(FadeIn(*goal))
-        self.wait()
-
-        heap_node_ucs = self.get_custom_heap_node("n", "g(n)", [0, "...", "n"])
-        heap_node_greedy = self.get_custom_heap_node("n", "h(n)", [0, "...", "n"])
-        heap_node_astar = self.get_custom_heap_node("n", "f(n)", [0, "...", "n"]).scale(
-            1.5
-        )
-
-        heap_node_ucs.move_to(LEFT * 5)
-        heap_node_greedy.move_to(RIGHT * 5)
-
+        # order is h(0), h(2), (0, 2), h(2), (0, 2), (0, 3), h(3), h(5), [simulataneous (0, 2) (2, 5)]
+        TIME_WIDTH = 0.3
         self.play(
-            FadeIn(heap_node_ucs),
-            FadeIn(heap_node_greedy),
-        )
-        self.wait()
-        g_n_def = (
-            Text("g(n) = cost from start to node n", font=REDUCIBLE_MONO)
-            .scale(0.5)
-            .to_edge(UP)
-        )
-        h_n_def = (
-            Text("h(n) = estimate from node n to goal", font=REDUCIBLE_MONO)
-            .scale(0.5)
-            .next_to(g_n_def, DOWN)
-        )
-
-        self.play(FadeIn(g_n_def), FadeIn(h_n_def))
-        self.wait()
-
-        f_n_def = (
-            Text("f(n) = g(n) + h(n)", font=REDUCIBLE_MONO).scale(0.5).to_edge(DOWN)
-        )
-
-        self.play(
-            FadeIn(f_n_def),
-            FadeIn(heap_node_astar),
-            graph.animate.set_opacity(0.5),
-            *[label.animate.set_opacity(0.5) for label in dist_label_dict.values()],
-            *[text.animate.set_opacity(0.5) for text in heuristic_text_per_node],
-        )
-        self.wait()
-
-        self.play(
-            FadeOut(f_n_def),
-            FadeOut(heap_node_astar),
-            FadeOut(heap_node_ucs),
-            FadeOut(heap_node_greedy),
-            FadeOut(g_n_def),
-            FadeOut(h_n_def),
-            graph.animate.set_opacity(1),
-            *[label.animate.set_opacity(1) for label in dist_label_dict.values()],
-            *[text.animate.set_opacity(1) for text in heuristic_text_per_node],
-        )
-        self.wait()
-
-        for label in dist_label_dict.values():
-            self.add_foreground_mobject(label)
-
-        # easy way to deal with the fact that displayed numbers are rounded,
-        # we patch to what the displayed numbers add to
-        patches = {3: 7.6, 5: 7.2, 8: 7.2}
-        nodes_expanded = self.show_nodes_expanded(
-            graph,
-            0,
-            8,
-            h_func=euclidean_distance,
-            include_heap_mobs=True,
-            round=False,
-            patches=patches,
-        )
-        edge_animations = []
-        vertex_animations = []
-        heap_mobjects = []
-        heaps = []
-        count_vertex = 0
-        for mob in nodes_expanded:
-            if isinstance(mob, TipableVMobject):
-                edge_animations.append(
-                    mob.animate.set_stroke(REDUCIBLE_YELLOW, width=4)
-                )
-            elif isinstance(mob, tuple):
-                heaps.append(mob[0])
-                heap_mobjects.append(mob[1].scale(0.8).move_to(LEFT * 6).to_edge(UP))
-            else:
-                if count_vertex > 0:
-                    vertex_animations.append(FadeIn(mob))
-                count_vertex += 1
-
-        heap_animations = []
-        heap_animations.append([FadeIn(heap_mobjects[0])])
-        assert len(heaps) == len(
-            heap_mobjects
-        ), "Heaps and heap mobjects are not of the same length"
-        for i in range(1, len(heaps)):
-            previous_heap, current_heap = heaps[i - 1], heaps[i]
-            previous_heap_mob, current_heap_mob = heap_mobjects[i - 1], heap_mobjects[i]
-            heap_animations.append(
-                self.get_heap_animations(
-                    previous_heap, current_heap, previous_heap_mob, current_heap_mob
-                )
+            ShowPassingFlash(
+                SurroundingRectangle(heuristic_text_per_node[0]), time_width=TIME_WIDTH
             )
-
-        self.play(*heap_animations[0])
-        self.wait()
-        self.play(*heap_animations[1])
-        self.wait()
-
-        neighbor_order = [0, 2, 5]
-        neighbor_mobs = self.show_neighbors(
-            neighbor_order[0], graph, color=REDUCIBLE_ORANGE
         )
-        self.play(*[ShowPassingFlash(mob, time_width=2) for mob in neighbor_mobs])
-        self.play(*heap_animations[2])
+        self.wait()
+        self.play(
+            ShowPassingFlash(
+                SurroundingRectangle(heuristic_text_per_node[2]), time_width=TIME_WIDTH
+            )
+        )
+        self.wait()
+        self.play(
+            ShowPassingFlash(
+                SurroundingRectangle(dist_label_dict[(0, 2)]), time_width=TIME_WIDTH
+            )
+        )
+        self.wait()
+        self.play(
+            ShowPassingFlash(
+                SurroundingRectangle(heuristic_text_per_node[2]), time_width=TIME_WIDTH
+            )
+        )
+        self.wait()
+        self.play(
+            ShowPassingFlash(
+                SurroundingRectangle(dist_label_dict[(0, 2)]), time_width=TIME_WIDTH
+            )
+        )
+        self.wait()
+        self.play(
+            ShowPassingFlash(
+                SurroundingRectangle(dist_label_dict[(0, 3)]), time_width=TIME_WIDTH
+            )
+        )
+        self.wait()
+        self.play(
+            ShowPassingFlash(
+                SurroundingRectangle(heuristic_text_per_node[3]), time_width=TIME_WIDTH
+            )
+        )
+        self.wait()
+        self.play(
+            ShowPassingFlash(
+                SurroundingRectangle(heuristic_text_per_node[5]), time_width=TIME_WIDTH
+            )
+        )
+        self.wait()
+        self.play(
+            ShowPassingFlash(
+                SurroundingRectangle(dist_label_dict[(0, 2)]), time_width=TIME_WIDTH
+            ),
+            ShowPassingFlash(
+                SurroundingRectangle(dist_label_dict[(2, 5)]), time_width=TIME_WIDTH
+            ),
+        )
         self.wait()
 
-        heap_animations_start = 3
-        neighbor_order_index = 1
-        for edge_anim, vertex_anim in zip(edge_animations, vertex_animations):
-            if heap_animations_start == len(heap_animations) - 1:
+        # start = self.show_start(0, graph, color=REDUCIBLE_CHARM)
+        # self.play(FadeIn(*start))
+        # self.wait()
+        # goal = self.show_goal(8, graph, color=REDUCIBLE_GREEN)
+        # self.play(FadeIn(*goal))
+        # self.wait()
 
-                final_mob = (
-                    heap_mobjects[-2][0]
-                    .copy()
-                    .next_to(graph.vertices[8], RIGHT, buff=MED_LARGE_BUFF)
-                )
+        # heap_node_ucs = self.get_custom_heap_node("n", "g(n)", [0, "...", "n"])
+        # heap_node_greedy = self.get_custom_heap_node("n", "h(n)", [0, "...", "n"])
+        # heap_node_astar = self.get_custom_heap_node("n", "f(n)", [0, "...", "n"]).scale(
+        #     1.5
+        # )
 
-                self.play(
-                    edge_anim,
-                    vertex_anim,
-                    Transform(heap_mobjects[-2][0], final_mob),
-                    *[
-                        heap_animations[-1][0],
-                        heap_animations[-1][1],
-                        heap_animations[-1][2],
-                    ],
-                )
-            else:
-                self.play(
-                    edge_anim, vertex_anim, *heap_animations[heap_animations_start]
-                )
-            heap_animations_start += 1
-            if neighbor_order_index < len(neighbor_order):
-                neighbor_mobs = self.show_neighbors(
-                    neighbor_order[neighbor_order_index], graph, color=REDUCIBLE_ORANGE
-                )
-                neighbor_order_index += 1
-                self.play(
-                    *[ShowPassingFlash(mob, time_width=2) for mob in neighbor_mobs]
-                )
+        # heap_node_ucs.move_to(LEFT * 5)
+        # heap_node_greedy.move_to(RIGHT * 5)
 
-            if heap_animations_start >= len(heap_animations):
-                break
-            self.play(*heap_animations[heap_animations_start])
-            self.wait()
-            heap_animations_start += 1
+        # self.play(
+        #     FadeIn(heap_node_ucs),
+        #     FadeIn(heap_node_greedy),
+        # )
+        # self.wait()
+        # g_n_def = (
+        #     Text("g(n) = cost from start to node n", font=REDUCIBLE_MONO)
+        #     .scale(0.5)
+        #     .to_edge(UP)
+        # )
+        # h_n_def = (
+        #     Text("h(n) = estimate from node n to goal", font=REDUCIBLE_MONO)
+        #     .scale(0.5)
+        #     .next_to(g_n_def, DOWN)
+        # )
 
-        optimal = self.show_path([0, 2, 5, 8], graph, color=REDUCIBLE_GREEN_LIGHTER)
-        animations = []
-        for mob in optimal:
-            if isinstance(mob, TipableVMobject):
-                animations.append(
-                    mob.animate.set_stroke(REDUCIBLE_GREEN_LIGHTER, width=4)
-                )
-            else:
-                animations.append(FadeIn(mob))
-        self.play(LaggedStart(*animations), run_time=3)
-        self.wait()
+        # self.play(FadeIn(g_n_def), FadeIn(h_n_def))
+        # self.wait()
+
+        # f_n_def = (
+        #     Text("f(n) = g(n) + h(n)", font=REDUCIBLE_MONO).scale(0.5).to_edge(DOWN)
+        # )
+
+        # self.play(
+        #     FadeIn(f_n_def),
+        #     FadeIn(heap_node_astar),
+        #     graph.animate.set_opacity(0.5),
+        #     *[label.animate.set_opacity(0.5) for label in dist_label_dict.values()],
+        #     *[text.animate.set_opacity(0.5) for text in heuristic_text_per_node],
+        # )
+        # self.wait()
+
+        # self.play(
+        #     FadeOut(heap_node_astar),
+        #     FadeOut(heap_node_ucs),
+        #     FadeOut(heap_node_greedy),
+        #     graph.animate.set_opacity(1),
+        #     *[label.animate.set_opacity(1) for label in dist_label_dict.values()],
+        #     *[text.animate.set_opacity(1) for text in heuristic_text_per_node],
+        # )
+        # self.wait()
+
+        # for label in dist_label_dict.values():
+        #     self.add_foreground_mobject(label)
+
+        # # easy way to deal with the fact that displayed numbers are rounded,
+        # # we patch to what the displayed numbers add to
+        # patches = {3: 7.6, 5: 7.2, 8: 7.2}
+        # nodes_expanded = self.show_nodes_expanded(
+        #     graph,
+        #     0,
+        #     8,
+        #     h_func=euclidean_distance,
+        #     include_heap_mobs=True,
+        #     round=False,
+        #     patches=patches,
+        # )
+        # edge_animations = []
+        # vertex_animations = []
+        # heap_mobjects = []
+        # heaps = []
+        # count_vertex = 0
+        # for mob in nodes_expanded:
+        #     if isinstance(mob, TipableVMobject):
+        #         edge_animations.append(
+        #             mob.animate.set_stroke(REDUCIBLE_YELLOW, width=4)
+        #         )
+        #     elif isinstance(mob, tuple):
+        #         heaps.append(mob[0])
+        #         heap_mobjects.append(mob[1].scale(0.8).move_to(LEFT * 6).to_edge(UP))
+        #     else:
+        #         if count_vertex > 0:
+        #             vertex_animations.append(FadeIn(mob))
+        #         count_vertex += 1
+
+        # heap_animations = []
+        # heap_animations.append([FadeIn(heap_mobjects[0])])
+        # assert len(heaps) == len(
+        #     heap_mobjects
+        # ), "Heaps and heap mobjects are not of the same length"
+        # for i in range(1, len(heaps)):
+        #     previous_heap, current_heap = heaps[i - 1], heaps[i]
+        #     previous_heap_mob, current_heap_mob = heap_mobjects[i - 1], heap_mobjects[i]
+        #     heap_animations.append(
+        #         self.get_heap_animations(
+        #             previous_heap, current_heap, previous_heap_mob, current_heap_mob
+        #         )
+        #     )
+
+        # self.play(*heap_animations[0])
+        # self.wait()
+        # self.play(*heap_animations[1])
+        # self.wait()
+
+        # neighbor_order = [0, 2, 5]
+        # neighbor_mobs = self.show_neighbors(
+        #     neighbor_order[0], graph, color=REDUCIBLE_ORANGE
+        # )
+        # self.play(*[ShowPassingFlash(mob, time_width=2) for mob in neighbor_mobs])
+        # self.play(*heap_animations[2])
+        # self.wait()
+
+        # heap_animations_start = 3
+        # neighbor_order_index = 1
+        # for edge_anim, vertex_anim in zip(edge_animations, vertex_animations):
+        #     if heap_animations_start == len(heap_animations) - 1:
+
+        #         final_mob = (
+        #             heap_mobjects[-2][0]
+        #             .copy()
+        #             .next_to(graph.vertices[8], RIGHT, buff=MED_LARGE_BUFF)
+        #         )
+
+        #         self.play(
+        #             edge_anim,
+        #             vertex_anim,
+        #             Transform(heap_mobjects[-2][0], final_mob),
+        #             *[
+        #                 heap_animations[-1][0],
+        #                 heap_animations[-1][1],
+        #                 heap_animations[-1][2],
+        #             ],
+        #         )
+        #     else:
+        #         self.play(
+        #             edge_anim, vertex_anim, *heap_animations[heap_animations_start]
+        #         )
+        #     heap_animations_start += 1
+        #     if neighbor_order_index < len(neighbor_order):
+        #         neighbor_mobs = self.show_neighbors(
+        #             neighbor_order[neighbor_order_index], graph, color=REDUCIBLE_ORANGE
+        #         )
+        #         neighbor_order_index += 1
+        #         self.play(
+        #             *[ShowPassingFlash(mob, time_width=2) for mob in neighbor_mobs]
+        #         )
+
+        #     if heap_animations_start >= len(heap_animations):
+        #         break
+        #     self.play(*heap_animations[heap_animations_start])
+        #     self.wait()
+        #     heap_animations_start += 1
+
+        # optimal = self.show_path([0, 2, 5, 8], graph, color=REDUCIBLE_GREEN_LIGHTER)
+        # animations = []
+        # for mob in optimal:
+        #     if isinstance(mob, TipableVMobject):
+        #         animations.append(
+        #             mob.animate.set_stroke(REDUCIBLE_GREEN_LIGHTER, width=4)
+        #         )
+        #     else:
+        #         animations.append(FadeIn(mob))
+        # self.play(LaggedStart(*animations), run_time=3)
+        # self.wait()
 
     def get_custom_heap_node(self, node, weight, current_path, color=WHITE):
         node_rect = Rectangle(height=0.7, width=1.1, color=color)
@@ -3246,3 +3312,658 @@ class PIPShowMultipleOptimalPaths(AstarAnimationTools):
             },
         )
         return graph
+
+
+class GraphRepresentation(AstarAnimationTools):
+    def construct(self):
+        from manim import SVGMobject
+
+        # bg = ImageMobject("assets/bg-video.png").scale_to_fit_width(config.frame_width)
+        # self.add(bg)
+        usa_map = (
+            SVGMobject("usa.svg")
+            .set_color(REDUCIBLE_PURPLE_DARK_FILL)
+            .scale(8)
+            .shift(LEFT * 5 + UP * 3.8)
+        )
+        self.play(FadeIn(usa_map))
+        self.wait()
+
+        cities = self.get_cities()
+        index_to_city = {
+            i: np.array([city[0], city[1], 0]) for i, city in enumerate(cities.values())
+        }
+        vertices = list(range(len(cities)))
+        layout = index_to_city
+        edges = []
+        for i in range(len(cities)):
+            for j in range(i + 1, len(cities)):
+                norm = np.linalg.norm(index_to_city[i] - index_to_city[j])
+                if norm < 2:
+                    edges.append((i, j))
+        edges = set(edges) - {
+            (30, 36),
+            (31, 36),
+            (33, 36),
+            (32, 36),
+            (4, 55),
+            (30, 55),
+            (31, 55),
+            (7, 31),
+            (49, 50),
+            (6, 52),
+            (6, 38),
+            (49, 50),
+            (49, 52),
+            (41, 52),
+            (42, 52),
+            (41, 50),
+            (31, 33),
+            (38, 46),
+            (3, 38),
+            (32, 55),
+            (6, 45),
+            (0, 38),
+            (37, 54),
+            (37, 38),
+            (37, 39),
+            (37, 53),
+            (38, 39),
+            (3, 39),
+            (38, 40),
+            (38, 41),
+            (38, 42),
+            (38, 44),
+            (38, 53),
+            (38, 54),
+        }
+        graph = AGraph(
+            vertices,
+            edges,
+            layout=layout,
+            labels=False,
+            label_scale=0.2,
+            vertex_config={
+                "stroke_color": REDUCIBLE_PURPLE,
+                "stroke_width": 2,
+                "fill_color": REDUCIBLE_PURPLE_DARK_FILL,
+                "fill_opacity": 1,
+                "radius": 0.05,
+            },
+            edge_config={
+                "color": REDUCIBLE_VIOLET,
+                "stroke_width": 1,
+            },
+        )
+        self.play(
+            LaggedStart(*[GrowFromCenter(v) for v in graph.vertices.values()]),
+            run_time=3,
+        )
+        for v in graph.vertices.values():
+            self.add_foreground_mobject(v)
+        self.wait()
+        fake_edges = {}
+        for u, v in graph.edges:
+            fake_edges[(u, v)] = Line(
+                graph.vertices[u].get_center(),
+                graph.vertices[v].get_center(),
+                stroke_width=1,
+                color=REDUCIBLE_VIOLET,
+            )
+
+        specific_cities_to_show = [
+            "Dallas",
+            "Seattle",
+            "Denver",
+            "Atlanta",
+        ]
+        cities_text = []
+        for city in specific_cities_to_show:
+            text = Text(city, font=REDUCIBLE_FONT).scale(0.2)
+            coord = cities[city]
+            text.next_to(np.array([coord[0], coord[1], 0]), UP, buff=SMALL_BUFF * 1.5)
+            cities_text.append(text)
+        self.play(*[FadeIn(text) for text in cities_text])
+        self.wait()
+
+        cities_label = (
+            Text("Cities", font=REDUCIBLE_FONT).scale(0.3).move_to(LEFT * 6 + UP * 2.1)
+        )
+        seattle_loc = cities["Seattle"]
+        portland_loc = cities["Portland"]
+        arrow_seattle = Arrow(
+            cities_label.get_right(),
+            np.array([seattle_loc[0], seattle_loc[1], 0]),
+            color=REDUCIBLE_YELLOW,
+            buff=SMALL_BUFF * 1.5,
+            max_tip_length_to_length_ratio=0.2,
+        )
+        arrow_portland = Arrow(
+            cities_label.get_right(),
+            np.array([portland_loc[0], portland_loc[1], 0]),
+            color=REDUCIBLE_YELLOW,
+            buff=SMALL_BUFF * 1.5,
+            max_tip_length_to_length_ratio=0.2,
+        )
+        self.play(FadeIn(cities_label), Write(arrow_seattle), Write(arrow_portland))
+        self.wait()
+
+        self.play(
+            *[FadeOut(t) for t in cities_text],
+            *[FadeOut(arrow_portland), FadeOut(arrow_seattle), FadeOut(cities_label)],
+        )
+        self.wait()
+
+        edges_to_highlight = [(12, 19), (19, 62)]
+
+        self.play(LaggedStart(*[Create(e) for e in fake_edges.values()]), run_time=3)
+        self.wait()
+        roads = (
+            Text("Roads", font=REDUCIBLE_FONT).scale(0.3).move_to(UP * 3 + LEFT * 3.5)
+        )
+        arrow1 = Arrow(
+            roads.get_bottom(),
+            fake_edges[edges_to_highlight[0]].get_center(),
+            color=REDUCIBLE_YELLOW,
+            buff=SMALL_BUFF * 1.5,
+            max_tip_length_to_length_ratio=0.2,
+        )
+        arrow2 = Arrow(
+            roads.get_bottom(),
+            fake_edges[edges_to_highlight[1]].get_center(),
+            color=REDUCIBLE_YELLOW,
+            buff=SMALL_BUFF * 1.5,
+            max_tip_length_to_length_ratio=0.2,
+        )
+        self.play(FadeIn(roads), Write(arrow1), Write(arrow2))
+        self.wait()
+        edge_weight1 = (
+            Text("900", font=REDUCIBLE_MONO)
+            .set_stroke(BLACK, width=3, background=True, opacity=0.8)
+            .scale(0.2)
+            .move_to(fake_edges[edges_to_highlight[0]].get_center())
+        )
+        edge_weight2 = (
+            Text("500", font=REDUCIBLE_MONO)
+            .set_stroke(BLACK, width=3, background=True, opacity=0.8)
+            .scale(0.2)
+            .move_to(fake_edges[edges_to_highlight[1]].get_center())
+        )
+        self.wait()
+        self.play(
+            FadeIn(edge_weight1),
+            FadeIn(edge_weight2),
+        )
+        self.wait()
+        self.play(
+            FadeOut(roads),
+            FadeOut(arrow1),
+            FadeOut(arrow2),
+            FadeOut(edge_weight1),
+            FadeOut(edge_weight2),
+        )
+        self.wait()
+        self.remove(*fake_edges.values())
+        self.remove(*graph.vertices.values())
+        self.wait()
+        self.play(FadeIn(graph))
+        self.wait()
+
+        start = self.show_start(1, graph, color=REDUCIBLE_CHARM)
+        self.play(FadeIn(*start))
+        goal = self.show_goal(0, graph, color=REDUCIBLE_GREEN)
+        self.play(FadeIn(*goal))
+        self.wait()
+
+        optimal_path, _ = solve_astar(graph, 1, 0, h_func=euclidean_distance)
+        print(optimal_path)
+        nodes_expanded = self.show_nodes_expanded(
+            graph,
+            1,
+            0,
+            h_func=lambda u, v: 0,
+            use_heappop=False,
+        )
+        ucs_edges = []
+        for mob in nodes_expanded:
+            if isinstance(mob, TipableVMobject):
+                ucs_edges.append(mob.copy().set_stroke(REDUCIBLE_YELLOW, width=3))
+        self.play(
+            LaggedStart(*[ShowPassingFlash(mob, time_width=0.3) for mob in ucs_edges]),
+            run_time=8,
+        )
+        self.wait()
+
+        path = self.show_path(optimal_path, graph, color=REDUCIBLE_GREEN)
+        animations = []
+        for mob in path:
+            if isinstance(mob, TipableVMobject):
+                animations.append(mob.animate.set_stroke(REDUCIBLE_GREEN, width=5))
+            else:
+                animations.append(FadeIn(mob))
+        self.play(LaggedStart(*animations), run_time=3)
+        self.wait()
+
+    def get_cities(self):
+        us_cities = {
+            "New York": (4.2, 0.7),
+            "Kansas City": (0.2, 0.3),
+            "Los Angeles": (-4.5, -0.8),
+            "Chicago": (1.6, 0.9),
+            "Houston": (0.2, -1.9),
+            "Phoenix": (-3, -1.1),
+            "Philadelphia": (4, 0.35),
+            "San Antonio": (-0.5, -2),
+            "San Diego": (-3.9, -1.2),
+            "Dallas": (0.1, -1.1),
+            "San Jose": (-4.9, -0.3),
+            "San Francisco": (-5, -0.0),
+            "Seattle": (-4.8, 2.4),
+            "St Louis": (1.1, 0.1),
+            "Santa Fe": (-1.5, -0.5),
+            "Las Vegas": (-3.5, -0.45),
+            "Salt Lake City": (-3, 0.7),
+            "Portland": (-5, 1.8),
+            "Boise": (-3.8, 1.15),
+            "Helena": (-3, 2),
+            "Casper": (-2, 1),
+            "Denver": (-1.5, 0.5),
+            "Oklahoma City": (-0.5, -0.6),
+            "Topeka": (-0.1, 0.1),
+            "Lincoln": (-0.2, 0.6),
+            "Pierre": (-0.5, 1.5),
+            "Bismarck": (-0.5, 2.2),
+            "Minneapolis": (0.5, 1.5),
+            "Des Moines": (0.5, 0.7),
+            "Little Rock": (0.7, -0.7),
+            "Baton Rouge": (1, -1.7),
+            "New Orleans": (1.2, -1.9),
+            "Jackson": (1.2, -1.4),
+            "Montgomery": (1.9, -1.7),
+            "Atlanta": (2.2, -1),
+            "Nashville": (1.8, -0.5),
+            "Tampa": (2.7, -2.3),
+            "Milwaukee": (1.5, 1.2),
+            "Detroit": (2.5, 1),
+            "Cleveland": (2.8, 0.8),
+            "Charlotte": (2.8, -0.7),
+            "Richmond": (3.5, -0.2),
+            "Washington DC": (3.65, 0.1),
+            "Indianapolis": (1.9, 0.4),
+            "Lexington": (2.4, -0.2),
+            "Columbia": (3, -1),
+            "Syracuse": (3.9, 1.1),
+            "Burlington": (4.5, 1.4),
+            "Concord": (4.7, 1.3),
+            "Augusta": (5.2, 1.7),
+            "Boston": (4.8, 1),
+            "Hartford": (4.5, 0.8),
+            "Providence": (4.7, 0.85),
+            "Pittsburgh": (3.2, 0.6),
+            "Columbus": (2.5, 0.5),
+            "Tallahassee": (2.5, -1.9),
+            # some extra random cities
+            "A": (-1.5, -1),
+            "B": (-3, 0),
+            "C": (-4.8, 0.3),
+            "D": (-4.5, -0.5),
+            "E": (-4.9, 1),
+            "F": (0.4, 2.3),
+            "G": (-2.1, 2.5),
+        }
+        return us_cities
+
+
+class Introduction(AstarAnimationTools):
+    def construct(self):
+        from manim import SVGMobject
+
+        grid_layout = {}
+        index = 0
+        step = 0.5
+        for i in np.arange(-5.5, 6, step):
+            for j in np.arange(-3, 3.5, step):
+                grid_layout[index] = i * RIGHT + j * UP
+                index += 1
+        edges = [
+            (i, j)
+            for i in grid_layout
+            for j in grid_layout
+            if np.linalg.norm(grid_layout[i] - grid_layout[j]) == step and i < j
+        ]
+        # add random normal noise to x and y coordinates of each value in grid_layout
+        grid_layout = {
+            i: grid_layout[i]
+            + np.array([np.random.normal(-0.1, 0.1), np.random.normal(-0.1, 0.1), 0])
+            for i in grid_layout
+        }
+        grid = AGraph(
+            list(grid_layout.keys()),
+            edges=edges,
+            layout=grid_layout,
+            labels=False,
+            vertex_config={
+                "stroke_color": REDUCIBLE_PURPLE,
+                "stroke_width": 2,
+                "fill_color": REDUCIBLE_PURPLE_DARK_FILL,
+                "fill_opacity": 1,
+                "radius": 0.05,
+            },
+            edge_config={
+                "color": REDUCIBLE_VIOLET,
+                "stroke_width": 3,
+            },
+            edge_buff=0,
+        )
+        edge_dict = grid.get_all_edges()
+        # set all opacities to low here manually
+        DEFAULT_OPACITY = 0.25
+        edge_dict = {
+            k: v.set_stroke(opacity=DEFAULT_OPACITY)
+            for k, v in edge_dict.items()
+            if k in edges
+        }
+        self.play(*[GrowFromCenter(edge) for edge in edge_dict.values()])
+        self.wait()
+        start = grid.vertices[0].scale(1.8)
+        end = grid.vertices[len(grid_layout) - 1]
+        self.play(
+            FadeIn(start),
+        )
+        self.wait()
+        self.add_foreground_mobject(start)
+        pin = SVGMobject("pin.svg").scale(0.3)
+        pin.next_to(end, UP, buff=0).shift(DOWN * SMALL_BUFF * 0.8)
+        self.play(FadeIn(pin, shift=UP * 0.5))
+        self.wait()
+
+        nodes_expanded = self.show_nodes_expanded(
+            grid, 0, len(grid_layout) - 1, h_func=lambda u, v: 0
+        )
+        animations = []
+        other_animations = []
+        for mob in nodes_expanded:
+            if isinstance(mob, TipableVMobject):
+                animations.append(
+                    ShowPassingFlash(
+                        mob.copy().set_stroke(REDUCIBLE_YELLOW, width=6, opacity=1),
+                        time_width=0.4,
+                    )
+                )
+                max_distance = euclidean_distance(
+                    grid.vertices[0], grid.vertices[len(grid_layout) - 1]
+                )
+                opacity = max(
+                    DEFAULT_OPACITY,
+                    1
+                    - (
+                        np.linalg.norm(
+                            mob.get_center()
+                            - grid.vertices[len(grid_layout) - 1].get_center()
+                        )
+                        / max_distance
+                    ),
+                )
+                other_animations.append(
+                    Create(mob.copy().set_stroke(REDUCIBLE_YELLOW, opacity=opacity))
+                )
+        self.play(LaggedStart(*animations), LaggedStart(*other_animations), run_time=15)
+        self.wait()
+
+        optimal_path, _ = solve_astar(
+            grid, 0, len(grid_layout) - 1, h_func=euclidean_distance
+        )
+        path = self.show_path(optimal_path, grid, color=REDUCIBLE_GREEN)
+        animations = []
+        for mob in path:
+            if isinstance(mob, TipableVMobject):
+                animations.append(
+                    Create(mob.copy().set_stroke(REDUCIBLE_GREEN, width=9, opacity=1))
+                )
+        for anim in animations:
+            self.play(anim, rate_func=linear, run_time=0.2)
+        self.wait()
+
+
+class Conclusion(AstarAnimationTools):
+    def construct(self):
+        from manim import SVGMobject
+
+        grid_layout = {}
+        index = 0
+        step = 0.3
+        for i in np.arange(-5.5, 6, step):
+            for j in np.arange(-3, 3.5, step):
+                grid_layout[index] = i * RIGHT + j * UP
+                index += 1
+        edges = [
+            (i, j)
+            for i in grid_layout
+            for j in grid_layout
+            if round(np.linalg.norm(grid_layout[i] - grid_layout[j]), 1) == step
+            and i < j
+        ]
+        # add random normal noise to x and y coordinates of each value in grid_layout
+        grid_layout = {
+            i: grid_layout[i]
+            + np.array(
+                [np.random.normal(-0.06, 0.06), np.random.normal(-0.06, 0.06), 0]
+            )
+            for i in grid_layout
+        }
+        grid = AGraph(
+            list(grid_layout.keys()),
+            edges=edges,
+            layout=grid_layout,
+            labels=False,
+            vertex_config={
+                "stroke_color": REDUCIBLE_PURPLE,
+                "stroke_width": 2,
+                "fill_color": REDUCIBLE_PURPLE_DARK_FILL,
+                "fill_opacity": 1,
+                "radius": 0.05,
+            },
+            edge_config={
+                "color": REDUCIBLE_VIOLET,
+                "stroke_width": 3,
+            },
+            edge_buff=0,
+        )
+        edge_dict = grid.get_all_edges()
+        # set all opacities to low here manually
+        DEFAULT_OPACITY = 0.25
+        edge_dict = {
+            k: v.set_stroke(opacity=DEFAULT_OPACITY)
+            for k, v in edge_dict.items()
+            if k in edges
+        }
+        self.add(*edge_dict.values())
+        self.wait()
+
+        start = grid.vertices[0].scale(1.8)
+        end = grid.vertices[len(grid_layout) - 1]
+
+        pin = SVGMobject("pin.svg").scale(0.3)
+        pin.next_to(end, UP, buff=0).shift(DOWN * SMALL_BUFF * 0.8)
+        self.play(FadeIn(start), FadeIn(pin, shift=UP * 0.5))
+        self.add_foreground_mobject(start)
+        self.add_foreground_mobject(pin)
+
+        self.wait()
+
+        nodes_expanded = self.show_nodes_expanded(
+            grid, 0, len(grid_layout) - 1, h_func=euclidean_distance
+        )
+        animations = []
+        other_animations = []
+        for mob in nodes_expanded:
+            if isinstance(mob, TipableVMobject):
+                animations.append(
+                    ShowPassingFlash(
+                        mob.copy().set_stroke(REDUCIBLE_YELLOW, width=6, opacity=1),
+                        time_width=0.4,
+                    )
+                )
+                max_distance = euclidean_distance(
+                    grid.vertices[0], grid.vertices[len(grid_layout) - 1]
+                )
+                opacity = max(
+                    DEFAULT_OPACITY,
+                    1
+                    - (
+                        np.linalg.norm(
+                            mob.get_center()
+                            - grid.vertices[len(grid_layout) - 1].get_center()
+                        )
+                        / max_distance
+                    ),
+                )
+                other_animations.append(
+                    Create(mob.copy().set_stroke(REDUCIBLE_YELLOW, opacity=opacity))
+                )
+        self.play(LaggedStart(*animations), LaggedStart(*other_animations), run_time=20)
+        self.wait()
+
+        optimal_path, _ = solve_astar(
+            grid, 0, len(grid_layout) - 1, h_func=euclidean_distance
+        )
+        path = self.show_path(optimal_path, grid, color=REDUCIBLE_GREEN)
+        animations = []
+        for mob in path:
+            if isinstance(mob, TipableVMobject):
+                animations.append(
+                    Create(mob.copy().set_stroke(REDUCIBLE_GREEN, width=9, opacity=1))
+                )
+        for anim in animations:
+            self.play(anim, rate_func=linear, run_time=0.2)
+        self.wait()
+
+
+class TransitionTemplate(Scene):
+    def construct(self):
+        bg = ImageMobject("transition-bg.png").scale_to_fit_width(config.frame_width)
+        self.add(bg)
+        self.wait()
+
+        NUM_TRANSITIONS = 5
+        self.transition("Graph Representation", 1, NUM_TRANSITIONS)
+        self.wait()
+
+        self.transition("Greedy Approach", 2, NUM_TRANSITIONS)
+        self.wait()
+
+        self.transition("Uniform Cost Search (UCS)", 3, NUM_TRANSITIONS)
+        self.wait()
+
+        self.transition("Greedy vs UCS", 4, NUM_TRANSITIONS)
+        self.wait()
+
+        self.transition("A* Search", 5, NUM_TRANSITIONS)
+        self.wait()
+
+    def transition(self, transition_name, index, total):
+        """
+        Create transitions easily.
+
+        - Transition name — string, self explanatory
+        - Index correspond to the position of this transition on the video
+        - Total corresponds to the total amount of transitions there will be
+
+        Total will generate a number of nodes and index will highlight that specific
+        node, showing the progress.
+        """
+
+        title = (
+            Text(transition_name, font=REDUCIBLE_FONT, weight=BOLD)
+            .set_stroke(BLACK, width=15, background=True)
+            .scale_to_fit_width(config.frame_width - 3)
+            .shift(UP)
+        )
+
+        nodes_and_lines = VGroup()
+        for n in range(1, total + 1):
+            if n == index:
+                node = (
+                    Circle()
+                    .scale(0.2)
+                    .set_stroke(REDUCIBLE_YELLOW)
+                    .set_fill(REDUCIBLE_YELLOW_DARKER, opacity=1)
+                )
+                nodes_and_lines.add(node)
+            else:
+                nodes_and_lines.add(
+                    Circle()
+                    .scale(0.2)
+                    .set_stroke(REDUCIBLE_PURPLE)
+                    .set_fill(REDUCIBLE_PURPLE_DARK_FILL, opacity=1)
+                )
+
+            nodes_and_lines.add(Line().set_color(REDUCIBLE_PURPLE))
+        nodes_and_lines.remove(nodes_and_lines[-1])
+
+        nodes_and_lines.arrange(RIGHT, buff=0.5).scale_to_fit_width(
+            config.frame_width - 5
+        ).to_edge(DOWN, buff=1)
+
+        self.play(
+            FadeIn(title, shift=UP * 0.3), LaggedStartMap(FadeIn, nodes_and_lines)
+        )
+
+        self.wait()
+        self.play(FadeOut(title), FadeOut(nodes_and_lines))
+
+
+class KeyTakeAway(Scene):
+    def construct(self):
+        key_takeaway = Text(
+            "A* Search: Hybrid of UCS and Greedy Algorithms",
+            font=REDUCIBLE_FONT,
+            weight=BOLD,
+        ).scale(0.5)
+        key_takeaway.move_to(UP * 3.5)
+        self.play(Write(key_takeaway, run_time=2))
+        self.wait()
+
+
+class SummaryScreen(Scene):
+    def construct(self):
+        screen_rect = ScreenRectangle(height=6)
+        self.play(FadeIn(screen_rect))
+        self.wait()
+
+
+class Patreons(Scene):
+    def construct(self):
+        thanks = Tex("Special Thanks to These Patreons").scale(1.2)
+        patreons = [
+            "Winston Durand",
+            "Andreas",
+            r"Adam D\v{r}ínek",
+            "kerrytazi",
+            "Maggie Nguyen",
+            "Matt Q",
+            "Brian Cloutier",
+            "Rocky",
+            "George Sharabidze",
+            "Justin",
+        ]
+        patreon_text = VGroup(
+            thanks,
+            VGroup(*[Tex(name).scale(0.9) for name in patreons]).arrange_in_grid(
+                rows=5, buff=(0.75, 0.25)
+            ),
+        )
+        patreon_text.arrange(DOWN)
+        patreon_text.to_edge(DOWN)
+
+        self.play(Write(patreon_text[0]))
+        self.play(*[Write(text) for text in patreon_text[1]])
+        self.wait()
+
+
+class ArrowAddition(Scene):
+
+    def construct(self):
+        arrow = Arrow(ORIGIN, LEFT * 2, max_tip_length_to_length_ratio=0.2)
+        arrow.move_to(LEFT * 5 + UP * 3)
+        text = Text("g()")
