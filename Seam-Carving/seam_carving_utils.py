@@ -111,3 +111,47 @@ def crop_c(img, scale_c):
         img = carve_column(img)
 
     return img
+
+
+def generate_all_seams_recursively(pixel_array, top_pixel=2):
+    """
+    Function to generate all seams recursively. Given an input top pixel and
+    the actual array, we traverse the array recursively and obtain all the possible
+    seams under that particular top pixel.
+
+    Ouput is in [[(row, col), ...], ...] format. That is, an array of sorted arrays
+    of coordinates that list the steps to follow for each seam.
+
+    Given the number of rows, n, this will output less than 3^n possible seams. It's
+    a bit less since those seams that are out of bounds won't be returned.
+    """
+    rows, cols = pixel_array.shape
+    seams_array = []
+
+    def traverse(arr, seam: list, r, c):
+        # If the current position is the bottom-right corner of
+        # the matrix
+        if r >= rows - 1:
+
+            seam.append((r, c))
+            seams_array.append(seam[: r + 1])
+            seam.pop()
+
+            return
+
+        # Print the value at the current position
+        seam.append((r, c))
+
+        # If the end of the current row has not been reached
+        if c - 1 >= 0:
+            traverse(arr, seam, r + 1, c - 1)
+
+        traverse(arr, seam, r + 1, c)
+
+        if c + 1 < cols:
+            traverse(arr, seam, r + 1, c + 1)
+
+        seam.pop()
+
+    traverse(pixel_array, [], 0, top_pixel)
+    return seams_array
